@@ -1,0 +1,17 @@
+triggers:
+  OrderArrival: OBSRP
+  PickerIdle: OBSRP
+
+conditions:
+  OBSRP:
+#      _target_: ware_ops_sim.sim.conditions.ShiftStartNumbOrdersCondition
+#      threshold: 20
+    _target_: ware_ops_sim.sim.conditions.NbrOrdersNbrPickersCondition
+    order_window: 302
+    picker_aval: 1
+
+state_transformer:
+  OBSRP:
+    _target_: ware_ops_sim.sim.state.state_transformer.OBSRPStateTransformer
+
+learnable_problems:

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ware_ops_sim"
+version = "0.1.0"
+description = "A configurable warehouse simulation and RL environment"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas~=2.3.3",
+    "ware_ops_algos==0.1.0",
+    "ware_ops_sim==0.1.0",
+    "openpyxl==3.1.5",
+    "hydra-core",
+    "gymnasium",
+    "sb3-contrib",
+    "seaborn",
+    "wandb",
+    "tensorboard",
+    "stable-baselines3"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
