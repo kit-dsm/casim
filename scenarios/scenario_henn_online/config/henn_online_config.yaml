@@ -22,6 +22,10 @@ instances_base: ${data_dir}/instances
 cache_base: ${instances_base}/caches
 verbose: True
 
+viz:
+  launch: true
+  port: 8050
+
 experiment:
   name: ${data_card.name}
   output_dir: ${hydra:runtime.output_dir}

@@ -133,7 +133,7 @@ def setup_scenario(cfg: DictConfig) -> SimulationEngine:
         loader_kwargs=loader_kwargs,
         triggers=trigger_map,
         conditions_map=conditions_map,
-        event_loggers=[DashLogger(Path(cfg.experiment.output_dir) / "event_logs" / "dash_log.pkl"),
+        event_loggers=[DashLogger(Path(cfg.experiment.output_dir) / "viz"),
                        KPILogger()]
     )
     return sim

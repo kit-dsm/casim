@@ -58,6 +58,9 @@ class SimulationEngine:
         for hook in hooks:
             hook(self, domain)
 
+        for el in self.even_loggers:
+            el.on_reset(domain)
+
     def add_order(self, order: Order):
         self.add_event(OrderArrival(order.order_date, order))
 

@@ -1,6 +1,7 @@
 import copy
 from pathlib import Path
 
+from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.domain_objects.tour_model import TourStates
 from casim.events.base_events import Event
 from casim.state import State
@@ -8,25 +9,55 @@ from scenarios.io_helpers import dump_pickle
 
 
 class EventLogger:
+    def on_reset(self, domain: SimWarehouseDomain): ...
     def on_event(self, event: Event, state: State) -> None: ...
     def on_done(self, state: State) -> None: ...
 
 
 class DashLogger(EventLogger):
-    def __init__(self, out_path: Path):
-        self.out_path = Path(out_path)
-        self.out_path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, out_dir: Path):
+        self.out_dir = Path(out_dir)
+        self.out_dir.mkdir(parents=True, exist_ok=True)
         self.snapshots = []
 
+    def on_reset(self, domain):
+        self.snapshots = []
+        dump_pickle(str(self.out_dir / "static.pkl"), {
+            "layout": domain.layout,
+            "storage_locations": domain.storage.locations,
+            "orders": domain.orders.orders
+        })
+
     def on_event(self, event, state):
+        om = state.order_manager
+        tm = state.tour_manager
+
         self.snapshots.append({
-            "event": f"{str(event.id).zfill(5)} - {event.__class__.__name__}",
+            "event_id": event.id,
+            "event_type": event.__class__.__name__,
             "time": state.current_time,
+
             "pickers": copy.deepcopy(state.resource_manager.get_resources()),
+
+            "buffered_order_ids": list(om._order_buffer.keys()),
+            "pick_list_buffer": [
+                [o.order_id for o in pl.orders] for pl in om._pick_list_buffer
+            ],
+
+            "tours": {
+                t_id: {
+                    "status": t.status,
+                    "picker_id": t.assigned_resource,
+                    "order_ids": list(t.order_numbers),
+                    "start_time": t.start_time,
+                }
+                for t_id, t in tm.all_tours.items()
+            },
+            "active_picker_tour": dict(tm._active_picker_tour),
         })
 
     def on_done(self, state):
-        dump_pickle(str(self.out_path), self.snapshots)
+        dump_pickle(str(self.out_dir / "events.pkl"), self.snapshots)
 
 
 class KPILogger(EventLogger):

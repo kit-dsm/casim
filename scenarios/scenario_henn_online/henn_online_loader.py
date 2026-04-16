@@ -348,8 +348,13 @@ class HennOnlineLoader(DataLoader):
                                  dimensions=[DimensionType.WEIGHT],
                                  box_can_mix_orders=True)
             resources_list = [
-                Resource(id=0, capacity=int(header["PICKER_CAPACITY"],
-                                            ), speed=1, time_per_pick=10, pick_cart=pick_cart, tour_setup_time=180)
+                Resource(id=0,
+                         capacity=int(header["PICKER_CAPACITY"]),
+                         speed=1,
+                         time_per_pick=10,
+                         pick_cart=pick_cart,
+                         tour_setup_time=180,
+                         current_location=start_location),
             ]
         else:
             resources_list = [Resource(id=0)]

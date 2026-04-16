@@ -1,5 +1,5 @@
 import logging
-import os
+from pathlib import Path
 
 import hydra
 import numpy as np
@@ -8,8 +8,8 @@ from omegaconf import DictConfig
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.operational_events import PickerArrival
 from casim.simulation_engine import SimulationEngine
+from casim.viz.app import launch
 from scenarios.experiment_commons import setup_scenario, setup_decision_engine, load_and_flatten_data_card
-from scenarios.io_helpers import dump_pickle
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -35,14 +35,6 @@ def add_orders_hook(sim: SimulationEngine,
         sim.add_order(order)
 
 
-def save_static_info(sim: SimulationEngine,
-                     domain: SimWarehouseDomain):
-    target = sim.cache_path / "vis_input"
-    if not os.path.exists(target):
-        os.mkdir(target)
-    dump_pickle(str(target / "inital_domain.pkl"), domain)
-
-
 @hydra.main(config_path="config", config_name="henn_online_config")
 def main(cfg: DictConfig):
     datacard = load_and_flatten_data_card(cfg.data_card)
@@ -52,7 +44,7 @@ def main(cfg: DictConfig):
 
     sim.reset(hooks=[add_orders_hook,
                      picker_arrival_hook,
-                     save_static_info])
+                     ])
 
     done = False
     while not done:
@@ -61,6 +53,10 @@ def main(cfg: DictConfig):
             break
         events_to_add = decision_engine.on_trigger(state_snapshot)
         sim.step(events_to_add)
+
+    if cfg.viz.launch:
+        viz_dir = Path(cfg.experiment.output_dir) / "viz"
+        launch(viz_dir, port=cfg.viz.port, debug=False)
 
 
 if __name__ == "__main__":
