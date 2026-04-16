@@ -1,0 +1,37 @@
+triggers:
+  ShiftStart: OBP
+#  OrderArrival: OBP
+  PickerArrival: ORP
+  TourEnd: ORP
+  PickerIdle: ORP
+
+execution:
+  OBP:
+    _target_: experiments.experiment_commons.CoSyRunner
+    endpoint: EvaluationPickList
+    problem_class: OBP
+  ORP:
+#    _target_: experiments.experiment_commons.CoSyRunner
+#    endpoint: EvaluationRouting
+#    problem_class: ORP
+    _target_: experiments.experiment_commons.CoSyRunner
+    endpoint: EvaluationRouting
+    problem_class: ORP
+
+conditions:
+  OBP:
+    _target_: ware_ops_sim.sim.conditions.NumberOrdersCondition
+    threshold: 1
+  ORP:
+#    _target_: ware_ops_sim.sim.conditions.PickerAvailCondition
+    _target_: ware_ops_sim.sim.conditions.NumberPickListCondition
+    threshold: 1
+# _target_: BatchFullCondition
+
+state_transformer:
+  OBP:
+    _target_: ware_ops_sim.sim.state.state_transformer.BatchStateTransformer
+  ORP:
+    _target_: ware_ops_sim.sim.state.state_transformer.OnlineStateTransformer
+
+learnable_problems:

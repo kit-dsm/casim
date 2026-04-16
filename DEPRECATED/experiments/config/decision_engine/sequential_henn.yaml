@@ -1,0 +1,22 @@
+triggers:
+  OrderArrival: OBRP # we PUSH out artificial picker arrival events here; RoutingDone expects a picker ID already
+  PickerIdle: OBRP # a picker PULLs a new tour
+  FlushRemainingOrders: OBRP
+
+conditions:
+  OBRP:
+    _target_: ware_ops_sim.sim.conditions.NbrOrdersNbrPickersCondition
+    order_window: 2
+    picker_aval: 1
+
+execution:
+  OBRP:
+    _target_: experiments.experiment_commons.CoSyRunner
+    endpoint: EvaluationRouting
+    problem_class: OBRP
+
+state_transformer:
+  OBRP:
+    _target_: ware_ops_sim.sim.state.state_transformer.OBSRPStateTransformer
+
+learnable_problems:

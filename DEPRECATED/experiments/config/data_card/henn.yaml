@@ -1,0 +1,83 @@
+name: "HennOnline"
+problem_type: OBRP # TODO we removed order_selection, do we still need it?
+
+objective: Distance
+source:
+  data_loader: HennOnlineLoader
+  filepath: "29s-40-30-0.txt"
+
+
+layout:
+  type: conventional
+  objects:
+    - name: LayoutParams
+      features:
+        - name: start_node
+        - name: end_node
+        - name: closest_node_to_start
+        - name: dist_pick_locations
+        - name: dist_aisle_location
+        - name: dist_aisle
+        - name: dist_start
+        - name: dist_end
+        - name: n_aisles
+        - name: n_pick_locations
+        - name: n_blocks
+          value: 1
+        - name: dist_top_to_pick_location
+        - name: dist_bottom_to_pick_location
+        - name: start_location
+        - name: end_location
+        - name: min_aisle_position
+        - name: max_aisle_position
+
+    - name: LayoutNetwork
+      features:
+        - name: graph
+        - name: distance_matrix
+        - name: predecessor_matrix
+
+articles:
+  type: standard
+  objects:
+    - name: Article
+      features:
+        - name: article_id
+
+orders:
+  type: standard
+  objects:
+    - name: Order
+      features:
+        - name: order_number
+        - name: order_date
+
+      objects:
+        - name: OrderPosition
+          features:
+            - name: amount
+            - name: article_id
+
+resources:
+  type: human
+  objects:
+    - name: Resource
+      type: human
+      features:
+        - name: speed
+
+      objects:
+        - name: PickCart
+          type: manual
+          features:
+            - name: capacities
+            - name: dimensions_type
+              value: [items]
+
+storage:
+  type: dedicated
+  objects:
+    - name: StorageLocations
+      features:
+        - name: amount
+        - name: article_id

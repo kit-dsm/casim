@@ -1,0 +1,25 @@
+triggers:
+  OrderArrival: OBRP
+  PickerIdle: ORRP
+#  BatchingDone: ORP
+#  PickerArrival: ORP
+#  TourEnd: ORP
+
+execution:
+  OBRP:
+    _target_: experiments.experiment_commons.CoSyRunner
+    endpoint: EvaluationRouting
+    problem_class: OBRP
+
+conditions:
+  OBRP:
+    _target_: ware_ops_sim.sim.conditions.NbrOrdersNbrPickersCondition
+    order_window: 10
+    picker_aval: 2
+
+
+state_transformer:
+  OBRP:
+    _target_: ware_ops_sim.sim.state.state_transformer.OBSRPStateTransformer
+
+learnable_problems:

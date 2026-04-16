@@ -1,0 +1,16 @@
+triggers:
+  PickerArrival: OBSRP #OSRP
+  TourEnd: OBSRP
+
+conditions:
+  OBSRP:
+    _target_: ware_ops_sim.sim.conditions.NbrOrdersNbrPickersCondition
+    order_window: 10
+    picker_aval: 2
+
+state_transformer:
+  OBSRP:
+    _target_: ware_ops_sim.sim.state.state_transformer.OnlineStateTransformer
+
+learnable_problems:
+  - OBSRP

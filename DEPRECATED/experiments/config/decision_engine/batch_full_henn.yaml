@@ -1,0 +1,34 @@
+triggers:
+  OrderArrival: OBP
+  PickerArrival: BSRP
+  PickerIdle: BSRP
+#  FlushRemainingOrders: BSRP
+#  PickListDone: PICKERSELECTIONASSIGNMENT
+#  PickerIdle: ORP
+#  BatchFull: PickerSelectionAssignment
+
+execution:
+  OBP:
+    _target_: experiments.experiment_commons.CoSyRunner
+    endpoint: EvaluationPickList
+    problem_class: OBP
+  BSRP:
+    _target_: experiments.experiment_commons.CoSyRunner
+    endpoint: EvaluationRouting
+    problem_class: BSRP
+
+conditions:
+  OBP:
+    _target_: ware_ops_sim.sim.conditions.NumberOrdersCondition
+    threshold: 10
+  BSRP:
+    _target_: ware_ops_sim.sim.conditions.NumberPickListCondition
+    threshold: 1
+
+
+state_transformer:
+  OBP:
+    _target_: ware_ops_sim.sim.state.state_transformer.BatchStateTransformer
+  BSRP:
+    _target_: ware_ops_sim.sim.state.state_transformer.BSRPStateTransformer
+learnable_problems:

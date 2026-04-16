@@ -1,0 +1,22 @@
+triggers:
+  OrderArrival: OBRSP # a picker PULLs a new tour
+  PickerIdle: OBRSP
+  FlushRemainingOrders: OBRSP
+
+conditions:
+  OBRSP:
+    _target_: ware_ops_sim.sim.conditions.NbrOrdersNbrPickersCondition
+    order_window: 1
+    picker_aval: 0
+
+execution:
+  OBRSP:
+    _target_: experiments.experiment_commons.CoSyRunner
+    endpoint: EvaluationScheduling
+    problem_class: OBRSP
+
+state_transformer:
+  OBRSP:
+    _target_: ware_ops_sim.sim.state.state_transformer.ReBatchingView
+
+learnable_problems:

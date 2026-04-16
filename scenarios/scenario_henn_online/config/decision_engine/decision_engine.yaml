@@ -1,0 +1,22 @@
+triggers:
+  OrderArrival: OBRSP # a picker PULLs a new tour
+  PickerIdle: OBRSP
+  FlushRemainingOrders: OBRSP
+
+conditions:
+  OBRSP:
+    _target_: casim.state.conditions.NbrOrdersNbrPickersCondition
+    order_window: 1
+    picker_aval: 1
+
+pipeline_runner:
+  OBRSP:
+    _target_: casim.pipelines.pipeline_runner.CoSyRunner
+    endpoint: EvaluationScheduling
+    problem_class: OBRSP
+
+
+state_snapshot:
+  OBRSP:
+    _target_: casim.state.state_snapshot.OBSRPStateView
+

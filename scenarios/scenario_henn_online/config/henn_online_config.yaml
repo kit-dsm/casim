@@ -1,0 +1,24 @@
+defaults:
+  - data_card: henn
+  - decision_engine: decision_engine
+  - optional sweep: None
+
+hydra:
+  job_logging:
+    root:
+      level: CRITICAL
+  hydra_logging:
+    root:
+      level: CRITICAL
+
+project_root: ${hydra:runtime.cwd}
+data_dir: ${project_root}/data
+instances_base: ${data_dir}/instances
+cache_base: ${instances_base}/caches
+verbose: True
+
+experiment:
+  name: ${data_card.name}
+  output_dir: ${project_root}/output/${data_card.name}
+  instance_name: ${experiment.name}/${now:%Y-%m-%d_%H-%M-%S}
+

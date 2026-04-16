@@ -1,0 +1,36 @@
+defaults:
+  - _self_
+  - data_cards: henn
+  - simulation: sequential_henn
+  - optional sweep: None
+  - override hydra/sweeper: optuna
+
+hydra:
+  run:
+    dir: ${project_root}/experiments/online/output/${experiment.name}/single/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: ${project_root}/experiments/online/output/${experiment.name}/sweep/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: trial_${hydra.job.num}
+  sweeper:
+    direction: minimize
+    study_name: tw_search
+    n_trials: 5
+    params:
+      simulation.conditions.OBRP.order_window: choice(2, 4, 8, 16, 32)
+  job_logging:
+    root:
+      level: CRITICAL
+  hydra_logging:
+    root:
+      level: INFO
+
+project_root: C:/Users/zm0714/Documents/Projekte/ware_ops_sim
+data_dir: ${project_root}/data
+instances_base: ${data_dir}/instances
+cache_base: ${instances_base}/caches
+verbose: True
+
+experiment:
+  name: ${data_cards.name}
+  output_dir: .
+  instance_name: ${experiment.name}
