@@ -1,6 +1,14 @@
-from ware_ops_algos.algorithms import PickList, CapacityChecker
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 
-from ware_ops_sim.sim.sim_domain import SimWarehouseDomain
+from casim.domain_objects.sim_domain import SimWarehouseDomain
+
+
+def build_condition_policies(cfg: DictConfig) -> dict:
+    return {
+        policy_key: instantiate(condition_cfg)
+        for policy_key, condition_cfg in cfg.decision_engine.conditions.items()
+    }
 
 
 class Condition:
@@ -48,7 +56,7 @@ class NumberPickListCondition(Condition):
         self.threshold = threshold
 
     def get_decision(self, state: SimWarehouseDomain) -> bool:
-        if len(state.warehouse_info.buffered_pick_lists) >= self.threshold:
+        if len(state.dynamic_warehouse_info.buffered_pick_lists) >= self.threshold:
             return True
         else:
             return False

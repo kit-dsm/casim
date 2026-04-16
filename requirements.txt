@@ -5,6 +5,7 @@ networkx==3.6.1
 scipy==1.16.3
 luigi==3.6.0
 openpyxl==3.1.5
+hydra-optuna-sweeper
 hydra-core
 gymnasium
 seaborn

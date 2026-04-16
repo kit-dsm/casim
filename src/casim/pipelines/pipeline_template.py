@@ -14,11 +14,9 @@ from luigi import LocalTarget
 from luigi.configuration import get_config
 from luigi.mock import MockTarget
 from luigi.tools import deps_tree
-from ware_ops_algos.algorithms.algorithm_filter import ConstraintEvaluator, AlgorithmFilter
-# from ware_ops_algos.domain_models.taxonomy import SUBPROBLEMS
+from ware_ops_algos.algorithms.algorithm_filter import ConstraintEvaluator
 from ware_ops_algos.utils.general_functions import load_model_cards, ModelCard
 
-from ware_ops_sim.sim.sim_domain import DynamicInfo
 from cosy_luigi.combinatorics import CoSyLuigiTask, CoSyLuigiTaskParameter, CoSyLuigiRepo
 from ware_ops_algos.data_loaders import HesslerIrnichLoader
 from ware_ops_algos.algorithms import (GreedyItemAssignment,
@@ -39,25 +37,8 @@ from ware_ops_algos.domain_models import BaseWarehouseDomain, Articles, Resource
 
 from ware_ops_pipes.utils.io_helpers import load_pickle, dump_pickle
 
-SUBPROBLEMS = {"OBRP": {"variables": ["item_assignment", "batching", "routing"]},
-               "SPRP": {"variables": ["routing"]},
-               "ORP": {
-                   "objectives": ["tardiness", "picking_time", "cost", "completion_time"],
-                   "variables": ["routing"]
-               },
-               "OBP": {
-                    "objectives": ["tardiness", "picking_time", "cost"],
-                    "variables": ["item_assignment", "order_selection", "batching"]
-                    },
-               "BSRP": {
-                   "objectives": [],
-                   "variables": ["batching", "routing"]
-               },
-               "OBRSP": {
-                   "objectives": [],
-                   "variables": ["item_assignment", "batching", "routing", "sequencing"]
-               }
-               }
+from casim.domain_objects.sim_domain import DynamicInfo
+from casim.pipelines.taxonomy import TAXONOMY
 
 
 @dataclass
@@ -924,11 +905,25 @@ class Evaluation(BaseComponent):
     # Global? vs: vars (während der synthese zugewiesenen variablen)
     @classmethod
     def constraints(cls) -> Sequence[Callable[..., bool]]:
+        # return [
+        #     lambda vs: problem_type_constraint(vs, SUBPROBLEMS, cls._data_card, cls._models),
+        #     lambda vs: feature_constraint(vs, cls._data_card, cls._models),
+        #     lambda vs: batching_loader_constraint(vs, SUBPROBLEMS, cls._data_card, PickListProvider),
+        #     lambda vs: check_unique(vs, [Evaluation])
+        # ]
+        _cache = {}
+
+        def _get_classes(vs):
+            key = id(vs)  # or frozenset of ids
+            if key not in _cache:
+                _cache[key] = [pc.__class__ for pc in traverse_pipeline(vs.values())]
+            return _cache[key]
+
         return [
-            lambda vs: problem_type_constraint(vs, SUBPROBLEMS, cls._data_card, cls._models),
-            lambda vs: feature_constraint(vs, cls._data_card, cls._models),
-            lambda vs: batching_loader_constraint(vs, SUBPROBLEMS, cls._data_card, PickListProvider),
-            lambda vs: check_unique(vs, [Evaluation])
+            lambda vs: problem_type_constraint(vs, TAXONOMY, cls._data_card, cls._models, _get_classes),
+            lambda vs: feature_constraint(vs, cls._data_card, cls._models, _get_classes),
+            lambda vs: batching_loader_constraint(vs, TAXONOMY, cls._data_card, PickListProvider, _get_classes),
+            lambda vs: check_unique(vs, [Evaluation], _get_classes)
         ]
 
 
@@ -969,13 +964,29 @@ class EvaluationScheduling(Evaluation):
         # self.output().open("w").write("Ok.")
 
 
-def traverse_pipeline(vs: Iterable[CoSyLuigiTask]) -> Iterable[CoSyLuigiTask]:
-    result = [*vs]
-    for v in result:
+# def traverse_pipeline(vs: Iterable[CoSyLuigiTask]) -> Iterable[CoSyLuigiTask]:
+#     result = [*vs]
+#     for v in result:
+#         req = v.requires()
+#         if isinstance(req, dict):
+#             req = v.requires().values()
+#         result.extend(traverse_pipeline(req))
+#     return result
+
+def traverse_pipeline(vs: Iterable[CoSyLuigiTask], visited=None) -> list[CoSyLuigiTask]:
+    if visited is None:
+        visited = set()
+    result = []
+    for v in vs:
+        vid = id(v)
+        if vid in visited:
+            continue
+        visited.add(vid)
+        result.append(v)
         req = v.requires()
         if isinstance(req, dict):
-            req = v.requires().values()
-        result.extend(traverse_pipeline(req))
+            req = list(req.values())
+        result.extend(traverse_pipeline(req, visited))
     return result
 
 
@@ -986,8 +997,11 @@ def traverse_pipeline_2(vs: Iterable[CoSyLuigiTask]) -> Iterable[CoSyLuigiTask]:
     return result
 
 
-def check_unique(vs: Mapping[str, CoSyLuigiTask], required_to_be_unique: Iterable[type[CoSyLuigiTask]]) -> bool:
-    classes = [pc.__class__ for pc in traverse_pipeline(vs.values())]
+def check_unique(vs: Mapping[str, CoSyLuigiTask], required_to_be_unique: Iterable[type[CoSyLuigiTask]], get_classes=None) -> bool:
+    if get_classes:
+        classes = get_classes(vs)
+    else:
+        classes = [pc.__class__ for pc in traverse_pipeline(vs.values())]
     seen_subclasses = {}
     for c in classes:
         # print(c)
@@ -1001,8 +1015,11 @@ def check_unique(vs: Mapping[str, CoSyLuigiTask], required_to_be_unique: Iterabl
     return True
 
 # was prüfen die funktionen wirklich? Statt constraints
-def batching_loader_constraint(vs, subproblems, data_card: DataCard, exclusive):
-    classes = [pc.__class__ for pc in traverse_pipeline(vs.values())]
+def batching_loader_constraint(vs, subproblems, data_card: DataCard, exclusive, get_classes=None):
+    if get_classes:
+        classes = get_classes(vs)
+    else:
+        classes = [pc.__class__ for pc in traverse_pipeline(vs.values())]
     problem = data_card.problem_class  # changed
     problems = subproblems[problem]["variables"]
     if "batching" in problems and exclusive in classes:
@@ -1010,8 +1027,11 @@ def batching_loader_constraint(vs, subproblems, data_card: DataCard, exclusive):
     return True
 
 
-def problem_type_constraint(vs, subproblems, data_card: DataCard, models) -> bool:
-    classes = [pc.__class__ for pc in traverse_pipeline(vs.values())]
+def problem_type_constraint(vs, subproblems, data_card: DataCard, models, get_classes=None) -> bool:
+    if get_classes:
+        classes = get_classes(vs)
+    else:
+        classes = [pc.__class__ for pc in traverse_pipeline(vs.values())]
     problem = data_card.problem_class  # changed
     problems = subproblems[problem]["variables"]
     for c in classes:
@@ -1023,8 +1043,11 @@ def problem_type_constraint(vs, subproblems, data_card: DataCard, models) -> boo
     return True
 
 
-def feature_constraint(vs, data_card: DataCard, models) -> bool:
-    classes = [pc.__class__ for pc in traverse_pipeline(vs.values())]
+def feature_constraint(vs, data_card: DataCard, models, get_classes=None) -> bool:
+    if get_classes:
+        classes = get_classes(vs)
+    else:
+        classes = [pc.__class__ for pc in traverse_pipeline(vs.values())]
 
     # Build a flat features lookup from DataCard sections
     domain_sections = {
@@ -1071,7 +1094,7 @@ def feature_constraint(vs, data_card: DataCard, models) -> bool:
                         if feature_name not in domain_features:
                             return False
                         evaluator = ConstraintEvaluator()
-                        if not evaluator.evaluate(domain_features[feature_name], constraint):
+                        if not evaluator.evaluate(feature_name, constraint):
                             return False
     return True
 

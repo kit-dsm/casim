@@ -7,10 +7,9 @@ from ware_ops_algos.domain_models import datacard_from_instance
 
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.events.operational_events import PickerArrival
+from casim.pipelines.objective_evaluator import ObjectiveEvaluator
 from casim.simulation_engine import SimulationEngine
-from experiments.experiment_commons import build_state_transformers, make_execution, build_data_loader, \
-    build_trigger_map, build_req_policy
-from ware_ops_sim.sim import SimWarehouseDomain
+from DEPRECATED.ware_ops_sim import SimWarehouseDomain
 
 
 @hydra.main(config_path="config", config_name="grocery_retailer_config")

@@ -3,18 +3,11 @@ from typing import Any
 
 import networkx as nx
 import pandas as pd
-from matplotlib import pyplot as plt
 from scipy.sparse.csgraph import floyd_warshall
-from ware_ops_algos.algorithms import (GreedyItemAssignment, OrderNrFifoBatching, ExactTSPRoutingDistance,
-                                       SShapeRouting, LargestGapRouting, MidpointRouting, ReturnRouting,
-                                       NearestNeighbourhoodRouting, EDDScheduling, SchedulingInput, WarehouseOrder,
-                                       PickList, ExactTSPBatchingAndRoutingDistance, ExactCombinedBatchingRouting)
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import BaseWarehouseDomain, Order, Location, Article, PickCart, DimensionType, \
     ResourceType, Resource, Resources, OrdersDomain, OrderType, Articles, ArticleType, StorageLocations, StorageType, \
     LayoutData, LayoutType, LayoutNetwork, LayoutParameters, WarehouseInfoType, WarehouseInfo, OrderPosition
-from ware_ops_algos.utils.io_helpers import load_pickle, dump_pickle
-from ware_ops_algos.utils.visualization import plot_route, plot_picker_gantt
 
 
 class HennOnlineLoader(DataLoader):

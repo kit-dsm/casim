@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from ware_ops_algos.algorithms import RouteNode
-from ware_ops_algos.domain_models import Resources, Resource
+from ware_ops_algos.domain_models import Resources, Resource, CobotPicker
 from ware_ops_pipes.utils.experiment_utils import Node # TODO fix where this comes from
 
 
@@ -28,7 +28,6 @@ class ResourceManager:
 
     def update_resource_location(self, picker_id: int, node: RouteNode) -> None:
         assert isinstance(node, RouteNode)
-        from ware_ops_sim.data_loaders import CobotPicker
         res = self._get_resource(picker_id)
         res.current_location = node
         if isinstance(res, CobotPicker):

@@ -3,11 +3,12 @@ from copy import deepcopy
 
 from ware_ops_algos.algorithms import Route, Job, PickerAssignment, WarehouseOrder, BatchObject, PickList
 from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, Order, Resource
-from ware_ops_sim.sim.state.layout_manager import LayoutManager
-from ware_ops_sim.sim.state.tour_manager import TourManager
-from ware_ops_sim.sim.state.resource_manager import ResourceManager
-from ware_ops_sim.sim.state.order_manager import OrderManager
-from ware_ops_sim.sim.state.storage_manager import StorageManager
+
+from .order_manager import OrderManager
+from .resource_manager import ResourceManager
+from .tour_manager import TourManager
+from .layout_manager import LayoutManager
+from .storage_manager import StorageManager
 
 
 class ExperimentTracker:
@@ -63,7 +64,7 @@ class ExperimentTracker:
         return result
 
 
-class SimulationState:
+class State:
     """
     Holds all mutable simulation data.
     """

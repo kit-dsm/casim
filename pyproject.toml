@@ -18,7 +18,8 @@ dependencies = [
     "seaborn",
     "wandb",
     "tensorboard",
-    "stable-baselines3"
+    "stable-baselines3",
+    "cosy-luigi"
 ]
 
 [project.optional-dependencies]

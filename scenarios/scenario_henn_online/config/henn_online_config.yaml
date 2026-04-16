@@ -4,6 +4,11 @@ defaults:
   - optional sweep: None
 
 hydra:
+  run:
+    dir: outputs/${data_card.name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/${data_card.name}/multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.num}
   job_logging:
     root:
       level: CRITICAL
@@ -19,6 +24,6 @@ verbose: True
 
 experiment:
   name: ${data_card.name}
-  output_dir: ${project_root}/output/${data_card.name}
-  instance_name: ${experiment.name}/${now:%Y-%m-%d_%H-%M-%S}
+  output_dir: ${hydra:runtime.output_dir}
+  instance_name: ${data_card.name}/${now:%Y-%m-%d_%H-%M-%S}
 

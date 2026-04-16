@@ -9,12 +9,18 @@ from luigi.configuration import get_config
 from ware_ops_algos.domain_models import BaseWarehouseDomain, DataCard
 from ware_ops_algos.utils.general_functions import load_model_cards
 
-from experiments.experiment_commons import ENDPOINT_REGISTRY
-from experiments.io_helpers import dump_pickle
-from ware_ops_sim.pipelines.cosy_template_2 import InstanceLoader, GreedyIA, FiFo, DueDate, OrderNrFiFo, \
-    LSBatchingNNFiFo, ClarkAndWrightNN, PickListProvider, ClarkAndWrightSShape, LSBatchingSShapeFiFo, LargestGap, \
-    SShape, Return, Midpoint, NearestNeighbourhood, RatliffRosenthal, TSPRouting, FiFoBatchSelection, LPTScheduler, \
-    EDDScheduler, SPTScheduler, ERDScheduler, EvaluationPickList, EvaluationRouting, EvaluationScheduling
+from casim.pipelines.pipeline_template import InstanceLoader, GreedyIA, FiFo, OrderNrFiFo, DueDate, LSBatchingNNFiFo, \
+    ClarkAndWrightNN, ClarkAndWrightSShape, LSBatchingSShapeFiFo, PickListProvider, SShape, Return, LargestGap, \
+    Midpoint, NearestNeighbourhood, RatliffRosenthal, TSPRouting, FiFoBatchSelection, LPTScheduler, EDDScheduler, \
+    SPTScheduler, ERDScheduler, EvaluationPickList, EvaluationRouting, EvaluationScheduling
+from scenarios.io_helpers import dump_pickle
+
+
+ENDPOINT_REGISTRY = {
+    "EvaluationRouting": EvaluationRouting,
+    "EvaluationPickList": EvaluationPickList,
+    "EvaluationScheduling": EvaluationScheduling
+}
 
 
 class CoSyRunner:
@@ -23,7 +29,7 @@ class CoSyRunner:
         instance_set_name: str,
         instances_dir: Path,
         cache_dir: Path,
-        project_root: Path,
+        output_dir: Path,
         instance_name: str,
         endpoint=None,
         problem_class=None,
@@ -35,16 +41,12 @@ class CoSyRunner:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache_path: Path = self.cache_dir / "dynamic_info.pkl"
-        self.project_root = Path(project_root)
         self.verbose = verbose
         self.endpoint = endpoint
         self.problem_class = problem_class
         self.pipelines = None
 
-        self.output_folder = (
-            self.project_root / "cosy"
-            / self.instance_set_name
-        )
+        self.output_folder = Path(output_dir) / "cosy"
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
         pkg_dir = Path(ware_ops_algos.__file__).parent
@@ -79,24 +81,25 @@ class CoSyRunner:
                                  # DueDate,
                                  # LSBatchingNNFiFo,
                                  ClarkAndWrightNN,
-                                 ClarkAndWrightSShape,
-                                 LSBatchingSShapeFiFo,
+                                 # ClarkAndWrightSShape,
+                                 # LSBatchingSShapeFiFo,
                                  # PickListProvider,
-                                 SShape,
-                                 Return,
-                                 LargestGap,
-                                 Midpoint,
+                                 # SShape,
+                                 # Return,
+                                 # LargestGap,
+                                 # Midpoint,
                                  NearestNeighbourhood,
                                  # RatliffRosenthal,
                                  # TSPRouting,
                                  # FiFoBatchSelection,
-                                 LPTScheduler,
+                                 # LPTScheduler,
                                  # EDDScheduler,
                                  SPTScheduler,
-                                 ERDScheduler,
+                                 # ERDScheduler,
                                  EvaluationPickList,
                                  EvaluationRouting,
                                  EvaluationScheduling)
+
             maestro = Maestro(repo.cls_repo, repo.taxonomy)
             self.pipelines = list(maestro.query(endpoint.target()))
             if self.verbose:
@@ -115,7 +118,7 @@ class CoSyRunner:
                                                     {'background': None,
                                                      'logdir': None,
                                                      'logging_conf_file': None,
-                                                     'log_level': 'DEBUG'
+                                                     'log_level': 'CRITICAL'
                                                      }))
         luigi.build(self.pipelines, local_scheduler=True)
         # self._cleanup(self.output_folder)

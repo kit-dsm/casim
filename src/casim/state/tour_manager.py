@@ -1,9 +1,11 @@
-from collections import deque, defaultdict, Counter
-from copy import deepcopy
+import logging
+from collections import defaultdict
 
-from ware_ops_algos.algorithms import Route, PickList, RouteNode, NodeType, TourPlanningState, TourStates, Node, \
+from ware_ops_algos.algorithms import Route, NodeType, TourPlanningState, TourStates, Node, \
     WarehouseOrder
-from ware_ops_sim.sim import logger
+
+logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class TourManager:

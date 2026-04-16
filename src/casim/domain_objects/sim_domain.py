@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from ware_ops_algos.algorithms import TourPlanningState, PickList
-from ware_ops_algos.domain_models import BaseWarehouseDomain, Resources, StorageLocations, LayoutData, Articles, \
-    OrdersDomain, WarehouseInfo, Resource
+from ware_ops_algos.domain_models import Resources, StorageLocations, LayoutData, Articles, \
+    OrdersDomain, WarehouseInfo, Resource, BaseWarehouseDomain
 
 
 @dataclass
@@ -24,13 +24,13 @@ class SimWarehouseDomain(BaseWarehouseDomain):
                  orders: OrdersDomain,
                  resources: Resources,
                  storage: StorageLocations,
-                 warehouse_info: DynamicInfo):
+                 dynamic_warehouse_info: DynamicInfo):
         super().__init__(problem_class,
                          objective,
                          layout,
                          articles,
                          orders,
                          resources,
-                         storage,
-                         warehouse_info)
+                         storage)
+        self.dynamic_warehouse_info = dynamic_warehouse_info
 

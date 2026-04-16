@@ -1,3 +1,9 @@
+pipeline_runner:
+  OBRSP:
+    _target_: casim.pipelines.pipeline_runner.CoSyRunner
+    endpoint: EvaluationScheduling
+    problem_class: OBRSP
+
 triggers:
   OrderArrival: OBRSP # a picker PULLs a new tour
   PickerIdle: OBRSP
@@ -9,14 +15,7 @@ conditions:
     order_window: 1
     picker_aval: 1
 
-pipeline_runner:
-  OBRSP:
-    _target_: casim.pipelines.pipeline_runner.CoSyRunner
-    endpoint: EvaluationScheduling
-    problem_class: OBRSP
-
-
 state_snapshot:
   OBRSP:
-    _target_: casim.state.state_snapshot.OBSRPStateView
+    _target_: casim.state.state_snapshot.OBRSPSnapshot
 
