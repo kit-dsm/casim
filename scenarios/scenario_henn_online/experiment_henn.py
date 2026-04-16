@@ -63,24 +63,5 @@ def main(cfg: DictConfig):
         sim.step(events_to_add)
 
 
-    # env = BatchSelectionEnv(
-    #     sim=sim,
-    #     reset_hooks=[add_orders_hook, picker_arrival_hook]
-    # )
-    #
-    # dynamic_warehouse_state, _ = env.reset()
-    # done = False
-    # while not done:
-        # solution = env.sim.decision_engine.get_solution(dynamic_warehouse_state)
-        # obs, reward, done, truncated, info = env.step(solution)
-
-
-    # makespan = sim.state.tracker.final_makespan / 1000
-    # # window = cfg.simulation.conditions.OBRP.order_window
-
-    # print(f"[RESULT] | makespan={makespan:.2f} | runtime={end - start:.2f}s")
-    #
-    # return makespan
-
 if __name__ == "__main__":
     main()
