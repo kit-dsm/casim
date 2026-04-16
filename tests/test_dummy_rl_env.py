@@ -1,3 +1,4 @@
+import os
 import shutil
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ from scenarios.experiment_commons import (
 )
 
 TEST_DIR = Path(__file__).parent
+os.environ["PROJECT_ROOT"] = TEST_DIR.as_posix()
 
 
 class DummyRLEnv(BaseEnv):
@@ -47,8 +49,15 @@ class TestDummyRLEnv(unittest.TestCase):
 
         reset_hooks = []
         env = DummyRLEnv(sim, decision_engine, reset_hooks)
-
+        dynamic_warehouse_state, info = env.reset()
+        assert info["done_at_reset"], True
         self.assertIsNotNone(env.action_space)
+
+        # dynamic_warehouse_state, _ = env.reset()
+        # done = False
+        # while not done:
+        #     solution = env.sim.decision_engine.get_solution(dynamic_warehouse_state)
+        #     obs, reward, done, truncated, info = env.step(solution)
 
 
 if __name__ == "__main__":
