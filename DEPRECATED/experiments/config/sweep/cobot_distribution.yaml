@@ -1,6 +1,0 @@
-# @package _global_
-hydra:
-  mode: MULTIRUN
-  sweeper:
-    params:
-      data_cards.features.resources.features.distribution_cobots: 0,1,0.5,0.7

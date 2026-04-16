@@ -1,6 +1,0 @@
-# @package _global_
-hydra:
-  mode: MULTIRUN
-  sweeper:
-    params:
-      data_cards.features.resources.features.n_pickers: 8,12
