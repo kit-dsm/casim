@@ -30,7 +30,6 @@ class TourManager:
         """
         self._tour_counter += 1
         tour_id = self._tour_counter
-        # print(type(route_plan))
         new_tour = TourPlanningState(
             tour_id=tour_id,
             order_numbers=list(route_plan.pick_list.order_numbers),
@@ -42,10 +41,8 @@ class TourManager:
 
         pick_nodes = [n for n in route_plan.annotated_route if n.node_type == NodeType.PICK]
         assert len(pick_nodes) == len(route_plan.item_sequence), print(pick_nodes)
-        # logger.info(f"Pick Positions {new_tour.pick_positions}, {new_tour.picks_left}")
 
         self.all_tours[tour_id] = new_tour
-        # self.assignable_tours[tour_id] = new_tour
         self._unassigned_tour_ids.add(tour_id)
         return tour_id
 
