@@ -10,6 +10,7 @@ from casim.events.operational_events import PickerArrival
 from casim.simulation_engine import SimulationEngine
 from casim.viz.app import launch
 from scenarios.experiment_commons import setup_scenario, setup_decision_engine, load_and_flatten_data_card
+from scenarios.io_helpers import dump_pickle
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -50,9 +51,19 @@ def main(cfg: DictConfig):
     while not done:
         done, state_snapshot = sim.run()
         if done:
+            dt = decision_engine.decision_tracker
+            dump_pickle(str(Path(cfg.experiment.output_dir) / "decisions.pkl"), {
+                "decisions": dt.decisions,
+                "pipeline_counts": dict(dt.pipeline_counts),
+            })
+            print(f"'Total decisions':{dt.num_decisions}")
+            for pipeline, count in sorted(dt.pipeline_counts.items(),
+                                          key=lambda x: -x[1]):
+                pct = 100 * count / dt.num_decisions
+                print(f"{pipeline} {count:} {pct}%")
             break
-        events_to_add = decision_engine.on_trigger(state_snapshot)
-        sim.step(events_to_add)
+        events_to_add, solution = decision_engine.on_trigger(state_snapshot)
+        sim.step(events_to_add, state_snapshot.problem_class, solution)
 
     if cfg.viz.launch:
         viz_dir = Path(cfg.experiment.output_dir) / "viz"
