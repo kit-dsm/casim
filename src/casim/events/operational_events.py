@@ -12,10 +12,10 @@ logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s 
 logger = logging.getLogger(__name__)
 
 
-
 class OrderArrival(Event):
     """Order enters the system and is buffered."""
     priority_score = 1
+
     def __init__(self, time: float, order: Order):
         super().__init__(time)
         self.order = order
@@ -29,6 +29,7 @@ class OrderArrival(Event):
 
 class ShiftStart(Event):
     priority_score = 0
+
     def __init__(self, time: float):
         super().__init__(time)
 
@@ -39,6 +40,7 @@ class ShiftStart(Event):
 
 class FlushRemainingOrders(Event):
     priority_score = 0
+
     def __init__(self, time: float):
         super().__init__(time)
 
@@ -46,7 +48,9 @@ class FlushRemainingOrders(Event):
         super().handle(state)
         return []
 
+
 class PickerArrival(Event):
+
     priority_score = 1
     def __init__(self, time: float, picker_id: int):
         super().__init__(time)
@@ -59,6 +63,7 @@ class PickerArrival(Event):
 
 class PickerIdle(Event):
     priority_score = 1
+
     def __init__(self, time: float, picker_id: int):
         super().__init__(time)
         self.picker_id = picker_id
@@ -66,6 +71,7 @@ class PickerIdle(Event):
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
         # print(f"Picker {self.picker_id} arrived at {self.time}")
+        state.tracker.on_idle_start(self.picker_id, self.time)
         return []
 
 
@@ -117,6 +123,7 @@ class TourStart(BaseTourEvent):
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
         tour = self.get_tour(state)
+        state.tracker.on_idle_end(tour.assigned_resource, self.time)
         # print(f"Tour {tour.tour_id}, picker {tour.assigned_resource} orders {tour.order_numbers}")
         tour_id = tour.tour_id
         res = state.resource_manager.get_resource(tour.assigned_resource)
@@ -156,6 +163,7 @@ class TravelEvent(BaseTourEvent):
 
         logger.debug(f"Travel: Picker {res.id} {origin} -> {dest} in {travel_time} min. "
                      f"Distance: {travel_distance}")
+        state.tracker.on_travel(picker_id=res.id, distance=travel_distance)
         # mutate execution state
         state.tour_manager.advance_cursor(tour.tour_id)  # move cursor to dest
         assert isinstance(dest, RouteNode)
@@ -201,17 +209,14 @@ class PickComplete(BaseTourEvent):
         state.tour_manager.mark_pick_positions_fulfilled_at(tour.tour_id, here)
 
         logger.debug(f"Pick complete: Picker {res.id} at {here} t={self.time}")
-        state.tracker.update_on_pick_end({
-            'type': 'pick_end',
-            'order_id': tour.order_numbers[0],
-            'picker_id': res.id,
-            'picker_type': res.__class__.__name__,
-            'aisle': here.position[0],
-            'node': here.position[1],
-            'pick_start': self.pick_start,
-            'pick_end': self.time,
-            'tour_id': self.tour_id,
-            })
+        state.tracker.on_pick_end(
+            tour_id=self.tour_id,
+            picker_id=res.id,
+            order_id=tour.order_numbers[0],
+            item_id=None,
+            start_time=self.pick_start,
+            end_time=self.time
+        )
         if tour.at_end():
             return [TourEnd(self.time, tour.tour_id)]
         return [TravelEvent(self.time, tour.tour_id)]
@@ -231,8 +236,9 @@ class TourEnd(BaseTourEvent):
               f"Makespan: {self.time - tour.start_time}")
         # finalize tour and free picker
         state.tour_manager.finish_tour(tour.tour_id, self.time)
-        om = state.order_manager
-        state.tracker.update_on_tour_end(tour_start=tour.start_time, tour_finish=self.time, order_manager=om)
+        # om = state.order_manager
+        # state.tracker.update_on_tour_end(tour_start=tour.start_time, tour_finish=self.time, order_manager=om)
+        state.tracker.on_tour_end(tour.tour_id, tour.start_time, self.time, tour.order_numbers)
         assert self.tour_id != state.tour_manager.get_next_tour_for_picker(res.id), (f"{self.tour_id}, " 
                                                                                      f"{state.tour_manager._picker_tour_queues}")
         return [PickerTourQuery(self.time, res.id)]
