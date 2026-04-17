@@ -1,84 +1,92 @@
-import time
+import logging
 from pathlib import Path
 
 import hydra
+import numpy as np
+import pandas as pd
 from omegaconf import DictConfig
-from ware_ops_algos.domain_models import datacard_from_instance
 
-from casim.decision_engine.decision_engine import DecisionEngine
-from casim.events.operational_events import PickerArrival
-from casim.pipelines.objective_evaluator import ObjectiveEvaluator
+from casim.domain_objects.sim_domain import SimWarehouseDomain
+from casim.events.decision_events import PickListDone
+from casim.events.operational_events import PickerArrival, ShiftStart
 from casim.simulation_engine import SimulationEngine
-from DEPRECATED.ware_ops_sim import SimWarehouseDomain
+from casim.viz.app import launch
+from scenarios.experiment_commons import load_and_flatten_data_card, setup_scenario, setup_decision_engine
+from scenarios.io_helpers import dump_pickle
+from scenarios.scenario_grocery_retailer.build_historic_solution import build_historic_batching_solution, \
+    load_pick_history
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
+
+
+def picker_arrival_hook(sim: SimulationEngine,
+                        domain: SimWarehouseDomain):
+    min_order_date = np.inf
+    for o in domain.orders.orders:
+        if o.order_date < min_order_date:
+            min_order_date = o.order_date
+    for resource in domain.resources.resources:
+        sim.add_event(PickerArrival(time=0,
+                                    picker_id=resource.id))
+
+
+def add_orders_hook(sim: SimulationEngine,
+                    domain: SimWarehouseDomain):
+    orders = domain.orders.orders
+    for order in orders:
+        sim.add_order(order)
+
+
+def shift_start_hook(sim, domain):
+    sim.add_event(ShiftStart(time=0.0))
 
 
 @hydra.main(config_path="config", config_name="grocery_retailer_config")
 def main(cfg: DictConfig):
+    datacard = load_and_flatten_data_card(cfg.data_card)
 
-    # Configuration
-    instances_dir = Path(cfg.instances_base) / cfg.data_card.name
-    cache_dir = Path(cfg.cache_base) / cfg.data_card.name
-    cache_path = Path(cfg.cache_base) / "dynamic_info.pkl"
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    sim = setup_scenario(cfg)
+    decision_engine = setup_decision_engine(cfg, datacard)
+    historic_orders_file = cfg.data_card.source.orders_path
+    historic_orders_path = Path(cfg.instances_base) / cfg.data_card.name / historic_orders_file
+    df = load_pick_history(historic_orders_path)
 
+    def presolved_batches_hook(sim: SimulationEngine, domain: SimWarehouseDomain):
+        historic_batches = build_historic_batching_solution(df, domain)
+        for pl in historic_batches.pick_lists:
+            sim.add_event(PickListDone(time=0.0, pick_list=pl))
 
-    state_transformers = build_state_transformers(cfg)
+    sim.reset(hooks=[add_orders_hook,
+                     picker_arrival_hook,
+                     presolved_batches_hook,
+                     shift_start_hook
+                     ])
 
-    execution = make_execution(cfg)
+    done = False
+    while not done:
+        done, state_snapshot = sim.run()
+        if done:
+            dt = decision_engine.decision_tracker
+            dump_pickle(str(Path(cfg.experiment.output_dir) / "decisions.pkl"), {
+                "decisions": dt.decisions,
+                "pipeline_counts": dict(dt.pipeline_counts),
+            })
+            print(f"'Total decisions':{dt.num_decisions}")
+            for pipeline, count in sorted(dt.pipeline_counts.items(),
+                                          key=lambda x: -x[1]):
+                pct = 100 * count / dt.num_decisions
+                print(f"{pipeline} {count:} {pct}%")
+            break
+        events_to_add, solution = decision_engine.on_trigger(state_snapshot)
+        sim.step(events_to_add, state_snapshot.problem_class, solution)
 
-    loader_kwargs = {k: instances_dir / v
-                     for k, v in cfg.data_card.source.items()
-                     if k.endswith("path")}
+    if cfg.viz.launch:
+        viz_dir = Path(cfg.experiment.output_dir) / "viz"
+        launch(viz_dir, port=cfg.viz.port, debug=False)
 
-    loader = build_data_loader(cfg)
-
-    domain = loader.load(**loader_kwargs)
-    dc = datacard_from_instance(domain, "initial_dc")
-
-    for key, value in execution.items():
-        dc.problem_class = key
-        execution[key].build_pipelines(dc)
-
-    trigger_map = build_trigger_map(cfg)
-    req_policy = build_req_policy(cfg)
-
-    evaluators_map = {"OBRSP": ObjectiveEvaluator(objective="makespan")}
-
-    sim_control = DecisionEngine(conditions_map=req_policy,
-                                 trigger_map=trigger_map,
-                                 execution_map=execution,
-                                 evaluators_map=evaluators_map
-                                 )
-
-    sim = SimulationEngine(
-        state_transformers=state_transformers,
-        control=sim_control,
-        data_loader=loader,
-        domain_cache_path=str(cache_path),
-        loader_kwargs=loader_kwargs
-    )
-
-    def picker_arrival_hook(sim: SimulationEngine,
-                            domain: SimWarehouseDomain):
-        print("n_pickers", domain.resources.resources)
-        min_order_date = 99999999999999
-        for o in domain.orders.orders:
-            if o.order_date < min_order_date:
-                min_order_date = o.order_date
-        for resource in domain.resources.resources:
-            sim.add_event(PickerArrival(time=min_order_date,
-                                        picker_id=resource.id))
-
-    sim.reset(hooks=[picker_arrival_hook])
-    start = time.time()
-    sim.run()
-    end = time.time()
-    makespan = sim.state.tracker.final_makespan / 1000
-    # window = cfg.simulation.conditions.OBRP.order_window
-
-    print(f"[RESULT] | makespan={makespan:.2f} | runtime={end - start:.2f}s")
-
-    return makespan
 
 if __name__ == "__main__":
     main()

@@ -1,56 +1,102 @@
-name: "IWSPE"
-problem_type: OSRP
+name: "grocery_retailer"
+problem_type: ORSP
 
-objective: Distance
+objective: distance
 source:
-  data_loader: IWSPELoader
+  data_loader: GroceryRetailerLoader
   orders_path: "orders.csv"
   layout_path: "layout.csv"
 
-features:
-  layout:
-    type:
-      - conventional
-    features:
-      start_node: [0, 0]
-      end_node: [0, 0]
-      closest_node_to_start: [0, 0]
-      min_aisle_position: 0
-      max_aisle_position: 10
-      n_pick_locations: 50
-      dist_pick_locations: 1.5
-      dist_bottom_to_pick_location: 0
-      n_blocks: 2
-      graph: true
-      dima: true
+layout:
+  type: conventional
+  objects:
+    - name: LayoutParams
+      features:
+        - name: start_node
+          value: [0, 0]
+        - name: end_node
+          value: [0, 0]
+        - name: closest_node_to_start
+          value: [0, 0]
+        - name: min_aisle_position
+          value: 0
+        - name: max_aisle_position
+          value: 10
+        - name: n_pick_locations
+          value: 50
+        - name: dist_pick_locations
+          value: 1.5
+        - name: dist_bottom_to_pick_location
+          value: 0
+        - name: n_blocks
+          value: 2
+        - name: distance_matrix
+        - name: predecessor_matrix
 
-  resources:
-    type:
-      - mixed
-    features:
-      n_pickers: 24
-      picker_speed: 2306  # 8.3 km/h -> 2.31 m/s
-      speed_follow_mode: 1389  # 5 km/h
-      time_per_pick: 19  # 19 / 21.27
-      time_per_pick_cobot: 15.77  # 15.77 / 17.65
-      tour_setup_time: 215 # 90
-      aisle_congestion_rate: 0.06  # 6%
-      distribution_cobots: 0.5
+    - name: LayoutNetwork
+      features:
+        - name: graph
+        - name: distance_matrix
 
-  orders:
-    type:
-      - standard
-    features:
-      order_date: true
-      due_date: true
+articles:
+  type: standard
+  objects:
+    - name: Article
+      features:
+        - name: article_id
 
-  storage:
-    type:
-      - dedicated
-    features:
+orders:
+  type: standard
+  objects:
+    - name: Order
+      features:
+        - name: order_date
 
-  warehouse_info:
-    type:
-      - offline
-    features:
-      breaks: []
+      objects:
+        - name: OrderPosition
+          features:
+            - name: article_id
+            - name: amount
+
+resources:
+  type: human
+  objects:
+    - name: HumanPicker
+      type: human
+      features:
+        - name: n_pickers
+          value: 24
+        - name: speed
+          value: 2306
+        - name: speed_follow_mode
+          value: 1389
+        - name: time_per_pick
+          value: 19
+        - name: tour_setup_time
+          value: 215
+        - name: aisle_congestion_rate
+          value: 0.06
+
+      objects:
+        - name: PickCart
+          type: manual
+          features:
+            - name: capacities
+            - name: dimensions_type
+              value: [items]
+
+    - name: Cobot
+      type: automated
+      features:
+        - name: distribution
+          value: 0.5
+        - name: time_per_pick
+          value: 15.77
+
+storage:
+  type: dedicated
+  objects:
+    - name: StorageLocations
+      features:
+        - name: amount
+        - name: article_id
