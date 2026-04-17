@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import Callable, Type
 
+import numpy as np
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
 
@@ -12,14 +13,14 @@ from casim.events.operational_events import OrderArrival, FlushRemainingOrders
 from casim.loggers import EventLogger
 from casim.state import State
 from casim.state.conditions import Condition
-from casim.state.state_snapshot import StateSnapshot
+from casim.state.state_adapter import StateAdapter
 
 logger = logging.getLogger(__name__)
 
 
 class SimulationEngine:
     def __init__(self,
-                 state_transformers: dict[str, StateSnapshot],
+                 state_transformers: dict[str, StateAdapter],
                  triggers: dict[Type[Event], str],
                  conditions_map: dict[str, Condition],
                  cache_path: str | Path,
@@ -59,7 +60,7 @@ class SimulationEngine:
             hook(self, domain)
 
         for el in self.even_loggers:
-            el.on_reset(domain)
+            el.on_reset(self, domain)
 
     def add_order(self, order: Order):
         self.add_event(OrderArrival(order.order_date, order))
@@ -78,7 +79,7 @@ class SimulationEngine:
                 self.add_event(e)
 
             for el in self.even_loggers:
-                el.on_event(event, self.state)
+                el.on_event(event, self)
 
             if event.__class__ in self.triggers.keys():
                 problem = self.triggers[event.__class__]
@@ -94,10 +95,12 @@ class SimulationEngine:
 
         logger.info("Simulation complete")
         for el in self.even_loggers:
-            el.on_done(self.state)
+            el.on_done(self)
         return True, None
 
-    def step(self, events_to_add):
+    def step(self, events_to_add, problem_class, solution):
+        state_adapter = self.state_transformers[problem_class]
+        state_adapter.cleanup_state(self.state, solution)
         if events_to_add:
             for e in events_to_add:
                 self.add_event(e)
