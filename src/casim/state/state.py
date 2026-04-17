@@ -9,59 +9,7 @@ from .resource_manager import ResourceManager
 from .tour_manager import TourManager
 from .layout_manager import LayoutManager
 from .storage_manager import StorageManager
-
-
-class ExperimentTracker:
-    def __init__(self):
-        self.finished_tours = 0
-        self.average_pick_time = 0
-        self.average_travel_time = 0
-        self.tour_makespans = []
-        self.average_tour_makespan = 0
-        self.final_makespan = None
-        self.processed_orders = []
-        self.logs: list[dict] = []
-
-    def update_on_travel(self):
-        pass
-
-    def update_on_pick_start(self, log_entry: dict):
-        self.logs.append(log_entry)
-
-    def update_on_pick_end(self, log_entry: dict):
-        self.logs.append(log_entry)
-
-    def update_on_tour_end(self, tour_start: float, tour_finish: float, order_manager: OrderManager):
-        self.finished_tours += 1
-        tour_makespan = tour_finish - tour_start
-        self.tour_makespans.append(tour_makespan)
-        self.average_tour_makespan = sum(self.tour_makespans) / self.finished_tours
-
-        for o_id in order_manager._order_history.keys():
-            o = order_manager._order_history[o_id]
-            self.processed_orders.append(o)
-
-    def to_dataframe(self):
-        """Export logs to pandas DataFrame for analysis."""
-        import pandas as pd
-        return pd.DataFrame(self.logs)
-
-    def save_logs(self):
-        df = self.to_dataframe()
-        df.to_csv("./experiment_logs.csv")
-
-    def __deepcopy__(self, memo):
-        result = ExperimentTracker.__new__(ExperimentTracker)
-        memo[id(self)] = result
-        result.finished_tours = self.finished_tours
-        result.average_pick_time = self.average_pick_time
-        result.average_travel_time = self.average_travel_time
-        result.tour_makespans = self.tour_makespans.copy()  # list of floats, needs copy
-        result.average_tour_makespan = self.average_tour_makespan
-        result.final_makespan = self.final_makespan
-        result.processed_orders = self.processed_orders  # shared ref
-        result.logs = []  # skip entirely
-        return result
+from ..trackers import ExperimentTracker
 
 
 class State:
@@ -69,7 +17,12 @@ class State:
     Holds all mutable simulation data.
     """
     _SHARED_FIELDS = {'_layout', '_articles', '_storage', '_resources'}
-    def __init__(self, layout: LayoutData, articles: Articles, storage: StorageLocations, resources: Resources):
+
+    def __init__(self,
+                 layout: LayoutData,
+                 articles: Articles,
+                 storage: StorageLocations,
+                 resources: Resources):
         # time is a float (simulation time units)
         self.current_time: float = 0.0
         self.current_picker_id = None

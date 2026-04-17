@@ -80,7 +80,7 @@ class DecisionEngine:
                 selected_pipeline=best_key,
                 kpi_value=best_kpi_value,
                 kpi=self.evaluator.objective,
-                runtime=best_solution.execution_time  # TODO make sure we calculate this properly over all stages
+                runtime=best_solution.execution_time
             )
         elif isinstance(best_solution, SchedulingSolution):
             order_ids = [o for j in best_solution.jobs for o in j.route.pick_list.order_numbers]
