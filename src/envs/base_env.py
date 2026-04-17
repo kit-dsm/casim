@@ -1,18 +1,13 @@
 import logging
-from typing import Callable, Type
 
 import gymnasium as gym
-from gymnasium import spaces
 import numpy as np
 
-from ware_ops_algos.algorithms import OrderSelectionSolution, AlgorithmSolution, WarehouseOrder, \
-    PickListSelectionSolution, CombinedRoutingSolution, SchedulingSolution, BatchingSolution
-from ware_ops_algos.domain_models import Order, ResourceType
+from ware_ops_algos.algorithms import AlgorithmSolution, PickListSelectionSolution
 
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
-from casim.events.decision_events import SequencingDone, RoutingDone, PickListDone
 from casim.simulation_engine import SimulationEngine
 
 logger = logging.getLogger(__name__)
@@ -74,8 +69,8 @@ class BaseEnv(gym.Env):
             if domain.problem_class in self.learnable_problems:
                 return False, domain
             # Non-learnable: solve with decision engine and keep going
-            events_to_add = self.decision_engine.on_trigger(domain)
-            self.sim.step(events_to_add)
+            events_to_add, solution = self.decision_engine.on_trigger(domain)
+            self.sim.step(events_to_add, domain.problem_class, solution)
 
     def _action_to_solution(self, action: int | AlgorithmSolution):
         if isinstance(action, int):
