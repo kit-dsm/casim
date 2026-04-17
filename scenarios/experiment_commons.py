@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import yaml
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 from ware_ops_algos.data_loaders import DataLoader
@@ -11,14 +10,16 @@ from casim.loggers import DashLogger, KPILogger
 from casim.pipelines.objective_evaluator import ObjectiveEvaluator
 from casim.simulation_engine import SimulationEngine
 from casim.state.conditions import build_condition_policies
-from casim.state.state_snapshot import build_state_snapshots
+from casim.state.state_adapter import build_state_adapters
 from casim.events.decision_events import RoutingDone, PickListDone
 from casim.events.operational_events import OrderArrival, PickerArrival, PickerTourQuery, PickerIdle, TourEnd, \
     ShiftStart, FlushRemainingOrders
+from scenarios.scenario_grocery_retailer.grocery_retailer_loader import GroceryRetailerLoader
 from scenarios.scenario_henn_online.henn_online_loader import HennOnlineLoader
 
 LOADER_REGISTRY = {
-    "HennOnlineLoader": HennOnlineLoader
+    "HennOnlineLoader": HennOnlineLoader,
+    "GroceryRetailerLoader": GroceryRetailerLoader
 }
 
 EVENT_REGISTRY = {
@@ -103,19 +104,16 @@ def setup_decision_engine(cfg: DictConfig, dc) -> DecisionEngine:
     for key in pipeline_runners:
         dc.problem_class = key
         pipeline_runners[key].build_pipelines(dc)
-
-    evaluator = ObjectiveEvaluator(objective=cfg.get("objective", "makespan"))
+    objective = cfg.data_card.objective
+    evaluator = ObjectiveEvaluator(objective=objective)
     return DecisionEngine(execution_map=pipeline_runners, evaluator=evaluator)
 
 
 def setup_scenario(cfg: DictConfig) -> SimulationEngine:
-    # Configuration
     instances_dir = Path(cfg.instances_base) / cfg.data_card.name
-    cache_dir = Path(cfg.cache_base) / cfg.data_card.name
     cache_path = Path(cfg.cache_base) / "dynamic_info.pkl"
-    cache_dir.mkdir(parents=True, exist_ok=True)
 
-    state_transformers = build_state_snapshots(cfg)
+    state_transformers = build_state_adapters(cfg)
 
     loader_kwargs = {k: instances_dir / v
                      for k, v in cfg.data_card.source.items()
@@ -133,7 +131,8 @@ def setup_scenario(cfg: DictConfig) -> SimulationEngine:
         loader_kwargs=loader_kwargs,
         triggers=trigger_map,
         conditions_map=conditions_map,
-        event_loggers=[DashLogger(Path(cfg.experiment.output_dir) / "viz"),
-                       KPILogger()]
+        event_loggers=[
+            # DashLogger(Path(cfg.experiment.output_dir) / "viz"),
+            KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
     )
     return sim
