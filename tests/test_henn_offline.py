@@ -38,14 +38,6 @@ def add_orders_hook(sim: SimulationEngine,
         sim.add_order(order)
 
 
-def save_static_info(sim: SimulationEngine,
-                     domain: SimWarehouseDomain):
-    target = sim.cache_path / "vis_input"
-    if not os.path.exists(target):
-        os.mkdir(target)
-    dump_pickle(str(target / "inital_domain.pkl"), domain)
-
-
 class TestHennOffline(unittest.TestCase):
     def setUp(self):
         if GlobalHydra.instance().is_initialized():
@@ -62,22 +54,21 @@ class TestHennOffline(unittest.TestCase):
             return compose(config_name=config_name, overrides=overrides or [])
 
     def test_henn_offline(self):
-        cfg = self._load_cfg(overrides=["decision_engine.conditions.OBRSP.order_window=100"])
+        cfg = self._load_cfg()
         datacard = load_and_flatten_data_card(cfg.data_card)
         sim = setup_scenario(cfg)
         decision_engine = setup_decision_engine(cfg, datacard)
 
         sim.reset(hooks=[add_orders_hook,
-                         picker_arrival_hook,
-                         save_static_info])
+                         picker_arrival_hook])
 
         done = False
         while not done:
             done, state_snapshot = sim.run()
             if done:
                 break
-            events_to_add = decision_engine.on_trigger(state_snapshot)
-            sim.step(events_to_add)
+            events_to_add, solution = decision_engine.on_trigger(state_snapshot)
+            sim.step(events_to_add, state_snapshot.problem_class, solution)
 
 
 if __name__ == "__main__":

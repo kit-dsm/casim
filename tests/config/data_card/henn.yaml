@@ -1,7 +1,7 @@
 name: "HennOnline"
 problem_type: OBRP # TODO we removed order_selection, do we still need it?
 
-objective: Distance
+objective: distance
 source:
   data_loader: HennOnlineLoader
   filepath: "72s-100-75-0.txt" #"29s-40-30-0.txt"

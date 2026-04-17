@@ -1,11 +1,11 @@
 pipeline_runner:
   OBRSP:
     _target_: casim.pipelines.pipeline_runner.CoSyRunner
-    endpoint: EvaluationScheduling
+    endpoint: ResultAggregationScheduling
     problem_class: OBRSP
 
 triggers:
-  OrderArrival: OBRSP # a picker PULLs a new tour
+  OrderArrival: OBRSP
   PickerIdle: OBRSP
   FlushRemainingOrders: OBRSP
 
@@ -17,5 +17,5 @@ conditions:
 
 state_snapshot:
   OBRSP:
-    _target_: casim.state.state_snapshot.OBRSPSnapshot
+    _target_: casim.state.state_adapter.OBRSPAdapter
 

@@ -42,12 +42,17 @@ class TestDummyRLEnv(unittest.TestCase):
             return compose(config_name=config_name, overrides=overrides or [])
 
     def test_dummy_rl_env(self):
+        def add_orders_hook(sim, domain):
+            orders = domain.orders.orders
+            for order in orders:
+                sim.add_order(order)
+
         cfg = self._load_cfg()
         datacard = load_and_flatten_data_card(cfg.data_card)
         sim = setup_scenario(cfg)
         decision_engine = setup_decision_engine(cfg, datacard)
 
-        reset_hooks = []
+        reset_hooks = [add_orders_hook]
         env = DummyRLEnv(sim, decision_engine, reset_hooks)
         dynamic_warehouse_state, info = env.reset()
         assert info["done_at_reset"], True
