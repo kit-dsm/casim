@@ -16,5 +16,8 @@ TAXONOMY = {
     },
     "OBRSP": {
        "variables": ["item_assignment", "batching", "routing", "sequencing"]
+    },
+    "ORSP": {
+           "variables": ["routing", "sequencing"]
     }
 }
