@@ -105,7 +105,7 @@ class ORSPAdapter(StateAdapter):
 
         dynamic_information = SimWarehouseDomain(
             problem_class=problem,
-            objective="Distance",
+            objective="distance",
             layout=layout,
             orders=OrdersDomain(tpe=OrderType.STANDARD, orders=[]),
             resources=dynamic_resources,

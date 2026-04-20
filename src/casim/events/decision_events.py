@@ -22,9 +22,9 @@ class PickListDone(ProcessEvent):
         state.add_pick_list_to_planning_state(self.pick_list)
         # TODO We push pick lists to pickers here. Maybe add PLDonePush / PLDonePull?
 
-        for picker in state.resource_manager.get_resources().resources:
-            if not picker.occupied:
-                events_to_return.append(PickerArrival(self.time, picker.id))
+        # for picker in state.resource_manager.get_resources().resources:
+        #     if not picker.occupied:
+        #         events_to_return.append(PickerArrival(self.time, picker.id))
         return events_to_return
 
 

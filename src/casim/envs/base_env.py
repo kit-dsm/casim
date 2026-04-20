@@ -45,10 +45,10 @@ class BaseEnv(gym.Env):
 
         return self._get_obs(domain), {}
 
-    def step(self, action: int | AlgorithmSolution):
+    def step(self, action: int):
         solution = self._action_to_solution(action)
         events = self._solution_to_events(solution)
-        self.sim.step(events)
+        self.sim.step(events, problem_class=self.learnable_problems[0], solution=solution)
 
         # run forward, solving non-learnable problems internally
         done, domain = self._run_until_learnable_or_done()

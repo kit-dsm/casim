@@ -38,7 +38,7 @@ class DecisionEngine:
     def __init__(self,
                  execution_map: dict[str, CoSyRunner],
                  evaluator: ObjectiveEvaluator,
-                 commitment_policies: dict[str, CommitmentPolicy] | None = {"OBRSP": SchedulingCommitmentPolicy()},
+                 commitment_policies: CommitmentPolicy = CommitAllPolicy(),
                  learnable_problems: list[str] | None = None
                  ):
 
@@ -63,9 +63,8 @@ class DecisionEngine:
         solution = self.select_strategy(solutions, problem)
         if solution:
             if self.commitment_policies:
-                policy = self.commitment_policies[problem]
-                if policy:
-                    solution = policy.apply(solution)
+                policy = self.commitment_policies #[problem]
+                solution = policy.apply(solution)
             return self.solution_to_events(solution, start_time_sim), solution
         return None
 

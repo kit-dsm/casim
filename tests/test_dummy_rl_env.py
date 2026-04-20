@@ -7,7 +7,7 @@ import gymnasium as gym
 from hydra import initialize, compose
 from hydra.core.global_hydra import GlobalHydra
 
-from envs.base_env import BaseEnv
+from casim.envs.base_env import BaseEnv
 from scenarios.experiment_commons import (
     load_and_flatten_data_card,
     setup_scenario,

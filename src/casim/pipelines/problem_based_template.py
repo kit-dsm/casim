@@ -11,7 +11,7 @@ from luigi import LocalTarget
 from luigi.configuration import get_config
 
 
-from cosy_luigi.combinatorics import CoSyLuigiTask, CoSyLuigiTaskParameter, CoSyLuigiRepo
+from cosy_luigi import CoSyLuigiTask, CoSyLuigiTaskParameter, CoSyLuigiRepo
 
 from ware_ops_algos.algorithms import (
     Routing,
@@ -24,11 +24,9 @@ from ware_ops_algos.algorithms import (
     ItemAssignmentSolution,
     RoutingSolution,
     PriorityScheduling,
-    ItemAssignment, ClarkAndWrightBatching, NearestNeighbourhoodRouting,
-)
+    ItemAssignment, )
 from ware_ops_algos.algorithms.algorithm_filter import ConstraintEvaluator
 from ware_ops_algos.domain_models import (
-    BaseWarehouseDomain,
     Articles,
     Resources,
     LayoutData,
@@ -39,7 +37,7 @@ from ware_ops_algos.utils.general_functions import ModelCard
 
 from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
 from casim.pipelines.taxonomy import TAXONOMY
-from scenarios.io_helpers import load_pickle, dump_pickle, dump_json
+from casim.io_helpers import load_pickle, dump_pickle, dump_json
 
 
 class PipelineParams(luigi.Config):
@@ -91,7 +89,6 @@ class InstanceLoader(BaseComponent):
         if not domain_path:
             raise ValueError("Pipeline parameter 'domain_path' is not set.")
         domain: SimWarehouseDomain = load_pickle(domain_path)
-        print("Orders run", len(domain.orders.orders))
         dump_pickle(self.output()["domain"].path, domain)
         dump_pickle(self.output()["orders"].path, domain.orders)
         dump_pickle(self.output()["resources"].path, domain.resources)
@@ -379,25 +376,19 @@ class ResultAggregation(BaseComponent):
         }
 
     @classmethod
-    def configure(cls, data_card: DataCard, models: list[ModelCard]):
+    def configure(cls, data_card: DataCard, models: list[ModelCard], allowed_model_names: set):
         cls._data_card = data_card
         cls._models = models
+        cls._allowed_model_names = allowed_model_names
 
     @classmethod
     def constraints(cls) -> Sequence[Callable[..., bool]]:
-        # _cache = {}
-        #
-        # def _get_classes(vs):
-        #     key = id(vs)
-        #     if key not in _cache:
-        #         _cache[key] = [pc.__class__ for pc in traverse_pipeline(vs.values())]
-        #     return _cache[key]
-
         return [
             lambda vs: problem_type_constraint(vs, TAXONOMY, cls._data_card, cls._models),
             lambda vs: feature_constraint(vs, cls._data_card, cls._models),
             lambda vs: batching_loader_constraint(vs, TAXONOMY, cls._data_card, PickListProvider),
             lambda vs: check_unique(vs, [ResultAggregation]),
+            lambda vs: fixed_algorithms_constraint(vs, cls._allowed_model_names, cls._models)
         ]
 
     def _build_provenance(self, summary: dict, collected: dict) -> None:
@@ -604,6 +595,26 @@ def feature_constraint(vs, data_card: DataCard, models, get_classes=None) -> boo
                         evaluator = ConstraintEvaluator()
                         if not evaluator.evaluate(feature_name, constraint):
                             return False
+    return True
+
+
+def fixed_algorithms_constraint(vs, allowed_names: set[str], models, get_classes=None) -> bool:
+    if not allowed_names:
+        return True
+    necessary = {"InstanceLoader", "PickListProvider",
+                  "ResultAggregationRouting", "ResultAggregationPickList",
+                  "ResultAggregationScheduling"}
+    # algo_names = {m.model_name for m in models}
+    classes = get_classes(vs) if get_classes else [
+        pc.__class__ for pc in traverse_pipeline(vs.values())
+    ]
+
+    for c in classes:
+        if c.__name__ in necessary:
+            continue
+        if c.__name__ not in allowed_names:
+            print(f"{c.__name__} not allowed")
+            return False
     return True
 
 

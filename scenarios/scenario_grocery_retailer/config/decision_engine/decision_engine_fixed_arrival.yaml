@@ -1,0 +1,24 @@
+pipeline_runner:
+  ORSP:
+    _target_: casim.pipelines.pipeline_runner.CoSyRunner
+    endpoint: ResultAggregationScheduling
+    problem_class: ORSP
+
+triggers:
+#  ShiftStart: ORSP
+  PickListDone: ORSP
+#  PickerIdle: ORSP
+#  FlushRemainingOrders: ORSP
+
+conditions:
+  ORSP:
+    _target_: casim.state.conditions.NbrBatchesNbrPickersCondition
+    n_batches: 1
+    n_pickers: 1
+
+state_snapshot:
+  ORSP:
+    _target_: casim.state.state_adapter.ORSPAdapter
+
+commitment_policy:
+    _target_: casim.state.conditions.NbrOrdersNbrPickersCondition

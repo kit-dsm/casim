@@ -8,7 +8,7 @@ from pathlib import Path
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.state import State
-from scenarios.io_helpers import dump_pickle
+from casim.io_helpers import dump_pickle
 if TYPE_CHECKING:
     from casim.simulation_engine import SimulationEngine
 
@@ -96,7 +96,7 @@ class KPILogger(EventLogger):
         horizon = state.current_time
         horizon_h = horizon / 3600 if horizon else 0
 
-        total_orders = sum(len(oids) for _, _, _, oids in t.completed_tours)
+        total_orders = sum(len(oids) for _, _, _, oids, _ in t.completed_tours)
 
         return {
             "makespan": horizon,

@@ -15,7 +15,6 @@ from scenarios.experiment_commons import (
     setup_scenario,
     setup_decision_engine,
 )
-from scenarios.io_helpers import dump_pickle
 
 TEST_DIR = Path(__file__).parent
 os.environ["PROJECT_ROOT"] = TEST_DIR.as_posix()

@@ -10,7 +10,7 @@ from casim.events.operational_events import PickerArrival
 from casim.simulation_engine import SimulationEngine
 from casim.viz.app import launch
 from scenarios.experiment_commons import setup_scenario, setup_decision_engine, load_and_flatten_data_card
-from scenarios.io_helpers import dump_pickle
+from casim.io_helpers import dump_pickle
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -66,8 +66,12 @@ def main(cfg: DictConfig):
         sim.step(events_to_add, state_snapshot.problem_class, solution)
 
     if cfg.viz.launch:
+        from casim.viz.gantt_chart import gantt_chart
+        fig = gantt_chart(sim.state.tracker)
+        fig.write_html(str(Path(cfg.experiment.output_dir) / "viz" / "gantt.html"))
         viz_dir = Path(cfg.experiment.output_dir) / "viz"
         launch(viz_dir, port=cfg.viz.port, debug=False)
+
 
 
 if __name__ == "__main__":

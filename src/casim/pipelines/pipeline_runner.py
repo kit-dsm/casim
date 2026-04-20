@@ -4,7 +4,7 @@ from pathlib import Path
 import luigi
 import ware_ops_algos
 from cosy.maestro import Maestro
-from cosy_luigi.combinatorics import CoSyLuigiRepo
+from cosy_luigi import CoSyLuigiRepo
 from luigi.configuration import get_config
 from ware_ops_algos.domain_models import BaseWarehouseDomain, DataCard
 from ware_ops_algos.utils.general_functions import load_model_cards
@@ -13,12 +13,10 @@ from casim.pipelines.problem_based_template import (
     InstanceLoader, PickListProvider, ResultAggregationPickList, ResultAggregationRouting, ResultAggregationScheduling,
 )
 from casim.pipelines.subproblems.item_assingment import GreedyIA
-from casim.pipelines.subproblems.batching import FiFo, OrderNrFiFo, DueDate, LSBatchingNNFiFo, \
-    ClarkAndWrightSShape, ClarkAndWrightNN
-from casim.pipelines.subproblems.picker_routing import SShape, NearestNeighbourhood, RatliffRosenthal, Return, \
-    LargestGap, Midpoint
-from casim.pipelines.subproblems.scheduling import SPTScheduler, LPTScheduler, EDDScheduler
-from scenarios.io_helpers import dump_pickle
+from casim.pipelines.subproblems.batching import ClarkAndWrightNN
+from casim.pipelines.subproblems.picker_routing import SShape
+from casim.pipelines.subproblems.scheduling import LPTScheduler
+from casim.io_helpers import dump_pickle
 
 
 ENDPOINT_REGISTRY = {
@@ -69,7 +67,16 @@ class CoSyRunner:
         config.set('PipelineParams', 'domain_path', str(self.cache_path))
 
         endpoint_cls = ENDPOINT_REGISTRY[self.endpoint]
-        endpoint_cls.configure(data_card, self.algorithm_cards)
+        endpoint_cls.configure(data_card, self.algorithm_cards,{}
+                               # {"GreedyIA",
+                               #  "Midpoint",
+                               #  "LargestGap",
+                               #  "NearestNeighbourhood",
+                               #  "SShape",
+                               #  "ClarkAndWrightNN",
+                               #  "LPTScheduler"
+                               #  }
+                               )
 
         if not self.pipelines:
             if self.verbose:
@@ -78,20 +85,20 @@ class CoSyRunner:
             repo = CoSyLuigiRepo(
                 InstanceLoader,
                 GreedyIA,
-                FiFo,
-                OrderNrFiFo,
-                DueDate,
-                LSBatchingNNFiFo,
-                ClarkAndWrightSShape,
+                # FiFo,
+                # OrderNrFiFo,
+                # DueDate,
+                # LSBatchingNNFiFo,
+                # ClarkAndWrightSShape,
                 ClarkAndWrightNN,
                 SShape,
-                Return,
-                LargestGap,
-                Midpoint,
-                NearestNeighbourhood,
-                SPTScheduler,
+                # Return,
+                # LargestGap,
+                # Midpoint,
+                # NearestNeighbourhood,
+                # SPTScheduler,
                 LPTScheduler,
-                EDDScheduler,
+                # EDDScheduler,
                 PickListProvider,
                 # ResultAggregationPickList,
                 # ResultAggregationRouting,

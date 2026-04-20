@@ -12,3 +12,7 @@ experiment:
   name: ${data_card.name}
   output_dir: ./tmp_output
   instance_name: test_run
+
+viz:
+  launch: true
+  port: 8050

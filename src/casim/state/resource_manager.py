@@ -1,8 +1,7 @@
 from collections import defaultdict
 
-from ware_ops_algos.algorithms import RouteNode
+from ware_ops_algos.algorithms import RouteNode, Node
 from ware_ops_algos.domain_models import Resources, Resource, CobotPicker
-from ware_ops_pipes.utils.experiment_utils import Node # TODO fix where this comes from
 
 
 class ResourceManager:

@@ -122,17 +122,16 @@ def setup_scenario(cfg: DictConfig) -> SimulationEngine:
     loader = build_data_loader(cfg)
     trigger_map = build_trigger_map(cfg)
     conditions_map = build_condition_policies(cfg)
+    event_loggers = [KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
+    if cfg.viz.launch:
+        event_loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
 
     sim = SimulationEngine(
-        state_transformers=state_transformers,
+        state_adapters=state_transformers,
         data_loader=loader,
-        cache_path=Path(cfg.cache_base),
         domain_cache_path=str(cache_path),
         loader_kwargs=loader_kwargs,
-        triggers=trigger_map,
+        triggers_map=trigger_map,
         conditions_map=conditions_map,
-        event_loggers=[
-            # DashLogger(Path(cfg.experiment.output_dir) / "viz"),
-            KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
-    )
+        event_loggers=event_loggers)
     return sim

@@ -61,6 +61,21 @@ class NumberPickListCondition(Condition):
         else:
             return False
 
+
+class NbrBatchesNbrPickersCondition(Condition):
+    def __init__(self, n_batches: int, n_pickers: int):
+        super().__init__()
+        self.n_batches = n_batches
+        self.n_pickers = n_pickers
+
+    def get_decision(self, state: SimWarehouseDomain) -> bool:
+        if (len(state.dynamic_warehouse_info.buffered_pick_lists) >= self.n_batches
+                and len(state.resources.resources) >= self.n_pickers):
+            return True
+        else:
+            return False
+
+
 class NbrOrdersNbrPickersCondition(Condition):
     def __init__(self, order_window: int, picker_aval):
         super().__init__()
@@ -68,10 +83,6 @@ class NbrOrdersNbrPickersCondition(Condition):
         self.picker_aval = picker_aval
 
     def get_decision(self, state: SimWarehouseDomain) -> bool:
-        # if (state.warehouse_info.done
-        #         and len(state.resources.resources) >= self.picker_aval):
-        #     return True
-
         if (len(state.orders.orders) >= self.order_window
                 and len(state.resources.resources) >= self.picker_aval):
             return True

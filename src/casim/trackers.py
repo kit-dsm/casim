@@ -6,9 +6,10 @@ class ExperimentTracker:
         self.distance_by_picker: dict[int, float] = defaultdict(float)
         self.idle_time_by_picker: dict[int, float] = defaultdict(float)
         self._idle_start: dict[int, float] = {}
+        self.idle_intervals: list[tuple[int, float, float]] = []
         self.pick_durations_by_picker: dict[int, list[float]] = defaultdict(list)
-        self.completed_tours: list[tuple[int, float, float, list[int]]] = []
-        # (tour_id, start_time, end_time, order_ids)
+        self.completed_tours: list[tuple[int, float, float, list[int], int]] = []
+        # (tour_id, start_time, end_time, list[order_ids], picker_id)
 
     def on_travel(self, picker_id, distance):
         self.distance_by_picker[picker_id] += distance
@@ -20,16 +21,17 @@ class ExperimentTracker:
         start = self._idle_start.pop(picker_id, None)
         if start is not None:
             self.idle_time_by_picker[picker_id] += time - start
+            self.idle_intervals.append((picker_id, start, time))
 
     def on_pick_end(self, tour_id, picker_id, order_id, item_id, start_time, end_time):
         self.pick_durations_by_picker[picker_id].append(end_time - start_time)
 
-    def on_tour_end(self, tour_id, start_time, end_time, order_ids):
-        self.completed_tours.append((tour_id, start_time, end_time, list(order_ids)))
+    def on_tour_end(self, tour_id, start_time, end_time, order_ids, picker_id):
+        self.completed_tours.append((tour_id, start_time, end_time, list(order_ids), picker_id))
 
     @property
     def tour_durations(self) -> list[float]:
-        return [end - start for _, start, end, _ in self.completed_tours]
+        return [end - start for _, start, end, _, _ in self.completed_tours]
 
     @property
     def average_tour_makespan(self) -> float:
@@ -40,12 +42,8 @@ class ExperimentTracker:
     def average_batch_size(self) -> float:
         if not self.completed_tours:
             return 0.0
-        total_orders = sum(len(order_ids) for _, _, _, order_ids in self.completed_tours)
+        total_orders = sum(len(order_ids) for _, _, _, order_ids, _ in self.completed_tours)
         return total_orders / len(self.completed_tours)
-
-
-# casim/decision_engine/decision_tracker.py
-from collections import defaultdict
 
 
 class DecisionTracker:

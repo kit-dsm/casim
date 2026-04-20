@@ -81,6 +81,8 @@ class PickerTourQuery(Event):
         self.picker_id = picker_id
 
     def handle(self, state: State) -> list[Event]:
+        # A picker queries a new tour everytime they are forced by e.g. a scheduling result
+        # Or after they finished their last tour to query other scheduled tours.
         super().handle(state)
         picker = state.resource_manager.get_resource(
             self.picker_id)
@@ -94,14 +96,13 @@ class PickerTourQuery(Event):
             # There exists an assigned tour for the picker
             next_tour = state.tour_manager.get_tour(next_tour_id)
             start_time = state.current_time
-            if next_tour.start_time:
-                # The tour is scheduled, we use the start time of the tour
+            if next_tour.start_time is not None:
+                start_time = max(next_tour.start_time, self.time)
+                # The tour is scheduled -> we use the start time of the tour
                 # Otherwise we greedily start the tour right away
-                # start_time = next_tour.start_time
-                start_time = self.time
             next_tour.status = TourStates.PENDING
             if picker.tour_setup_time:
-                start_time += picker.tour_setup_time # TODO Check if setup times are not added twice
+                start_time += picker.tour_setup_time  # TODO Check if setup times are not added twice
             return [TourStart(start_time, next_tour_id)]
         else:
             # Nothing to do right now, picker is idle
@@ -238,7 +239,7 @@ class TourEnd(BaseTourEvent):
         state.tour_manager.finish_tour(tour.tour_id, self.time)
         # om = state.order_manager
         # state.tracker.update_on_tour_end(tour_start=tour.start_time, tour_finish=self.time, order_manager=om)
-        state.tracker.on_tour_end(tour.tour_id, tour.start_time, self.time, tour.order_numbers)
+        state.tracker.on_tour_end(tour.tour_id, tour.start_time, self.time, tour.order_numbers, tour.assigned_resource)
         assert self.tour_id != state.tour_manager.get_next_tour_for_picker(res.id), (f"{self.tour_id}, " 
                                                                                      f"{state.tour_manager._picker_tour_queues}")
         return [PickerTourQuery(self.time, res.id)]

@@ -3,16 +3,14 @@ from pathlib import Path
 
 import hydra
 import numpy as np
-import pandas as pd
 from omegaconf import DictConfig
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.decision_events import PickListDone
 from casim.events.operational_events import PickerArrival, ShiftStart
 from casim.simulation_engine import SimulationEngine
-from casim.viz.app import launch
 from scenarios.experiment_commons import load_and_flatten_data_card, setup_scenario, setup_decision_engine
-from scenarios.io_helpers import dump_pickle
+from casim.io_helpers import dump_pickle
 from scenarios.scenario_grocery_retailer.build_historic_solution import build_historic_batching_solution, \
     load_pick_history
 
@@ -29,7 +27,7 @@ def picker_arrival_hook(sim: SimulationEngine,
         if o.order_date < min_order_date:
             min_order_date = o.order_date
     for resource in domain.resources.resources:
-        sim.add_event(PickerArrival(time=0,
+        sim.add_event(PickerArrival(time=7 * 3600,
                                     picker_id=resource.id))
 
 
@@ -41,7 +39,7 @@ def add_orders_hook(sim: SimulationEngine,
 
 
 def shift_start_hook(sim, domain):
-    sim.add_event(ShiftStart(time=0.0))
+    sim.add_event(ShiftStart(time=7 * 3600))
 
 
 @hydra.main(config_path="config", config_name="grocery_retailer_config")
@@ -57,7 +55,7 @@ def main(cfg: DictConfig):
     def presolved_batches_hook(sim: SimulationEngine, domain: SimWarehouseDomain):
         historic_batches = build_historic_batching_solution(df, domain)
         for pl in historic_batches.pick_lists:
-            sim.add_event(PickListDone(time=0.0, pick_list=pl))
+            sim.add_event(PickListDone(time=pl.release, pick_list=pl))
 
     sim.reset(hooks=[add_orders_hook,
                      picker_arrival_hook,
@@ -84,9 +82,11 @@ def main(cfg: DictConfig):
         sim.step(events_to_add, state_snapshot.problem_class, solution)
 
     if cfg.viz.launch:
-        viz_dir = Path(cfg.experiment.output_dir) / "viz"
-        launch(viz_dir, port=cfg.viz.port, debug=False)
-
+        from casim.viz.gantt_chart import gantt_chart
+        # viz_dir = Path(cfg.experiment.output_dir) / "viz"
+        # launch(viz_dir, port=cfg.viz.port, debug=False)
+        fig = gantt_chart(sim.state.tracker)
+        fig.write_html(str(Path(cfg.project_root) / "gantt.html"))
 
 if __name__ == "__main__":
     main()

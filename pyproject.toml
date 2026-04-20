@@ -1,31 +1,38 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ware_ops_sim"
+name = "casim"
 version = "0.1.0"
-description = "A configurable warehouse simulation and RL environment"
+description = "Discrete-event simulation framework for warehouse order fulfillment"
 requires-python = ">=3.11"
 dependencies = [
-    "pandas~=2.3.3",
-    "ware_ops_algos==0.1.0",
-    "ware_ops_sim==0.1.0",
-    "openpyxl==3.1.5",
-    "hydra-core",
-    "gymnasium",
-    "sb3-contrib",
-    "seaborn",
-    "wandb",
-    "tensorboard",
-    "stable-baselines3",
-    "cosy-luigi"
+    "ware_ops_algos",
+    "cosy-luigi",
+    "pandas>=2.2",
+    "numpy>=2.0",
+    "networkx>=3.2",
+    "hydra-core>=1.3",
+    "omegaconf>=2.3",
+    "gymnasium>=1.0",
+    "seaborn>=0.13",
+    "plotly>=5.20",
+    "dash>=2.15",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
+    "pytest>=7.0",
 ]
+
+[tool.uv.sources]
+ware_ops_algos = { path = "../ware_ops_algos", editable = true }
+cosy-luigi = { url = "https://github.com/cls-python/cosy-luigi/releases/download/nightly/cosy_luigi-nightly.tar.gz" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -20,20 +20,18 @@ logger = logging.getLogger(__name__)
 
 class SimulationEngine:
     def __init__(self,
-                 state_transformers: dict[str, StateAdapter],
-                 triggers: dict[Type[Event], str],
+                 state_adapters: dict[str, StateAdapter],
+                 triggers_map: dict[Type[Event], str],
                  conditions_map: dict[str, Condition],
-                 cache_path: str | Path,
                  domain_cache_path: str,
                  loader_kwargs: dict,
                  data_loader: DataLoader = None,
                  reset_hook: Callable[['SimulationEngine'], None] = None,
                  event_loggers: list[EventLogger] | None = None):
 
-        self.cache_path = cache_path
-        self.state_transformers = state_transformers
+        self.state_adapters = state_adapters
         self.state: State | None = None
-        self.triggers = triggers
+        self.triggers_map = triggers_map
         self.conditions_map = conditions_map
         self.domain_cache_path = domain_cache_path
         self.events = []
@@ -81,9 +79,9 @@ class SimulationEngine:
             for el in self.even_loggers:
                 el.on_event(event, self)
 
-            if event.__class__ in self.triggers.keys():
-                problem = self.triggers[event.__class__]
-                state_transformer = self.state_transformers[problem]
+            if event.__class__ in self.triggers_map.keys():
+                problem = self.triggers_map[event.__class__]
+                state_transformer = self.state_adapters[problem]
                 state_snapshot = state_transformer.transform_state(self.state, problem)
                 condition = self.conditions_map[problem]
                 if condition.get_decision(state_snapshot):  # if decision necessary -> "pause"
@@ -99,7 +97,7 @@ class SimulationEngine:
         return True, None
 
     def step(self, events_to_add, problem_class, solution):
-        state_adapter = self.state_transformers[problem_class]
+        state_adapter = self.state_adapters[problem_class]
         state_adapter.cleanup_state(self.state, solution)
         if events_to_add:
             for e in events_to_add:

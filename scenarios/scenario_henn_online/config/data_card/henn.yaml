@@ -4,7 +4,7 @@ problem_type: OBRP
 objective: makespan
 source:
   data_loader: HennOnlineLoader
-  filepath: "72s-100-75-0.txt" #"29s-40-30-0.txt"
+  filepath: "uniform/29s-40-30-0.txt" #"29s-40-30-0.txt" # 72s-100-75-0.txt
 
 
 layout:

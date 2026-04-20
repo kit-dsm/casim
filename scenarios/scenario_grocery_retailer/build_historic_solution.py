@@ -58,7 +58,7 @@ def build_historic_batching_solution(
                 order_number=int(auftragsnr),
                 article_id=row.ARTIKELNR,
                 amount=int(row.MENGE_IST),
-                pick_node=pick_node,  # actual graph float coordinate
+                pick_node=pick_node,
                 in_store=int(row.warehouse),
             ))
 
@@ -73,5 +73,4 @@ def build_historic_batching_solution(
     return BatchingSolution(
         algo_name="historic_wms",
         pick_lists=pick_lists,
-        provenance={"source": "historic_csv", "n_batches": len(pick_lists)},
     )
