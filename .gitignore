@@ -78,9 +78,6 @@ target/
 profile_default/
 ipython_config.py
 
-# pyenv
-.python-version
-
 # celery beat schedule file
 celerybeat-schedule
 
@@ -119,3 +116,4 @@ outputs/
 
 /cls-luigi/
 /DEPRECATED/
+tests/data/instances/caches/
