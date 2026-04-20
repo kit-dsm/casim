@@ -3,7 +3,7 @@ import logging
 import gymnasium as gym
 import numpy as np
 
-from ware_ops_algos.algorithms import AlgorithmSolution, PickListSelectionSolution
+from ware_ops_algos.algorithms import AlgorithmSolution
 
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.domain_objects.sim_domain import SimWarehouseDomain
@@ -73,14 +73,7 @@ class BaseEnv(gym.Env):
             self.sim.step(events_to_add, domain.problem_class, solution)
 
     def _action_to_solution(self, action: int | AlgorithmSolution):
-        if isinstance(action, int):
-            dynamic_warehouse_state = self.dynamic_warehouse_state_prev
-            selected = dynamic_warehouse_state.dynamic_warehouse_info.buffered_pick_lists[action]
-            return PickListSelectionSolution(selected_pick_lists=[selected])
-        elif isinstance(action, AlgorithmSolution):
-            return action
-        else:
-            raise ValueError
+        ...
 
     def _solution_to_events(self, solution: AlgorithmSolution) -> list[Event]:
         ...
