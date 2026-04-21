@@ -11,12 +11,12 @@ from ware_ops_algos.utils.general_functions import load_model_cards
 
 from casim.pipelines.problem_based_template import (
     InstanceLoader, PickListProvider, ResultAggregationPickList, ResultAggregationRouting, ResultAggregationScheduling,
+    clear_store, iter_store, dump_pickle,
 )
 from casim.pipelines.subproblems.item_assingment import GreedyIA
-from casim.pipelines.subproblems.batching import ClarkAndWrightNN
-from casim.pipelines.subproblems.picker_routing import SShape
-from casim.pipelines.subproblems.scheduling import LPTScheduler
-from casim.io_helpers import dump_pickle
+from casim.pipelines.subproblems.batching import ClarkAndWrightNN, OrderNrFiFo
+from casim.pipelines.subproblems.picker_routing import SShape, Return, LargestGap, Midpoint, NearestNeighbourhood
+from casim.pipelines.subproblems.scheduling import LPTScheduler, SPTScheduler, EDDScheduler
 
 
 ENDPOINT_REGISTRY = {
@@ -86,19 +86,19 @@ class CoSyRunner:
                 InstanceLoader,
                 GreedyIA,
                 # FiFo,
-                # OrderNrFiFo,
+                OrderNrFiFo,
                 # DueDate,
                 # LSBatchingNNFiFo,
                 # ClarkAndWrightSShape,
-                ClarkAndWrightNN,
+                # ClarkAndWrightNN,
                 SShape,
-                # Return,
-                # LargestGap,
-                # Midpoint,
-                # NearestNeighbourhood,
+                Return,
+                LargestGap,
+                Midpoint,
+                NearestNeighbourhood,
                 # SPTScheduler,
-                LPTScheduler,
-                # EDDScheduler,
+                # LPTScheduler,
+                EDDScheduler,
                 PickListProvider,
                 # ResultAggregationPickList,
                 # ResultAggregationRouting,
@@ -131,30 +131,16 @@ class CoSyRunner:
         self._cleanup_after_solution(self.output_folder)
         return solutions
 
-    def _load_solutions(self, problem_class: str) -> dict:
-        """
-        Load raw solution objects from output files.
-        Keys are the task_id-based filenames, values are solution objects.
-        """
-        if problem_class in ["OBRSP", "ORSP"]:
-            pattern = "*scheduling_sol.pkl"
-        elif problem_class in ["OBP"]:
-            pattern = "*pick_list_sol.pkl"
-        elif problem_class in ["ORP", "OBRP", "BSRP"]:
-            pattern = "*routing_sol.pkl"
-        else:
-            raise ValueError(f"Unknown problem class: {problem_class}")
+    @staticmethod
+    def _load_solutions(problem_class: str) -> dict:
+        suffix = {
+            "OBRSP": "scheduling_sol.pkl", "ORSP": "scheduling_sol.pkl",
+            "OBP": "pick_list_sol.pkl",
+            "ORP": "routing_sol.pkl", "OBRP": "routing_sol.pkl",
+            "BSRP": "routing_sol.pkl",
+        }[problem_class]
+        return {Path(p).stem: obj for p, obj in iter_store(f"*{suffix}")}
 
-        solutions = {}
-        for f in self.output_folder.glob(pattern):
-            with open(f, "rb") as fh:
-                try:
-                    solutions[f.stem] = pickle.load(fh)
-                except Exception as e:
-                    print(f"❌ Failed to load {f}: {e}")
-        return solutions
-
-    def _cleanup_after_solution(self, output_folder: Path):
-        for file_path in output_folder.glob("*"):
-            if file_path.is_file():
-                file_path.unlink()
+    @staticmethod
+    def _cleanup_after_solution(output_folder: Path):
+        clear_store()

@@ -1,4 +1,6 @@
+import fnmatch
 import os
+import pickle
 from os.path import join as pjoin
 from pathlib import Path
 from typing import Sequence, Callable, Iterable, Mapping
@@ -7,7 +9,6 @@ from typing import Sequence, Callable, Iterable, Mapping
 from cosy.maestro import Maestro
 
 import luigi
-from luigi import LocalTarget
 from luigi.configuration import get_config
 
 
@@ -37,7 +38,7 @@ from ware_ops_algos.utils.general_functions import ModelCard
 
 from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
 from casim.pipelines.taxonomy import TAXONOMY
-from casim.io_helpers import load_pickle, dump_pickle, dump_json
+from casim.io_helpers import dump_json
 
 
 class PipelineParams(luigi.Config):
@@ -46,25 +47,49 @@ class PipelineParams(luigi.Config):
     domain_path = luigi.Parameter(default=None)
     runtime = luigi.IntParameter(default=300)
 
+_STORE: dict[str, object] = {}
+
+class MemoryTarget(luigi.Target):
+    def __init__(self, path: str):
+        self.path = path
+
+    def exists(self):
+        hit = self.path in _STORE
+        return hit
+
+def dump_pickle(path, obj):
+    _STORE[str(path)] = obj
+
+def load_pickle(path):
+    path = str(path)
+    if path in _STORE:
+        return _STORE[path]
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+def iter_store(pattern: str):
+    for k, v in _STORE.items():
+        if fnmatch.fnmatch(k, pattern):
+            yield k, v
+
+def clear_store(prefix: str | None = None):
+    if prefix is None:
+        _STORE.clear()
+    else:
+        for k in [k for k in _STORE if k.startswith(prefix)]:
+            del _STORE[k]
+
+#
+
 
 class BaseComponent(CoSyLuigiTask):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pipeline_params = PipelineParams()
-        os.makedirs(self.pipeline_params.output_folder, exist_ok=True)
 
-    def get_luigi_local_target_with_task_id(self, out_name) -> LocalTarget:
-        """
-        Places output in a subdirectory named after the task class.
-        This keeps filenames short and flat while preserving uniqueness via
-        the directory path (which encodes the full pipeline variant through
-        Luigi's task parameter hashing / CoSy's synthesis).
-        """
-        # stage_dir = pjoin(self.pipeline_params.output_folder, self.__class__.__name__)
-        # os.makedirs(stage_dir, exist_ok=True)
-        # return LocalTarget(pjoin(stage_dir, out_name))
-        return LocalTarget(
+    def get_luigi_local_target_with_task_id(self, out_name) -> MemoryTarget:
+        return MemoryTarget(
             pjoin(self.pipeline_params.output_folder,
                   self.task_id + "_" + out_name)
         )
