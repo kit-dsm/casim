@@ -61,6 +61,24 @@ class PickerArrival(Event):
         return []
 
 
+class TruckDeparture(Event):
+
+    priority_score = 1
+
+    def __init__(self, time, capacity):
+        super().__init__(time)
+        self.capacity = capacity
+
+    def handle(self, state: 'State') -> list['Event']:
+        if hasattr(state, "dock_manager"):
+            state.dock_manager.release_pallets(self.capacity)
+            print(f"released {self.capacity} pallets")
+            resources = state.resource_manager.get_resources().resources
+            idle_pickers = [p for p in resources if not p.occupied]
+            return [PickerArrival(self.time, p.id) for p in idle_pickers]
+        return []
+
+
 class PickerIdle(Event):
     priority_score = 1
 
@@ -242,5 +260,7 @@ class TourEnd(BaseTourEvent):
         state.tracker.on_tour_end(tour.tour_id, tour.start_time, self.time, tour.order_numbers, tour.assigned_resource)
         assert self.tour_id != state.tour_manager.get_next_tour_for_picker(res.id), (f"{self.tour_id}, " 
                                                                                      f"{state.tour_manager._picker_tour_queues}")
+        if hasattr(state, "dock_manager"):
+            state.dock_manager.stage_pallets(1)
         return [PickerTourQuery(self.time, res.id)]
 
