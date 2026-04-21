@@ -81,16 +81,16 @@ def build_figure(layout, storage, first_snapshot, colors):
     ))
 
     picker_idx = {}
-    for i, p in enumerate(first_snapshot["pickers"].resources):
-        x, y = picker_pos(p)
-        picker_idx[p.id] = 3 + i
+    for i, p in enumerate(first_snapshot["pickers"]):
+        x, y = p["position"]
+        picker_idx[p["id"]] = 3 + i
         fig.add_trace(go.Scatter(
             x=[x], y=[y], mode='markers+text',
-            marker=dict(size=20, color=colors[p.id],
+            marker=dict(size=20, color=colors[p["id"]],
                         line=dict(width=2, color='white')),
-            text=[f"P{p.id}"], textposition='top center',
-            textfont=dict(color=colors[p.id], family='JetBrains Mono'),
-            hoverinfo='text', hovertext=f"Picker {p.id}", showlegend=False,
+            text=[f"P{p["id"]}"], textposition='top center',
+            textfont=dict(color=colors[p["id"]], family='JetBrains Mono'),
+            hoverinfo='text', hovertext=f"Picker {p["id"]}", showlegend=False,
         ))
 
     fig.update_layout(
@@ -121,7 +121,7 @@ def create_app(events, static):
     app = dash.Dash(__name__, title="Warehouse Viz", update_title=None)
     n = len(events)
 
-    pids = [p.id for p in events[0]["pickers"].resources]
+    pids = [p["id"] for p in events[0]["pickers"]]
     colors = {pid: PICKER_COLORS[i % len(PICKER_COLORS)]
               for i, pid in enumerate(pids)}
     fig, picker_idx = build_figure(layout_data, storage, events[0], colors)
@@ -234,10 +234,10 @@ def create_app(events, static):
         snap = events[frame]
 
         patched = Patch()
-        for p in snap["pickers"].resources:
-            x, y = picker_pos(p)
-            patched["data"][picker_idx[p.id]]["x"] = [x]
-            patched["data"][picker_idx[p.id]]["y"] = [y]
+        for p in snap["pickers"]:
+            x, y = p["position"]
+            patched["data"][picker_idx[p["id"]]]["x"] = [x]
+            patched["data"][picker_idx[p["id"]]]["y"] = [y]
 
         event_label = f"{snap['event_type']} #{snap['event_id']:05d}"
         time_label = f"t = {snap['time']}"

@@ -5,6 +5,8 @@ import copy
 import json
 from pathlib import Path
 
+from ware_ops_algos.domain_models import Resource
+
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.state import State
@@ -43,8 +45,16 @@ class DashLogger(EventLogger):
             "event_type": event.__class__.__name__,
             "time": state.current_time,
 
-            "pickers": copy.deepcopy(state.resource_manager.get_resources()),
-
+            # "pickers": copy.deepcopy(state.resource_manager.get_resources()),
+            "pickers": [
+                {
+                    "id": p.id,
+                    "position": self._pos(p),
+                    "status": p.occupied,
+                    "current_tour": getattr(p, "current_tour_id", None),
+                }
+                for p in state.resource_manager.get_resources().resources
+            ],
             "buffered_order_ids": list(om._order_buffer.keys()),
             "pick_list_buffer": [
                 [o.order_id for o in pl.orders] for pl in om._pick_list_buffer
@@ -64,6 +74,12 @@ class DashLogger(EventLogger):
 
     def on_done(self, state):
         dump_pickle(str(self.out_dir / "events.pkl"), self.snapshots)
+
+    def _pos(self, p: Resource):
+        loc = p.current_location
+        if hasattr(loc, "position"):
+            loc = loc.position
+        return (loc[0], loc[1])
 
 
 class KPILogger(EventLogger):
@@ -99,7 +115,7 @@ class KPILogger(EventLogger):
         total_orders = sum(len(oids) for _, _, _, oids, _ in t.completed_tours)
 
         return {
-            "makespan": horizon,
+            "makespan": max(end for _, _, end, _, _ in t.completed_tours),
             "num_tours": len(t.completed_tours),
             "num_orders_completed": total_orders,
             "avg_tour_makespan": t.average_tour_makespan,
@@ -118,7 +134,8 @@ class KPILogger(EventLogger):
             f"events={self._event_count:>6d}  "
             f"tours={len(t.completed_tours):>4d}  "
             f"avg_batch={t.average_batch_size:.2f}  "
-            f"dist={sum(t.distance_by_picker.values()):.0f}"
+            f"dist={sum(t.distance_by_picker.values()):.0f},"
+            # f"dock_fill={state.dock_manager.n_staged_pallets}"
         )
 
     @staticmethod
