@@ -5,16 +5,19 @@ pipeline_runner:
     problem_class: ORSP
 
 triggers:
-#  ShiftStart: ORSP
-  PickListDone: ORSP
-#  PickerIdle: ORSP
-#  FlushRemainingOrders: ORSP
+  ShiftStart: ORSP
+  PickerArrival: ORSP
+#  PickListDone: ORSP
+  PickerIdle: ORSP
+  TruckDeparture: ORSP
 
 conditions:
   ORSP:
-    _target_: casim.state.conditions.NbrBatchesNbrPickersCondition
-    n_batches: 1
-    n_pickers: 1
+    - _target_: casim.state.conditions.NbrBatchesNbrPickersCondition
+      n_batches: 1
+      n_pickers: 1
+    - _target_: casim.state.conditions.DockCapacityCondition
+      threshold: 98
 
 state_snapshot:
   ORSP:

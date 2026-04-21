@@ -45,7 +45,7 @@ class SimulationEngine:
         domain = self.data_loader.load(**self.loader_kwargs)
         return domain
 
-    def reset(self, hooks: list[Callable[['SimulationEngine', SimWarehouseDomain], None]] = None):
+    def reset(self, hooks: list[Callable[['SimulationEngine', SimWarehouseDomain], None]] = ()):
         domain = self.load_data()
         self.state = State(
             layout=domain.layout,
@@ -54,7 +54,7 @@ class SimulationEngine:
             resources=domain.resources
         )
 
-        for hook in hooks:
+        for hook in (hooks or []):
             hook(self, domain)
 
         for el in self.even_loggers:
@@ -83,8 +83,8 @@ class SimulationEngine:
                 problem = self.triggers_map[event.__class__]
                 state_transformer = self.state_adapters[problem]
                 state_snapshot = state_transformer.transform_state(self.state, problem)
-                condition = self.conditions_map[problem]
-                if condition.get_decision(state_snapshot):  # if decision necessary -> "pause"
+                conditions = self.conditions_map[problem]
+                if all(condition.get_decision(state_snapshot) for condition in conditions):
                     return False, state_snapshot
 
             if not self.events and len(self.state.order_manager.get_order_buffer()) > 0:

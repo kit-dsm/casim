@@ -11,9 +11,9 @@ triggers:
 
 conditions:
   OBRSP:
-    _target_: casim.state.conditions.NbrOrdersNbrPickersCondition
-    order_window: 1
-    picker_aval: 1
+    - _target_: casim.state.conditions.NbrOrdersNbrPickersCondition
+      order_window: 1
+      picker_aval: 1
 
 state_snapshot:
   OBRSP:
