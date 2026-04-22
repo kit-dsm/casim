@@ -1,0 +1,39 @@
+defaults:
+  - data_card: grocery_retailer
+  - scenario: scenario_grocery_fixed_arrival
+  - optional sweep: None
+
+hydra:
+  run:
+    dir: outputs/${data_card.name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/${data_card.name}/multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.num}
+  job_logging:
+    root:
+      level: CRITICAL
+  hydra_logging:
+    root:
+      level: CRITICAL
+
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+
+project_root: ${hydra:runtime.cwd}
+data_dir: ${project_root}/data
+instances_base: ${data_dir}/instances
+cache_base: ${instances_base}/caches
+verbose: True
+
+viz:
+  launch: False
+  port: 8050
+
+experiment:
+  name: ${data_card.name}
+  output_dir: ${hydra:runtime.output_dir}
+  instance_name: ${data_card.name}/${now:%Y-%m-%d_%H-%M-%S}
+
