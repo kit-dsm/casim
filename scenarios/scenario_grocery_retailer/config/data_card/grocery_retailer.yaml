@@ -1,7 +1,7 @@
 name: "grocery_retailer"
 problem_type: ORSP
 
-objective: distance
+objective: tardiness
 source:
   data_loader: GroceryRetailerLoader
   orders_path: "orders.csv"
@@ -51,6 +51,7 @@ orders:
     - name: Order
       features:
         - name: order_date
+        - name: due_date
 
       objects:
         - name: OrderPosition

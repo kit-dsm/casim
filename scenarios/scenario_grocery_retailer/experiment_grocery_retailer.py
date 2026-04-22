@@ -2,44 +2,19 @@ import logging
 from pathlib import Path
 
 import hydra
-import numpy as np
 from omegaconf import DictConfig
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain
-from casim.events.decision_events import PickListDone
-from casim.events.operational_events import PickerArrival, ShiftStart
-from casim.simulation_engine import SimulationEngine
 from scenarios.experiment_commons import load_and_flatten_data_card, setup_scenario, setup_decision_engine
 from casim.io_helpers import dump_pickle
-from scenarios.scenario_grocery_retailer.build_historic_solution import build_historic_batching_solution, \
-    load_pick_history
+from casim.viz.app import launch
+from casim.viz.gantt_chart import gantt_chart
+from scenarios.scenario_grocery_retailer.scenario_specific_hooks import add_orders_hook, picker_arrival_hook, \
+    shift_start_hook, make_truck_schedule_hook, wms_run_hook, make_dock_manager_hook
 
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
-
-
-def picker_arrival_hook(sim: SimulationEngine,
-                        domain: SimWarehouseDomain):
-    min_order_date = np.inf
-    for o in domain.orders.orders:
-        if o.order_date < min_order_date:
-            min_order_date = o.order_date
-    for resource in domain.resources.resources:
-        sim.add_event(PickerArrival(time=7 * 3600,
-                                    picker_id=resource.id))
-
-
-def add_orders_hook(sim: SimulationEngine,
-                    domain: SimWarehouseDomain):
-    orders = domain.orders.orders
-    for order in orders:
-        sim.add_order(order)
-
-
-def shift_start_hook(sim, domain):
-    sim.add_event(ShiftStart(time=7 * 3600))
 
 
 @hydra.main(config_path="config", config_name="grocery_retailer_config")
@@ -48,19 +23,14 @@ def main(cfg: DictConfig):
 
     sim = setup_scenario(cfg)
     decision_engine = setup_decision_engine(cfg, datacard)
-    historic_orders_file = cfg.data_card.source.orders_path
-    historic_orders_path = Path(cfg.instances_base) / cfg.data_card.name / historic_orders_file
-    df = load_pick_history(historic_orders_path)
-
-    def presolved_batches_hook(sim: SimulationEngine, domain: SimWarehouseDomain):
-        historic_batches = build_historic_batching_solution(df, domain)
-        for pl in historic_batches.pick_lists:
-            sim.add_event(PickListDone(time=pl.release, pick_list=pl))
 
     sim.reset(hooks=[add_orders_hook,
                      picker_arrival_hook,
-                     presolved_batches_hook,
-                     shift_start_hook
+                     shift_start_hook,
+                     make_truck_schedule_hook(bin_minutes=30,
+                                              sweep_time_sec=18*3600),
+                     wms_run_hook,
+                     make_dock_manager_hook(K_dock=98)
                      ])
 
     done = False
@@ -82,11 +52,11 @@ def main(cfg: DictConfig):
         sim.step(events_to_add, state_snapshot.problem_class, solution)
 
     if cfg.viz.launch:
-        from casim.viz.gantt_chart import gantt_chart
-        # viz_dir = Path(cfg.experiment.output_dir) / "viz"
-        # launch(viz_dir, port=cfg.viz.port, debug=False)
-        fig = gantt_chart(sim.state.tracker)
-        fig.write_html(str(Path(cfg.project_root) / "gantt.html"))
+        viz_dir = Path(cfg.experiment.output_dir) / "viz"
+        launch(viz_dir, port=cfg.viz.port, debug=False)
+
+    fig = gantt_chart(sim.state.tracker)
+    fig.write_html(str(Path(cfg.project_root) / "gantt.html"))
 
 if __name__ == "__main__":
     main()

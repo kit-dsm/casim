@@ -18,13 +18,6 @@ class PickListDone(ProcessEvent):
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
         events_to_return = []
-        state.order_manager.clear_order_buffer(self.pick_list.orders)
-        state.add_pick_list_to_planning_state(self.pick_list)
-        # TODO We push pick lists to pickers here. Maybe add PLDonePush / PLDonePull?
-
-        # for picker in state.resource_manager.get_resources().resources:
-        #     if not picker.occupied:
-        #         events_to_return.append(PickerArrival(self.time, picker.id))
         return events_to_return
 
 
@@ -36,9 +29,9 @@ class RoutingDone(ProcessEvent):
 
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        state.order_manager.clear_order_buffer(self.route.pick_list.orders)
-        state.add_route_to_planning_state(self.route,
-                                          self.picker_id)
+        # state.order_manager.clear_order_buffer(self.route.pick_list.orders)
+        # state.add_route_to_planning_state(self.route,
+        #                                   self.picker_id)
         events_to_return = []
         picker_id = self.picker_id
         if self.picker_id is not None:
@@ -58,8 +51,8 @@ class SequencingDone(ProcessEvent):
 
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        state.order_manager.clear_order_buffer(self.sequencing.route.pick_list.orders)
-        state.add_sequencing_to_planning_state(self.sequencing)
+        # state.order_manager.clear_order_buffer(self.sequencing.route.pick_list.orders)
+        # state.add_sequencing_to_planning_state(self.sequencing)
         events_to_return = []
         picker_id = self.sequencing.picker_id
         picker = state.resource_manager.get_resource(picker_id)

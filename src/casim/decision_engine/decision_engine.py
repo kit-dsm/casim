@@ -8,7 +8,6 @@ from ware_ops_algos.algorithms import AlgorithmSolution, CombinedRoutingSolution
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.events.decision_events import SequencingDone, RoutingDone, PickListDone
-from casim.pipelines.objective_evaluator import ObjectiveEvaluator
 from casim.pipelines.pipeline_runner import CoSyRunner
 from casim.trackers import DecisionTracker
 
@@ -36,65 +35,58 @@ class CommitAllPolicy(CommitmentPolicy):
 
 class DecisionEngine:
     def __init__(self,
-                 execution_map: dict[str, CoSyRunner],
-                 evaluator: ObjectiveEvaluator,
-                 commitment_policies: CommitmentPolicy = CommitAllPolicy(),
+                 solver_map: dict[str, CoSyRunner],
+                 commitment_policies: dict[str, CommitmentPolicy],
                  learnable_problems: list[str] | None = None
                  ):
 
-        self.execution_map = execution_map
+        self.solver_map = solver_map
         self.learnable_problems = learnable_problems or []
-        self.evaluator = evaluator
         self.commitment_policies = commitment_policies
         self.selected_pipelines = defaultdict(dict)
         self.decision_tracker = DecisionTracker()
 
-    def get_execution(self, problem: str) -> CoSyRunner:
-        return self.execution_map[problem]
+    def get_solver(self, problem: str) -> CoSyRunner:
+        return self.solver_map[problem]
 
     def on_trigger(self, state_snapshot: SimWarehouseDomain):
         problem = state_snapshot.problem_class
-        runner = self.get_execution(problem)
+        runner = self.get_solver(problem)
         start_time_sim = state_snapshot.dynamic_warehouse_info.time
         start_time = time.perf_counter()
-        solutions = runner.solve(state_snapshot)
+        solution, solver_name, objective_value = runner.solve(state_snapshot)
         elapsed = time.perf_counter() - start_time
-
-        solution = self.select_strategy(solutions, problem)
         if solution:
-            if self.commitment_policies:
-                policy = self.commitment_policies #[problem]
-                solution = policy.apply(solution)
+            self.on_solution(
+                solution,
+                solver_name,
+                objective_value,
+                state_snapshot.objective,
+                state_snapshot.problem_class)
+
+            policy = self.commitment_policies.get(problem) or CommitAllPolicy()
+            solution = policy.apply(solution)
             return self.solution_to_events(solution, start_time_sim), solution
         return None
 
-    def select_strategy(self, solutions, problem):
-        # evaluator = self.evaluators_map[problem]
-        best_solution, best_key, best_kpi_value = self.evaluator.select_best(solutions, problem)
+    def on_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem):
         if isinstance(best_solution, CombinedRoutingSolution):
             order_ids = [o for r in best_solution.routes for o in r.pick_list.order_numbers]
-            self.decision_tracker.on_decision(
-                problem_class=problem,
-                input_ids=order_ids,
-                selected_pipeline=best_key,
-                kpi_value=best_kpi_value,
-                kpi=self.evaluator.objective,
-                runtime=best_solution.execution_time
-            )
         elif isinstance(best_solution, SchedulingSolution):
             order_ids = [o for j in best_solution.jobs for o in j.route.pick_list.order_numbers]
-            self.decision_tracker.on_decision(
-                problem_class=problem,
-                input_ids=order_ids,
-                selected_pipeline=best_key,
-                kpi_value=best_kpi_value,
-                kpi=self.evaluator.objective,
-                runtime=best_solution.execution_time
-            )
-
+        elif isinstance(best_solution, BatchingSolution):
+            order_ids = [o_id for pl in best_solution.pick_lists for o_id in pl.order_numbers]
         else:
             raise ValueError(type(best_solution))
-        return best_solution
+
+        self.decision_tracker.on_decision(
+            problem_class=problem,
+            input_ids=order_ids,
+            selected_pipeline=solver_name,
+            kpi_value=objective_value,
+            kpi=objective,
+            runtime=best_solution.execution_time
+        )
 
     def solution_to_events(self, solution: AlgorithmSolution, finish_time):
         logger.info("Solution type", type(solution))

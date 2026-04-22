@@ -23,7 +23,7 @@ cache_base: ${instances_base}/caches
 verbose: True
 
 viz:
-  launch: true
+  launch: false
   port: 8050
 
 experiment:

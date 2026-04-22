@@ -9,7 +9,7 @@ TOUR_COLORS = [
 
 
 def gantt_chart(tracker, title="Picker Schedule") -> go.Figure:
-    pickers = sorted(set(pid for _, _, _, _, pid in tracker.completed_tours))
+    pickers = sorted(set(pid for _, _, _, _, pid, _, _ in tracker.completed_tours))
     picker_labels = {pid: f"Picker {pid}" for pid in pickers}
 
     fig = go.Figure()
@@ -28,7 +28,7 @@ def gantt_chart(tracker, title="Picker Schedule") -> go.Figure:
         ))
 
     # tour bars
-    for tour_id, start, end, order_ids, pid in tracker.completed_tours:
+    for tour_id, start, end, order_ids, pid, _, _ in tracker.completed_tours:
         color = TOUR_COLORS[tour_id % len(TOUR_COLORS)]
         fig.add_trace(go.Bar(
             y=[picker_labels[pid]],

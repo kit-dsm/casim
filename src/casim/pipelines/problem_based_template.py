@@ -512,7 +512,7 @@ class ResultAggregationScheduling(ResultAggregation):
         dump_json(self.output()["summary"].path, summary)
 
 
-class ResultAggregationPickList(ResultAggregation):
+class ResultAggregationBatching(ResultAggregation):
     pick_list_sol = CoSyLuigiTaskParameter(AbstractBatching)
 
     def run(self):
@@ -698,7 +698,7 @@ def main():
         PickListProvider,
         SShape,
         RatliffRosenthal,
-        ResultAggregationPickList,
+        ResultAggregationBatching,
         ResultAggregationRouting,
     )
 

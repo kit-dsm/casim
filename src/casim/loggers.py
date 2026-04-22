@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import pickle
 from typing import TYPE_CHECKING
 
 import copy
@@ -25,27 +27,29 @@ class DashLogger(EventLogger):
     def __init__(self, out_dir: Path):
         self.out_dir = Path(out_dir)
         self.out_dir.mkdir(parents=True, exist_ok=True)
-        self.snapshots = []
+        self.events_file = None
 
     def on_reset(self, sim, domain):
-        self.snapshots = []
-        dump_pickle(str(self.out_dir / "static.pkl"), {
-            "layout": domain.layout,
-            "storage_locations": domain.storage.locations,
-            "orders": domain.orders.orders
-        })
+        dump_pickle(
+            str(self.out_dir / "static.pkl"),
+            {
+                "layout": domain.layout,
+                "storage_locations": domain.storage.locations,
+                "orders": domain.orders.orders,
+            },
+        )
+
+        self.events_file = open(self.out_dir / "events.pkl", "wb")
 
     def on_event(self, event, sim):
         state = sim.state
         om = state.order_manager
         tm = state.tour_manager
 
-        self.snapshots.append({
+        snapshot = {
             "event_id": event.id,
             "event_type": event.__class__.__name__,
             "time": state.current_time,
-
-            # "pickers": copy.deepcopy(state.resource_manager.get_resources()),
             "pickers": [
                 {
                     "id": p.id,
@@ -59,7 +63,6 @@ class DashLogger(EventLogger):
             "pick_list_buffer": [
                 [o.order_id for o in pl.orders] for pl in om._pick_list_buffer
             ],
-
             "tours": {
                 t_id: {
                     "status": t.status,
@@ -70,10 +73,13 @@ class DashLogger(EventLogger):
                 for t_id, t in tm.all_tours.items()
             },
             "active_picker_tour": dict(tm._active_picker_tour),
-        })
+        }
+
+        pickle.dump(snapshot, self.events_file, protocol=pickle.HIGHEST_PROTOCOL)
 
     def on_done(self, state):
-        dump_pickle(str(self.out_dir / "events.pkl"), self.snapshots)
+        if self.events_file is not None:
+            self.events_file.close()
 
     def _pos(self, p: Resource):
         loc = p.current_location
@@ -112,10 +118,10 @@ class KPILogger(EventLogger):
         horizon = state.current_time
         horizon_h = horizon / 3600 if horizon else 0
 
-        total_orders = sum(len(oids) for _, _, _, oids, _ in t.completed_tours)
+        total_orders = sum(len(oids) for _, _, _, oids, _, _, _ in t.completed_tours)
 
         return {
-            "makespan": max(end for _, _, end, _, _ in t.completed_tours),
+            "makespan": max(end for _, _, end, _, _, _, _ in t.completed_tours),
             "num_tours": len(t.completed_tours),
             "num_orders_completed": total_orders,
             "avg_tour_makespan": t.average_tour_makespan,
@@ -125,6 +131,8 @@ class KPILogger(EventLogger):
             "distance_by_picker": dict(t.distance_by_picker),
             "idle_time_by_picker": dict(t.idle_time_by_picker),
             "total_distance": sum(t.distance_by_picker.values()),
+            "total_delayed": t.total_delayed,
+            # "total_on_time": t.total_on_time
         }
 
     def _print_progress(self, state: State) -> None:
@@ -135,6 +143,8 @@ class KPILogger(EventLogger):
             f"tours={len(t.completed_tours):>4d}  "
             f"avg_batch={t.average_batch_size:.2f}  "
             f"dist={sum(t.distance_by_picker.values()):.0f},"
+            f"on_time_ratio={100*t.on_time_ratio:.1f}% "
+            f"delayed_ratio={100*t.delayed_ratio:.1f}%"
             # f"dock_fill={state.dock_manager.n_staged_pallets}"
         )
 
@@ -150,6 +160,7 @@ class KPILogger(EventLogger):
         print(f"  avg batch size:      {s['avg_batch_size']:.2f}")
         print(f"  orders/hour:         {s['orders_per_hour']:.1f}")
         print(f"  total distance:      {s['total_distance']:.0f}")
+        print(f"  total delayed:      {s['total_delayed']:.0f}")
         for pid, d in s['distance_by_picker'].items():
             idle = s['idle_time_by_picker'].get(pid, 0)
             print(f"    picker {pid}: distance={d:.0f}  idle={idle:.0f}")

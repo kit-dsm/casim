@@ -13,6 +13,7 @@ class DynamicInfo(WarehouseInfo):
     current_picker: Resource | None
     buffered_pick_lists: list[PickList] | None
     done: bool
+    n_staged_pallets: int
 
 
 class SimWarehouseDomain(BaseWarehouseDomain):

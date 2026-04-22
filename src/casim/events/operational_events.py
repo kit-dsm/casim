@@ -79,6 +79,14 @@ class TruckDeparture(Event):
         return []
 
 
+class WMSRun(Event):
+    def __init__(self, time):
+        super().__init__(time)
+
+    def handle(self, state: 'State') -> list['Event']:
+        return []
+
+
 class PickerIdle(Event):
     priority_score = 1
 
@@ -255,9 +263,20 @@ class TourEnd(BaseTourEvent):
               f"Makespan: {self.time - tour.start_time}")
         # finalize tour and free picker
         state.tour_manager.finish_tour(tour.tour_id, self.time)
-        # om = state.order_manager
+        om = state.order_manager
+        on_time = []
+        delayed = []
+        for o_id in tour.order_numbers:
+            o = om.get_order_from_history(o_id)
+            if o.due_date < self.time:
+                delayed.append(o_id)
+            else:
+                on_time.append(o_id)
+
         # state.tracker.update_on_tour_end(tour_start=tour.start_time, tour_finish=self.time, order_manager=om)
-        state.tracker.on_tour_end(tour.tour_id, tour.start_time, self.time, tour.order_numbers, tour.assigned_resource)
+        state.tracker.on_tour_end(tour.tour_id, tour.start_time, self.time, tour.order_numbers, tour.assigned_resource,
+                                  on_time, delayed)
+
         assert self.tour_id != state.tour_manager.get_next_tour_for_picker(res.id), (f"{self.tour_id}, " 
                                                                                      f"{state.tour_manager._picker_tour_queues}")
         if hasattr(state, "dock_manager"):

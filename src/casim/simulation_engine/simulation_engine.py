@@ -1,9 +1,7 @@
 import heapq
 import logging
-from pathlib import Path
 from typing import Callable, Type
 
-import numpy as np
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
 
@@ -12,8 +10,8 @@ from casim.events.base_events import Event
 from casim.events.operational_events import OrderArrival, FlushRemainingOrders
 from casim.loggers import EventLogger
 from casim.state import State
-from casim.state.conditions import Condition
-from casim.state.state_adapter import StateAdapter
+from casim.simulation_engine.conditions import Condition
+from casim.simulation_engine.state_adapter import StateAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +64,7 @@ class SimulationEngine:
     def add_event(self, event: Event):
         heapq.heappush(self.events, event)
 
-    def run(self) -> [bool, SimWarehouseDomain]:
+    def run(self) -> [bool, SimWarehouseDomain | None]:
         while self.events:
             event = heapq.heappop(self.events)
             logger.info(f"Event {event} popped at state time: {self.state.current_time}, events start: {event.time}")
@@ -83,8 +81,8 @@ class SimulationEngine:
                 problem = self.triggers_map[event.__class__]
                 state_transformer = self.state_adapters[problem]
                 state_snapshot = state_transformer.transform_state(self.state, problem)
-                conditions = self.conditions_map[problem]
-                if all(condition.get_decision(state_snapshot) for condition in conditions):
+                conditions = self.conditions_map.get(problem) or []
+                if all(c.get_decision(state_snapshot) for c in conditions if c is not None):
                     return False, state_snapshot
 
             if not self.events and len(self.state.order_manager.get_order_buffer()) > 0:

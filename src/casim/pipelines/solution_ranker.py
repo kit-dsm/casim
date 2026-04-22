@@ -93,7 +93,7 @@ import pandas as pd
 from ware_ops_algos.algorithms import CombinedRoutingSolution, SchedulingSolution, BatchingSolution
 
 
-class ObjectiveEvaluator:
+class SolutionRanker:
     def __init__(self, objective="distance"):
         self.objective = objective
 

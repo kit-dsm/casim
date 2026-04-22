@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Type
 
 from hydra.utils import instantiate
 from omegaconf import DictConfig
@@ -6,14 +7,12 @@ from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import DataCard
 
 from casim.decision_engine.decision_engine import DecisionEngine
+from casim.events.base_events import Event
 from casim.loggers import DashLogger, KPILogger
-from casim.pipelines.objective_evaluator import ObjectiveEvaluator
-from casim.simulation_engine import SimulationEngine
-from casim.state.conditions import build_condition_policies
-from casim.state.state_adapter import build_state_adapters
 from casim.events.decision_events import RoutingDone, PickListDone
 from casim.events.operational_events import OrderArrival, PickerArrival, PickerTourQuery, PickerIdle, TourEnd, \
-    ShiftStart, FlushRemainingOrders
+    ShiftStart, FlushRemainingOrders, TruckDeparture, WMSRun
+from casim.simulation_engine.simulation_engine import SimulationEngine
 from scenarios.scenario_grocery_retailer.grocery_retailer_loader import GroceryRetailerLoader
 from scenarios.scenario_henn_online.henn_online_loader import HennOnlineLoader
 
@@ -22,7 +21,7 @@ LOADER_REGISTRY = {
     "GroceryRetailerLoader": GroceryRetailerLoader
 }
 
-EVENT_REGISTRY = {
+EVENT_REGISTRY: dict[str, Type[Event]]  = {
     "OrderArrival": OrderArrival,
     "RoutingDone": RoutingDone,
     "PickerArrival": PickerArrival,
@@ -32,7 +31,9 @@ EVENT_REGISTRY = {
     # "PickListSelectionDone": PickListSelectionDone,
     "ShiftStart": ShiftStart,
     "FlushRemainingOrders": FlushRemainingOrders,
-    "PickListDone": PickListDone
+    "PickListDone": PickListDone,
+    "TruckDeparture": TruckDeparture,
+    "WMSRun": WMSRun
 }
 
 
@@ -69,26 +70,6 @@ def load_and_flatten_data_card(raw) -> DataCard:
         warehouse_info=section(raw.get("warehouse_info", {})),
     )
 
-
-def build_trigger_map(cfg: DictConfig) -> dict:
-    return {
-        EVENT_REGISTRY[event_name]: policy_key
-        for event_name, policy_key in cfg.decision_engine.triggers.items()
-    }
-
-
-def build_pipeline_runner(cfg):
-    return {problem_key: instantiate(
-        st_cfg,
-        instance_set_name=cfg.data_card.name,
-        instances_dir=Path(cfg.instances_base),
-        cache_dir=Path(cfg.cache_base) / cfg.data_card.name,
-        output_dir=cfg.experiment.output_dir,
-        instance_name=cfg.experiment.instance_name,
-        verbose=True) for problem_key, st_cfg in cfg.decision_engine.pipeline_runner.items()
-    }
-
-
 def build_data_loader(cfg: DictConfig) -> DataLoader:
     data_loader_cls = cfg.data_card.source.data_loader
     print(data_loader_cls)
@@ -98,40 +79,92 @@ def build_data_loader(cfg: DictConfig) -> DataLoader:
                       cfg=cfg)
     return data_loader
 
+def build_solvers(cfg):
+    solver_map = {}
+
+    for problem_key, problem_cfg in cfg.scenario.decision_engine.problems.items():
+        solver_map[problem_key] = instantiate(
+            problem_cfg.solver,
+            problem_class=problem_key,
+            instances_dir=Path(cfg.instances_base),
+            cache_dir=Path(cfg.cache_base) / cfg.data_card.name,
+            output_dir=cfg.experiment.output_dir,
+            instance_name=cfg.experiment.instance_name,
+            verbose=True,
+            luigi_cfg=cfg.luigi
+        )
+
+    return solver_map
+
+def build_commitment_policies(cfg):
+    return {
+        problem_key: instantiate(problem_cfg.commitment_policy)
+        for problem_key, problem_cfg in cfg.scenario.decision_engine.problems.items()
+    }
+
+def build_state_adapters(cfg: DictConfig) -> dict:
+    return {
+        problem_key: instantiate(st_cfg)
+        for problem_key, st_cfg in cfg.decision_engine.state_snapshot.items()
+    }
 
 def setup_decision_engine(cfg: DictConfig, dc) -> DecisionEngine:
-    pipeline_runners = build_pipeline_runner(cfg)
-    for key in pipeline_runners:
-        dc.problem_class = key
-        pipeline_runners[key].build_pipelines(dc)
-    objective = cfg.data_card.objective
-    evaluator = ObjectiveEvaluator(objective=objective)
-    return DecisionEngine(execution_map=pipeline_runners, evaluator=evaluator)
+    solver_map = build_solvers(cfg)
+    commitment_policies = build_commitment_policies(cfg)
 
+    for problem_key, solver in solver_map.items():
+        dc.problem_class = problem_key
+        solver.build_pipelines(dc)
+
+    return DecisionEngine(
+        solver_map=solver_map,
+        commitment_policies=commitment_policies,
+    )
+
+def build_simulation_problems(cfg: DictConfig):
+    state_adapters = {}
+    conditions_map = {}
+    triggers_map = {}
+
+    for problem_key, pcfg in cfg.simulation_engine.problems.items():
+        state_adapters[problem_key] = instantiate(pcfg.state_adapter)
+        conditions_map[problem_key] = [
+            instantiate(c) for c in (pcfg.get("conditions") or [])
+        ]
+        for event_name in (pcfg.get("triggers") or []):
+            event_cls = EVENT_REGISTRY[event_name]
+            if event_cls in triggers_map:
+                raise ValueError(
+                    f"Event '{event_name}' is already bound to problem "
+                    f"'{triggers_map[event_cls]}', cannot also bind to '{problem_key}'"
+                )
+            triggers_map[event_cls] = problem_key
+
+    return state_adapters, conditions_map, triggers_map
 
 def setup_scenario(cfg: DictConfig) -> SimulationEngine:
     instances_dir = Path(cfg.instances_base) / cfg.data_card.name
     cache_path = Path(cfg.cache_base) / "dynamic_info.pkl"
 
-    state_transformers = build_state_adapters(cfg)
-
-    loader_kwargs = {k: instances_dir / v
-                     for k, v in cfg.data_card.source.items()
-                     if k.endswith("path")}
+    state_adapters, conditions_map, triggers_map = build_simulation_problems(cfg.scenario)
 
     loader = build_data_loader(cfg)
-    trigger_map = build_trigger_map(cfg)
-    conditions_map = build_condition_policies(cfg)
+    loader_kwargs = {
+        k: instances_dir / v
+        for k, v in cfg.data_card.source.items()
+        if k.endswith("path")
+    }
+
     event_loggers = [KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
     if cfg.viz.launch:
         event_loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
 
-    sim = SimulationEngine(
-        state_adapters=state_transformers,
+    return SimulationEngine(
+        state_adapters=state_adapters,
         data_loader=loader,
         domain_cache_path=str(cache_path),
         loader_kwargs=loader_kwargs,
-        triggers_map=trigger_map,
+        triggers_map=triggers_map,
         conditions_map=conditions_map,
-        event_loggers=event_loggers)
-    return sim
+        event_loggers=event_loggers,
+    )

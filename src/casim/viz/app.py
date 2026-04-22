@@ -31,12 +31,16 @@ MAX_TABLE_ROWS = 60
 
 
 def load_bundle(viz_dir: Path):
+    events = []
     with open(viz_dir / "events.pkl", "rb") as f:
-        events = pickle.load(f)
+        while True:
+            try:
+                events.append(pickle.load(f))
+            except EOFError:
+                break
     with open(viz_dir / "static.pkl", "rb") as f:
         static = pickle.load(f)
     return events, static
-
 
 def picker_pos(p):
     loc = p.current_location
