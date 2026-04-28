@@ -8,7 +8,7 @@ decision_engine:
           objective: ${data_card.objective}
         repo: ${cosy_repo}
       commitment_policy:
-        _target_: casim.decision_engine.decision_engine.HennWaiting
+        _target_: casim.decision_engine.commitment_policies.HennWaiting
         n_jobs: 1
 
 simulation_engine:
