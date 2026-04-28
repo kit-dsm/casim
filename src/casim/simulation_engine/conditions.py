@@ -14,7 +14,10 @@ class DockCapacityCondition(Condition):
 
     def get_decision(self, state: SimWarehouseDomain) -> bool:
         dynamic_warehouse_info = state.dynamic_warehouse_info
-        if dynamic_warehouse_info.n_staged_pallets + 1 > self.threshold:
+        active_tours = dynamic_warehouse_info.active_tours
+        n_active_tours = len(active_tours)
+        # n_free_pickers = len(state.resources.resources)
+        if dynamic_warehouse_info.n_staged_pallets + n_active_tours > self.threshold:
             return False
         else:
             return True

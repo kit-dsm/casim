@@ -8,6 +8,7 @@ from scenarios.experiment_commons import load_and_flatten_data_card, setup_scena
 from casim.io_helpers import dump_pickle
 from casim.viz.app import launch
 from casim.viz.gantt_chart import gantt_chart
+from scenarios.scenario_grocery_retailer.scripts.experiment_plots import picker_schedule_plots
 from scenarios.scenario_grocery_retailer.scenario_specific_hooks import add_orders_hook, picker_arrival_hook, \
     shift_start_hook, make_truck_schedule_hook, wms_run_hook, make_dock_manager_hook
 
@@ -17,7 +18,7 @@ logging.basicConfig(
 )
 
 
-@hydra.main(config_path="config", config_name="grocery_retailer_config")
+@hydra.main(config_path="config", config_name="grocery_retailer_config", version_base="1.3")
 def main(cfg: DictConfig):
     datacard = load_and_flatten_data_card(cfg.data_card)
 
@@ -54,9 +55,6 @@ def main(cfg: DictConfig):
     if cfg.viz.launch:
         viz_dir = Path(cfg.experiment.output_dir) / "viz"
         launch(viz_dir, port=cfg.viz.port, debug=False)
-
-    fig = gantt_chart(sim.state.tracker)
-    fig.write_html(str(Path(cfg.project_root) / "gantt.html"))
 
 if __name__ == "__main__":
     main()

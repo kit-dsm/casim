@@ -39,7 +39,9 @@ class State:
         self._articles = articles
         self._storage = storage
         self._resources = resources
-        self.tracker = ExperimentTracker()
+        self.tracker = ExperimentTracker(
+            n_pickers=len(resources.resources),
+            )
         self.statistics = []
         self.done_flag = False
 

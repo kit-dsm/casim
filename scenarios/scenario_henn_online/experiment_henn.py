@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.operational_events import PickerArrival
-from casim.simulation_engine import SimulationEngine
+from casim.simulation_engine.simulation_engine import SimulationEngine
 from casim.viz.app import launch
 from scenarios.experiment_commons import setup_scenario, setup_decision_engine, load_and_flatten_data_card
 from casim.io_helpers import dump_pickle
@@ -46,30 +46,24 @@ def main(cfg: DictConfig):
     sim.reset(hooks=[add_orders_hook,
                      picker_arrival_hook,
                      ])
-    import cProfile
-    import pstats
 
-    with cProfile.Profile() as pr:
-        done = False
-        while not done:
-            done, state_snapshot = sim.run()
-            if done:
-                dt = decision_engine.decision_tracker
-                dump_pickle(str(Path(cfg.experiment.output_dir) / "decisions.pkl"), {
-                    "decisions": dt.decisions,
-                    "pipeline_counts": dict(dt.pipeline_counts),
-                })
-                print(f"'Total decisions':{dt.num_decisions}")
-                for pipeline, count in sorted(dt.pipeline_counts.items(),
-                                              key=lambda x: -x[1]):
-                    pct = 100 * count / dt.num_decisions
-                    print(f"{pipeline} {count:} {pct}%")
-                break
-            events_to_add, solution = decision_engine.on_trigger(state_snapshot)
-            sim.step(events_to_add, state_snapshot.problem_class, solution)
-    stats = pstats.Stats(pr)
-    stats.sort_stats('cumulative')
-    stats.print_stats(20)
+    done = False
+    while not done:
+        done, state_snapshot = sim.run()
+        if done:
+            dt = decision_engine.decision_tracker
+            dump_pickle(str(Path(cfg.experiment.output_dir) / "decisions.pkl"), {
+                "decisions": dt.decisions,
+                "pipeline_counts": dict(dt.pipeline_counts),
+            })
+            print(f"'Total decisions':{dt.num_decisions}")
+            for pipeline, count in sorted(dt.pipeline_counts.items(),
+                                          key=lambda x: -x[1]):
+                pct = 100 * count / dt.num_decisions
+                print(f"{pipeline} {count:} {pct}%")
+            break
+        events_to_add, solution = decision_engine.on_trigger(state_snapshot)
+        sim.step(events_to_add, state_snapshot.problem_class, solution)
     if cfg.viz.launch:
         from casim.viz.gantt_chart import gantt_chart
         fig = gantt_chart(sim.state.tracker)

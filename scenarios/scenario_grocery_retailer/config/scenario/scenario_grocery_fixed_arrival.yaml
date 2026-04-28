@@ -8,7 +8,7 @@ decision_engine:
           objective: ${data_card.objective}
         repo: ${cosy_repo}
       commitment_policy:
-        _target_: casim.decision_engine.decision_engine.SchedulingCommitmentPolicy
+        _target_: casim.decision_engine.commitment_policies.SchedulingCommitmentPolicy
         n_jobs: 1
     OBP:
       solver:
@@ -18,7 +18,7 @@ decision_engine:
           objective: ${data_card.objective}
         repo: ${cosy_repo}
       commitment_policy:
-        _target_: casim.decision_engine.decision_engine.CommitAllPolicy
+        _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
 
 simulation_engine:
   problems:

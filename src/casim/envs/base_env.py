@@ -8,7 +8,7 @@ from ware_ops_algos.algorithms import AlgorithmSolution
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
-from casim.simulation_engine import SimulationEngine
+from casim.simulation_engine.simulation_engine import SimulationEngine
 
 logger = logging.getLogger(__name__)
 

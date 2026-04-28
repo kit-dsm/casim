@@ -82,7 +82,8 @@ class SimulationEngine:
                 state_transformer = self.state_adapters[problem]
                 state_snapshot = state_transformer.transform_state(self.state, problem)
                 conditions = self.conditions_map.get(problem) or []
-                if all(c.get_decision(state_snapshot) for c in conditions if c is not None):
+                if (all(c.get_decision(state_snapshot) for c in conditions if c is not None) or
+                        isinstance(event, FlushRemainingOrders)):
                     return False, state_snapshot
 
             if not self.events and len(self.state.order_manager.get_order_buffer()) > 0:

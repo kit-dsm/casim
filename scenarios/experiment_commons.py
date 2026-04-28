@@ -72,7 +72,6 @@ def load_and_flatten_data_card(raw) -> DataCard:
 
 def build_data_loader(cfg: DictConfig) -> DataLoader:
     data_loader_cls = cfg.data_card.source.data_loader
-    print(data_loader_cls)
     data_loader = LOADER_REGISTRY[data_loader_cls](
         instances_dir=Path(cfg.instances_base) /
                       cfg.data_card.name,
@@ -143,7 +142,7 @@ def build_simulation_problems(cfg: DictConfig):
     return state_adapters, conditions_map, triggers_map
 
 def setup_scenario(cfg: DictConfig) -> SimulationEngine:
-    instances_dir = Path(cfg.instances_base) / cfg.data_card.name
+    instances_dir = Path(cfg.instances_base)
     cache_path = Path(cfg.cache_base) / "dynamic_info.pkl"
 
     state_adapters, conditions_map, triggers_map = build_simulation_problems(cfg.scenario)

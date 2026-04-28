@@ -53,6 +53,7 @@ class OrderManager:
 
         for o_id in ids_to_clear:
             order = self._order_buffer.pop(o_id, None)
+            assert isinstance(order, Order)
             if order is not None:
                 self.add_order_to_history(order)
 

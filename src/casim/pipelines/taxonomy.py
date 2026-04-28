@@ -19,10 +19,10 @@ TAXONOMY = {
     },
     "OBRSP": {
        "variables": ["item_assignment", "batching", "routing", "sequencing"],
-        "endpoint": "ResultAggregationScheduling"
+        "endpoint": "ResultAggregationSequencing"
     },
     "ORSP": {
-        "variables": ["routing", "sequencing"],
+        "variables": ["routing", "scheduling"],
         "endpoint": "ResultAggregationScheduling"
-    }
+    },
 }

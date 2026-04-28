@@ -128,7 +128,7 @@ class PickerTourQuery(Event):
                 # Otherwise we greedily start the tour right away
             next_tour.status = TourStates.PENDING
             if picker.tour_setup_time:
-                start_time += picker.tour_setup_time  # TODO Check if setup times are not added twice
+                start_time += picker.tour_setup_time
             return [TourStart(start_time, next_tour_id)]
         else:
             # Nothing to do right now, picker is idle
@@ -162,14 +162,17 @@ class TourStart(BaseTourEvent):
         state.resource_manager.update_resource_location(tour.assigned_resource,
                                                         tour.annotated_route[0])
         state.tour_manager.start_tour(tour_id, self.time)
-
+        state.resource_manager.mark_picker_occupied(tour.assigned_resource)
+        picker = state.resource_manager.get_resource(tour.assigned_resource)
         logger.info(f"resource {tour.assigned_resource} started tour {tour.tour_id} at t={self.time}")
+        state.tracker.on_tour_start(self.time)
         if tour.at_end() and res.current_location == (0, -1):
             return [TourEnd(self.time, tour.tour_id)]
         if tour.at_end():
             return [NodeArrival(self.time, tour.tour_id)]
 
-        return [TravelEvent(self.time, tour.tour_id)]
+        start_time = self.time
+        return [TravelEvent(start_time , tour.tour_id)]
 
 
 class TravelEvent(BaseTourEvent):
@@ -268,18 +271,26 @@ class TourEnd(BaseTourEvent):
         delayed = []
         for o_id in tour.order_numbers:
             o = om.get_order_from_history(o_id)
-            if o.due_date < self.time:
-                delayed.append(o_id)
+            if o.due_date:
+                if o.due_date < self.time:
+                    delayed.append(o_id)
             else:
                 on_time.append(o_id)
 
         # state.tracker.update_on_tour_end(tour_start=tour.start_time, tour_finish=self.time, order_manager=om)
-        state.tracker.on_tour_end(tour.tour_id, tour.start_time, self.time, tour.order_numbers, tour.assigned_resource,
-                                  on_time, delayed)
-
         assert self.tour_id != state.tour_manager.get_next_tour_for_picker(res.id), (f"{self.tour_id}, " 
                                                                                      f"{state.tour_manager._picker_tour_queues}")
+        n_pallets_dock = 0
         if hasattr(state, "dock_manager"):
             state.dock_manager.stage_pallets(1)
+            n_pallets_dock = state.dock_manager.n_staged_pallets
+        state.tracker.on_tour_end(tour.tour_id,
+                                  tour.start_time,
+                                  self.time,
+                                  tour.order_numbers,
+                                  tour.assigned_resource,
+                                  on_time,
+                                  delayed,
+                                  n_pallets_dock)
         return [PickerTourQuery(self.time, res.id)]
 

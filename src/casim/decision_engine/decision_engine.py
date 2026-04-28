@@ -5,37 +5,19 @@ from collections import defaultdict
 from ware_ops_algos.algorithms import AlgorithmSolution, CombinedRoutingSolution, \
     SchedulingSolution, BatchingSolution
 
+from casim.decision_engine.commitment_policies import CommitmentPolicy, CommitAllPolicy
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.events.decision_events import SequencingDone, RoutingDone, PickListDone
-from casim.pipelines.pipeline_runner import CoSyRunner
+from casim.pipelines.pipeline_runner import CoSySolver
 from casim.trackers import DecisionTracker
 
 logger = logging.getLogger(__name__)
 
 
-class CommitmentPolicy:
-    def apply(self, solution: AlgorithmSolution) -> AlgorithmSolution:
-        raise NotImplementedError
-
-
-class SchedulingCommitmentPolicy(CommitmentPolicy):
-    def __init__(self, n_jobs: int = 1):
-        self.n_jobs = n_jobs
-
-    def apply(self, solution: SchedulingSolution) -> SchedulingSolution:
-        committed = sorted(solution.jobs, key=lambda j: j.start_time)[:self.n_jobs]
-        return SchedulingSolution(jobs=committed, execution_time=solution.execution_time)
-
-
-class CommitAllPolicy(CommitmentPolicy):
-    def apply(self, solution: AlgorithmSolution) -> AlgorithmSolution:
-        return solution
-
-
 class DecisionEngine:
     def __init__(self,
-                 solver_map: dict[str, CoSyRunner],
+                 solver_map: dict[str, CoSySolver],
                  commitment_policies: dict[str, CommitmentPolicy],
                  learnable_problems: list[str] | None = None
                  ):
@@ -46,7 +28,7 @@ class DecisionEngine:
         self.selected_pipelines = defaultdict(dict)
         self.decision_tracker = DecisionTracker()
 
-    def get_solver(self, problem: str) -> CoSyRunner:
+    def get_solver(self, problem: str) -> CoSySolver:
         return self.solver_map[problem]
 
     def on_trigger(self, state_snapshot: SimWarehouseDomain):
@@ -62,14 +44,15 @@ class DecisionEngine:
                 solver_name,
                 objective_value,
                 state_snapshot.objective,
-                state_snapshot.problem_class)
+                state_snapshot.problem_class,
+                elapsed)
 
             policy = self.commitment_policies.get(problem) or CommitAllPolicy()
-            solution = policy.apply(solution)
+            solution = policy.apply(solution, state_snapshot)
             return self.solution_to_events(solution, start_time_sim), solution
         return None
 
-    def on_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem):
+    def on_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem, elapsed):
         if isinstance(best_solution, CombinedRoutingSolution):
             order_ids = [o for r in best_solution.routes for o in r.pick_list.order_numbers]
         elif isinstance(best_solution, SchedulingSolution):
@@ -81,11 +64,12 @@ class DecisionEngine:
 
         self.decision_tracker.on_decision(
             problem_class=problem,
-            input_ids=order_ids,
+            input_ids=len(order_ids),
             selected_pipeline=solver_name,
             kpi_value=objective_value,
             kpi=objective,
-            runtime=best_solution.execution_time
+            runtime=best_solution.execution_time,
+            elapsed=elapsed
         )
 
     def solution_to_events(self, solution: AlgorithmSolution, finish_time):

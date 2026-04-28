@@ -2,15 +2,22 @@ from collections import defaultdict
 
 
 class ExperimentTracker:
-    def __init__(self):
+    def __init__(self, n_pickers):
+        self.first_tour_start = None
         self.distance_by_picker: dict[int, float] = defaultdict(float)
         self.idle_time_by_picker: dict[int, float] = defaultdict(float)
         self._idle_start: dict[int, float] = {}
         self.idle_intervals: list[tuple[int, float, float]] = []
         self.pick_durations_by_picker: dict[int, list[float]] = defaultdict(list)
         self.completed_tours: list[tuple[int, float, float, list[int], int, list[int], list[int]]] = []
+        self.truck_departures: list[tuple[float, int]] = []
+        self.dock_utilization: list[tuple[float, int]] = []
+        self.batch_buffer: list[tuple[float, int]] = []
+        self.avg_makespan: list[tuple[float, float]] = []
+        self.picker_utilization: list[tuple[float, float]] = []
         self.all_delayed = []
         self.all_on_time = []
+        self.n_pickers: int = n_pickers
         # (tour_id, start_time, end_time, list[order_ids], picker_id)
 
     def on_travel(self, picker_id, distance):
@@ -28,12 +35,47 @@ class ExperimentTracker:
     def on_pick_end(self, tour_id, picker_id, order_id, item_id, start_time, end_time):
         self.pick_durations_by_picker[picker_id].append(end_time - start_time)
 
-    def on_tour_end(self, tour_id, start_time, end_time, order_ids, picker_id, on_time, delayed):
+    def on_tour_start(self, time):
+        if self.first_tour_start == None:
+            self.first_tour_start = time
+        # self.batch_buffer.append((time, batch_buffer))
+
+    def on_tour_end(self,
+                    tour_id,
+                    start_time,
+                    end_time,
+                    order_ids,
+                    picker_id,
+                    on_time,
+                    delayed,
+                    n_pallets_dock):
         self.completed_tours.append((tour_id, start_time, end_time, list(order_ids), picker_id, on_time, delayed))
         for delayed_order_id in delayed:
             self.all_delayed.append(delayed_order_id)
         for on_time_order_id in on_time:
             self.all_on_time.append(on_time_order_id)
+        self.dock_utilization.append((end_time, n_pallets_dock))
+        self.avg_makespan.append((end_time, self.average_tour_makespan))
+        util = self.current_utilization(end_time)
+        self.picker_utilization.append((end_time, util))
+
+    def on_truck_departure(self, time, capacity):
+        self.truck_departures.append((time, capacity))
+
+    def on_batch_arrival(self, time, batch_buffer):
+        self.batch_buffer.append((time, batch_buffer))
+
+    def current_utilization(self, current_time: float) -> float:
+        elapsed = current_time - self.first_tour_start
+        if elapsed <= 0:
+            return 0.0
+
+        total_tour_time = sum(
+            end - start
+            for _, start, end, _, _, _, _ in self.completed_tours
+        )
+
+        return total_tour_time / (elapsed * self.n_pickers)
 
     @property
     def total_delayed(self) -> int:
@@ -73,18 +115,18 @@ class ExperimentTracker:
 class DecisionTracker:
     def __init__(self):
         self.decisions: list[tuple] = []
-        # (problem_class [input_ids, selected_pipeline, kpi_value, alternatives])
         self.pipeline_counts: dict[str, int] = defaultdict(int)
 
     def on_decision(self, problem_class, input_ids, selected_pipeline,
-                    kpi_value, kpi, runtime):
+                    kpi_value, kpi, runtime, elapsed):
         self.decisions.append((
             problem_class,
-            tuple(input_ids),
+            input_ids,
             selected_pipeline,
             kpi_value,
             kpi,
-            runtime
+            runtime,
+            elapsed
         ))
         self.pipeline_counts[selected_pipeline] += 1
 

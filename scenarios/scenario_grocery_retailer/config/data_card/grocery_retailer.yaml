@@ -1,7 +1,7 @@
 name: "grocery_retailer"
 problem_type: ORSP
 
-objective: tardiness
+objective: makespan
 source:
   data_loader: GroceryRetailerLoader
   orders_path: "orders.csv"

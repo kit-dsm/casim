@@ -25,7 +25,7 @@ from ware_ops_algos.algorithms import (
     ItemAssignmentSolution,
     RoutingSolution,
     PriorityScheduling,
-    ItemAssignment, )
+    ItemAssignment, SequencingInput)
 from ware_ops_algos.algorithms.algorithm_filter import ConstraintEvaluator
 from ware_ops_algos.domain_models import (
     Articles,
@@ -192,17 +192,14 @@ class BatchingNode(AbstractBatching):
 
     @staticmethod
     def _latest_order_arrival(orders: list[WarehouseOrder]) -> float:
-        if any(o.order_date is not None for o in orders):
-            arrivals = [o.order_date for o in orders]
-            return max(arrivals) if arrivals else 0.0
-        return 0.0
+        arrivals = [o.order_date for o in orders]
+        return max(arrivals) if arrivals else 0.0
+
 
     @staticmethod
     def _first_due_date(orders: list[WarehouseOrder]) -> float:
-        if any(o.order_date is not None for o in orders):
-            due_dates = [o.order_date for o in orders]
-            return min(due_dates) if due_dates else float("inf")
-        return 0.0
+        due_dates = [o.due_date for o in orders if o.due_date is not None]
+        return min(due_dates) if due_dates else float("inf")
 
     def _build_pick_lists(self, orders: list[WarehouseOrder]) -> PickList:
         pick_positions = [pos for order in orders for pos in order.pick_positions]
@@ -234,7 +231,7 @@ class BatchingNode(AbstractBatching):
 
 # ─────────────────────────── Routing ────────────────────────────────────────
 
-class PickerRouting(BaseComponent):
+class AbstractPickerRouting(BaseComponent):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
     pick_list_sol = CoSyLuigiTaskParameter(AbstractBatching)
 
@@ -254,6 +251,11 @@ class PickerRouting(BaseComponent):
         return {
             "routing_sol": self.get_luigi_local_target_with_task_id("routing_sol.pkl")
         }
+
+
+class PickerRouting(AbstractPickerRouting):
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+    pick_list_sol = CoSyLuigiTaskParameter(AbstractBatching)
 
     def run(self):
         router: Routing = self._get_inited_router()
@@ -279,11 +281,111 @@ class PickerRouting(BaseComponent):
         dump_pickle(self.output()["routing_sol"].path, combined_sol)
 
 
+class HennWaitingPickerRouting(AbstractPickerRouting):
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+    pick_list_sol = CoSyLuigiTaskParameter(AbstractBatching)
+    item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
+
+    def _service_time(self, route, pick_positions) -> float:
+        resources = self._load_resources()
+        picker = resources.resources[0]
+
+        distance = route.distance
+
+        travel_speed = picker.speed
+        pick_time_per_item = picker.time_per_pick
+        setup_time = picker.tour_setup_time
+
+        n_items = sum(pos.in_store for pos in pick_positions)
+
+        return (
+            distance / travel_speed
+            + n_items * pick_time_per_item
+            + setup_time
+        )
+
+    def run(self):
+        router: Routing = self._get_inited_router()
+
+        pick_list_sol: BatchingSolution = load_pickle(
+            self.input()["pick_list_sol"]["pick_list_sol"].path
+        )
+
+        ia_sol: ItemAssignmentSolution = load_pickle(
+            self.input()["item_assignment_sol"]["item_assignment_sol"].path
+        )
+        resolved_by_id = {
+            o.order_id: o
+            for o in ia_sol.resolved_orders
+        }
+
+        routes = []
+        algo_name = None
+        execution_time = 0.0
+
+        single_order_service_time_cache: dict[int, float] = {}
+
+        for pl in pick_list_sol.pick_lists:
+            resolved_orders = [
+                resolved_by_id.get(o.order_id, o)
+                for o in pl.orders
+            ]
+            pl.orders = resolved_orders
+
+            router.reset_parameters()
+            routing_solution: RoutingSolution = router.solve(pl.pick_positions)
+
+            algo_name = routing_solution.algo_name
+            execution_time += routing_solution.execution_time
+
+            route = routing_solution.route
+            route.pick_list = pl
+
+            # st_j: service time of the whole candidate batch.
+            pl.service_time = self._service_time(
+                route=route,
+                pick_positions=pl.pick_positions,
+            )
+
+            # st_i: service time of each order if picked alone.
+            pl.single_order_service_times.clear()
+
+            for order in resolved_orders:
+                if order.order_id not in single_order_service_time_cache:
+                    router.reset_parameters()
+
+                    single_routing_solution: RoutingSolution = router.solve(
+                        order.pick_positions
+                    )
+
+                    execution_time += single_routing_solution.execution_time
+
+                    single_order_service_time_cache[order.order_id] = (
+                        self._service_time(
+                            route=single_routing_solution.route,
+                            pick_positions=order.pick_positions,
+                        )
+                    )
+
+                pl.single_order_service_times[order.order_id] = (
+                    single_order_service_time_cache[order.order_id]
+                )
+
+            routes.append(route)
+
+        combined_sol = CombinedRoutingSolution(
+            algo_name=f"{algo_name}_HennWaiting",
+            execution_time=execution_time,
+            routes=routes,
+        )
+
+        dump_pickle(self.output()["routing_sol"].path, combined_sol)
+
 # ─────────────────────────── Scheduling ─────────────────────────────────────
 
 class AbstractScheduling(BaseComponent):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
-    routing_sol = CoSyLuigiTaskParameter(PickerRouting)
+    routing_sol = CoSyLuigiTaskParameter(AbstractPickerRouting)
 
     def output(self):
         return {
@@ -319,37 +421,44 @@ class AbstractScheduling(BaseComponent):
 
 class AbstractSequencing(BaseComponent):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
-    routing_sol = CoSyLuigiTaskParameter(PickerRouting)
+    routing_sol = CoSyLuigiTaskParameter(AbstractPickerRouting)
 
     def output(self):
         return {
-            "sequencing_sol": self.get_luigi_local_target_with_task_id("sequencing_sol.pkl")
+            "sequencing_sol": self.get_luigi_local_target_with_task_id(
+                "sequencing_sol.pkl"
+            )
         }
 
-    def _get_inited_sequencer(self) -> PriorityScheduling:
-        ...
+    def _get_inited_sequencer(self):
+        raise NotImplementedError
 
     def _load_resources(self) -> Resources:
         return load_pickle(self.input()["instance"]["resources"].path)
 
-    def _load_orders(self) -> OrdersDomain:
-        return load_pickle(self.input()["instance"]["orders"].path)
-
     def run(self):
-        routing_sols = load_pickle(self.input()["routing_sol"]["routing_sol"].path)
-        orders = self._load_orders()
+        routing_sol = load_pickle(
+            self.input()["routing_sol"]["routing_sol"].path
+        )
         resources = self._load_resources()
 
-        if isinstance(routing_sols, CombinedRoutingSolution):
-            routes = routing_sols.routes
+        if isinstance(routing_sol, CombinedRoutingSolution):
+            routes = routing_sol.routes
         else:
-            routes = [r.route for r in routing_sols]
+            routes = [r.route for r in routing_sol]
 
-        sequencing_input = SchedulingInput(routes=routes, orders=orders, resources=resources)
+        sequencing_input = SequencingInput(
+            routes=routes,
+            resources=resources,
+        )
+
         sequencer = self._get_inited_sequencer()
         sequencing_sol = sequencer.solve(sequencing_input)
-        dump_pickle(self.output()["sequencing_sol"].path, sequencing_sol)
 
+        dump_pickle(
+            self.output()["sequencing_sol"].path,
+            sequencing_sol,
+        )
 
 # ─────────────────────────── Result Aggregation ──────────────────────────────
 
@@ -401,10 +510,9 @@ class ResultAggregation(BaseComponent):
         }
 
     @classmethod
-    def configure(cls, data_card: DataCard, models: list[ModelCard], allowed_model_names: set):
+    def configure(cls, data_card: DataCard, models: list[ModelCard]):
         cls._data_card = data_card
         cls._models = models
-        cls._allowed_model_names = allowed_model_names
 
     @classmethod
     def constraints(cls) -> Sequence[Callable[..., bool]]:
@@ -413,7 +521,6 @@ class ResultAggregation(BaseComponent):
             lambda vs: feature_constraint(vs, cls._data_card, cls._models),
             lambda vs: batching_loader_constraint(vs, TAXONOMY, cls._data_card, PickListProvider),
             lambda vs: check_unique(vs, [ResultAggregation]),
-            lambda vs: fixed_algorithms_constraint(vs, cls._allowed_model_names, cls._models)
         ]
 
     def _build_provenance(self, summary: dict, collected: dict) -> None:
@@ -491,6 +598,7 @@ class ResultAggregationRouting(ResultAggregation):
         summary["routing_summary"] = self._compute_routing_summary(routing_entry["solution"])
         dump_json(self.output()["summary"].path, summary)
 
+
 class ResultAggregationScheduling(ResultAggregation):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
     scheduling_sol = CoSyLuigiTaskParameter(AbstractScheduling)
@@ -522,6 +630,25 @@ class ResultAggregationBatching(ResultAggregation):
         dump_json(self.output()["summary"].path, summary)
 
 
+class ResultAggregationSequencing(ResultAggregation):
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+    scheduling_sol = CoSyLuigiTaskParameter(AbstractSequencing)
+
+    def run(self):
+        collected = _collect_from_graph(self)
+        summary = {}
+        self._build_provenance(summary, collected)
+        routing_entry = collected.get("routing")
+        if routing_entry is not None:
+            summary["routing_summary"] = self._compute_routing_summary(routing_entry["solution"])
+        sequencing_entry = collected.get("sequencing")
+        if sequencing_entry is None:
+            raise ValueError("No scheduling solution in graph.")
+        orders: OrdersDomain = load_pickle(self.input()["instance"]["orders"].path)
+        summary["scheduling_summary"] = self._compute_scheduling_summary(
+            sequencing_entry["solution"], orders
+        )
+        dump_json(self.output()["summary"].path, summary)
 # ─────────────────────────── Graph Utilities ─────────────────────────────────
 
 def traverse_pipeline(vs: Iterable[CoSyLuigiTask], visited=None) -> list[CoSyLuigiTask]:
@@ -562,6 +689,7 @@ def batching_loader_constraint(vs, subproblems, data_card: DataCard, exclusive, 
     problem = data_card.problem_class
     problems = subproblems[problem]["variables"]
     if "batching" in problems and exclusive in classes:
+        print(f"Not valid, {exclusive} in {classes}")
         return False
     return True
 
@@ -574,8 +702,6 @@ def problem_type_constraint(vs, subproblems, data_card: DataCard, models, get_cl
         for m in models:
             # if m.implementation["class_name"] == c.__name__:
             if m.model_name == c.__name__:
-                if m.model_name == "ClarkAndWrightSShape":
-                    print(m)
                 if m.problem_type not in problems:
                     print(f"{m.model_name} not applicable {m.problem_type} not in {problems}")
                     return False
@@ -616,34 +742,14 @@ def feature_constraint(vs, data_card: DataCard, models, get_classes=None) -> boo
                         return False
                     for feature_name, constraint in constraints.items():
                         if feature_name not in domain_features:
+                            print(f"{m.model_name} not applicable, {feature_name} not in {domain_features}")
                             return False
                         evaluator = ConstraintEvaluator()
                         if not evaluator.evaluate(feature_name, constraint):
+                            print(f"{m.model_name} not applicable, {feature_name} not in {domain_features}")
                             return False
     return True
 
-
-def fixed_algorithms_constraint(vs, allowed_names: set[str], models, get_classes=None) -> bool:
-    if not allowed_names:
-        return True
-    necessary = {"InstanceLoader", "PickListProvider",
-                  "ResultAggregationRouting", "ResultAggregationPickList",
-                  "ResultAggregationScheduling"}
-    # algo_names = {m.model_name for m in models}
-    classes = get_classes(vs) if get_classes else [
-        pc.__class__ for pc in traverse_pipeline(vs.values())
-    ]
-
-    for c in classes:
-        if c.__name__ in necessary:
-            continue
-        if c.__name__ not in allowed_names:
-            print(f"{c.__name__} not allowed")
-            return False
-    return True
-
-
-# ─────────────────────────── Main ────────────────────────────────────────────
 
 def main():
     import yaml

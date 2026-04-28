@@ -1,12 +1,11 @@
-import pickle
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Union
 
 import luigi
 import ware_ops_algos
 from cosy.maestro import Maestro
 from cosy_luigi import CoSyLuigiRepo
+from hydra.utils import get_class
 from luigi.configuration import get_config
 from ware_ops_algos.algorithms import CombinedRoutingSolution, SchedulingSolution, BatchingSolution, AlgorithmSolution
 from ware_ops_algos.domain_models import BaseWarehouseDomain, DataCard
@@ -15,22 +14,20 @@ from ware_ops_algos.utils.general_functions import load_model_cards
 from casim.pipelines.solution_ranker import SolutionRanker
 from casim.pipelines.problem_based_template import (
     InstanceLoader, PickListProvider, ResultAggregationBatching, ResultAggregationRouting, ResultAggregationScheduling,
-    clear_store, iter_store, dump_pickle,
+    clear_store, iter_store, dump_pickle, ResultAggregationSequencing,
 )
-from casim.pipelines.subproblems.item_assingment import GreedyIA
-from casim.pipelines.subproblems.batching import ClarkAndWrightNN, OrderNrFiFo, FiFo
-from casim.pipelines.subproblems.picker_routing import SShape, Return, LargestGap, Midpoint, NearestNeighbourhood
-from casim.pipelines.subproblems.scheduling import LPTScheduler, SPTScheduler, EDDScheduler
+
 from casim.pipelines.taxonomy import TAXONOMY
 
 ENDPOINT_REGISTRY = {
     "ResultAggregationRouting":   ResultAggregationRouting,
     "ResultAggregationBatching":  ResultAggregationBatching,
     "ResultAggregationScheduling": ResultAggregationScheduling,
+    "ResultAggregationSequencing": ResultAggregationSequencing,
 }
 
 
-class CoSyRunner:
+class CoSySolver:
     def __init__(
         self,
         instances_dir: Path,
@@ -41,7 +38,8 @@ class CoSyRunner:
         endpoint=None,
         problem_class=None,
         verbose: bool = False,
-        luigi_cfg = None
+        luigi_cfg = None,
+        repo=None
     ):
         self.instance_name = instance_name
         self.instances_dir = Path(instances_dir)
@@ -54,6 +52,7 @@ class CoSyRunner:
         self.pipelines = None
         self.solution_ranker = solution_ranker
         self.luigi_cfg = luigi_cfg
+        self.repo_cfg = repo
         self.luigi_logging_opts =  SimpleNamespace(
             background=luigi_cfg.background,
             logdir=luigi_cfg.logdir,
@@ -79,35 +78,13 @@ class CoSyRunner:
         problem = data_card.problem_class
         endpoint_str = TAXONOMY[problem]["endpoint"]
         endpoint_cls = ENDPOINT_REGISTRY[endpoint_str]
-        endpoint_cls.configure(data_card, self.algorithm_cards,{})
+        endpoint_cls.configure(data_card, self.algorithm_cards)
 
         if not self.pipelines:
             if self.verbose:
                 print("Building pipelines")
-
-            repo = CoSyLuigiRepo(
-                InstanceLoader,
-                GreedyIA,
-                FiFo,
-                # OrderNrFiFo,
-                # DueDate,
-                # LSBatchingNNFiFo,
-                # ClarkAndWrightSShape,
-                # ClarkAndWrightNN,
-                # SShape,
-                Return,
-                # LargestGap,
-                # Midpoint,
-                # NearestNeighbourhood,
-                # SPTScheduler,
-                LPTScheduler,
-                # EDDScheduler,
-                PickListProvider,
-                # ResultAggregation,
-                ResultAggregationBatching,
-                ResultAggregationRouting,
-                ResultAggregationScheduling,
-            )
+            repo_classes = [get_class(path) for path in self.repo_cfg.components]
+            repo = CoSyLuigiRepo(*repo_classes)
             maestro = Maestro(repo.cls_repo, repo.taxonomy)
             self.pipelines = list(maestro.query(endpoint_cls.target()))
             if self.verbose:
@@ -137,7 +114,8 @@ class CoSyRunner:
     @staticmethod
     def _load_solutions(problem_class: str) -> dict:
         suffix = {
-            "OBRSP": "scheduling_sol.pkl", "ORSP": "scheduling_sol.pkl",
+            "OBRSP": "sequencing_sol.pkl",
+            "ORSP": "scheduling_sol.pkl",
             "OBP": "pick_list_sol.pkl",
             "ORP": "routing_sol.pkl", "OBRP": "routing_sol.pkl",
             "BSRP": "routing_sol.pkl",
