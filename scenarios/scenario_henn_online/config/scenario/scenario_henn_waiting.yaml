@@ -1,0 +1,24 @@
+decision_engine:
+  problems:
+    OBRSP:
+      solver:
+        _target_: casim.pipelines.pipeline_runner.CoSySolver
+        solution_ranker:
+          _target_: casim.pipelines.solution_ranker.SolutionRanker
+          objective: ${data_card.objective}
+        repo: ${cosy_repo}
+      commitment_policy:
+        _target_: casim.decision_engine.decision_engine.HennWaiting
+        n_jobs: 1
+
+simulation_engine:
+  problems:
+    OBRSP:
+      state_adapter:
+        _target_: casim.simulation_engine.state_adapter.HennWaitingAdapter
+      triggers: [OrderArrival, PickerIdle, FlushRemainingOrders]
+      conditions:
+        - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+          threshold: 1
+        - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+          threshold: 1

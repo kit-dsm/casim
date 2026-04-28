@@ -1,10 +1,10 @@
 name: "HennOnline"
-problem_type: OBRP
+problem_type: OBRSP
 
 objective: makespan
 source:
   data_loader: HennOnlineLoader
-  filepath: "uniform/29s-40-30-0.txt" #"29s-40-30-0.txt" # 72s-100-75-0.txt
+  filepath: "72s-100-75-0.txt"
 
 
 layout:
@@ -65,6 +65,7 @@ resources:
       type: human
       features:
         - name: speed
+        - name: time_per_pick
 
       objects:
         - name: PickCart

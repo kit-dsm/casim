@@ -1,14 +1,22 @@
 defaults:
+  - _self_
   - data_card: henn
-  - decision_engine: decision_engine
-  - optional sweep: None
+  - scenario: scenario_henn_order_window_waiting # scenario_henn_waiting scenario_henn_order_window_waiting
+  - cosy_repo: baseline_waiting_henn
+  - optional sweep: waiting_strategy_sweep
 
 hydra:
-  run:
-    dir: outputs/${data_card.name}/${now:%Y-%m-%d_%H-%M-%S}
   sweep:
-    dir: outputs/${data_card.name}/multirun/${now:%Y-%m-%d_%H-%M-%S}
-    subdir: ${hydra.job.num}
+    dir: outputs/multirun/
+    subdir: ${data_card.source.filepath}/${hydra:runtime.choices.scenario}
+  job:
+    config:
+      override_dirname:
+        kv_sep: '='
+        item_sep: ','
+        exclude_keys:
+          - data_card
+          - scenario
   job_logging:
     root:
       level: CRITICAL
@@ -16,18 +24,23 @@ hydra:
     root:
       level: CRITICAL
 
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+
 project_root: ${hydra:runtime.cwd}
 data_dir: ${project_root}/data
-instances_base: ${data_dir}/instances
+instances_base: ${data_dir}/
 cache_base: ${instances_base}/caches
 verbose: True
 
 viz:
-  launch: false
+  launch: False
   port: 8050
 
 experiment:
   name: ${data_card.name}
   output_dir: ${hydra:runtime.output_dir}
-  instance_name: ${data_card.name}/${now:%Y-%m-%d_%H-%M-%S}
-
+  instance_name: ${data_card.name}/${hydra:runtime.choices.cosy_repo}_${data_card.objective}

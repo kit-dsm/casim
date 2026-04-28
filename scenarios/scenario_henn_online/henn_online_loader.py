@@ -43,7 +43,7 @@ class HennOnlineLoader(DataLoader):
             BaseWarehouseDomain object
         """
         filepath = Path(filepath)
-        filepath_arrival_times = f"Arrival_Time_abc1-{filepath.stem}.csv"
+        filepath_arrival_times = f"Arrival_Time_abc1_{filepath.stem}.csv"
         if not filepath.is_absolute():
             filepath = self.data_dir / filepath
         if use_cache and self.cache_dir:

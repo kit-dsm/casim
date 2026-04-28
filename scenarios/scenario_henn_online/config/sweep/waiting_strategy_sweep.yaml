@@ -1,0 +1,8 @@
+# @package _global_
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      data_card.source.filepath: 29s-40-30-0.txt, 30s-40-45-0.txt, 31s-40-60-0.txt, 32s-40-75-0.txt, 37s-60-30-0.txt, 38s-60-45-0.txt, 39s-60-60-0.txt, 40s-60-75-0.txt, 61s-80-30-0.txt, 62s-80-45-0.txt, 63s-80-60-0.txt, 64s-80-75-0.txt, 69s-100-30-0.txt, 70s-100-45-0.txt, 72s-100-75-0.txt
+      data_card.objective: makespan
+      scenario: scenario_henn_waiting, scenario_henn_order_window_waiting

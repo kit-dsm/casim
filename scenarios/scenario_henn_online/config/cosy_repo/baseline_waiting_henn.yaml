@@ -3,7 +3,5 @@ components:
   - casim.pipelines.subproblems.item_assingment.GreedyIA
   - casim.pipelines.subproblems.batching.FiFo
   - casim.pipelines.subproblems.picker_routing.SShapeHenn
-  - casim.pipelines.subproblems.scheduling.SPTScheduler
-  - casim.pipelines.problem_based_template.ResultAggregationBatching
-  - casim.pipelines.problem_based_template.ResultAggregationRouting
-  - casim.pipelines.problem_based_template.ResultAggregationScheduling
+  - casim.pipelines.subproblems.sequencing.SPTSequencing
+  - casim.pipelines.problem_based_template.ResultAggregationSequencing

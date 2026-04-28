@@ -13,6 +13,8 @@ from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.state import State
 from casim.io_helpers import dump_pickle
+from casim.trackers import ExperimentTracker
+
 if TYPE_CHECKING:
     from casim.simulation_engine import SimulationEngine
 
@@ -112,6 +114,11 @@ class KPILogger(EventLogger):
         with open(self.out_dir / "kpis.json", "w") as f:
             json.dump(_jsonable(summary), f, indent=2)
 
+        tracker_dict = self._tracker_to_dict(state.tracker)
+
+        with open(self.out_dir / "tracker.json", "w") as f:
+            json.dump(_jsonable(tracker_dict), f, indent=2)
+
     @staticmethod
     def _summary(state: State) -> dict:
         t = state.tracker
@@ -132,6 +139,7 @@ class KPILogger(EventLogger):
             "idle_time_by_picker": dict(t.idle_time_by_picker),
             "total_distance": sum(t.distance_by_picker.values()),
             "total_delayed": t.total_delayed,
+            "dock_utilization": dict(t.dock_utilization)
             # "total_on_time": t.total_on_time
         }
 
@@ -143,10 +151,26 @@ class KPILogger(EventLogger):
             f"tours={len(t.completed_tours):>4d}  "
             f"avg_batch={t.average_batch_size:.2f}  "
             f"dist={sum(t.distance_by_picker.values()):.0f},"
-            f"on_time_ratio={100*t.on_time_ratio:.1f}% "
-            f"delayed_ratio={100*t.delayed_ratio:.1f}%"
-            # f"dock_fill={state.dock_manager.n_staged_pallets}"
+            f"on_time_ratio={100 * t.on_time_ratio:.1f}% "
+            f"delayed_ratio={100 * t.delayed_ratio:.1f} "
+            + (f"dock_fill={state.dock_manager.n_staged_pallets}" if hasattr(state, "dock_manager") else "")
         )
+
+    def _tracker_to_dict(self, tracker: ExperimentTracker) -> dict:
+
+        return {
+            "distance_by_picker": dict(tracker.distance_by_picker),
+            "idle_time_by_picker": dict(tracker.idle_time_by_picker),
+            "idle_intervals": tracker.idle_intervals,
+            "completed_tours": tracker.completed_tours,
+            "truck_departures": tracker.truck_departures,
+            "dock_utilization": tracker.dock_utilization,
+            "batch_buffer": tracker.batch_buffer,
+            "avg_makespan": tracker.avg_makespan,
+            "all_delayed": tracker.all_delayed,
+            "all_on_time": tracker.all_on_time,
+            "avg_utilization": tracker.picker_utilization
+        }
 
     @staticmethod
     def _print_summary(s: dict) -> None:
