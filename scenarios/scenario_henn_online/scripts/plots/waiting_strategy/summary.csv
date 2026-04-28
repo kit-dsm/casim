@@ -1,0 +1,31 @@
+instance,scenario,scenario_label,final_makespan,avg_makespan,avg_utilization,avg_dock,max_dock,n_tours
+29s-40-30-0,scenario_henn_order_window_waiting,Order Window (5),22391.988,774.1428571428571,1.0,0.0,0,28
+29s-40-30-0,scenario_henn_waiting,Henn Waiting,22533.874,743.5666666666667,1.0,0.0,0,30
+30s-40-45-0,scenario_henn_order_window_waiting,Order Window (5),16344.988000000001,976.8125,1.0,0.0,0,16
+30s-40-45-0,scenario_henn_waiting,Henn Waiting,17809.162,886.1578947368421,0.9576114325962582,0.0,0,19
+31s-40-60-0,scenario_henn_order_window_waiting,Order Window (5),14651.988000000001,1161.3333333333333,1.0,0.0,0,12
+31s-40-60-0,scenario_henn_waiting,Henn Waiting,16827.874,976.5294117647059,1.0,0.0,0,17
+32s-40-75-0,scenario_henn_order_window_waiting,Order Window (5),12440.988000000001,1302.7777777777778,1.0,0.0,0,9
+32s-40-75-0,scenario_henn_waiting,Henn Waiting,13625.204,1107.8333333333333,0.9922132086610794,0.0,0,12
+37s-60-30-0,scenario_henn_order_window_waiting,Order Window (5),34902.326,800.5813953488372,1.0,0.0,0,43
+37s-60-30-0,scenario_henn_waiting,Henn Waiting,36387.25,770.9787234042553,1.0,0.0,0,47
+38s-60-45-0,scenario_henn_order_window_waiting,Order Window (5),23356.326,994.7391304347826,1.0,0.0,0,23
+38s-60-45-0,scenario_henn_waiting,Henn Waiting,23913.25,950.48,1.0,0.0,0,25
+39s-60-60-0,scenario_henn_order_window_waiting,Order Window (5),20389.326,1171.2941176470588,1.0,0.0,0,17
+39s-60-60-0,scenario_henn_waiting,Henn Waiting,21725.25,1078.7,1.0,0.0,0,20
+40s-60-75-0,scenario_henn_order_window_waiting,Order Window (5),16064.326000000001,1298.9166666666667,1.0,0.0,0,12
+40s-60-75-0,scenario_henn_waiting,Henn Waiting,17460.25,1153.9333333333334,1.0,0.0,0,15
+61s-80-30-0,scenario_henn_order_window_waiting,Order Window (5),44486.994999999995,788.0178571428571,1.0,0.0,0,56
+61s-80-30-0,scenario_henn_waiting,Henn Waiting,44792.438,783.8421052631579,1.0,0.0,0,57
+62s-80-45-0,scenario_henn_order_window_waiting,Order Window (5),33694.994999999995,1010.2121212121212,1.0,0.0,0,33
+62s-80-45-0,scenario_henn_waiting,Henn Waiting,35899.438,941.7368421052631,1.0,0.0,0,38
+63s-80-60-0,scenario_henn_order_window_waiting,Order Window (5),25768.995,1155.0454545454545,1.0,0.0,0,22
+63s-80-60-0,scenario_henn_waiting,Henn Waiting,28805.438000000002,1024.7142857142858,0.9999999999999999,0.0,0,28
+64s-80-75-0,scenario_henn_order_window_waiting,Order Window (5),23366.995,1278.2777777777778,1.0,0.0,0,18
+64s-80-75-0,scenario_henn_waiting,Henn Waiting,25530.438000000002,1105.0869565217392,0.9999999999999999,0.0,0,23
+69s-100-30-0,scenario_henn_order_window_waiting,Order Window (5),47993.395000000004,808.5932203389831,1.0,0.0,0,59
+69s-100-30-0,scenario_henn_waiting,Henn Waiting,49699.75,775.140625,1.0,0.0,0,64
+70s-100-45-0,scenario_henn_order_window_waiting,Order Window (5),34905.395000000004,1018.2058823529412,1.0,0.0,0,34
+70s-100-45-0,scenario_henn_waiting,Henn Waiting,37508.75,935.45,1.0,0.0,0,40
+72s-100-75-0,scenario_henn_order_window_waiting,Order Window (5),27094.395,1340.4,1.0,0.0,0,20
+72s-100-75-0,scenario_henn_waiting,Henn Waiting,30668.75,1132.5185185185185,1.0,0.0,0,27
