@@ -65,6 +65,7 @@ resources:
       type: human
       features:
         - name: speed
+        - name: time_per_pick
 
       objects:
         - name: PickCart

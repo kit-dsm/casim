@@ -1,12 +1,19 @@
 defaults:
   - data_card: henn
-  - decision_engine: decision_engine
+  - cosy_repo: baseline_waiting_henn
+  - scenario: test_scenario
   - _self_
 
 project_root: ${oc.env:PROJECT_ROOT}
 data_dir: ${project_root}/data
 instances_base: ${data_dir}/instances
 cache_base: ${instances_base}/caches
+
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
 
 experiment:
   name: ${data_card.name}

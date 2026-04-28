@@ -9,7 +9,7 @@ from hydra.core.global_hydra import GlobalHydra
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.operational_events import PickerArrival
-from casim.simulation_engine import SimulationEngine
+from casim.simulation_engine.simulation_engine import SimulationEngine
 from scenarios.experiment_commons import (
     load_and_flatten_data_card,
     setup_scenario,

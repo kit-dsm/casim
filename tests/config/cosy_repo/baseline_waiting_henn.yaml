@@ -1,0 +1,7 @@
+components:
+  - casim.pipelines.problem_based_template.InstanceLoader
+  - casim.pipelines.subproblems.item_assingment.GreedyIA
+  - casim.pipelines.subproblems.batching.FiFo
+  - casim.pipelines.subproblems.picker_routing.SShapeHenn
+  - casim.pipelines.subproblems.sequencing.SPTSequencing
+  - casim.pipelines.problem_based_template.ResultAggregationSequencing
