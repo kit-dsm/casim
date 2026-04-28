@@ -54,6 +54,23 @@ The order-window scenario instead represents waiting directly through `NbrOrders
 
 We provide a sweeped run over multiple instances. We vary the described waiting policies.
 
-The instances are obtained from "Hessler" while the order arrival times can be found in "". 
+Figure 1 shows the results, highlighting that the Henn waiting strategy outperforms the simple fixed threshold strategy.
+The complete experiment results can be found on outputs/multirun.
 
-![image](.sctipts/plots/scatter_final_makespan.pdf)
+![scatter final makespan](./scripts/plots/waiting_strategy/scaling_makespan_orders.png)
+
+*Figure 1: Final makespan across instances under the two waiting policies.*
+
+
+## Data sources
+
+The warehouse instances are taken from Heßler & Irnich [1], available at the
+[JGU Mainz benchmark page](https://logistik.bwl.uni-mainz.de/research/#benchmarks).
+Order arrival times are taken from the OOBP benchmark of Henn [2], available at the
+[OptSiCom OOBP page](https://grafo.etsii.urjc.es/optsicom/oobp).
+
+## References
+
+[1] K. Heßler, S. Irnich (2022). *Modeling and Exact Solution of Picker Routing and Order Batching Problems.* LM-2022-03, Chair of Logistics Management, Johannes Gutenberg University, Mainz, Germany.
+
+[2] S. Henn (2012). *Algorithms for on-line order batching in an order picking warehouse.* Computers & Operations Research, 39(11):2549–2563.
