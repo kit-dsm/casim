@@ -2,19 +2,21 @@ decision_engine:
   problems:
     ORSP:
       solver:
-        _target_: casim.pipelines.pipeline_runner.CoSyRunner
+        _target_: casim.pipelines.pipeline_runner.CoSySolver
         solution_ranker:
           _target_: casim.pipelines.solution_ranker.SolutionRanker
           objective: ${data_card.objective}
+        repo: ${cosy_repo}
       commitment_policy:
         _target_: casim.decision_engine.decision_engine.SchedulingCommitmentPolicy
         n_jobs: 1
     OBP:
       solver:
-        _target_: casim.pipelines.pipeline_runner.CoSyRunner
+        _target_: casim.pipelines.pipeline_runner.CoSySolver
         solution_ranker:
           _target_: casim.pipelines.solution_ranker.SolutionRanker
           objective: ${data_card.objective}
+        repo: ${cosy_repo}
       commitment_policy:
         _target_: casim.decision_engine.decision_engine.CommitAllPolicy
 
@@ -23,7 +25,7 @@ simulation_engine:
     ORSP:
       state_adapter:
         _target_: casim.simulation_engine.state_adapter.ORSPAdapter
-      triggers: [ShiftStart, PickerArrival, PickerIdle, TruckDeparture]
+      triggers: [ShiftStart, PickerArrival, PickerIdle]
       conditions:
         - _target_: casim.simulation_engine.conditions.NbrPickersCondition
           threshold: 1

@@ -261,14 +261,14 @@ for metric, ylabel, fname in [
     ("avg_utilization", "Avg.\\ Picker Utilization", "scatter_avg_utilization"),
 ]:
     fig = plot_metric_per_instance(df, metric=metric, ylabel=ylabel)
-    fig.savefig(out_dir / f"{fname}.pdf", bbox_inches="tight")
+    fig.savefig(out_dir / f"{fname}.png", bbox_inches="tight")
     plt.close(fig)
 
 # Scaling plot: makespan vs. number of orders
 fig = plot_scaling(df, metric="final_makespan", ylabel="Final Makespan [s]",
                    x_field="orders", x_label="\\# Orders per Instance")
 if fig is not None:
-    fig.savefig(out_dir / "scaling_makespan_orders.pdf", bbox_inches="tight")
+    fig.savefig(out_dir / "scaling_makespan_orders.png", bbox_inches="tight")
     plt.close(fig)
 
 to_latex_summary(df, out_dir / "summary_table.tex")
