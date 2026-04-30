@@ -7,7 +7,7 @@ This repository contains the implementation of CASIM as described in the paper "
 This project depends on `ware_ops_algos`, which must be cloned adjacent:
 
 ```bash
-git clone https://github.com/kit-dsm/ware_ops_sim.git
+git clone https://github.com/kit-dsm/casim.git
 git clone https://github.com/kit-dsm/ware_ops_algos.git
 cd casim
 uv sync --extra dev
