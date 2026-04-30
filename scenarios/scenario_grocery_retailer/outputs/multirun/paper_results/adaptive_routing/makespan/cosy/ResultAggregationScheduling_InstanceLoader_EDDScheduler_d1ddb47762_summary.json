@@ -1,0 +1,35 @@
+{
+    "batching_algo": "",
+    "batching_time": 0.0,
+    "routing_algo": "LargestGapRouting",
+    "routing_time": 0.0010182000696659088,
+    "scheduling_algo": "Algorithm",
+    "scheduling_time": 2.5400076992809772e-05,
+    "provenance": [
+        {
+            "stage": "batching",
+            "algo": "",
+            "time": 0.0,
+            "task_class": "PickListProvider"
+        },
+        {
+            "stage": "routing",
+            "algo": "LargestGapRouting",
+            "time": 0.0010182000696659088,
+            "task_class": "LargestGap"
+        },
+        {
+            "stage": "scheduling",
+            "algo": "Algorithm",
+            "time": 2.5400076992809772e-05,
+            "task_class": "EDDScheduler"
+        }
+    ],
+    "routing_summary": {
+        "total_distance": 316400.0,
+        "tour_distances": {
+            "tour_0_distance": 316400.0
+        }
+    },
+    "scheduling_summary": {}
+}

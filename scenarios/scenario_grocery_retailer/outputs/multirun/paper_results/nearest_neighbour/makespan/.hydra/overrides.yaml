@@ -1,0 +1,3 @@
+- cosy_repo=nearest_neighbour
+- data_card.objective=makespan
+- scenario.simulation_engine.problems.ORSP.conditions.2.threshold=98

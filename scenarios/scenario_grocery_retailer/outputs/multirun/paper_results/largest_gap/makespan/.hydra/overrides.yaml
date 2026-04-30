@@ -1,0 +1,3 @@
+- cosy_repo=largest_gap
+- data_card.objective=makespan
+- scenario.simulation_engine.problems.ORSP.conditions.2.threshold=98

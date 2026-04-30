@@ -1,0 +1,35 @@
+{
+    "batching_algo": "",
+    "batching_time": 0.0,
+    "routing_algo": "NearestNeighbourhoodRouting",
+    "routing_time": 0.0005926999729126692,
+    "scheduling_algo": "Algorithm",
+    "scheduling_time": 2.8399983420968056e-05,
+    "provenance": [
+        {
+            "stage": "batching",
+            "algo": "",
+            "time": 0.0,
+            "task_class": "PickListProvider"
+        },
+        {
+            "stage": "routing",
+            "algo": "NearestNeighbourhoodRouting",
+            "time": 0.0005926999729126692,
+            "task_class": "NearestNeighbourhood"
+        },
+        {
+            "stage": "scheduling",
+            "algo": "Algorithm",
+            "time": 2.8399983420968056e-05,
+            "task_class": "EDDScheduler"
+        }
+    ],
+    "routing_summary": {
+        "total_distance": 316400.0,
+        "tour_distances": {
+            "tour_0_distance": 316400.0
+        }
+    },
+    "scheduling_summary": {}
+}

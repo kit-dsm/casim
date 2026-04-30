@@ -1,0 +1,20 @@
+{
+    "item_assignment_algo": "GIA",
+    "item_assignment_time": 0.0159713999601081,
+    "batching_algo": "FifoBatching",
+    "batching_time": 0.0012196999741718173,
+    "provenance": [
+        {
+            "stage": "item_assignment",
+            "algo": "GIA",
+            "time": 0.0159713999601081,
+            "task_class": "GreedyIA"
+        },
+        {
+            "stage": "batching",
+            "algo": "FifoBatching",
+            "time": 0.0012196999741718173,
+            "task_class": "FiFo"
+        }
+    ]
+}

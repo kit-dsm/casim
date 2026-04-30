@@ -1,0 +1,177 @@
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+project_root: ${hydra:runtime.cwd}
+data_dir: ${project_root}/data
+instances_base: ${data_dir}/
+cache_base: ${instances_base}/caches
+verbose: true
+viz:
+  launch: false
+  port: 8050
+experiment:
+  name: ${data_card.name}
+  output_dir: ${hydra:runtime.output_dir}
+  instance_name: ${data_card.name}/${hydra:runtime.choices.cosy_repo}_${data_card.objective}
+data_card:
+  name: grocery_retailer
+  problem_type: ORSP
+  objective: makespan
+  source:
+    data_loader: GroceryRetailerLoader
+    orders_path: orders.csv
+    layout_path: layout.csv
+  layout:
+    type: conventional
+    objects:
+    - name: LayoutParams
+      features:
+      - name: start_node
+        value:
+        - 0
+        - 0
+      - name: end_node
+        value:
+        - 0
+        - 0
+      - name: closest_node_to_start
+        value:
+        - 0
+        - 0
+      - name: min_aisle_position
+        value: 0
+      - name: max_aisle_position
+        value: 10
+      - name: n_pick_locations
+        value: 50
+      - name: dist_pick_locations
+        value: 1.5
+      - name: dist_bottom_to_pick_location
+        value: 0
+      - name: n_blocks
+        value: 2
+      - name: distance_matrix
+      - name: predecessor_matrix
+    - name: LayoutNetwork
+      features:
+      - name: graph
+      - name: distance_matrix
+  articles:
+    type: standard
+    objects:
+    - name: Article
+      features:
+      - name: article_id
+  orders:
+    type: standard
+    objects:
+    - name: Order
+      features:
+      - name: order_date
+      - name: due_date
+      objects:
+      - name: OrderPosition
+        features:
+        - name: article_id
+        - name: amount
+  resources:
+    type: human
+    objects:
+    - name: HumanPicker
+      type: human
+      features:
+      - name: n_pickers
+        value: 24
+      - name: speed
+        value: 2306
+      - name: speed_follow_mode
+        value: 1389
+      - name: time_per_pick
+        value: 19
+      - name: tour_setup_time
+        value: 215
+      - name: aisle_congestion_rate
+        value: 0.06
+      objects:
+      - name: PickCart
+        type: manual
+        features:
+        - name: capacities
+        - name: dimensions_type
+          value:
+          - items
+    - name: Cobot
+      type: automated
+      features:
+      - name: distribution
+        value: 0.5
+      - name: time_per_pick
+        value: 15.77
+  storage:
+    type: dedicated
+    objects:
+    - name: StorageLocations
+      features:
+      - name: amount
+      - name: article_id
+scenario:
+  decision_engine:
+    problems:
+      ORSP:
+        solver:
+          _target_: casim.pipelines.pipeline_runner.CoSySolver
+          solution_ranker:
+            _target_: casim.pipelines.solution_ranker.SolutionRanker
+            objective: ${data_card.objective}
+          repo: ${cosy_repo}
+        commitment_policy:
+          _target_: casim.decision_engine.decision_engine.SchedulingCommitmentPolicy
+          n_jobs: 1
+      OBP:
+        solver:
+          _target_: casim.pipelines.pipeline_runner.CoSySolver
+          solution_ranker:
+            _target_: casim.pipelines.solution_ranker.SolutionRanker
+            objective: ${data_card.objective}
+          repo: ${cosy_repo}
+        commitment_policy:
+          _target_: casim.decision_engine.decision_engine.CommitAllPolicy
+  simulation_engine:
+    problems:
+      ORSP:
+        state_adapter:
+          _target_: casim.simulation_engine.state_adapter.ORSPAdapter
+        triggers:
+        - ShiftStart
+        - PickerArrival
+        - PickerIdle
+        conditions:
+        - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+          threshold: 1
+        - _target_: casim.simulation_engine.conditions.NbrBatchesCondition
+          threshold: 1
+        - _target_: casim.simulation_engine.conditions.DockCapacityCondition
+          threshold: 98
+      OBP:
+        state_adapter:
+          _target_: casim.simulation_engine.state_adapter.OBPAdapter
+        triggers:
+        - WMSRun
+        conditions: []
+cosy_repo:
+  components:
+  - casim.pipelines.problem_based_template.InstanceLoader
+  - casim.pipelines.subproblems.item_assingment.GreedyIA
+  - casim.pipelines.subproblems.batching.FiFo
+  - casim.pipelines.subproblems.picker_routing.SShape
+  - casim.pipelines.subproblems.picker_routing.Return
+  - casim.pipelines.subproblems.picker_routing.LargestGap
+  - casim.pipelines.subproblems.picker_routing.Midpoint
+  - casim.pipelines.subproblems.picker_routing.NearestNeighbourhood
+  - casim.pipelines.subproblems.scheduling.EDDScheduler
+  - casim.pipelines.problem_based_template.PickListProvider
+  - casim.pipelines.problem_based_template.ResultAggregationBatching
+  - casim.pipelines.problem_based_template.ResultAggregationRouting
+  - casim.pipelines.problem_based_template.ResultAggregationScheduling
