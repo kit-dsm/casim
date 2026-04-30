@@ -13,13 +13,20 @@ from casim.events.decision_events import RoutingDone, PickListDone
 from casim.events.operational_events import OrderArrival, PickerArrival, PickerTourQuery, PickerIdle, TourEnd, \
     ShiftStart, FlushRemainingOrders, TruckDeparture, WMSRun
 from casim.simulation_engine.simulation_engine import SimulationEngine
-from scenarios.scenario_grocery_retailer.grocery_retailer_loader import GroceryRetailerLoader
-from scenarios.scenario_henn_online.henn_online_loader import HennOnlineLoader
 
-LOADER_REGISTRY = {
-    "HennOnlineLoader": HennOnlineLoader,
-    "GroceryRetailerLoader": GroceryRetailerLoader
-}
+LOADER_REGISTRY: dict[str, Type[DataLoader]] = {}
+
+try:
+    from scenarios.scenario_henn_online.henn_online_loader import HennOnlineLoader
+    LOADER_REGISTRY["HennOnlineLoader"] = HennOnlineLoader
+except ImportError:
+    pass
+
+try:
+    from scenarios.scenario_grocery_retailer.grocery_retailer_loader import GroceryRetailerLoader
+    LOADER_REGISTRY["GroceryRetailerLoader"] = GroceryRetailerLoader
+except ImportError:
+    pass
 
 EVENT_REGISTRY: dict[str, Type[Event]]  = {
     "OrderArrival": OrderArrival,
