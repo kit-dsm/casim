@@ -1,8 +1,9 @@
 import logging
 from collections import defaultdict
 
-from ware_ops_algos.algorithms import Route, NodeType, TourPlanningState, TourStates, Node, \
-    WarehouseOrder
+from ware_ops_algos.algorithms import Route, NodeType, WarehouseOrder
+
+from casim.domain_objects.tour_model import TourPlanningState, TourStates, Node
 
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -32,9 +33,9 @@ class TourManager:
         tour_id = self._tour_counter
         new_tour = TourPlanningState(
             tour_id=tour_id,
-            order_numbers=list(route_plan.pick_list.order_numbers),
+            order_numbers=list(route_plan.batch.order_numbers),
             original_route=route_plan,
-            pick_list=route_plan.pick_list,
+            batch=route_plan.batch,
             status=TourStates.PLANNED,
             annotated_route=route_plan.annotated_route
         )
@@ -150,30 +151,12 @@ class TourManager:
         tour = self.get_tour(tour_id)
         tour.cursor += 1
 
-    # def pop_next_pick_if_here(self, tour_id: int, node: Node) -> bool:
-    #     """
-    #     If the next planned pick equals `node`, pop it and return True, else False.
-    #     """
-    #     tour = self.get_tour(tour_id)
-    #     if tour.picks_left and tour.picks_left[0] == node:
-    #         tour.picks_left.popleft()
-    #         return True
-    #     return False
 
-    # def pop_next_pick(self, tour_id: int, node: Node) -> bool:
-    #     """
-    #     If the next planned pick equals `node`, pop it and return True, else False.
-    #     """
+    # def mark_pick_positions_fulfilled_at(self, tour_id: int, node: Node) -> None:
     #     tour = self.get_tour(tour_id)
-    #     if tour.picks_left and tour.picks_left[0] == node:
-    #         tour.picks_left.popleft()
-    #         return True
-
-    def mark_pick_positions_fulfilled_at(self, tour_id: int, node: Node) -> None:
-        tour = self.get_tour(tour_id)
-        for pp in tour.pick_list.pick_positions:
-            if pp.pick_node == node:
-                pp.fulfilled = True
+    #     for pp in tour.batch.pick_positions:
+    #         if pp.pick_node == node:
+    #             pp.fulfilled = True
 
     def add_selected_order(self, order: WarehouseOrder, picker_id: int):
         self._selected_orders[picker_id] = order

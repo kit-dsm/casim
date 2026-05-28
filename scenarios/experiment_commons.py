@@ -23,6 +23,12 @@ except ImportError:
     pass
 
 try:
+    from scenarios.scenario_ijpe.grocery_retailer_loader import WarehousePickingLoader
+    LOADER_REGISTRY["WarehousePickingLoader"] = WarehousePickingLoader
+except ImportError:
+    pass
+
+try:
     from scenarios.scenario_grocery_retailer.grocery_retailer_loader import GroceryRetailerLoader
     LOADER_REGISTRY["GroceryRetailerLoader"] = GroceryRetailerLoader
 except ImportError:

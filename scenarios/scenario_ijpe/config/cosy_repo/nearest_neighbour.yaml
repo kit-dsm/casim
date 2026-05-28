@@ -1,0 +1,10 @@
+components:
+  - casim.pipelines.problem_based_template.InstanceLoader
+  - casim.pipelines.subproblems.item_assingment.GreedyIA
+  - casim.pipelines.subproblems.batching.FiFo
+  - casim.pipelines.subproblems.picker_routing.NearestNeighbourhood
+  - casim.pipelines.subproblems.scheduling.EDDScheduler
+  - casim.pipelines.problem_based_template.PickListProvider
+  - casim.pipelines.problem_based_template.ResultAggregationBatching
+  - casim.pipelines.problem_based_template.ResultAggregationRouting
+  - casim.pipelines.problem_based_template.ResultAggregationScheduling

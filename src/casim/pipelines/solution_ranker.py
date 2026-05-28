@@ -102,7 +102,7 @@ class SolutionRanker:
         best_kpi_value = None
         solution_object = None
 
-        if problem_class in ["OBP"]:
+        if problem_class in ["OBP", "OSBP"]:
             # No KPI — just take any (last) key
             for k in solutions:
                 best_key = k
@@ -135,7 +135,7 @@ class SolutionRanker:
                     kpi = max(j.end_time for j in sol.jobs)
                 elif self.objective == "tardiness":
                     kpi = sum(
-                        max(0, j.end_time - j.route.pick_list.earliest_due_date)
+                        max(0, j.end_time - j.route.batch.earliest_due_date)
                         for j in sol.jobs
                     )
                 else:

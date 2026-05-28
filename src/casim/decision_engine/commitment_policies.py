@@ -53,7 +53,7 @@ class HennWaiting(CommitmentPolicy):
             )
 
         # Henn: single-batch case.
-        pl = job.route.pick_list
+        pl = job.route.batch
 
         if pl.service_time is None:
             raise ValueError("Henn waiting requires PickList.service_time.")

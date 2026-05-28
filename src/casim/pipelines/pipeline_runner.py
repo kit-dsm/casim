@@ -11,6 +11,7 @@ from ware_ops_algos.algorithms import CombinedRoutingSolution, SchedulingSolutio
 from ware_ops_algos.domain_models import BaseWarehouseDomain, DataCard
 from ware_ops_algos.utils.general_functions import load_model_cards
 
+from casim.pipelines.in_memory_dag import InMemoryDagExecutor
 from casim.pipelines.solution_ranker import SolutionRanker
 from casim.pipelines.problem_based_template import (
     InstanceLoader, PickListProvider, ResultAggregationBatching, ResultAggregationRouting, ResultAggregationScheduling,
@@ -116,7 +117,8 @@ class CoSySolver:
         suffix = {
             "OBRSP": "sequencing_sol.pkl",
             "ORSP": "scheduling_sol.pkl",
-            "OBP": "pick_list_sol.pkl",
+            "OBP": "batching_sol.pkl",
+            "OSBP": "batching_sol.pkl",
             "ORP": "routing_sol.pkl", "OBRP": "routing_sol.pkl",
             "BSRP": "routing_sol.pkl",
         }[problem_class]
@@ -126,3 +128,27 @@ class CoSySolver:
     def _cleanup_after_solution(output_folder: Path):
         clear_store()
 
+
+class OnlineCoSySolver(CoSySolver):
+    def solve(
+        self,
+        dynamic_domain: BaseWarehouseDomain,
+    ) -> tuple[AlgorithmSolution, str, float] | None:
+        self.dump_domain(dynamic_domain)
+
+        if not self.pipelines:
+            print("⚠ No valid pipelines found!")
+            return None
+
+        executor = InMemoryDagExecutor()
+        executor.execute_many(self.pipelines)
+
+        solutions = self._load_solutions(dynamic_domain.problem_class)
+        self._cleanup_after_solution(self.output_folder)
+
+        best_solution, best_key, best_kpi_value = self.select_strategy(
+            solutions,
+            dynamic_domain.problem_class,
+        )
+
+        return best_solution, best_key, best_kpi_value

@@ -1,6 +1,6 @@
 import logging
 
-from ware_ops_algos.algorithms import PickList, Route, Job
+from ware_ops_algos.algorithms import Route, Job, BatchObject
 
 from casim.events.base_events import ProcessEvent, Event
 from casim.events.operational_events import PickerArrival, PickerTourQuery
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class PickListDone(ProcessEvent):
-    def __init__(self, time: float, pick_list: PickList):
+    def __init__(self, time: float, pick_list: BatchObject):
         super().__init__(time)
         self.pick_list = pick_list
 

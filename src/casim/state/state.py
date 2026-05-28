@@ -1,8 +1,8 @@
 import copy
 from copy import deepcopy
 
-from ware_ops_algos.algorithms import Route, Job, PickerAssignment, WarehouseOrder, BatchObject, PickList
-from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, Order, Resource
+from ware_ops_algos.algorithms import Route, Job, WarehouseOrder, BatchObject, ScheduledJob
+from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources
 
 from .order_manager import OrderManager
 from .resource_manager import ResourceManager
@@ -26,8 +26,7 @@ class State:
         # time is a float (simulation time units)
         self.current_time: float = 0.0
         self.current_picker_id = None
-        self.is_break: bool = False
-        self.break_duration: int | None = None
+        self.break_duration: float = 0.0
         self.resource_manager = ResourceManager(resources=resources)
         self.storage_manager = StorageManager(articles=articles,
                                               storage=storage)
@@ -44,6 +43,8 @@ class State:
             )
         self.statistics = []
         self.done_flag = False
+        self.is_break: bool = False
+
 
     def get_storage(self) -> StorageLocations:
         return self._storage
@@ -68,10 +69,10 @@ class State:
         # TODO What to do here?
         pass
 
-    def add_pick_list_to_planning_state(self, pick_list: PickList) -> None:
+    def add_pick_list_to_planning_state(self, pick_list: BatchObject) -> None:
         self.order_manager.add_pick_list_to_buffer(pick_list)
 
-    def add_selected_pick_list_to_planning_state(self, pick_list: PickList,
+    def add_selected_pick_list_to_planning_state(self, pick_list: BatchObject,
                                                  picker_id: int) -> None:
         self.order_manager.add_selected_pick_list(pick_list,
                                                   picker_id)
@@ -90,20 +91,10 @@ class State:
         # print("Tour created:", self.tour_manager.get_tour(tour_id))
         # self.tour_manager.assign_tour(tour_id, sequencing.picker_id)
 
-    def add_sequencing_to_planning_state(self, sequencing: Job) -> None:
-        tour_id = self.tour_manager.create_tour(deepcopy(sequencing.route))
-        self.tour_manager.assign_tour(tour_id, sequencing.picker_id)
+    def add_sequencing_to_planning_state(self, scheduled_job: ScheduledJob) -> None:
+        tour_id = self.tour_manager.create_tour(deepcopy(scheduled_job.job.route))
+        self.tour_manager.assign_tour(tour_id, scheduled_job.picker_id)
         self.tour_manager.schedule_tour(tour_id,
-                                        sequencing.start_time,
-                                        sequencing.end_time)
+                                        scheduled_job.start_time,
+                                        scheduled_job.end_time)
 
-    def __deepcopy__(self, memo):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            if k in self._SHARED_FIELDS:
-                setattr(result, k, v)
-            else:
-                setattr(result, k, copy.deepcopy(v, memo))
-        return result

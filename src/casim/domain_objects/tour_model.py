@@ -3,7 +3,7 @@ from dataclasses import field, dataclass
 from enum import Enum
 from typing import Deque, Optional
 
-from ware_ops_algos.algorithms import RouteNode, Route, PickList
+from ware_ops_algos.algorithms import RouteNode, Route, BatchObject
 
 Node = tuple[float, float]
 
@@ -32,8 +32,7 @@ class TourPlanningState:
     # original plan (copied from Route)
     order_numbers: list[int]
     original_route: Route
-    pick_list: PickList
-    # pick_nodes: list[Node]
+    batch: BatchObject
     annotated_route: list[RouteNode]
 
     assigned_resource: Optional[int] = None
@@ -42,8 +41,6 @@ class TourPlanningState:
     end_time_planned: Optional[float] = None
     # execution state, mutable during picking
     cursor: int = 0                 # index into route_nodes
-    picks_left: Deque[Node] = field(default_factory=deque)
-    open_pick_positions: list = field(default_factory=list)
     status: str = TourStates.PLANNED
 
     def current_node(self) -> RouteNode:

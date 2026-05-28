@@ -18,6 +18,7 @@ class ExperimentTracker:
         self.all_delayed = []
         self.all_on_time = []
         self.n_pickers: int = n_pickers
+        self.process_times: list[float] = []
         # (tour_id, start_time, end_time, list[order_ids], picker_id)
 
     def on_travel(self, picker_id, distance):
@@ -58,6 +59,7 @@ class ExperimentTracker:
         self.avg_makespan.append((end_time, self.average_tour_makespan))
         util = self.current_utilization(end_time)
         self.picker_utilization.append((end_time, util))
+        self.process_times.append(end_time - start_time)
 
     def on_truck_departure(self, time, capacity):
         self.truck_departures.append((time, capacity))
