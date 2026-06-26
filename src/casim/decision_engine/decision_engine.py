@@ -33,12 +33,12 @@ class DecisionEngine:
     def get_solver(self, problem: str) -> CoSySolver:
         return self.solver_map[problem]
 
-    def on_trigger(self, state_snapshot: SimWarehouseDomain):
+    def on_trigger(self, state_snapshot: SimWarehouseDomain, action=None):
         problem = state_snapshot.problem_class
         runner = self.get_solver(problem)
         start_time_sim = state_snapshot.dynamic_warehouse_info.time
         start_time = time.perf_counter()
-        solution, solver_name, objective_value = runner.solve(state_snapshot)
+        solution, solver_name, objective_value = runner.solve(state_snapshot, action)
         elapsed = time.perf_counter() - start_time
         if solution:
             self.on_solution(

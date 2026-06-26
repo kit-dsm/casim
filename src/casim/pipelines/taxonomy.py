@@ -29,4 +29,8 @@ TAXONOMY = {
         "variables": ["routing", "scheduling"],
         "endpoint": "ResultAggregationScheduling"
     },
+    "RORSP": {
+            "variables": ["routing", "scheduling"],
+            "endpoint": "ResultAggregationScheduling"
+        },
 }

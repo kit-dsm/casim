@@ -91,7 +91,7 @@ class DashLogger(EventLogger):
 
 
 class KPILogger(EventLogger):
-    def __init__(self, out_dir: Path, print_every: int | None = 500):
+    def __init__(self, out_dir: Path, print_every: int | None = 5000):
         self.out_dir = Path(out_dir)
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self.print_every = print_every
@@ -125,10 +125,12 @@ class KPILogger(EventLogger):
         horizon = state.current_time
         horizon_h = horizon / 3600 if horizon else 0
 
-        total_orders = sum(len(oids) for _, _, _, oids, _, _, _ in t.completed_tours)
+        total_orders = sum(len(oids) for _, _, _, oids, _, _, _, _  in t.completed_tours)
+        total_lines = sum(lines for _, _, _, _, _, _, _, lines in t.completed_tours)
+
 
         return {
-            "makespan": max(end for _, _, end, _, _, _, _ in t.completed_tours),
+            "makespan": max(end for _, _, end, _, _, _, _, _ in t.completed_tours),
             "num_tours": len(t.completed_tours),
             "num_orders_completed": total_orders,
             "avg_tour_makespan": t.average_tour_makespan,
@@ -139,7 +141,10 @@ class KPILogger(EventLogger):
             "idle_time_by_picker": dict(t.idle_time_by_picker),
             "total_distance": sum(t.distance_by_picker.values()),
             "total_delayed": t.total_delayed,
-            "dock_utilization": dict(t.dock_utilization)
+            "dock_utilization": dict(t.dock_utilization),
+            "total_tour_times": sum(t.process_times),
+            "picks_per_hour": total_lines / horizon_h if horizon_h else 0.0,
+            "total_processing_time": t.total_processing_time
             # "total_on_time": t.total_on_time
         }
 
@@ -156,8 +161,8 @@ class KPILogger(EventLogger):
             + (f"dock_fill={state.dock_manager.n_staged_pallets}" if hasattr(state, "dock_manager") else "")
         )
 
-    def _tracker_to_dict(self, tracker: ExperimentTracker) -> dict:
-
+    @staticmethod
+    def _tracker_to_dict(tracker: ExperimentTracker) -> dict:
         return {
             "distance_by_picker": dict(tracker.distance_by_picker),
             "idle_time_by_picker": dict(tracker.idle_time_by_picker),
@@ -169,7 +174,9 @@ class KPILogger(EventLogger):
             "avg_makespan": tracker.avg_makespan,
             "all_delayed": tracker.all_delayed,
             "all_on_time": tracker.all_on_time,
-            "avg_utilization": tracker.picker_utilization
+            "avg_utilization": tracker.picker_utilization,
+            "delayed_tours_exp_finish": tracker.delayed_expected_finish,
+            "total_processing_time": tracker.total_processing_time
         }
 
     @staticmethod
@@ -185,6 +192,8 @@ class KPILogger(EventLogger):
         print(f"  orders/hour:         {s['orders_per_hour']:.1f}")
         print(f"  total distance:      {s['total_distance']:.0f}")
         print(f"  total delayed:      {s['total_delayed']:.0f}")
+        print(f"  total tour times:    {s['total_tour_times']:.0f}")
+        print(f"  total processing time:    {s['total_processing_time']:.0f}")
         for pid, d in s['distance_by_picker'].items():
             idle = s['idle_time_by_picker'].get(pid, 0)
             print(f"    picker {pid}: distance={d:.0f}  idle={idle:.0f}")

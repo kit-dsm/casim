@@ -19,6 +19,11 @@ dependencies = [
     "seaborn>=0.13",
     "plotly>=5.20",
     "dash>=2.15",
+    "tqdm>=4.67.3",
+    "hydra-joblib-launcher>=1.2.0",
+    "stable-baselines3>=2.8.0",
+    "wandb>=0.27.0",
+    "tensorboard>=2.20.0",
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,50 @@
+defaults:
+  - _self_
+  - data_card: grocery_retailer
+  - scenario: scenario_grocery_fixed_arrival
+  - cosy_repo: adaptive_routing
+  - optional sweep: # cosy_repo_sweep
+
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/multirun/paper_results
+    subdir: ${hydra:runtime.choices.cosy_repo}/${data_card.objective}
+  job:
+    config:
+      override_dirname:
+        kv_sep: '='
+        item_sep: ','
+        exclude_keys:
+          - data_card
+          - scenario
+  job_logging:
+    root:
+      level: CRITICAL
+  hydra_logging:
+    root:
+      level: CRITICAL
+
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+
+project_root: ${hydra:runtime.cwd}
+data_dir: ${project_root}/data
+instances_base: ${data_dir}/
+cache_base: ${instances_base}/caches
+verbose: True
+
+viz:
+  launch: False
+  port: 8050
+
+experiment:
+  name: ${data_card.name}
+  output_dir: ${hydra:runtime.output_dir}
+  instance_name: ${data_card.name}/${hydra:runtime.choices.cosy_repo}_${data_card.objective}
+
+

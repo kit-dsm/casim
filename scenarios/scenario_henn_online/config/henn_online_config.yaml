@@ -3,7 +3,7 @@ defaults:
   - data_card: henn
   - scenario: scenario_henn_order_window_waiting # scenario_henn_waiting scenario_henn_order_window_waiting
   - cosy_repo: baseline_waiting_henn
-  - optional sweep: waiting_strategy_sweep
+  - optional sweep: None # waiting_strategy_sweep
 
 hydra:
   sweep:

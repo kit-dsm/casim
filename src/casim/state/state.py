@@ -22,7 +22,8 @@ class State:
                  layout: LayoutData,
                  articles: Articles,
                  storage: StorageLocations,
-                 resources: Resources):
+                 resources: Resources,
+                 active_objective):
         # time is a float (simulation time units)
         self.current_time: float = 0.0
         self.current_picker_id = None
@@ -44,6 +45,7 @@ class State:
         self.statistics = []
         self.done_flag = False
         self.is_break: bool = False
+        self.active_objective = active_objective
 
 
     def get_storage(self) -> StorageLocations:
@@ -92,7 +94,8 @@ class State:
         # self.tour_manager.assign_tour(tour_id, sequencing.picker_id)
 
     def add_sequencing_to_planning_state(self, scheduled_job: ScheduledJob) -> None:
-        tour_id = self.tour_manager.create_tour(deepcopy(scheduled_job.job.route))
+        # tour_id = self.tour_manager.create_tour(deepcopy(scheduled_job.job.route))
+        tour_id = self.tour_manager.create_tour(scheduled_job.job.route, scheduled_job.job.processing_time)
         self.tour_manager.assign_tour(tour_id, scheduled_job.picker_id)
         self.tour_manager.schedule_tour(tour_id,
                                         scheduled_job.start_time,

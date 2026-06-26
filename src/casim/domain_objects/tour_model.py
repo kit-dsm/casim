@@ -3,6 +3,7 @@ from dataclasses import field, dataclass
 from enum import Enum
 from typing import Deque, Optional
 
+# from tests.scratch_cbr import TourPlanningState
 from ware_ops_algos.algorithms import RouteNode, Route, BatchObject
 
 Node = tuple[float, float]
@@ -15,6 +16,7 @@ class TourStates(str, Enum):
     PENDING = "pending"
     STARTED = "started"  # Tour has started picking
     DONE = "done"  # Tour is done
+    CANCELLED = "cancelled"
 
 
 @dataclass
@@ -37,6 +39,8 @@ class TourPlanningState:
 
     assigned_resource: Optional[int] = None
     start_time: Optional[float] = None
+    processing_time: Optional[float] = None
+    # planning_plan: Optional[TourPlanningState] = None
     end_time: Optional[float] = None
     end_time_planned: Optional[float] = None
     # execution state, mutable during picking

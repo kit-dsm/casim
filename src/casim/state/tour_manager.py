@@ -22,7 +22,7 @@ class TourManager:
 
         self._picker_history: dict[int, list[int]] = defaultdict(list)
 
-    def create_tour(self, route_plan: Route) -> int:
+    def create_tour(self, route_plan: Route, processing_time: float) -> int:
         """
         Create a new TourExecution from a routing plan for a given picker.
         Requires at least a route.
@@ -37,7 +37,8 @@ class TourManager:
             original_route=route_plan,
             batch=route_plan.batch,
             status=TourStates.PLANNED,
-            annotated_route=route_plan.annotated_route
+            annotated_route=route_plan.annotated_route,
+            processing_time=processing_time
         )
 
         pick_nodes = [n for n in route_plan.annotated_route if n.node_type == NodeType.PICK]
@@ -92,6 +93,7 @@ class TourManager:
 
         # todo seperate between planned and actual start time
         tour.start_time = time
+        tour.end_time_planned = time + tour.processing_time
         # clean up queues based on planning state
         # Tour needs to be at least assigned -> Not picker neutral
         assert status in [TourStates.ASSIGNED, TourStates.SCHEDULED, TourStates.PENDING], (
@@ -131,6 +133,10 @@ class TourManager:
                                            f"active tour id should be {tour_id} but is {active_tour_id}")
         self._active_picker_tour[picker_id] = None
         self._picker_history[picker_id].append(tour_id)
+
+    def remove_canceled_tour_for_picker(self, picker_id, tour_id):
+        picker_tour_queue = self._picker_tour_queues[picker_id]
+        picker_tour_queue.remove(tour_id)
 
     def get_next_tour_for_picker(self, picker_id: int):
         picker_tour_queue = self._picker_tour_queues[picker_id]

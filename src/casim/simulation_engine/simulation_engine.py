@@ -2,6 +2,8 @@ import heapq
 import logging
 from typing import Callable, Type
 
+from tqdm import tqdm
+
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
 
@@ -35,7 +37,8 @@ class SimulationEngine:
         self.events = []
         self.reset_hook = reset_hook
         self.loader_kwargs = loader_kwargs
-        self.even_loggers = event_loggers or []
+        self.event_loggers = event_loggers or []
+        self._initial_domain = None
         if data_loader:
             self.data_loader = data_loader
 
@@ -45,17 +48,19 @@ class SimulationEngine:
 
     def reset(self, hooks: list[Callable[['SimulationEngine', SimWarehouseDomain], None]] = ()):
         domain = self.load_data()
+        self._initial_domain = domain
         self.state = State(
             layout=domain.layout,
             articles=domain.articles,
             storage=domain.storage,
-            resources=domain.resources
+            resources=domain.resources,
+            active_objective = domain.objective
         )
 
         for hook in (hooks or []):
             hook(self, domain)
 
-        for el in self.even_loggers:
+        for el in self.event_loggers:
             el.on_reset(self, domain)
 
     def add_order(self, order: Order):
@@ -65,19 +70,28 @@ class SimulationEngine:
         heapq.heappush(self.events, event)
 
     def run(self) -> [bool, SimWarehouseDomain | None]:
+        if not hasattr(self, "_pbar"):
+            self._pbar = tqdm(
+                desc="sim events", unit=" ev", unit_scale=True,
+                bar_format="{desc}: {n_fmt} [{elapsed}, {rate_fmt}] sim_t={postfix}",
+            )
         while self.events:
             event = heapq.heappop(self.events)
-            logger.info(f"Event {event} popped at state time: {self.state.current_time}, events start: {event.time}")
+            # logger.info(f"Event {event} popped at state time: {self.state.current_time}, events start: {event.time}")
             self.state.current_time = event.time
             events_to_add = event.handle(self.state)
+
+            self._pbar.update(1)
+            if self._pbar.n % 1000 == 0:
+                self._pbar.set_postfix_str(f"{self.state.current_time:.0f}s")
 
             for e in events_to_add:
                 self.add_event(e)
 
-            for el in self.even_loggers:
+            for el in self.event_loggers:
                 el.on_event(event, self)
 
-            if event.__class__ in self.triggers_map.keys():
+            if event.__class__ in self.triggers_map:
                 problem = self.triggers_map[event.__class__]
                 state_transformer = self.state_adapters[problem]
                 state_snapshot = state_transformer.transform_state(self.state, problem)
@@ -86,12 +100,15 @@ class SimulationEngine:
                         isinstance(event, FlushRemainingOrders)):
                     return False, state_snapshot
 
-            if not self.events and len(self.state.order_manager.get_order_buffer()) > 0:
+            if not self.events and self.state.order_manager.get_order_buffer():
                 self.state.done_flag = True
-                self.add_event(FlushRemainingOrders(self.state.current_time))
+                # self.add_event(FlushRemainingOrders(self.state.current_time))
 
         logger.info("Simulation complete")
-        for el in self.even_loggers:
+        if hasattr(self, "_pbar"):
+            self._pbar.close()
+            del self._pbar
+        for el in self.event_loggers:
             el.on_done(self)
         return True, None
 

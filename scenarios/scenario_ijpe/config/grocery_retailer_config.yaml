@@ -1,16 +1,20 @@
 defaults:
   - _self_
   - data_card: grocery_retailer
-  - scenario: scenario_grocery_fixed_arrival
-  - cosy_repo: return
-  - optional sweep: # cosy_repo_sweep
+  - engines: scenario_obp #scenario_grocery_fixed_arrival #scenario_obp
+  - cosy_repo: ushape
+  - simulation: scenario3
+  - optional sweep: scenario_sweep #scenario_sweep # cosy_repo_sweep
+  - override hydra/launcher: joblib
 
 hydra:
+  launcher:
+    n_jobs: 5
   run:
     dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
   sweep:
     dir: outputs/multirun/paper_results
-    subdir: ${hydra:runtime.choices.cosy_repo}/${data_card.objective}
+    subdir: ${hydra:runtime.choices.cosy_repo}/${data_card.objective}/${hydra:runtime.choices.simulation}
   job:
     config:
       override_dirname:

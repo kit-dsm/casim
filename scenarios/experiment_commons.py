@@ -8,10 +8,10 @@ from ware_ops_algos.domain_models import DataCard
 
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.events.base_events import Event
-from casim.loggers import DashLogger, KPILogger
+from casim.loggers import KPILogger
 from casim.events.decision_events import RoutingDone, PickListDone
 from casim.events.operational_events import OrderArrival, PickerArrival, PickerTourQuery, PickerIdle, TourEnd, \
-    ShiftStart, FlushRemainingOrders, TruckDeparture, WMSRun
+    ShiftStart, FlushRemainingOrders, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion
 from casim.simulation_engine.simulation_engine import SimulationEngine
 
 LOADER_REGISTRY: dict[str, Type[DataLoader]] = {}
@@ -23,7 +23,7 @@ except ImportError:
     pass
 
 try:
-    from scenarios.scenario_ijpe.grocery_retailer_loader import WarehousePickingLoader
+    from DEPRECATED.grocery_retailer_loader import WarehousePickingLoader
     LOADER_REGISTRY["WarehousePickingLoader"] = WarehousePickingLoader
 except ImportError:
     pass
@@ -31,6 +31,12 @@ except ImportError:
 try:
     from scenarios.scenario_grocery_retailer.grocery_retailer_loader import GroceryRetailerLoader
     LOADER_REGISTRY["GroceryRetailerLoader"] = GroceryRetailerLoader
+except ImportError:
+    pass
+
+try:
+    from scenarios.scenario_ijpe.grocery_retailer_loader_digraph import WarehousePickingLoaderDigraph
+    LOADER_REGISTRY["WarehousePickingLoaderDigraph"] = WarehousePickingLoaderDigraph
 except ImportError:
     pass
 
@@ -46,7 +52,10 @@ EVENT_REGISTRY: dict[str, Type[Event]]  = {
     "FlushRemainingOrders": FlushRemainingOrders,
     "PickListDone": PickListDone,
     "TruckDeparture": TruckDeparture,
-    "WMSRun": WMSRun
+    "WMSRun": WMSRun,
+    "TruckDisruption": TruckDisruption,
+    "VolumeShiftAcrossDay": VolumeShiftAcrossDay,
+    "OrderIngestion": OrderIngestion
 }
 
 
@@ -94,7 +103,7 @@ def build_data_loader(cfg: DictConfig) -> DataLoader:
 def build_solvers(cfg):
     solver_map = {}
 
-    for problem_key, problem_cfg in cfg.scenario.decision_engine.problems.items():
+    for problem_key, problem_cfg in cfg.engines.decision_engine.problems.items():
         solver_map[problem_key] = instantiate(
             problem_cfg.solver,
             problem_class=problem_key,
@@ -111,7 +120,7 @@ def build_solvers(cfg):
 def build_commitment_policies(cfg):
     return {
         problem_key: instantiate(problem_cfg.commitment_policy)
-        for problem_key, problem_cfg in cfg.scenario.decision_engine.problems.items()
+        for problem_key, problem_cfg in cfg.engines.decision_engine.problems.items()
     }
 
 def build_state_adapters(cfg: DictConfig) -> dict:
@@ -158,7 +167,7 @@ def setup_scenario(cfg: DictConfig) -> SimulationEngine:
     instances_dir = Path(cfg.instances_base)
     cache_path = Path(cfg.cache_base) / "dynamic_info.pkl"
 
-    state_adapters, conditions_map, triggers_map = build_simulation_problems(cfg.scenario)
+    state_adapters, conditions_map, triggers_map = build_simulation_problems(cfg.engines)
 
     loader = build_data_loader(cfg)
     loader_kwargs = {
@@ -168,8 +177,8 @@ def setup_scenario(cfg: DictConfig) -> SimulationEngine:
     }
 
     event_loggers = [KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
-    if cfg.viz.launch:
-        event_loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
+    # if cfg.viz.launch:
+    #     event_loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
 
     return SimulationEngine(
         state_adapters=state_adapters,

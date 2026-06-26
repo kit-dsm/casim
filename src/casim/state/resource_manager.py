@@ -1,8 +1,9 @@
 from collections import defaultdict
 
-from ware_ops_algos.algorithms import RouteNode, Node
+from ware_ops_algos.algorithms import RouteNode
 from ware_ops_algos.domain_models import Resources, Resource, CobotPicker
 
+from casim.domain_objects.tour_model import Node
 
 class ResourceManager:
     def __init__(self, resources: Resources):
@@ -39,6 +40,12 @@ class ResourceManager:
     def set_picker_busy_until(self, picker_id: int, t: float) -> None:
         if t > self._busy_until[picker_id]:
             self._busy_until[picker_id] = float(t)
+
+    def set_picker_available(self, picker_id: int):
+        self._resources.resources[picker_id].available = True
+
+    def set_picker_unavailable(self, picker_id: int):
+        self._resources.resources[picker_id].available = False
 
     def clear_picker_busy_until(self, picker_id: int, ) -> None:
         self._busy_until[picker_id] = float(self.current_time)
