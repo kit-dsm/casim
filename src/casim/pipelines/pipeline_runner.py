@@ -9,8 +9,9 @@ from hydra.utils import get_class
 from luigi.configuration import get_config
 from ware_ops_algos.algorithms import CombinedRoutingSolution, SchedulingSolution, BatchingSolution, AlgorithmSolution
 from ware_ops_algos.domain_models import BaseWarehouseDomain, DataCard
-from ware_ops_algos.utils.general_functions import load_model_cards
+from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 
+from casim.pipelines.in_memory_dag import InMemoryDagExecutor
 from casim.pipelines.solution_ranker import SolutionRanker
 from casim.pipelines.problem_based_template import (
     InstanceLoader, PickListProvider, ResultAggregationBatching, ResultAggregationRouting, ResultAggregationScheduling,
@@ -62,9 +63,9 @@ class CoSySolver:
         self.output_folder = Path(output_dir) / "cosy"
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
-        pkg_dir = Path(ware_ops_algos.__file__).parent
-        model_cards_path = pkg_dir / "algorithms" / "algorithm_cards"
-        self.algorithm_cards = load_model_cards(str(model_cards_path))
+        # pkg_dir = Path(ware_ops_algos.__file__).parent
+        # model_cards_path = pkg_dir / "algorithms" / "algorithm_cards"
+        self.algorithm_cards = load_packaged_algo_cards()
         if self.verbose:
             print(f"Loaded {len(self.algorithm_cards)} model cards")
 
@@ -93,15 +94,17 @@ class CoSySolver:
             if self.verbose:
                 print("Using cached pipelines")
 
-    def solve(self, dynamic_domain: BaseWarehouseDomain) -> tuple[AlgorithmSolution, str, float] | None:
+    def solve(self, dynamic_domain: BaseWarehouseDomain, action: None) -> tuple[AlgorithmSolution, str, float] | None:
         self.dump_domain(dynamic_domain)
         if not self.pipelines:
             print("⚠ No valid pipelines found!")
             return None
 
         luigi.interface.InterfaceLogging.setup(self.luigi_logging_opts)
-        luigi.build(self.pipelines, local_scheduler=True)
-
+        if not action and not action == 0:
+            luigi.build(self.pipelines, local_scheduler=True)
+        else:
+            luigi.build(self.pipelines[action], local_scheduler=True)
         solutions = self._load_solutions(dynamic_domain.problem_class)
         self._cleanup_after_solution(self.output_folder)
         best_solution, best_key, best_kpi_value = self.select_strategy(solutions, dynamic_domain.problem_class)
@@ -116,7 +119,9 @@ class CoSySolver:
         suffix = {
             "OBRSP": "sequencing_sol.pkl",
             "ORSP": "scheduling_sol.pkl",
-            "OBP": "pick_list_sol.pkl",
+            "RORSP": "scheduling_sol.pkl",
+            "OBP": "batching_sol.pkl",
+            "OSBP": "batching_sol.pkl",
             "ORP": "routing_sol.pkl", "OBRP": "routing_sol.pkl",
             "BSRP": "routing_sol.pkl",
         }[problem_class]
@@ -126,3 +131,28 @@ class CoSySolver:
     def _cleanup_after_solution(output_folder: Path):
         clear_store()
 
+
+class OnlineCoSySolver(CoSySolver):
+    def solve(
+        self,
+        dynamic_domain: BaseWarehouseDomain,
+        action = None
+    ) -> tuple[AlgorithmSolution, str, float] | None:
+        self.dump_domain(dynamic_domain)
+
+        if not self.pipelines:
+            print("⚠ No valid pipelines found!")
+            return None
+
+        executor = InMemoryDagExecutor()
+        executor.execute_many(self.pipelines)
+
+        solutions = self._load_solutions(dynamic_domain.problem_class)
+        self._cleanup_after_solution(self.output_folder)
+
+        best_solution, best_key, best_kpi_value = self.select_strategy(
+            solutions,
+            dynamic_domain.problem_class,
+        )
+
+        return best_solution, best_key, best_kpi_value

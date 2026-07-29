@@ -1,8 +1,9 @@
 import logging
 from collections import defaultdict
 
-from ware_ops_algos.algorithms import Route, NodeType, TourPlanningState, TourStates, Node, \
-    WarehouseOrder
+from ware_ops_algos.algorithms import Route, NodeType, WarehouseOrder
+
+from casim.domain_objects.tour_model import TourPlanningState, TourStates, Node
 
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class TourManager:
 
         self._picker_history: dict[int, list[int]] = defaultdict(list)
 
-    def create_tour(self, route_plan: Route) -> int:
+    def create_tour(self, route_plan: Route, processing_time: float) -> int:
         """
         Create a new TourExecution from a routing plan for a given picker.
         Requires at least a route.
@@ -32,11 +33,12 @@ class TourManager:
         tour_id = self._tour_counter
         new_tour = TourPlanningState(
             tour_id=tour_id,
-            order_numbers=list(route_plan.pick_list.order_numbers),
+            order_numbers=list(route_plan.batch.order_numbers),
             original_route=route_plan,
-            pick_list=route_plan.pick_list,
+            batch=route_plan.batch,
             status=TourStates.PLANNED,
-            annotated_route=route_plan.annotated_route
+            annotated_route=route_plan.annotated_route,
+            processing_time=processing_time
         )
 
         pick_nodes = [n for n in route_plan.annotated_route if n.node_type == NodeType.PICK]
@@ -91,6 +93,7 @@ class TourManager:
 
         # todo seperate between planned and actual start time
         tour.start_time = time
+        tour.end_time_planned = time + tour.processing_time
         # clean up queues based on planning state
         # Tour needs to be at least assigned -> Not picker neutral
         assert status in [TourStates.ASSIGNED, TourStates.SCHEDULED, TourStates.PENDING], (
@@ -131,6 +134,10 @@ class TourManager:
         self._active_picker_tour[picker_id] = None
         self._picker_history[picker_id].append(tour_id)
 
+    def remove_canceled_tour_for_picker(self, picker_id, tour_id):
+        picker_tour_queue = self._picker_tour_queues[picker_id]
+        picker_tour_queue.remove(tour_id)
+
     def get_next_tour_for_picker(self, picker_id: int):
         picker_tour_queue = self._picker_tour_queues[picker_id]
         if picker_tour_queue:
@@ -150,30 +157,12 @@ class TourManager:
         tour = self.get_tour(tour_id)
         tour.cursor += 1
 
-    # def pop_next_pick_if_here(self, tour_id: int, node: Node) -> bool:
-    #     """
-    #     If the next planned pick equals `node`, pop it and return True, else False.
-    #     """
-    #     tour = self.get_tour(tour_id)
-    #     if tour.picks_left and tour.picks_left[0] == node:
-    #         tour.picks_left.popleft()
-    #         return True
-    #     return False
 
-    # def pop_next_pick(self, tour_id: int, node: Node) -> bool:
-    #     """
-    #     If the next planned pick equals `node`, pop it and return True, else False.
-    #     """
+    # def mark_pick_positions_fulfilled_at(self, tour_id: int, node: Node) -> None:
     #     tour = self.get_tour(tour_id)
-    #     if tour.picks_left and tour.picks_left[0] == node:
-    #         tour.picks_left.popleft()
-    #         return True
-
-    def mark_pick_positions_fulfilled_at(self, tour_id: int, node: Node) -> None:
-        tour = self.get_tour(tour_id)
-        for pp in tour.pick_list.pick_positions:
-            if pp.pick_node == node:
-                pp.fulfilled = True
+    #     for pp in tour.batch.pick_positions:
+    #         if pp.pick_node == node:
+    #             pp.fulfilled = True
 
     def add_selected_order(self, order: WarehouseOrder, picker_id: int):
         self._selected_orders[picker_id] = order

@@ -1,9 +1,14 @@
 import math
 
 import numpy as np
-from casim.events.operational_events import TruckDeparture, WMSRun, ShiftStart, PickerArrival
+from casim.events.operational_events import TruckDeparture, WMSRun, ShiftStart, PickerArrival, BreakStart, \
+    TruckDisruption
 
-SHIFT_START_SEC = 7 * 3600
+DAY_SEC = 86400
+SHIFT_START_SEC = 6 * 3600
+WMS_RUN_SEC = 2 * 3600
+BREAK_1_SEC = 8 * 3600
+BREAK_2_SEC = 11 * 3600
 
 
 class DockManager:
@@ -39,10 +44,18 @@ def add_orders_hook(sim,
 def shift_start_hook(sim, domain):
     sim.add_event(ShiftStart(time=SHIFT_START_SEC))
 
+# def make_shift_end_hook(n_days: int, shift_end_sec: float = 22 * 3600):
+#     def hook(sim, domain):
+#         for day in range(n_days):
+#             sim.add_event(ShiftEnd(time=day * DAY_SEC + shift_end_sec))
+#     return hook
 
 def wms_run_hook(sim, domain):
     sim.add_event(WMSRun(time=2 * 3600))
 
+def break_start_hook(sim, domain):
+    sim.add_event(BreakStart(time=43200, break_duration=1800))
+    sim.add_event(BreakStart(time=32400, break_duration=1800))
 
 def make_dock_manager_hook(K_dock: int = 98):
     def hook(sim, domain) -> None:
@@ -76,5 +89,43 @@ def make_truck_schedule_hook(
             sim.add_event(
                 TruckDeparture(time=sweep_time_sec, capacity=unmatched)
             )
+
+    return hook
+
+def make_picker_arrival_hook(n_days: int):
+    daily_pickers = [25, 17, 19, 20, 18, 7]
+    def hook(sim, domain):
+        for day in range(n_days):
+            t = day * DAY_SEC + SHIFT_START_SEC
+            for resource in domain.resources.resources:
+                sim.add_event(PickerArrival(time=t, picker_id=resource.id))
+    return hook
+
+
+def make_shift_start_hook(n_days: int):
+    def hook(sim, domain):
+        for day in range(n_days):
+            sim.add_event(ShiftStart(time=day * DAY_SEC + SHIFT_START_SEC))
+    return hook
+
+
+def make_wms_run_hook(n_days: int):
+    def hook(sim, domain):
+        for day in range(n_days):
+            sim.add_event(WMSRun(time=day * DAY_SEC + WMS_RUN_SEC))
+    return hook
+
+
+def make_break_hook(n_days: int):
+    def hook(sim, domain):
+        for day in range(n_days):
+            base = day * DAY_SEC
+            sim.add_event(BreakStart(time=base + BREAK_1_SEC, break_duration=1800))
+            sim.add_event(BreakStart(time=base + BREAK_2_SEC, break_duration=1800))
+    return hook
+
+def make_truck_disruption_hook(n_days: int):
+    def hook(sim, domain) -> None:
+        sim.add_event(TruckDisruption(time=SHIFT_START_SEC + (3600 * 24), from_time=133200, to_time=122400, te_volume=100, palett_te_factor=1.6))
 
     return hook

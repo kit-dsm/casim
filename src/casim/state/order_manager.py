@@ -1,6 +1,6 @@
 import copy
 
-from ware_ops_algos.algorithms import BatchObject, PickList
+from ware_ops_algos.algorithms import BatchObject
 from ware_ops_algos.domain_models import Order
 
 
@@ -8,17 +8,17 @@ class OrderManager:
     def __init__(self):
         self.completed_orders: list[Order] = []
         self._order_buffer: dict[int, Order] = {}
-        self._pick_list_buffer: list[PickList] = []
-        self._pick_list_assignments: dict[int, PickList | None] = {}
+        self._pick_list_buffer: list[BatchObject] = []
+        self._pick_list_assignments: dict[int, BatchObject | None] = {}
         self._order_history: dict[int, Order] = {}
 
     def add_order_to_buffer(self, order: Order) -> None:
         self._order_buffer[order.order_id] = order
 
-    def add_pick_list_to_buffer(self, pick_list: PickList) -> None:
+    def add_pick_list_to_buffer(self, pick_list: BatchObject) -> None:
         self._pick_list_buffer.append(pick_list)
 
-    def add_selected_pick_list(self, pick_list: PickList,
+    def add_selected_pick_list(self, pick_list: BatchObject,
                                picker_id: int) -> None:
         self._pick_list_assignments[picker_id] = pick_list
 
@@ -36,14 +36,24 @@ class OrderManager:
     def get_order_buffer(self) -> list[Order]:
         return list(self._order_buffer.values())
 
-    def get_pick_list_buffer(self) -> list[PickList]:
+    def get_pick_list_buffer(self) -> list[BatchObject]:
         return list(self._pick_list_buffer)
 
-    def get_selected_pick_list(self, picker_id: int) -> PickList:
+    def get_selected_pick_list(self, picker_id: int) -> BatchObject:
         pl = self._pick_list_assignments[picker_id]
         self._pick_list_assignments[picker_id] = None
 
         return pl
+
+    def clear_order_buffer_by_ids(self, order_ids: list[int]) -> None:
+        for o_id in order_ids:
+            order = self._order_buffer.pop(o_id, None)
+            try:
+                assert isinstance(order, Order)
+            except AssertionError:
+                print(f"Order with id {o_id} not found in buffer, cannot clear")
+            if order is not None:
+                self.add_order_to_history(order)
 
     def clear_order_buffer(self, orders: list[Order] | None = None) -> None:
         if orders is None:
@@ -53,11 +63,14 @@ class OrderManager:
 
         for o_id in ids_to_clear:
             order = self._order_buffer.pop(o_id, None)
-            assert isinstance(order, Order)
+            try:
+                assert isinstance(order, Order)
+            except AssertionError:
+                print(f"Order with id {o_id} not found in buffer, cannot clear")
             if order is not None:
                 self.add_order_to_history(order)
 
-    def clear_pick_list_buffer(self, pls: list[PickList] | None = None) -> None:
+    def clear_pick_list_buffer(self, pls: list[BatchObject] | None = None) -> None:
 
         if pls is None:
             pls_to_clear = self.get_pick_list_buffer()

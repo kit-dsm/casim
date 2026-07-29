@@ -68,7 +68,7 @@ resources:
         - name: n_pickers
           value: 24
         - name: speed
-          value: 2306
+          value: 1306 # 2306
         - name: speed_follow_mode
           value: 1389
         - name: time_per_pick

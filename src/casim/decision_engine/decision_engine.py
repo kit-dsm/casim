@@ -19,7 +19,8 @@ class DecisionEngine:
     def __init__(self,
                  solver_map: dict[str, CoSySolver],
                  commitment_policies: dict[str, CommitmentPolicy],
-                 learnable_problems: list[str] | None = None
+                 learnable_problems: list[str] | None = None,
+                 event_map: dict[str, Event] = {}
                  ):
 
         self.solver_map = solver_map
@@ -27,16 +28,17 @@ class DecisionEngine:
         self.commitment_policies = commitment_policies
         self.selected_pipelines = defaultdict(dict)
         self.decision_tracker = DecisionTracker()
+        self.event_map = event_map
 
     def get_solver(self, problem: str) -> CoSySolver:
         return self.solver_map[problem]
 
-    def on_trigger(self, state_snapshot: SimWarehouseDomain):
+    def on_trigger(self, state_snapshot: SimWarehouseDomain, action=None):
         problem = state_snapshot.problem_class
         runner = self.get_solver(problem)
         start_time_sim = state_snapshot.dynamic_warehouse_info.time
         start_time = time.perf_counter()
-        solution, solver_name, objective_value = runner.solve(state_snapshot)
+        solution, solver_name, objective_value = runner.solve(state_snapshot, action)
         elapsed = time.perf_counter() - start_time
         if solution:
             self.on_solution(
@@ -54,11 +56,11 @@ class DecisionEngine:
 
     def on_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem, elapsed):
         if isinstance(best_solution, CombinedRoutingSolution):
-            order_ids = [o for r in best_solution.routes for o in r.pick_list.order_numbers]
+            order_ids = [o for r in best_solution.routes for o in r.batch.order_numbers]
         elif isinstance(best_solution, SchedulingSolution):
-            order_ids = [o for j in best_solution.jobs for o in j.route.pick_list.order_numbers]
+            order_ids = [o for j in best_solution.jobs for o in j.job.route.batch.order_numbers]
         elif isinstance(best_solution, BatchingSolution):
-            order_ids = [o_id for pl in best_solution.pick_lists for o_id in pl.order_numbers]
+            order_ids = [o_id for b in best_solution.batches for o_id in b.order_numbers]
         else:
             raise ValueError(type(best_solution))
 
@@ -90,8 +92,7 @@ class DecisionEngine:
         return events_to_return
 
     # These functions return ProcessEvents that add solution objects to state
-    @staticmethod
-    def _schedules_to_events(sequencing_sol: SchedulingSolution, finish_time):
+    def _schedules_to_events(self, sequencing_sol: SchedulingSolution, finish_time):
         """
         Turn sequencing solution into TourStart events.
         """
@@ -99,22 +100,24 @@ class DecisionEngine:
         # jobs = [sequencing_sol.jobs[0]]
         jobs = sequencing_sol.jobs # TODO How to window?
         assignments = sorted(jobs, key=lambda a: (a.picker_id, a.start_time))
+        cls = self.event_map.get("SequencingDone", SequencingDone)
         for a in assignments:
-            events_to_return.append(SequencingDone(finish_time, a))
+            events_to_return.append(cls(finish_time, a))
         return events_to_return
 
-    @staticmethod
-    def _routes_to_events(routing_solution: CombinedRoutingSolution, finish_time) -> list[RoutingDone]:
+    def _routes_to_events(self, routing_solution: CombinedRoutingSolution, finish_time) -> list[RoutingDone]:
         events_to_return = []
         routes = routing_solution.routes
+        cls = self.event_map.get("RoutingDone", RoutingDone)
         for r in routes:
-            events_to_return.append(RoutingDone(finish_time, r))
+            events_to_return.append(cls(finish_time, r))
         return events_to_return
 
-    @staticmethod
-    def _batches_to_events(batching_solution: BatchingSolution, finish_time):
+
+    def _batches_to_events(self, batching_solution: BatchingSolution, finish_time):
         events_to_return = []
-        pls = batching_solution.pick_lists
-        for pl in pls:
-            events_to_return.append(PickListDone(finish_time, pl))
+        batches = batching_solution.batches
+        cls = self.event_map.get("PickListDone", PickListDone)
+        for b in batches:
+            events_to_return.append(cls(finish_time, b))
         return events_to_return

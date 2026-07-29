@@ -5,19 +5,23 @@ from casim.pipelines.problem_based_template import AbstractScheduling
 
 class EDDScheduler(AbstractScheduling):
     def _get_inited_scheduler(self):
-        return EDDScheduling()
+        resources = self._load_resources()
+        return EDDScheduling(resources)
 
 
 class ERDScheduler(AbstractScheduling):
     def _get_inited_scheduler(self):
-        return ERDScheduling()
+        resources = self._load_resources()
+        return ERDScheduling(resources)
 
 
 class LPTScheduler(AbstractScheduling):
     def _get_inited_scheduler(self):
-        return LPTScheduling()
+        resources = self._load_resources()
+        return LPTScheduling(resources)
 
 
 class SPTScheduler(AbstractScheduling):
     def _get_inited_scheduler(self):
-        return SPTScheduling()
+        resources = self._load_resources()
+        return SPTScheduling(resources)

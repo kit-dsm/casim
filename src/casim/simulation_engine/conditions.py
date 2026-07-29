@@ -7,6 +7,18 @@ class Condition:
     def get_decision(self, state: SimWarehouseDomain) -> bool:
         pass
 
+class BreakCondition(Condition):
+    def __init__(self):
+        super().__init__()
+
+    def get_decision(self, state: SimWarehouseDomain) -> bool:
+        if state.dynamic_warehouse_info.is_break:
+            print(f"At {state.dynamic_warehouse_info.time}: break is active, skipping decision")
+            return False
+        else:
+            return True
+
+
 class DockCapacityCondition(Condition):
     def __init__(self, threshold: int):
         super().__init__()
@@ -52,7 +64,7 @@ class NbrBatchesCondition(Condition):
         self.threshold = threshold
 
     def get_decision(self, state: SimWarehouseDomain) -> bool:
-        if len(state.dynamic_warehouse_info.buffered_pick_lists) >= self.threshold:
+        if len(state.dynamic_warehouse_info.buffered_batches) >= self.threshold:
             return True
         else:
             return False

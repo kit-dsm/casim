@@ -17,16 +17,14 @@ from cosy_luigi import CoSyLuigiTask, CoSyLuigiTaskParameter, CoSyLuigiRepo
 from ware_ops_algos.algorithms import (
     Routing,
     WarehouseOrder,
-    PickList,
     BatchingSolution,
     Batching,
-    SchedulingInput,
     CombinedRoutingSolution,
     ItemAssignmentSolution,
     RoutingSolution,
-    PriorityScheduling,
-    ItemAssignment, SequencingInput)
-from ware_ops_algos.algorithms.algorithm_filter import ConstraintEvaluator
+    ItemAssignment, Scheduler, Job, build_jobs)
+from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import ConstraintEvaluator
+from ware_ops_algos.algorithms.order_splitting.order_splitting import OrderSplitting
 from ware_ops_algos.domain_models import (
     Articles,
     Resources,
@@ -34,7 +32,7 @@ from ware_ops_algos.domain_models import (
     DataCard,
     OrdersDomain,
 )
-from ware_ops_algos.utils.general_functions import ModelCard
+from ware_ops_algos.algorithms.algorithm_cards import AlgorithmCard
 
 from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
 from casim.pipelines.taxonomy import TAXONOMY
@@ -123,10 +121,44 @@ class InstanceLoader(BaseComponent):
         dump_pickle(self.output()["dynamic_warehouse_info"].path, domain.dynamic_warehouse_info)
 
 
+# ─────────────────────────── Order Splitting ────────────────────────────────
+
+class AbstractOrderProvider(BaseComponent):
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+
+    def output(self):
+        return {
+            "orders": self.get_luigi_local_target_with_task_id("orders.pkl")
+        }
+
+    def run(self):
+        pass
+
+
+class OrdersProvider(AbstractOrderProvider):
+    def run(self):
+        orders_domain: OrdersDomain = load_pickle(self.input()["instance"]["orders"].path)
+        dump_pickle(self.output()["orders"].path, orders_domain)
+
+
+class OrderSplitter(AbstractOrderProvider):
+    def _get_order_splitter(self) -> OrderSplitting:
+        ...
+
+    def run(self):
+        order_splitter = self._get_order_splitter()
+        orders_domain: OrdersDomain = load_pickle(self.input()["instance"]["orders"].path)
+        orders = orders_domain.orders
+
+        solution = order_splitter.solve(orders)
+        orders_domain.orders = solution.orders
+        dump_pickle(self.output()["orders"].path, orders_domain)
+
 # ─────────────────────────── Item Assignment ────────────────────────────────
 
 class AbstractItemAssignment(BaseComponent):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
+    orders = CoSyLuigiTaskParameter(AbstractOrderProvider)
 
     def output(self):
         return {
@@ -134,7 +166,7 @@ class AbstractItemAssignment(BaseComponent):
         }
 
     def run(self):
-        orders_domain: OrdersDomain = load_pickle(self.input()["instance"]["orders"].path)
+        orders_domain: OrdersDomain = load_pickle(self.input()["orders"]["orders"].path)
         item_assigner = self._get_inited_ia()
         ia_sol: ItemAssignmentSolution = item_assigner.solve(orders_domain.orders)
         dump_pickle(self.output()["item_assignment_sol"].path, ia_sol)
@@ -154,7 +186,7 @@ class AbstractBatching(BaseComponent):
 
     def output(self):
         return {
-            "pick_list_sol": self.get_luigi_local_target_with_task_id("pick_list_sol.pkl")
+            "batching_sol": self.get_luigi_local_target_with_task_id("batching_sol.pkl")
         }
 
     def _get_articles(self) -> Articles:
@@ -178,9 +210,9 @@ class PickListProvider(AbstractBatching):
 
     def run(self):
         warehouse_info = self._load_warehouse_info()
-        pick_lists = warehouse_info.buffered_pick_lists
-        batching_sol = BatchingSolution(pick_lists=pick_lists)
-        dump_pickle(self.output()["pick_list_sol"].path, batching_sol)
+        batches = warehouse_info.buffered_batches
+        batching_sol = BatchingSolution(batches=batches)
+        dump_pickle(self.output()["batching_sol"].path, batching_sol)
 
 
 class BatchingNode(AbstractBatching):
@@ -195,21 +227,6 @@ class BatchingNode(AbstractBatching):
         arrivals = [o.order_date for o in orders]
         return max(arrivals) if arrivals else 0.0
 
-
-    @staticmethod
-    def _first_due_date(orders: list[WarehouseOrder]) -> float:
-        due_dates = [o.due_date for o in orders if o.due_date is not None]
-        return min(due_dates) if due_dates else float("inf")
-
-    def _build_pick_lists(self, orders: list[WarehouseOrder]) -> PickList:
-        pick_positions = [pos for order in orders for pos in order.pick_positions]
-        return PickList(
-            pick_positions=pick_positions,
-            release=self._latest_order_arrival(orders),
-            earliest_due_date=self._first_due_date(orders),
-            orders=orders,
-        )
-
     def run(self):
         batcher: Batching = self._get_inited_batcher()
         ia_sol: ItemAssignmentSolution = load_pickle(
@@ -218,22 +235,22 @@ class BatchingNode(AbstractBatching):
         resolved_orders = ia_sol.resolved_orders
         batching_sol = batcher.solve(resolved_orders)
 
-        pick_lists = [self._build_pick_lists(batch.orders) for batch in batching_sol.batches]
-        batching_sol.pick_lists = pick_lists
+        # pick_lists = [self._build_pick_lists(batch.orders) for batch in batching_sol.batches]
+        # batching_sol.pick_lists = pick_lists
 
         if batcher.__class__.__name__ in ["SeedBatching", "ClarkAndWrightBatching", "LocalSearchBatching"]:
             batching_sol.algo_name = batcher.algo_name
         else:
             batching_sol.algo_name = batcher.__class__.__name__
 
-        dump_pickle(self.output()["pick_list_sol"].path, batching_sol)
+        dump_pickle(self.output()["batching_sol"].path, batching_sol)
 
 
 # ─────────────────────────── Routing ────────────────────────────────────────
 
 class AbstractPickerRouting(BaseComponent):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
-    pick_list_sol = CoSyLuigiTaskParameter(AbstractBatching)
+    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
 
     def _get_inited_router(self) -> Routing:
         pass
@@ -255,20 +272,20 @@ class AbstractPickerRouting(BaseComponent):
 
 class PickerRouting(AbstractPickerRouting):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
-    pick_list_sol = CoSyLuigiTaskParameter(AbstractBatching)
+    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
 
     def run(self):
         router: Routing = self._get_inited_router()
-        pick_list_sol: BatchingSolution = load_pickle(
-            self.input()["pick_list_sol"]["pick_list_sol"].path
+        batching_sol: BatchingSolution = load_pickle(
+            self.input()["batching_sol"]["batching_sol"].path
         )
         routes = []
-        algo_name = None
+        algo_name = ""
         execution_time = 0
-        for pl in pick_list_sol.pick_lists:
-            routing_solution: RoutingSolution = router.solve(pl.pick_positions)
+        for b in batching_sol.batches:
+            routing_solution: RoutingSolution = router.solve(b.pick_positions)
             algo_name = routing_solution.algo_name
-            routing_solution.route.pick_list = pl
+            routing_solution.route.batch = b
             routes.append(routing_solution.route)
             execution_time += routing_solution.execution_time
             router.reset_parameters()
@@ -283,7 +300,7 @@ class PickerRouting(AbstractPickerRouting):
 
 class HennWaitingPickerRouting(AbstractPickerRouting):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
-    pick_list_sol = CoSyLuigiTaskParameter(AbstractBatching)
+    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
     item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
 
     def _service_time(self, route, pick_positions) -> float:
@@ -307,8 +324,8 @@ class HennWaitingPickerRouting(AbstractPickerRouting):
     def run(self):
         router: Routing = self._get_inited_router()
 
-        pick_list_sol: BatchingSolution = load_pickle(
-            self.input()["pick_list_sol"]["pick_list_sol"].path
+        batching_sol: BatchingSolution = load_pickle(
+            self.input()["batching_sol"]["batching_sol"].path
         )
 
         ia_sol: ItemAssignmentSolution = load_pickle(
@@ -325,7 +342,7 @@ class HennWaitingPickerRouting(AbstractPickerRouting):
 
         single_order_service_time_cache: dict[int, float] = {}
 
-        for pl in pick_list_sol.pick_lists:
+        for pl in batching_sol.pick_lists:
             resolved_orders = [
                 resolved_by_id.get(o.order_id, o)
                 for o in pl.orders
@@ -386,34 +403,41 @@ class HennWaitingPickerRouting(AbstractPickerRouting):
 class AbstractScheduling(BaseComponent):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
     routing_sol = CoSyLuigiTaskParameter(AbstractPickerRouting)
+    orders = CoSyLuigiTaskParameter(AbstractOrderProvider)
 
     def output(self):
         return {
             "scheduling_sol": self.get_luigi_local_target_with_task_id("scheduling_sol.pkl")
         }
 
-    def _get_inited_scheduler(self) -> PriorityScheduling:
+    def _get_inited_scheduler(self) -> Scheduler:
         ...
 
     def _load_resources(self) -> Resources:
         return load_pickle(self.input()["instance"]["resources"].path)
 
     def _load_orders(self) -> OrdersDomain:
-        return load_pickle(self.input()["instance"]["orders"].path)
+        return load_pickle(self.input()["orders"]["orders"].path)
+
+    def _load_warehouse_info(self) -> DynamicInfo:
+        return load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
 
     def run(self):
         routing_sol = load_pickle(self.input()["routing_sol"]["routing_sol"].path)
         orders = self._load_orders()
         resources = self._load_resources()
+        dynamic_info = self._load_warehouse_info()
 
+        routes = None
         if isinstance(routing_sol, CombinedRoutingSolution):
             routes = routing_sol.routes
         else:
             routes = [r.route for r in routing_sol]
 
-        scheduling_input = SchedulingInput(routes=routes, orders=orders, resources=resources)
+        jobs = build_jobs(routes, resources, release_time=dynamic_info.time)
+        # scheduling_input = SchedulingInput(routes=routes, orders=orders, resources=resources)
         scheduler = self._get_inited_scheduler()
-        scheduling_sol = scheduler.solve(scheduling_input)
+        scheduling_sol = scheduler.solve(jobs)
         dump_pickle(self.output()["scheduling_sol"].path, scheduling_sol)
 
 # ─────────────────────────── Sequencing ─────────────────────────────────────
@@ -464,7 +488,7 @@ class AbstractSequencing(BaseComponent):
 
 _PARAM_TO_STAGE = {
     "routing_sol":         "routing",
-    "pick_list_sol":       "batching",
+    "batching_sol":       "batching",
     "item_assignment_sol": "item_assignment",
     "scheduling_sol":      "scheduling",
     "sequencing_sol":      "sequencing",
@@ -510,7 +534,7 @@ class ResultAggregation(BaseComponent):
         }
 
     @classmethod
-    def configure(cls, data_card: DataCard, models: list[ModelCard]):
+    def configure(cls, data_card: DataCard, models: list[AlgorithmCard]):
         cls._data_card = data_card
         cls._models = models
 
@@ -520,6 +544,7 @@ class ResultAggregation(BaseComponent):
             lambda vs: problem_type_constraint(vs, TAXONOMY, cls._data_card, cls._models),
             lambda vs: feature_constraint(vs, cls._data_card, cls._models),
             lambda vs: batching_loader_constraint(vs, TAXONOMY, cls._data_card, PickListProvider),
+            lambda vs: orders_provider_constraint(vs, TAXONOMY, cls._data_card, OrdersProvider),
             lambda vs: check_unique(vs, [ResultAggregation]),
         ]
 
@@ -554,7 +579,7 @@ class ResultAggregation(BaseComponent):
         records = []
         for job in scheduling_sol.jobs:
             end_time = job.end_time
-            for on in job.route.pick_list.order_numbers:
+            for on in job.job.route.batch.order_numbers:
                 o = order_by_id.get(on)
                 if o is None:
                     continue
@@ -621,7 +646,7 @@ class ResultAggregationScheduling(ResultAggregation):
 
 
 class ResultAggregationBatching(ResultAggregation):
-    pick_list_sol = CoSyLuigiTaskParameter(AbstractBatching)
+    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
 
     def run(self):
         collected = _collect_from_graph(self)
@@ -694,6 +719,16 @@ def batching_loader_constraint(vs, subproblems, data_card: DataCard, exclusive, 
     return True
 
 
+def orders_provider_constraint(vs, subproblems, data_card: DataCard, exclusive, get_classes=None):
+    classes = get_classes(vs) if get_classes else [pc.__class__ for pc in traverse_pipeline(vs.values())]
+    problem = data_card.problem_class
+    problems = subproblems[problem]["variables"]
+    if "order_splitting" in problems and exclusive in classes:
+        print(f"Not valid, {exclusive} in {classes}")
+        return False
+    return True
+
+
 def problem_type_constraint(vs, subproblems, data_card: DataCard, models, get_classes=None) -> bool:
     classes = get_classes(vs) if get_classes else [pc.__class__ for pc in traverse_pipeline(vs.values())]
     problem = data_card.problem_class
@@ -701,9 +736,9 @@ def problem_type_constraint(vs, subproblems, data_card: DataCard, models, get_cl
     for c in classes:
         for m in models:
             # if m.implementation["class_name"] == c.__name__:
-            if m.model_name == c.__name__:
+            if m.algo_name == c.__name__:
                 if m.problem_type not in problems:
-                    print(f"{m.model_name} not applicable {m.problem_type} not in {problems}")
+                    print(f"{m.algo_name} not applicable {m.problem_type} not in {problems}")
                     return False
     return True
 
@@ -719,7 +754,7 @@ def feature_constraint(vs, data_card: DataCard, models, get_classes=None) -> boo
     }
     for c in classes:
         for m in models:
-            if m.model_name == c.__name__:
+            if m.algo_name == c.__name__:
                 for domain, reqs in m.requirements.items():
                     section = domain_sections.get(domain)
                     if section is None:
@@ -734,19 +769,19 @@ def feature_constraint(vs, data_card: DataCard, models, get_classes=None) -> boo
                         if str(section["features"][f]) == "0" or section["features"][f]
                     ]
                     if "any" not in required_tpe and domain_type not in required_tpe:
-                        print(f"{m.model_name} not applicable, {domain_type} not in {required_tpe}")
+                        print(f"{m.algo_name} not applicable, {domain_type} not in {required_tpe}")
                         return False
                     missing_features = [f for f in required_features if f not in domain_features]
                     if missing_features:
-                        print(f"{m.model_name} not applicable, missing feature: {missing_features}")
+                        print(f"{m.algo_name} not applicable, missing feature: {missing_features}")
                         return False
                     for feature_name, constraint in constraints.items():
                         if feature_name not in domain_features:
-                            print(f"{m.model_name} not applicable, {feature_name} not in {domain_features}")
+                            print(f"{m.algo_name} not applicable, {feature_name} not in {domain_features}")
                             return False
                         evaluator = ConstraintEvaluator()
                         if not evaluator.evaluate(feature_name, constraint):
-                            print(f"{m.model_name} not applicable, {feature_name} not in {domain_features}")
+                            print(f"{m.algo_name} not applicable, {feature_name} not in {domain_features}")
                             return False
     return True
 
@@ -755,7 +790,7 @@ def main():
     import yaml
 
     import ware_ops_algos
-    from ware_ops_algos.utils.general_functions import load_model_cards
+    from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
     from ware_ops_algos.data_loaders import HesslerIrnichLoader
     from scenarios.experiment_commons import load_and_flatten_data_card
 
@@ -787,7 +822,7 @@ def main():
     datacard = load_and_flatten_data_card(raw)
     pkg_dir = Path(ware_ops_algos.__file__).parent
     model_cards_path = pkg_dir / "algorithms" / "algorithm_cards"
-    models = load_model_cards(str(model_cards_path))
+    models = load_packaged_algo_cards()
 
     ResultAggregation.configure(datacard, models)
 

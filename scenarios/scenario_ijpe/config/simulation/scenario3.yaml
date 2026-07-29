@@ -1,0 +1,46 @@
+name: scenario1
+
+n_days: 6
+day_sec: 86400
+pickers_per_day: [25, 17, 19, 20, 18, 7]
+
+time_model:
+  picker_arrival_hour: 5.4
+  shift_start_hour: 5.5
+  wms_run_hour: 2.0
+
+  truck_schedule:
+    start_hour: 6.0
+    end_hour: 16.0
+    interval_hours: 2.0
+    capacity: null
+
+  breaks:
+    - start_hour: 8.0
+      duration_minutes: 30
+    - start_hour: 11.0
+      duration_minutes: 30
+
+dock:
+  K_dock: 98
+
+hooks:
+  generated_order_injections:
+    - name: emergency_replenishment_new_store
+      calibration_path: data/calibrated_generator.json
+      trigger_day: 2
+      trigger_hour: 8.5
+
+      due_day: 2
+      due_hour: 10.0
+
+      target_te: 6
+      palett_te_factor: 1.6
+
+      customer_id: C_NEW_STORE
+      order_prefix: ER
+      seed: 3003
+
+  truck_disruptions: []
+
+  cross_day_volume_shifts: []

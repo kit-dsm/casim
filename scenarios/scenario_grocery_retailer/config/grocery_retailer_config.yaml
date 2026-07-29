@@ -1,8 +1,8 @@
 defaults:
   - _self_
   - data_card: grocery_retailer
-  - scenario: scenario_grocery_fixed_arrival
-  - cosy_repo: adaptive_routing
+  - engines: scenario_grocery_fixed_arrival
+  - cosy_repo: return
   - optional sweep: # cosy_repo_sweep
 
 hydra:
@@ -39,7 +39,7 @@ cache_base: ${instances_base}/caches
 verbose: True
 
 viz:
-  launch: False
+  launch: true
   port: 8050
 
 experiment:

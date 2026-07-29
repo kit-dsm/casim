@@ -1,19 +1,22 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from ware_ops_algos.algorithms import TourPlanningState, PickList
+from ware_ops_algos.algorithms import BatchObject
 from ware_ops_algos.domain_models import Resources, StorageLocations, LayoutData, Articles, \
     OrdersDomain, WarehouseInfo, Resource, BaseWarehouseDomain
 
+from casim.domain_objects.tour_model import TourPlanningState
 
-@dataclass
+
+@dataclass(kw_only=True)
 class DynamicInfo(WarehouseInfo):
-    time: float | None
-    congestion_rate: dict | None
-    active_tours: list[TourPlanningState] | None
-    current_picker: Resource | None
-    buffered_pick_lists: list[PickList] | None
-    done: bool
-    n_staged_pallets: int
+    time: float | None = None
+    congestion_rate: dict[str, float] = field(default_factory=dict)
+    active_tours: list[TourPlanningState] = field(default_factory=list)
+    current_picker: Resource | None = None
+    buffered_batches: list[BatchObject] = field(default_factory=list)
+    done: bool = False
+    is_break: bool = False
+    n_staged_pallets: int = 0
 
 
 class SimWarehouseDomain(BaseWarehouseDomain):
