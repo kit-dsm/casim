@@ -9,6 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 plt.rcParams["hatch.linewidth"] = 0.6
+plt.rcParams["font.family"] = "Times New Roman"
 
 DAY_SEC = 86400
 

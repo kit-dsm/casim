@@ -39,6 +39,7 @@ COLORS = {
 }
 
 plt.rcParams.update({
+    "font.family": "Times New Roman",
     "font.size": 10,
     "axes.labelsize": 10,
     "axes.titlesize": 10,
