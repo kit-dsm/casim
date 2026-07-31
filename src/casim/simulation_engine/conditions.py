@@ -41,10 +41,7 @@ class NbrPickersCondition(Condition):
         self.threshold = threshold
 
     def get_decision(self, state: SimWarehouseDomain) -> bool:
-        if len(state.resources.resources) >= 1 >= self.threshold:
-            return True
-        else:
-            return False
+        return len(state.resources.resources) >= self.threshold
 
 
 class NbrOrdersCondition(Condition):

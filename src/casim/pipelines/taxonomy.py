@@ -1,36 +1,36 @@
 TAXONOMY = {
     "OBRP": {
         "variables": ["item_assignment", "batching", "routing"],
-        "endpoint": "ResultAggregationRouting"
+        "endpoint": "casim.pipelines.problem_based_template.ResultAggregationRouting"
     },
     "SPRP": {
         "variables": ["routing"]
     },
     "ORP": {
        "variables": ["routing"],
-        "endpoint": "ResultAggregationRouting"
+        "endpoint": "casim.pipelines.problem_based_template.ResultAggregationRouting"
     },
     "OBP": {
         "variables": ["item_assignment", "batching"],
-        "endpoint": "ResultAggregationBatching"
+        "endpoint": "casim.pipelines.problem_based_template.ResultAggregationBatching"
     },
     "OSBP": {
             "variables": ["order_splitting", "item_assignment", "batching"],
-            "endpoint": "ResultAggregationBatching"
+            "endpoint": "casim.pipelines.problem_based_template.ResultAggregationBatching"
         },
     "BSRP": {
        "variables": ["batching", "routing"]
     },
     "OBRSP": {
-       "variables": ["item_assignment", "batching", "routing", "sequencing"],
-        "endpoint": "ResultAggregationSequencing"
+       "variables": ["item_assignment", "batching", "routing", "scheduling"],
+        "endpoint": "casim.pipelines.problem_based_template.ResultAggregationScheduling"
     },
     "ORSP": {
         "variables": ["routing", "scheduling"],
-        "endpoint": "ResultAggregationScheduling"
+        "endpoint": "casim.pipelines.problem_based_template.ResultAggregationScheduling"
     },
     "RORSP": {
             "variables": ["routing", "scheduling"],
-            "endpoint": "ResultAggregationScheduling"
+            "endpoint": "casim.pipelines.problem_based_template.ResultAggregationScheduling"
         },
 }

@@ -9,31 +9,36 @@ description = "Discrete-event simulation framework for warehouse order fulfillme
 requires-python = ">=3.11"
 dependencies = [
     "ware_ops_algos",
-    "cosy-luigi",
+    "cosy-luigi @ https://github.com/cls-python/cosy-luigi/releases/download/nightly/cosy_luigi-nightly.tar.gz#sha256=96b683efdd0f4b7d80b8e654afc6475de3795554ca7a7e483014f84f1c845c3a",
     "pandas>=2.2",
+    "openpyxl>=3.1",
+    "scipy>=1.13",
     "numpy>=2.0",
     "networkx>=3.2",
     "hydra-core>=1.3",
     "omegaconf>=2.3",
-    "gymnasium>=1.0",
-    "seaborn>=0.13",
-    "plotly>=5.20",
-    "dash>=2.15",
     "tqdm>=4.67.3",
     "hydra-joblib-launcher>=1.2.0",
-    "stable-baselines3>=2.8.0",
-    "wandb>=0.27.0",
-    "tensorboard>=2.20.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
 ]
+viz = [
+    "dash>=2.15",
+    "plotly>=5.20",
+    "seaborn>=0.13",
+]
+rl = [
+    "gymnasium>=1.0",
+    "stable-baselines3>=2.8.0",
+    "tensorboard>=2.20.0",
+    "wandb>=0.27.0",
+]
 
 [tool.uv.sources]
 ware_ops_algos = { path = "../ware_ops_algos", editable = true }
-cosy-luigi = { url = "https://github.com/cls-python/cosy-luigi/releases/download/nightly/cosy_luigi-nightly.tar.gz" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

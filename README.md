@@ -16,11 +16,28 @@ uv run pytest
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.13 (installed automatically by uv).
 
-##  Experiments
+## Experiments
 
-Two experiment setups can be found in scenarios/.
-In scenarios/scenario_grocery_retailer you can find the results of a real-life using from an european grocery retailer. 
-We provide the configuration, experiment scripts and detailed results. 
+Experiment setups live under `scenarios/`. Their common research axes and
+the procedure for adapting CASIM are summarized in
+[`scenarios/README.md`](scenarios/README.md).
 
-In scenarios/scenario_henn_online we reproduce two classic waiting strategy approaches as detailed in Henn 2012. 
-This can be used as a starting point to get familiar with the framework.
+`scenarios/scenario_henn` contains the maintained reproduction of Henn
+Algorithm 4.1 and its benchmark comparison.
+
+`scenarios/scenario_intervention_stress` contains the multi-picker comparison
+of depot-only reoptimization, routing-only intervention, and active-batch
+insertion with exact-TSP or nearest-neighbour residual routing.
+
+`scenarios/scenario_dynamic_operations` is the generated backlog-plus-arrivals
+reference study. It compares nightly planning, periodic rolling commitment,
+unstarted-work reoptimization, and optional active-route intervention on the
+same seeded multi-day demand.
+
+The current execution flow, state ownership, manager responsibilities, and
+intervention semantics are summarized in
+[`docs/execution_model.md`](docs/execution_model.md).
+
+Install `--extra viz` for the optional Dash replay and `--extra rl` for the
+experimental, currently non-maintained RL environment. The core simulator does
+not depend on either stack.

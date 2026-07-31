@@ -35,11 +35,13 @@ decision_engine:
       path: casim.events.decision_events.SequencingDone
 
 simulation_engine:
+  completion_mode: horizon
+  horizon_time: ${simulation.horizon_time}
   problems:
     ORSP:
       state_adapter:
         _target_: casim.simulation_engine.state_adapter.ORSPAdapter
-      triggers: [ShiftStart]
+      triggers: [casim.events.operational_events.ShiftStart]
       conditions:
         - _target_: casim.simulation_engine.conditions.NbrPickersCondition
           threshold: 1
@@ -50,11 +52,11 @@ simulation_engine:
     OBP:
       state_adapter:
         _target_: casim.simulation_engine.state_adapter.OBPAdapter
-      triggers: [WMSRun]
+      triggers: [casim.events.operational_events.WMSRun]
       conditions: []
 
     RORSP:
       state_adapter:
         _target_: casim.simulation_engine.state_adapter.ReORSPAdapter
-      triggers: [TruckDisruption, VolumeShiftAcrossDay, OrderIngestion]
+      triggers: [casim.events.operational_events.TruckDisruption, casim.events.operational_events.VolumeShiftAcrossDay, casim.events.operational_events.OrderIngestion]
       conditions: []

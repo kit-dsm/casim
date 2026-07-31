@@ -4,9 +4,23 @@ from enum import Enum
 from typing import Deque, Optional
 
 # from tests.scratch_cbr import TourPlanningState
-from ware_ops_algos.algorithms import RouteNode, Route, BatchObject
+from ware_ops_algos.algorithms import (
+    BatchObject,
+    PickPosition,
+    Route,
+    RouteNode,
+)
 
 Node = tuple[float, float]
+
+
+@dataclass
+class CartBinState:
+    bin_id: int
+    order_ids: set[int] = field(default_factory=set)
+    planned_load: list[float] = field(default_factory=list)
+    picked_load: list[float] = field(default_factory=list)
+    locked: bool = False
 
 
 class TourStates(str, Enum):
@@ -26,7 +40,7 @@ class TourPlanningState:
     Keeps track of the planning state for a single tour.
 
     - route_nodes / pick_sequence are copies from the plan (immutable intent).
-    - cursor / picks_left / version are the mutable execution state.
+    - cursor / remaining_picks / route_version are mutable execution state.
     - original_route is kept only for debugging/inspection (do not mutate).
     """
     tour_id: int
@@ -46,6 +60,26 @@ class TourPlanningState:
     # execution state, mutable during picking
     cursor: int = 0                 # index into route_nodes
     status: str = TourStates.PLANNED
+    route_version: int = 0
+    executed_route_prefix: list[RouteNode] = field(default_factory=list)
+    remaining_picks: list[PickPosition] = field(default_factory=list)
+    completed_picks: list[PickPosition] = field(default_factory=list)
+
+    edge_origin: RouteNode | None = None
+    edge_destination: RouteNode | None = None
+    edge_distance: float | None = None
+    edge_started_at: float | None = None
+    edge_arrives_at: float | None = None
+    first_leg_distance_override: float | None = None
+
+    pick_started_at: float | None = None
+    pick_ends_at: float | None = None
+    replan_requested: bool = False
+    intervention_event_pending: bool = False
+    waiting_for: str | None = None
+    cart_bins: list[CartBinState] = field(default_factory=list)
+    cart_bin_semantics_supported: bool = False
+    cart_bin_compatibility_reason: str | None = None
 
     def current_node(self) -> RouteNode:
         return self.annotated_route[self.cursor]
@@ -56,3 +90,11 @@ class TourPlanningState:
 
     def next_node(self) -> RouteNode:
         return self.annotated_route[self.cursor + 1]
+
+    @property
+    def is_travelling(self) -> bool:
+        return self.edge_arrives_at is not None
+
+    @property
+    def is_picking(self) -> bool:
+        return self.pick_ends_at is not None

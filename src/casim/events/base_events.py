@@ -1,4 +1,3 @@
-from casim.domain_objects.tour_model import TourPlanningState
 from casim.state import State
 
 
@@ -56,9 +55,18 @@ class ProcessEvent(Event):
 
 class BaseTourEvent(Event):
     priority_score = 1
-    def __init__(self, time: float, tour_id: int):
+    def __init__(
+        self,
+        time: float,
+        tour_id: int,
+        route_version: int | None = None,
+    ):
         super().__init__(time)
         self.tour_id = tour_id
+        self.route_version = route_version
 
-    def get_tour(self, state: State) -> TourPlanningState:
-        return state.tour_manager.get_tour(self.tour_id)
+    def is_stale(self, state: State) -> bool:
+        return state.tour_event_is_stale(
+            self.tour_id,
+            self.route_version,
+        )

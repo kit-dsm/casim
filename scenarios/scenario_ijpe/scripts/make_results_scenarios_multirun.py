@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import pickle
 from pathlib import Path
 
 import numpy as np
@@ -1262,18 +1261,22 @@ def _classify_problem(problem_class, pipeline: str) -> str:
 
 
 def load_decision_counts(decisions_file: Path) -> dict[str, int]:
-    with open(decisions_file, "rb") as f:
-        payload = pickle.load(f)
+    decisions = [
+        json.loads(line)
+        for line in decisions_file.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
     counts = {p: 0 for p in PROBLEM_ORDER}
     counts["OTHER"] = 0
 
-    # tuple layout: (problem_class, input_ids, pipeline, kpi_value, kpi, runtime, elapsed)
-    for problem_class, _input_ids, pipeline, *_rest in payload["decisions"]:
+    for decision in decisions:
+        problem_class = decision["problem"]
+        pipeline = decision["pipeline"]
         counts[_classify_problem(problem_class, pipeline)] += 1
 
     if counts["OTHER"] > 0:
-        raw = {str(d[0]) for d in payload["decisions"]}
+        raw = {str(decision["problem"]) for decision in decisions}
         print(f"WARNING {decisions_file.parent.name}: "
               f"{counts['OTHER']} unclassified decisions. "
               f"Raw problem_class values seen: {sorted(raw)}")
@@ -1290,7 +1293,7 @@ def build_decision_table(
 ) -> pd.DataFrame:
     rows = []
     for scenario in scenarios:
-        f = results_root / cosy_repo / objective / scenario / "decisions.pkl"
+        f = results_root / cosy_repo / objective / scenario / "decisions.jsonl"
         c = load_decision_counts(f)
         rows.append({
             "scenario_label": scenario_label(scenario),

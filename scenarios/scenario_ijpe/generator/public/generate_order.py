@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import argparse
+import json
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-from scenarios.scenario_ijpe.grocery_retailer_loader_digraph import (
+from scenarios.scenario_ijpe.schema import (
     COL_DATE,
     COL_ORDER_ID,
     COL_CUSTOMER_ID,
@@ -139,3 +143,64 @@ def generate_n_orders(
             )
 
     return pd.DataFrame(rows, columns=GENERATED_ORDER_COLS)
+
+
+def generate_profile(
+    calibration: dict,
+    *,
+    seed: int,
+    days: int,
+    scale: float = 1.0,
+) -> pd.DataFrame:
+    """Generate a deterministic multi-day canonical order stream."""
+    rng = np.random.default_rng(seed)
+    daily = calibration["daily_order_counts"]
+    parts = []
+    for day in range(days):
+        count = max(1, round(daily[day % len(daily)] * scale))
+        due_values = [x["value"] for x in calibration["due_window_sec_dist"]]
+        due_probs = np.array(
+            [x["prob"] for x in calibration["due_window_sec_dist"]],
+            dtype=float,
+        )
+        due_counts = rng.multinomial(count, due_probs / due_probs.sum())
+        for due_index, (due_sec, n_orders) in enumerate(
+            zip(due_values, due_counts)
+        ):
+            if not n_orders:
+                continue
+            parts.append(generate_n_orders(
+                calibration,
+                n_orders=int(n_orders),
+                order_date=float(day * DAY_SEC + 2 * 3600),
+                due_date=float(day * DAY_SEC + due_sec),
+                customer_id=f"generated-day-{day + 1}",
+                order_prefix=f"G{day + 1:02d}{due_index:02d}-",
+                seed=int(rng.integers(0, 2**31 - 1)),
+            ))
+    return pd.concat(parts, ignore_index=True)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Generate a seeded canonical IJPE order stream"
+    )
+    parser.add_argument("--calibration", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--days", type=int, default=6)
+    parser.add_argument("--scale", type=float, default=1.0)
+    args = parser.parse_args()
+    calibration = json.loads(args.calibration.read_text(encoding="utf-8"))
+    generated = generate_profile(
+        calibration,
+        seed=args.seed,
+        days=args.days,
+        scale=args.scale,
+    )
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    generated.to_csv(args.output, index=False)
+
+
+if __name__ == "__main__":
+    main()

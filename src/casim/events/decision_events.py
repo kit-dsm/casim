@@ -1,9 +1,14 @@
 import logging
 
-from ware_ops_algos.algorithms import Route, Job, BatchObject
+from ware_ops_algos.algorithms import (
+    BatchingSolution,
+    Route,
+    SchedulingSolution,
+)
 
 from casim.events.base_events import ProcessEvent, Event
-from casim.events.operational_events import PickerArrival, PickerTourQuery
+from casim.events.operational_events import PickerTourQuery
+from casim.events.operational_events import NodeArrival, TravelEvent
 from casim.state import State
 
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -11,53 +16,84 @@ logger = logging.getLogger(__name__)
 
 
 class PickListDone(ProcessEvent):
-    def __init__(self, time: float, pick_list: BatchObject):
+    def __init__(self, time: float, solution: BatchingSolution):
         super().__init__(time)
-        self.pick_list = pick_list
+        self.solution = solution
 
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        events_to_return = []
-        return events_to_return
+        state.commit_batching_solution(self.solution)
+        return []
 
 
 class RoutingDone(ProcessEvent):
-    def __init__(self, time: float, route: Route, picker_id: int | None = None):
+    def __init__(
+        self,
+        time: float,
+        route: Route,
+        picker_id: int | None = None,
+        tour_id: int | None = None,
+        expected_route_version: int | None = None,
+        resumes_execution: bool = False,
+    ):
         super().__init__(time)
         self.route = route
         self.picker_id = picker_id
+        self.tour_id = tour_id
+        self.expected_route_version = expected_route_version
+        self.resumes_execution = resumes_execution
 
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        # state.order_manager.clear_order_buffer(self.route.pick_list.orders)
-        # state.add_route_to_planning_state(self.route,
-        #                                   self.picker_id)
-        events_to_return = []
-        picker_id = self.picker_id
-        if self.picker_id is not None:
-            picker = state.resource_manager.get_resource(picker_id)
-            if not picker.occupied:
-                events_to_return.append(PickerTourQuery(self.time,
-                                                        picker_id))
-                state.resource_manager.mark_picker_occupied(picker_id)
-        return events_to_return
+        return []
 
 
 class SequencingDone(ProcessEvent):
     priority_score = 0
-    def __init__(self, time: float, sequencing: Job):
+    def __init__(
+        self,
+        time: float,
+        solution: SchedulingSolution,
+        replace_tour_ids: tuple[int, ...] = (),
+    ):
         super().__init__(time)
-        self.sequencing = sequencing
+        self.solution = solution
+        self.replace_tour_ids = tuple(replace_tour_ids)
 
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        # state.order_manager.clear_order_buffer(self.sequencing.route.pick_list.orders)
-        # state.add_sequencing_to_planning_state(self.sequencing)
-        events_to_return = []
-        picker_id = self.sequencing.picker_id
-        picker = state.resource_manager.get_resource(picker_id)
-        if not picker.occupied:
-            events_to_return.append(PickerTourQuery(self.time,
-                                                    picker_id))
-            state.resource_manager.mark_picker_occupied(picker_id)
-        return events_to_return
+        picker_ids = state.commit_scheduling_decision(
+            self.solution,
+            replace_tour_ids=self.replace_tour_ids,
+        )
+        return [
+            PickerTourQuery(self.time, picker_id)
+            for picker_id in picker_ids
+        ]
+
+
+class ActiveRouteReplacement(RoutingDone):
+    """Atomically replace the unexecuted suffix of one active tour."""
+
+    def handle(self, state: State) -> list[Event]:
+        if (
+            self.tour_id is None
+            or self.expected_route_version is None
+            or self.picker_id is None
+        ):
+            raise ValueError(
+                "Active route replacement requires picker, tour, and version"
+            )
+        action, version = state.commit_active_plan(
+            int(self.tour_id),
+            self.route,
+            picker_id=int(self.picker_id),
+            expected_version=int(self.expected_route_version),
+            time=self.time,
+            resumes_execution=self.resumes_execution,
+        )
+        if action == "node":
+            return [NodeArrival(self.time, self.tour_id, version)]
+        if action == "travel":
+            return [TravelEvent(self.time, self.tour_id, version)]
+        return []

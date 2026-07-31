@@ -9,10 +9,9 @@ import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.patches import FancyArrowPatch, Rectangle
-from omegaconf import OmegaConf
 
-from scenarios.experiment_commons import build_data_loader
-from scenarios.scenario_ijpe.grocery_retailer_loader_digraph import (
+from scenarios.scenario_ijpe.loader import IJPELoader
+from scenarios.scenario_ijpe.schema import (
     COL_ARTICLE_ID,
     COL_DATE,
     COL_END_SEC,
@@ -24,7 +23,10 @@ from scenarios.scenario_ijpe.grocery_retailer_loader_digraph import (
 from ware_ops_algos.algorithms import GreedyItemAssignment, UShapeRouting
 
 
-OUT = Path("../outputs/paper_kpi_eval/domain_validation")
+DATA_DIR = Path(__file__).parents[1] / "data"
+ORDERS_PATH = DATA_DIR / "public_small.csv"
+LAYOUT_PATH = DATA_DIR / "layout.csv"
+OUT = Path("outputs/ijpe/domain_validation")
 OUT.mkdir(parents=True, exist_ok=True)
 
 PICKER_SPEED_MM_S = 2306
@@ -51,20 +53,6 @@ plt.rcParams.update({
     "pdf.fonttype": 42,
     "ps.fonttype": 42,
 })
-
-cfg = OmegaConf.create({
-    "instances_base": "data",
-    "data_card": {
-        "name": "grocery_retailer",
-        "problem_type": "ORSP",
-        "source": {
-            "data_loader": "WarehousePickingLoaderDigraph",
-            "orders_path": "../data/order_stream_historic.csv",
-            "layout_path": "../data/layout.csv",
-        },
-    },
-})
-
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -657,10 +645,10 @@ def plot_due_windows(df: pd.DataFrame) -> None:
     plt.close(fig)
 
 
-loader = build_data_loader(cfg)
+loader = IJPELoader(DATA_DIR, problem_class="ORSP", objective="tardiness")
 domain = loader.load(
-    cfg.data_card.source.orders_path,
-    cfg.data_card.source.layout_path,
+    ORDERS_PATH,
+    LAYOUT_PATH,
     use_cache=False,
 )
 
@@ -686,7 +674,7 @@ router = UShapeRouting(
 )
 
 orders_df = pd.read_csv(
-    cfg.data_card.source.orders_path,
+    ORDERS_PATH,
     dtype={COL_ARTICLE_ID: str, COL_ORDER_ID: str},
 )
 

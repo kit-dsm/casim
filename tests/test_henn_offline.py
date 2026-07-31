@@ -1,74 +1,94 @@
-import os
-import shutil
-import unittest
 from pathlib import Path
 
-import numpy as np
-from hydra import initialize, compose
-from hydra.core.global_hydra import GlobalHydra
+import pytest
+from hydra import compose, initialize_config_dir
+from omegaconf import OmegaConf
+from ware_ops_algos.algorithms import CombinedRoutingSolution
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain
-from casim.events.operational_events import PickerArrival
-from casim.simulation_engine.simulation_engine import SimulationEngine
 from scenarios.experiment_commons import (
     load_and_flatten_data_card,
-    setup_scenario,
     setup_decision_engine,
+    setup_scenario,
 )
-
-TEST_DIR = Path(__file__).parent
-os.environ["PROJECT_ROOT"] = TEST_DIR.as_posix()
-
-def picker_arrival_hook(sim: SimulationEngine,
-                        domain: SimWarehouseDomain):
-    min_order_date = np.inf
-    for o in domain.orders.orders:
-        if o.order_date < min_order_date:
-            min_order_date = o.order_date
-    for resource in domain.resources.resources:
-        sim.add_event(PickerArrival(time=min_order_date,
-                                    picker_id=resource.id))
+from scenarios.scenario_henn.scenario_specific_hooks import build_sim_hooks
+from casim.events.operational_events import OrderArrival, FlushRemainingOrders
 
 
-def add_orders_hook(sim: SimulationEngine,
-                    domain: SimWarehouseDomain):
-    orders = domain.orders.orders
-    for order in orders:
-        sim.add_order(order)
+SCENARIO_ROOT = (
+    Path(__file__).parents[1] / "scenarios" / "scenario_henn"
+).resolve()
 
 
-class TestHennOffline(unittest.TestCase):
-    def setUp(self):
-        if GlobalHydra.instance().is_initialized():
-            GlobalHydra.instance().clear()
-        self.tmp_dir = TEST_DIR / "tmp_output"
-        (self.tmp_dir / "event_logs").mkdir(parents=True, exist_ok=True)
-
-    def tearDown(self):
-        if self.tmp_dir.exists():
-            shutil.rmtree(self.tmp_dir, ignore_errors=True)
-
-    def _load_cfg(self, config_name="test_henn_online_config", overrides=None):
-        with initialize(version_base=None, config_path="./config"):
-            return compose(config_name=config_name, overrides=overrides or [])
-
-    def test_henn_offline(self):
-        cfg = self._load_cfg()
-        datacard = load_and_flatten_data_card(cfg.data_card)
-        sim = setup_scenario(cfg)
-        decision_engine = setup_decision_engine(cfg, datacard)
-
-        sim.reset(hooks=[add_orders_hook,
-                         picker_arrival_hook])
-
-        done = False
-        while not done:
-            done, state_snapshot = sim.run()
-            if done:
-                break
-            events_to_add, solution = decision_engine.on_trigger(state_snapshot)
-            sim.step(events_to_add, state_snapshot.problem_class, solution)
+def _compose(*overrides):
+    with initialize_config_dir(
+        version_base=None,
+        config_dir=str(SCENARIO_ROOT / "config"),
+    ):
+        return compose(
+            config_name="henn_config",
+            overrides=list(overrides),
+        )
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.mark.parametrize("batching", ["fcfs", "cw_like", "ls"])
+@pytest.mark.parametrize("selection", ["first", "short", "long", "sav"])
+def test_hydra_composes_the_twelve_study_variants(batching, selection):
+    cfg = _compose(f"batching={batching}", f"selection={selection}")
+    assert cfg.batching.name == batching
+    assert cfg.selection.name == selection
+    assert cfg.data_card.problem_class == "OBRP"
+    assert cfg.cosy_repo.components[-1].endswith(
+        "ResultAggregationRouting"
+    )
+
+
+@pytest.mark.parametrize("batching", ["fcfs", "cw_like", "ls"])
+def test_existing_setup_discovers_one_pipeline_per_batching_variant(
+    batching,
+    tmp_path,
+):
+    cfg = _compose(f"batching={batching}")
+    project_root = Path(__file__).parents[1].resolve()
+    OmegaConf.update(cfg, "project_root", str(project_root), merge=False)
+    OmegaConf.update(
+        cfg,
+        "instances_base",
+        str(project_root / "scenarios"),
+        merge=False,
+    )
+    OmegaConf.update(cfg, "cache_base", str(tmp_path / "cache"), merge=False)
+    OmegaConf.update(
+        cfg,
+        "experiment.output_dir",
+        str(tmp_path),
+        merge=False,
+    )
+    OmegaConf.update(
+        cfg,
+        "experiment.instance_name",
+        f"smoke-{batching}",
+        merge=False,
+    )
+    OmegaConf.update(cfg, "luigi.runtime", 1, merge=False)
+    data_card = load_and_flatten_data_card(cfg.data_card)
+    simulation = setup_scenario(cfg)
+    decision_engine = setup_decision_engine(cfg, data_card)
+
+    simulation.reset(hooks=build_sim_hooks(cfg))
+
+    assert len(decision_engine.get_solver("OBRP").pipelines) == 1
+    assert sum(
+        isinstance(event, OrderArrival)
+        for event in simulation.events
+    ) == 40
+    assert sum(
+        isinstance(event, FlushRemainingOrders)
+        for event in simulation.events
+    ) == 1
+    done, snapshot = simulation.run()
+    assert not done
+    result = decision_engine.get_solver("OBRP").solve(snapshot, action=None)
+    assert result is not None
+    solution, _, _ = result
+    assert isinstance(solution, CombinedRoutingSolution)
+    assert len(solution.routes) == 1

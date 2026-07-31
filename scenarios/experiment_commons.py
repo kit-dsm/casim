@@ -1,117 +1,48 @@
 from pathlib import Path
-from typing import Type
+from copy import deepcopy
 
-from hydra.utils import instantiate
+from hydra.utils import get_class, instantiate
 from omegaconf import DictConfig
 from ware_ops_algos.data_loaders import DataLoader
-from ware_ops_algos.domain_models import DataCard
+from ware_ops_algos.domain_models import DataCard, load_and_flatten_data_card
 
 from casim.decision_engine.decision_engine import DecisionEngine
-from casim.events.base_events import Event
-from casim.loggers import KPILogger
-from casim.events.decision_events import RoutingDone, PickListDone
-from casim.events.operational_events import OrderArrival, PickerArrival, PickerTourQuery, PickerIdle, TourEnd, \
-    ShiftStart, FlushRemainingOrders, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion
+from casim.loggers import DashLogger, KPILogger
+from casim.events.operational_events import InterventionRequest
 from casim.simulation_engine.simulation_engine import SimulationEngine
 
-LOADER_REGISTRY: dict[str, Type[DataLoader]] = {}
-
-try:
-    from scenarios.scenario_henn_online.henn_online_loader import HennOnlineLoader
-    LOADER_REGISTRY["HennOnlineLoader"] = HennOnlineLoader
-except ImportError:
-    pass
-
-try:
-    from DEPRECATED.grocery_retailer_loader import WarehousePickingLoader
-    LOADER_REGISTRY["WarehousePickingLoader"] = WarehousePickingLoader
-except ImportError:
-    pass
-
-try:
-    from scenarios.scenario_grocery_retailer.grocery_retailer_loader import GroceryRetailerLoader
-    LOADER_REGISTRY["GroceryRetailerLoader"] = GroceryRetailerLoader
-except ImportError:
-    pass
-
-try:
-    from scenarios.scenario_ijpe.grocery_retailer_loader_digraph import WarehousePickingLoaderDigraph
-    LOADER_REGISTRY["WarehousePickingLoaderDigraph"] = WarehousePickingLoaderDigraph
-except ImportError:
-    pass
-
-EVENT_REGISTRY: dict[str, Type[Event]]  = {
-    "OrderArrival": OrderArrival,
-    "RoutingDone": RoutingDone,
-    "PickerArrival": PickerArrival,
-    "PickerTourQuery": PickerTourQuery,
-    "PickerIdle": PickerIdle,
-    "TourEnd": TourEnd,
-    # "PickListSelectionDone": PickListSelectionDone,
-    "ShiftStart": ShiftStart,
-    "FlushRemainingOrders": FlushRemainingOrders,
-    "PickListDone": PickListDone,
-    "TruckDeparture": TruckDeparture,
-    "WMSRun": WMSRun,
-    "TruckDisruption": TruckDisruption,
-    "VolumeShiftAcrossDay": VolumeShiftAcrossDay,
-    "OrderIngestion": OrderIngestion
-}
-
-
-def load_and_flatten_data_card(raw) -> DataCard:
-    # with open(card_path, "r", encoding="utf-8") as f:
-    #     raw = yaml.safe_load(f)
-    def flatten_domain(domain: dict) -> dict:
-        features = {}
-        for obj in domain.get("objects", []):
-            for feat in obj.get("features", []):
-                name = feat["name"]
-                if "value" in feat:
-                    features[name] = feat["value"]
-                else:
-                    features[name] = True
-            features.update(flatten_domain(obj))
-        return features
-
-    def section(domain: dict) -> dict:
-        return {
-            "type": domain.get("type"),
-            "features": flatten_domain(domain),
-        }
-
-    return DataCard(
-        name=raw.get("name", ""),
-        problem_class=raw.get("problem_class", ""),
-        objective=raw.get("objective", ""),
-        layout=section(raw.get("layout", {})),
-        articles=section(raw.get("articles", {})),
-        orders=section(raw.get("orders", {})),
-        resources=section(raw.get("resources", {})),
-        storage=section(raw.get("storage", {})),
-        warehouse_info=section(raw.get("warehouse_info", {})),
-    )
 
 def build_data_loader(cfg: DictConfig) -> DataLoader:
-    data_loader_cls = cfg.data_card.source.data_loader
-    data_loader = LOADER_REGISTRY[data_loader_cls](
-        instances_dir=Path(cfg.instances_base) /
-                      cfg.data_card.name,
-                      cfg=cfg)
+    loader_cfg = cfg.input.data_loader
+    if not isinstance(loader_cfg, DictConfig) or not loader_cfg.get(
+        "_target_"
+    ):
+        raise ValueError(
+            "input.data_loader must be a Hydra object with an "
+            "explicit _target_ class path"
+        )
+    data_loader = instantiate(
+        loader_cfg,
+        _recursive_=False,
+    )
     return data_loader
 
 def build_solvers(cfg):
     solver_map = {}
 
     for problem_key, problem_cfg in cfg.engines.decision_engine.problems.items():
+        working_dir = cfg.experiment.get(
+            "working_dir",
+            cfg.experiment.output_dir,
+        )
         solver_map[problem_key] = instantiate(
             problem_cfg.solver,
             problem_class=problem_key,
             instances_dir=Path(cfg.instances_base),
             cache_dir=Path(cfg.cache_base) / cfg.data_card.name,
-            output_dir=cfg.experiment.output_dir,
+            output_dir=working_dir,
             instance_name=cfg.experiment.instance_name,
-            verbose=True,
+            verbose=False,
             luigi_cfg=cfg.luigi
         )
 
@@ -123,19 +54,34 @@ def build_commitment_policies(cfg):
         for problem_key, problem_cfg in cfg.engines.decision_engine.problems.items()
     }
 
-def build_state_adapters(cfg: DictConfig) -> dict:
-    return {
-        problem_key: instantiate(st_cfg)
-        for problem_key, st_cfg in cfg.decision_engine.state_snapshot.items()
-    }
-
-def setup_decision_engine(cfg: DictConfig, dc) -> DecisionEngine:
+def setup_decision_engine(
+    cfg: DictConfig,
+    dc,
+    state_adapters: dict | None = None,
+) -> DecisionEngine:
     solver_map = build_solvers(cfg)
     commitment_policies = build_commitment_policies(cfg)
 
     for problem_key, solver in solver_map.items():
-        dc.problem_class = problem_key
-        solver.build_pipelines(dc)
+        effective_card = deepcopy(dc)
+        effective_card.problem_class = problem_key
+        if state_adapters is not None:
+            adapter = state_adapters[problem_key]
+            planning_features = adapter.projected_features()
+        else:
+            adapter_cfg = (
+                cfg.engines.simulation_engine.problems[problem_key].state_adapter
+            )
+            adapter_cls = get_class(str(adapter_cfg._target_))
+            planning_features = tuple(
+                getattr(adapter_cls, "planning_features", ())
+            )
+        warehouse_info = dict(effective_card.warehouse_info or {})
+        features = dict(warehouse_info.get("features") or {})
+        features.update({feature: True for feature in planning_features})
+        warehouse_info["features"] = features
+        effective_card.warehouse_info = warehouse_info
+        solver.build_pipelines(effective_card)
 
     return DecisionEngine(
         solver_map=solver_map,
@@ -153,7 +99,7 @@ def build_simulation_problems(cfg: DictConfig):
             instantiate(c) for c in (pcfg.get("conditions") or [])
         ]
         for event_name in (pcfg.get("triggers") or []):
-            event_cls = EVENT_REGISTRY[event_name]
+            event_cls = get_class(str(event_name))
             if event_cls in triggers_map:
                 raise ValueError(
                     f"Event '{event_name}' is already bound to problem "
@@ -164,28 +110,41 @@ def build_simulation_problems(cfg: DictConfig):
     return state_adapters, conditions_map, triggers_map
 
 def setup_scenario(cfg: DictConfig) -> SimulationEngine:
-    instances_dir = Path(cfg.instances_base)
-    cache_path = Path(cfg.cache_base) / "dynamic_info.pkl"
-
     state_adapters, conditions_map, triggers_map = build_simulation_problems(cfg.engines)
 
     loader = build_data_loader(cfg)
-    loader_kwargs = {
-        k: instances_dir / v
-        for k, v in cfg.data_card.source.items()
-        if k.endswith("path")
-    }
+    loader_kwargs = dict(cfg.input.get("load") or {})
 
-    event_loggers = [KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
-    # if cfg.viz.launch:
-    #     event_loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
+    working_dir = cfg.experiment.get(
+        "working_dir",
+        cfg.experiment.output_dir,
+    )
+    event_loggers = [
+        KPILogger(
+            Path(working_dir) / "kpis",
+            print_every=cfg.experiment.get("progress_every", 5000),
+        )
+    ]
+    viz_cfg = cfg.get("viz") or {}
+    if viz_cfg.get("record", viz_cfg.get("launch", False)):
+        event_loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
 
     return SimulationEngine(
         state_adapters=state_adapters,
         data_loader=loader,
-        domain_cache_path=str(cache_path),
         loader_kwargs=loader_kwargs,
         triggers_map=triggers_map,
         conditions_map=conditions_map,
         event_loggers=event_loggers,
+        completion_mode=str(
+            cfg.engines.simulation_engine.get(
+                "completion_mode",
+                "drain",
+            )
+        ),
+        horizon_time=cfg.engines.simulation_engine.get("horizon_time"),
+        intervention_enabled=InterventionRequest in triggers_map,
+        active_batch_insertion_enabled=(
+            triggers_map.get(InterventionRequest) == "OBRP"
+        ),
     )

@@ -11,7 +11,6 @@ from casim.events.base_events import Event
 from casim.events.decision_events import SequencingDone, RoutingDone, PickListDone
 from casim.pipelines.pipeline_runner import CoSySolver
 from casim.trackers import DecisionTracker
-
 logger = logging.getLogger(__name__)
 
 
@@ -20,7 +19,7 @@ class DecisionEngine:
                  solver_map: dict[str, CoSySolver],
                  commitment_policies: dict[str, CommitmentPolicy],
                  learnable_problems: list[str] | None = None,
-                 event_map: dict[str, Event] = {}
+                 event_map: dict[str, Event] | None = None,
                  ):
 
         self.solver_map = solver_map
@@ -28,7 +27,7 @@ class DecisionEngine:
         self.commitment_policies = commitment_policies
         self.selected_pipelines = defaultdict(dict)
         self.decision_tracker = DecisionTracker()
-        self.event_map = event_map
+        self.event_map = event_map or {}
 
     def get_solver(self, problem: str) -> CoSySolver:
         return self.solver_map[problem]
@@ -38,7 +37,10 @@ class DecisionEngine:
         runner = self.get_solver(problem)
         start_time_sim = state_snapshot.dynamic_warehouse_info.time
         start_time = time.perf_counter()
-        solution, solver_name, objective_value = runner.solve(state_snapshot, action)
+        result = runner.solve(state_snapshot, action)
+        if result is None:
+            return None
+        solution, solver_name, objective_value = result
         elapsed = time.perf_counter() - start_time
         if solution:
             self.on_solution(
@@ -50,9 +52,32 @@ class DecisionEngine:
                 elapsed)
 
             policy = self.commitment_policies.get(problem) or CommitAllPolicy()
+            full_solution = solution
             solution = policy.apply(solution, state_snapshot)
-            return self.solution_to_events(solution, start_time_sim), solution
+            self.decision_tracker.on_commitment(
+                returned=self._solution_size(full_solution),
+                committed=self._solution_size(solution),
+                policy=policy.__class__.__name__,
+            )
+            return (
+                self.solution_to_events(
+                    solution,
+                    start_time_sim,
+                    state_snapshot,
+                ),
+                solution,
+            )
         return None
+
+    @staticmethod
+    def _solution_size(solution: AlgorithmSolution) -> int:
+        if isinstance(solution, SchedulingSolution):
+            return len(solution.jobs)
+        if isinstance(solution, BatchingSolution):
+            return len(solution.batches)
+        if isinstance(solution, CombinedRoutingSolution):
+            return len(solution.routes)
+        return 0
 
     def on_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem, elapsed):
         if isinstance(best_solution, CombinedRoutingSolution):
@@ -74,14 +99,27 @@ class DecisionEngine:
             elapsed=elapsed
         )
 
-    def solution_to_events(self, solution: AlgorithmSolution, finish_time):
-        logger.info("Solution type", type(solution))
+    def solution_to_events(
+        self,
+        solution: AlgorithmSolution,
+        finish_time,
+        state_snapshot: SimWarehouseDomain | None = None,
+    ):
+        logger.info("Solution type: %s", type(solution))
 
         if isinstance(solution, CombinedRoutingSolution):
-            events_to_return = self._routes_to_events(solution, finish_time)
+            events_to_return = self._routes_to_events(
+                solution,
+                finish_time,
+                state_snapshot,
+            )
 
         elif isinstance(solution, SchedulingSolution):
-            events_to_return = self._schedules_to_events(solution, finish_time)
+            events_to_return = self._schedules_to_events(
+                solution,
+                finish_time,
+                state_snapshot,
+            )
 
         elif isinstance(solution, BatchingSolution):
             events_to_return = self._batches_to_events(solution, finish_time)
@@ -92,32 +130,78 @@ class DecisionEngine:
         return events_to_return
 
     # These functions return ProcessEvents that add solution objects to state
-    def _schedules_to_events(self, sequencing_sol: SchedulingSolution, finish_time):
+    def _schedules_to_events(
+        self,
+        sequencing_sol: SchedulingSolution,
+        finish_time,
+        state_snapshot: SimWarehouseDomain | None,
+    ):
         """
         Turn sequencing solution into TourStart events.
         """
-        events_to_return: list[Event] = []
-        # jobs = [sequencing_sol.jobs[0]]
-        jobs = sequencing_sol.jobs # TODO How to window?
-        assignments = sorted(jobs, key=lambda a: (a.picker_id, a.start_time))
         cls = self.event_map.get("SequencingDone", SequencingDone)
-        for a in assignments:
-            events_to_return.append(cls(finish_time, a))
-        return events_to_return
+        replace_tour_ids = ()
+        if state_snapshot is not None:
+            replace_tour_ids = tuple(
+                int(tour.tour_id)
+                for tour in (
+                    state_snapshot.dynamic_warehouse_info.replannable_tours or []
+                )
+                if state_snapshot.problem_class == "RORSP"
+            )
+        return [
+            cls(
+                finish_time,
+                sequencing_sol,
+                replace_tour_ids=replace_tour_ids,
+            )
+        ]
 
-    def _routes_to_events(self, routing_solution: CombinedRoutingSolution, finish_time) -> list[RoutingDone]:
+    def _routes_to_events(
+        self,
+        routing_solution: CombinedRoutingSolution,
+        finish_time,
+        state_snapshot: SimWarehouseDomain | None,
+    ) -> list[RoutingDone]:
         events_to_return = []
         routes = routing_solution.routes
         cls = self.event_map.get("RoutingDone", RoutingDone)
+        dynamic = (
+            state_snapshot.dynamic_warehouse_info
+            if state_snapshot is not None
+            else None
+        )
+        active_tour_id = (
+            dynamic.active_tour_id if dynamic is not None else None
+        )
+        route_version = (
+            dynamic.route_version if dynamic is not None else None
+        )
+        resumes_execution = (
+            dynamic.intervention_resumes_execution
+            if dynamic is not None
+            else False
+        )
+        picker_id = (
+            dynamic.current_picker.id
+            if dynamic is not None
+            and dynamic.current_picker is not None
+            else None
+        )
         for r in routes:
-            events_to_return.append(cls(finish_time, r))
+            events_to_return.append(
+                cls(
+                    finish_time,
+                    r,
+                    picker_id=picker_id,
+                    tour_id=active_tour_id,
+                    expected_route_version=route_version,
+                    resumes_execution=resumes_execution,
+                )
+            )
         return events_to_return
 
 
     def _batches_to_events(self, batching_solution: BatchingSolution, finish_time):
-        events_to_return = []
-        batches = batching_solution.batches
         cls = self.event_map.get("PickListDone", PickListDone)
-        for b in batches:
-            events_to_return.append(cls(finish_time, b))
-        return events_to_return
+        return [cls(finish_time, batching_solution)]

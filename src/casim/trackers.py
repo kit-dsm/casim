@@ -25,6 +25,9 @@ class ExperimentTracker:
         self.shifted_orders: list[tuple[str, float, float]] = []
         # ingested orders [(order_id, due_at)]
         self.ingested_orders: list[tuple[int, float]] = []
+        self.interventions: list[dict] = []
+        self.availability_intervals: list[dict] = []
+        self._availability_start: dict[int, float] = {}
         # (tour_id, start_time, end_time, list[order_ids], picker_id)
 
     def on_travel(self, picker_id, distance):
@@ -84,16 +87,47 @@ class ExperimentTracker:
     def on_order_ingestion(self, order_nr, due_date):
         self.ingested_orders.append((order_nr, due_date))
 
-    def current_utilization(self, current_time: float) -> float:
-        elapsed = current_time - self.first_tour_start
-        if elapsed <= 0:
-            return 0.0
+    def on_intervention(self, row: dict) -> None:
+        self.interventions.append(row)
 
+    def on_availability_change(
+        self,
+        picker_id: int,
+        available: bool,
+        time: float,
+    ) -> None:
+        if available:
+            self._availability_start.setdefault(picker_id, float(time))
+            return
+        start = self._availability_start.pop(picker_id, None)
+        if start is not None:
+            self.availability_intervals.append(
+                {
+                    "picker_id": int(picker_id),
+                    "start": float(start),
+                    "end": float(time),
+                }
+            )
+
+    def available_time_by_picker(self, end_time: float) -> dict[int, float]:
+        totals: dict[int, float] = defaultdict(float)
+        for interval in self.availability_intervals:
+            totals[interval["picker_id"]] += (
+                interval["end"] - interval["start"]
+            )
+        for picker_id, start in self._availability_start.items():
+            totals[picker_id] += max(0.0, float(end_time) - start)
+        return dict(totals)
+
+    def current_utilization(self, current_time: float) -> float:
         total_tour_time = sum(
             end - start
             for _, start, end, _, _, _, _, _ in self.completed_tours
         )
-        return total_tour_time / (elapsed * self.n_pickers)
+        available_time = sum(
+            self.available_time_by_picker(current_time).values()
+        )
+        return total_tour_time / available_time if available_time else 0.0
 
     @property
     def total_processing_time(self):
@@ -137,6 +171,7 @@ class ExperimentTracker:
 class DecisionTracker:
     def __init__(self):
         self.decisions: list[tuple] = []
+        self.commitments: list[dict] = []
         self.pipeline_counts: dict[str, int] = defaultdict(int)
 
     def on_decision(self, problem_class, input_ids, selected_pipeline,
@@ -151,6 +186,22 @@ class DecisionTracker:
             elapsed
         ))
         self.pipeline_counts[selected_pipeline] += 1
+
+    def on_commitment(
+        self,
+        *,
+        returned: int,
+        committed: int,
+        policy: str,
+    ) -> None:
+        self.commitments.append(
+            {
+                "returned": int(returned),
+                "committed": int(committed),
+                "deferred": int(returned - committed),
+                "policy": policy,
+            }
+        )
 
     @property
     def num_decisions(self) -> int:

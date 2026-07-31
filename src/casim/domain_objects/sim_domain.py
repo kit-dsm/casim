@@ -12,11 +12,21 @@ class DynamicInfo(WarehouseInfo):
     time: float | None = None
     congestion_rate: dict[str, float] = field(default_factory=dict)
     active_tours: list[TourPlanningState] = field(default_factory=list)
+    replannable_tours: list[TourPlanningState] = field(default_factory=list)
     current_picker: Resource | None = None
     buffered_batches: list[BatchObject] = field(default_factory=list)
     done: bool = False
     is_break: bool = False
     n_staged_pallets: int = 0
+    active_tour_id: int | None = None
+    route_version: int | None = None
+    intervention_resumes_execution: bool = False
+    origin_type: str | None = None
+    edge_origin: tuple[float, float] | None = None
+    edge_destination: tuple[float, float] | None = None
+    edge_progress: float | None = None
+    cart_bin_order_ids: tuple[tuple[int, ...], ...] = ()
+    locked_bin_ids: tuple[int, ...] = ()
 
 
 class SimWarehouseDomain(BaseWarehouseDomain):

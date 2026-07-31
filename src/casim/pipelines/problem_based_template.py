@@ -2,17 +2,15 @@ import fnmatch
 import os
 import pickle
 from os.path import join as pjoin
-from pathlib import Path
 from typing import Sequence, Callable, Iterable, Mapping
 
 
 from cosy.maestro import Maestro
 
 import luigi
-from luigi.configuration import get_config
 
 
-from cosy_luigi import CoSyLuigiTask, CoSyLuigiTaskParameter, CoSyLuigiRepo
+from cosy_luigi import CoSyLuigiTask, CoSyLuigiTaskParameter
 
 from ware_ops_algos.algorithms import (
     Routing,
@@ -23,7 +21,6 @@ from ware_ops_algos.algorithms import (
     ItemAssignmentSolution,
     RoutingSolution,
     ItemAssignment, Scheduler, Job, build_jobs)
-from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import ConstraintEvaluator
 from ware_ops_algos.algorithms.order_splitting.order_splitting import OrderSplitting
 from ware_ops_algos.domain_models import (
     Articles,
@@ -264,6 +261,11 @@ class AbstractPickerRouting(BaseComponent):
     def _load_articles(self) -> Articles:
         return load_pickle(self.input()["instance"]["articles"].path)
 
+    def _load_warehouse_info(self) -> DynamicInfo:
+        return load_pickle(
+            self.input()["instance"]["dynamic_warehouse_info"].path
+        )
+
     def output(self):
         return {
             "routing_sol": self.get_luigi_local_target_with_task_id("routing_sol.pkl")
@@ -280,6 +282,7 @@ class PickerRouting(AbstractPickerRouting):
             self.input()["batching_sol"]["batching_sol"].path
         )
         routes = []
+        component_solutions = []
         algo_name = ""
         execution_time = 0
         for b in batching_sol.batches:
@@ -287,116 +290,68 @@ class PickerRouting(AbstractPickerRouting):
             algo_name = routing_solution.algo_name
             routing_solution.route.batch = b
             routes.append(routing_solution.route)
+            component_solutions.append(routing_solution)
             execution_time += routing_solution.execution_time
-            router.reset_parameters()
+
+        objectives = [
+            solution.objective_value for solution in component_solutions
+        ]
+        bounds = [
+            solution.objective_bound for solution in component_solutions
+        ]
+        objective_value = (
+            sum(objectives)
+            if objectives and all(value is not None for value in objectives)
+            else None
+        )
+        objective_bound = (
+            sum(bounds)
+            if bounds and all(value is not None for value in bounds)
+            else None
+        )
+        if objective_value is not None and objective_bound is not None:
+            optimality_gap = (
+                abs(objective_value - objective_bound) / abs(objective_value)
+                if objective_value
+                else 0.0
+            )
+        else:
+            optimality_gap = None
+        is_optimal = None
+        if component_solutions and all(
+            solution.is_optimal is True
+            for solution in component_solutions
+        ):
+            is_optimal = True
+        elif any(
+            solution.is_optimal is False
+            for solution in component_solutions
+        ):
+            is_optimal = False
+        statuses = [
+            solution.solver_status
+            for solution in component_solutions
+            if solution.solver_status is not None
+        ]
+        if len(component_solutions) == 1:
+            solver_status = statuses[0] if statuses else None
+        elif statuses:
+            solver_status = "optimal" if is_optimal else "feasible"
+        else:
+            solver_status = None
 
         combined_sol = CombinedRoutingSolution(
             algo_name=algo_name,
             execution_time=execution_time,
-            routes=routes
-        )
-        dump_pickle(self.output()["routing_sol"].path, combined_sol)
-
-
-class HennWaitingPickerRouting(AbstractPickerRouting):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
-    item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
-
-    def _service_time(self, route, pick_positions) -> float:
-        resources = self._load_resources()
-        picker = resources.resources[0]
-
-        distance = route.distance
-
-        travel_speed = picker.speed
-        pick_time_per_item = picker.time_per_pick
-        setup_time = picker.tour_setup_time
-
-        n_items = sum(pos.in_store for pos in pick_positions)
-
-        return (
-            distance / travel_speed
-            + n_items * pick_time_per_item
-            + setup_time
-        )
-
-    def run(self):
-        router: Routing = self._get_inited_router()
-
-        batching_sol: BatchingSolution = load_pickle(
-            self.input()["batching_sol"]["batching_sol"].path
-        )
-
-        ia_sol: ItemAssignmentSolution = load_pickle(
-            self.input()["item_assignment_sol"]["item_assignment_sol"].path
-        )
-        resolved_by_id = {
-            o.order_id: o
-            for o in ia_sol.resolved_orders
-        }
-
-        routes = []
-        algo_name = None
-        execution_time = 0.0
-
-        single_order_service_time_cache: dict[int, float] = {}
-
-        for pl in batching_sol.pick_lists:
-            resolved_orders = [
-                resolved_by_id.get(o.order_id, o)
-                for o in pl.orders
-            ]
-            pl.orders = resolved_orders
-
-            router.reset_parameters()
-            routing_solution: RoutingSolution = router.solve(pl.pick_positions)
-
-            algo_name = routing_solution.algo_name
-            execution_time += routing_solution.execution_time
-
-            route = routing_solution.route
-            route.pick_list = pl
-
-            # st_j: service time of the whole candidate batch.
-            pl.service_time = self._service_time(
-                route=route,
-                pick_positions=pl.pick_positions,
-            )
-
-            # st_i: service time of each order if picked alone.
-            pl.single_order_service_times.clear()
-
-            for order in resolved_orders:
-                if order.order_id not in single_order_service_time_cache:
-                    router.reset_parameters()
-
-                    single_routing_solution: RoutingSolution = router.solve(
-                        order.pick_positions
-                    )
-
-                    execution_time += single_routing_solution.execution_time
-
-                    single_order_service_time_cache[order.order_id] = (
-                        self._service_time(
-                            route=single_routing_solution.route,
-                            pick_positions=order.pick_positions,
-                        )
-                    )
-
-                pl.single_order_service_times[order.order_id] = (
-                    single_order_service_time_cache[order.order_id]
-                )
-
-            routes.append(route)
-
-        combined_sol = CombinedRoutingSolution(
-            algo_name=f"{algo_name}_HennWaiting",
-            execution_time=execution_time,
             routes=routes,
+            solver_status=solver_status,
+            objective_value=objective_value,
+            objective_bound=objective_bound,
+            optimality_gap=optimality_gap,
+            is_optimal=is_optimal,
         )
-
         dump_pickle(self.output()["routing_sol"].path, combined_sol)
+
 
 # ─────────────────────────── Scheduling ─────────────────────────────────────
 
@@ -440,50 +395,6 @@ class AbstractScheduling(BaseComponent):
         scheduling_sol = scheduler.solve(jobs)
         dump_pickle(self.output()["scheduling_sol"].path, scheduling_sol)
 
-# ─────────────────────────── Sequencing ─────────────────────────────────────
-
-
-class AbstractSequencing(BaseComponent):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    routing_sol = CoSyLuigiTaskParameter(AbstractPickerRouting)
-
-    def output(self):
-        return {
-            "sequencing_sol": self.get_luigi_local_target_with_task_id(
-                "sequencing_sol.pkl"
-            )
-        }
-
-    def _get_inited_sequencer(self):
-        raise NotImplementedError
-
-    def _load_resources(self) -> Resources:
-        return load_pickle(self.input()["instance"]["resources"].path)
-
-    def run(self):
-        routing_sol = load_pickle(
-            self.input()["routing_sol"]["routing_sol"].path
-        )
-        resources = self._load_resources()
-
-        if isinstance(routing_sol, CombinedRoutingSolution):
-            routes = routing_sol.routes
-        else:
-            routes = [r.route for r in routing_sol]
-
-        sequencing_input = SequencingInput(
-            routes=routes,
-            resources=resources,
-        )
-
-        sequencer = self._get_inited_sequencer()
-        sequencing_sol = sequencer.solve(sequencing_input)
-
-        dump_pickle(
-            self.output()["sequencing_sol"].path,
-            sequencing_sol,
-        )
-
 # ─────────────────────────── Result Aggregation ──────────────────────────────
 
 _PARAM_TO_STAGE = {
@@ -491,7 +402,6 @@ _PARAM_TO_STAGE = {
     "batching_sol":       "batching",
     "item_assignment_sol": "item_assignment",
     "scheduling_sol":      "scheduling",
-    "sequencing_sol":      "sequencing",
 }
 
 def _collect_from_graph(task: CoSyLuigiTask) -> dict:
@@ -541,27 +451,17 @@ class ResultAggregation(BaseComponent):
     @classmethod
     def constraints(cls) -> Sequence[Callable[..., bool]]:
         return [
-            lambda vs: problem_type_constraint(vs, TAXONOMY, cls._data_card, cls._models),
-            lambda vs: feature_constraint(vs, cls._data_card, cls._models),
             lambda vs: batching_loader_constraint(vs, TAXONOMY, cls._data_card, PickListProvider),
             lambda vs: orders_provider_constraint(vs, TAXONOMY, cls._data_card, OrdersProvider),
             lambda vs: check_unique(vs, [ResultAggregation]),
         ]
 
-    def _build_provenance(self, summary: dict, collected: dict) -> None:
-        provenance_list = []
-        for stage in ["item_assignment", "batching", "routing", "sequencing", "scheduling"]:
+    def _add_component_fields(self, summary: dict, collected: dict) -> None:
+        for stage in ["item_assignment", "batching", "routing", "scheduling"]:
             if stage in collected:
                 entry = collected[stage]
-                provenance_list.append({
-                    "stage": stage,
-                    "algo": entry["algo"],
-                    "time": entry["time"],
-                    "task_class": entry["task_class"],
-                })
                 summary[f"{stage}_algo"] = entry["algo"]
                 summary[f"{stage}_time"] = entry["time"]
-        summary["provenance"] = provenance_list
 
     @staticmethod
     def _compute_routing_summary(routing_sols) -> dict:
@@ -615,7 +515,7 @@ class ResultAggregationRouting(ResultAggregation):
     def run(self):
         collected = _collect_from_graph(self)
         summary = {}
-        self._build_provenance(summary, collected)
+        self._add_component_fields(summary, collected)
 
         routing_entry = collected.get("routing")
         if routing_entry is None:
@@ -631,7 +531,7 @@ class ResultAggregationScheduling(ResultAggregation):
     def run(self):
         collected = _collect_from_graph(self)
         summary = {}
-        self._build_provenance(summary, collected)
+        self._add_component_fields(summary, collected)
         routing_entry = collected.get("routing")
         if routing_entry is not None:
             summary["routing_summary"] = self._compute_routing_summary(routing_entry["solution"])
@@ -651,29 +551,10 @@ class ResultAggregationBatching(ResultAggregation):
     def run(self):
         collected = _collect_from_graph(self)
         summary = {}
-        self._build_provenance(summary, collected)
+        self._add_component_fields(summary, collected)
         dump_json(self.output()["summary"].path, summary)
 
 
-class ResultAggregationSequencing(ResultAggregation):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    scheduling_sol = CoSyLuigiTaskParameter(AbstractSequencing)
-
-    def run(self):
-        collected = _collect_from_graph(self)
-        summary = {}
-        self._build_provenance(summary, collected)
-        routing_entry = collected.get("routing")
-        if routing_entry is not None:
-            summary["routing_summary"] = self._compute_routing_summary(routing_entry["solution"])
-        sequencing_entry = collected.get("sequencing")
-        if sequencing_entry is None:
-            raise ValueError("No scheduling solution in graph.")
-        orders: OrdersDomain = load_pickle(self.input()["instance"]["orders"].path)
-        summary["scheduling_summary"] = self._compute_scheduling_summary(
-            sequencing_entry["solution"], orders
-        )
-        dump_json(self.output()["summary"].path, summary)
 # ─────────────────────────── Graph Utilities ─────────────────────────────────
 
 def traverse_pipeline(vs: Iterable[CoSyLuigiTask], visited=None) -> list[CoSyLuigiTask]:
@@ -714,7 +595,6 @@ def batching_loader_constraint(vs, subproblems, data_card: DataCard, exclusive, 
     problem = data_card.problem_class
     problems = subproblems[problem]["variables"]
     if "batching" in problems and exclusive in classes:
-        print(f"Not valid, {exclusive} in {classes}")
         return False
     return True
 
@@ -724,136 +604,5 @@ def orders_provider_constraint(vs, subproblems, data_card: DataCard, exclusive, 
     problem = data_card.problem_class
     problems = subproblems[problem]["variables"]
     if "order_splitting" in problems and exclusive in classes:
-        print(f"Not valid, {exclusive} in {classes}")
         return False
     return True
-
-
-def problem_type_constraint(vs, subproblems, data_card: DataCard, models, get_classes=None) -> bool:
-    classes = get_classes(vs) if get_classes else [pc.__class__ for pc in traverse_pipeline(vs.values())]
-    problem = data_card.problem_class
-    problems = subproblems[problem]["variables"]
-    for c in classes:
-        for m in models:
-            # if m.implementation["class_name"] == c.__name__:
-            if m.algo_name == c.__name__:
-                if m.problem_type not in problems:
-                    print(f"{m.algo_name} not applicable {m.problem_type} not in {problems}")
-                    return False
-    return True
-
-
-def feature_constraint(vs, data_card: DataCard, models, get_classes=None) -> bool:
-    classes = get_classes(vs) if get_classes else [pc.__class__ for pc in traverse_pipeline(vs.values())]
-    domain_sections = {
-        "layout": data_card.layout,
-        "articles": data_card.articles,
-        "orders": data_card.orders,
-        "resources": data_card.resources,
-        "storage": data_card.storage,
-    }
-    for c in classes:
-        for m in models:
-            if m.algo_name == c.__name__:
-                for domain, reqs in m.requirements.items():
-                    section = domain_sections.get(domain)
-                    if section is None:
-                        continue
-                    required_tpe = reqs["type"]
-                    required_features = reqs.get("features", [])
-                    required_features = [] if required_features in (None, [None]) else required_features
-                    constraints = reqs.get("constraints", {})
-                    domain_type = section["type"]
-                    domain_features = [
-                        f for f in section["features"]
-                        if str(section["features"][f]) == "0" or section["features"][f]
-                    ]
-                    if "any" not in required_tpe and domain_type not in required_tpe:
-                        print(f"{m.algo_name} not applicable, {domain_type} not in {required_tpe}")
-                        return False
-                    missing_features = [f for f in required_features if f not in domain_features]
-                    if missing_features:
-                        print(f"{m.algo_name} not applicable, missing feature: {missing_features}")
-                        return False
-                    for feature_name, constraint in constraints.items():
-                        if feature_name not in domain_features:
-                            print(f"{m.algo_name} not applicable, {feature_name} not in {domain_features}")
-                            return False
-                        evaluator = ConstraintEvaluator()
-                        if not evaluator.evaluate(feature_name, constraint):
-                            print(f"{m.algo_name} not applicable, {feature_name} not in {domain_features}")
-                            return False
-    return True
-
-
-def main():
-    import yaml
-
-    import ware_ops_algos
-    from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
-    from ware_ops_algos.data_loaders import HesslerIrnichLoader
-    from scenarios.experiment_commons import load_and_flatten_data_card
-
-    from casim.pipelines.subproblems.item_assingment import GreedyIA
-    from casim.pipelines.subproblems.batching import FiFo, OrderNrFiFo, DueDate
-    from casim.pipelines.subproblems.picker_routing import SShape, RatliffRosenthal
-
-
-    PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-    DATA_DIR = PROJECT_ROOT / "data"
-
-    instances_base = DATA_DIR / "instances"
-    cache_base = DATA_DIR / "instances" / "caches"
-    instance_set = "BahceciOencan"
-    instance_name = "Pr_20_1_20_Store1_01.txt"
-    file_path = instances_base / instance_set / instance_name
-    output_folder = (
-        PROJECT_ROOT / "experiments" / "output" / "cosy"
-        / instance_set / instance_name
-    )
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    loader = HesslerIrnichLoader(str(instances_base / instance_set), str(cache_base / instance_set))
-    domain = loader.load(str(file_path))
-    print("Orders initial", len(domain.orders.orders))
-    card_path = DATA_DIR / "data_cards/bahceci_oencan.yaml"
-    with open(card_path, "r", encoding="utf-8") as f:
-        raw = yaml.safe_load(f)
-    datacard = load_and_flatten_data_card(raw)
-    pkg_dir = Path(ware_ops_algos.__file__).parent
-    model_cards_path = pkg_dir / "algorithms" / "algorithm_cards"
-    models = load_packaged_algo_cards()
-
-    ResultAggregation.configure(datacard, models)
-
-    config = get_config()
-    config.set("PipelineParams", "output_folder", str(output_folder))
-    config.set("PipelineParams", "domain_path", str(loader.cache_path))
-
-    repo = CoSyLuigiRepo(
-        InstanceLoader,
-        GreedyIA,
-        FiFo,
-        OrderNrFiFo,
-        DueDate,
-        PickListProvider,
-        SShape,
-        RatliffRosenthal,
-        ResultAggregationBatching,
-        ResultAggregationRouting,
-    )
-
-    maestro = Maestro(repo.cls_repo, repo.taxonomy)
-
-    results = maestro.query(ResultAggregationRouting.target())
-    luigi.build(results, local_scheduler=True)
-    # print("OBP Done")
-    #
-    # dc.problem_class = "SPRP"
-    # maestro = Maestro(repo.cls_repo, repo.taxonomy)
-    # results = maestro.query(ResultAggregationRouting.target())
-    # luigi.build(results, local_scheduler=True)
-
-
-if __name__ == "__main__":
-    main()

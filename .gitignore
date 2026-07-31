@@ -30,4 +30,8 @@ Thumbs.db
 
 # Project-specific
 outputs/
+**/.hydra/
+**/logs/
+*.log
+scenarios/caches/
 tests/data/instances/caches/

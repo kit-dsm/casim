@@ -2,6 +2,7 @@ name: scenario1
 
 n_days: 6
 day_sec: 86400
+horizon_time: 518400
 pickers_per_day: [25, 17, 19, 20, 18, 7]
 
 time_model:
@@ -26,5 +27,5 @@ dock:
 
 hooks:
   generated_order_injections: []
-  truck_disruptions: {}
+  truck_disruptions: []
   cross_day_volume_shifts: []

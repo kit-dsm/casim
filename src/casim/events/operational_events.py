@@ -1,10 +1,8 @@
 import logging
 
-from ware_ops_algos.algorithms import NodeType, RouteNode
 from ware_ops_algos.domain_models import Order
 
-from casim.domain_objects.tour_model import TourPlanningState, TourStates
-from casim.events.base_events import Event
+from casim.events.base_events import BaseTourEvent, Event
 from casim.state import State
 
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -13,17 +11,46 @@ logger = logging.getLogger(__name__)
 
 class OrderArrival(Event):
     """Order enters the system and is buffered."""
-    priority_score = 1
+    priority_score = 0
 
-    def __init__(self, time: float, order: Order):
+    def __init__(
+        self,
+        time: float,
+        order: Order | None = None,
+        *,
+        order_id=None,
+        release_version: int | None = None,
+    ):
         super().__init__(time)
         self.order = order
+        self.order_id = order.order_id if order is not None else order_id
+        self.release_version = release_version
+        self.cancelled = False
 
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        logger.info("Order %s arrived at t=%s", self.order.order_id, self.time)
-        state.order_manager.add_order_to_buffer(self.order)
-        return []
+        if self.order is not None:
+            state.receive_order(self.order)
+        elif state.release_order(
+            self.order_id,
+            int(self.release_version),
+        ) is None:
+            self.cancelled = True
+            return []
+        logger.info("Order %s arrived at t=%s", self.order_id, self.time)
+        target = state.request_arrival_intervention(self.time)
+        if target is None:
+            return []
+        tour_id, picker_id, version = target
+        return [
+            InterventionRequest(
+                self.time,
+                tour_id,
+                picker_id,
+                version,
+                resumes_execution=False,
+            )
+        ]
 
 
 class ShiftStart(Event):
@@ -34,8 +61,7 @@ class ShiftStart(Event):
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
-        state.is_break = False
-        print(f"{self.time} shift start")
+        state.start_shift(self.time)
         return []
 
 
@@ -47,6 +73,7 @@ class FlushRemainingOrders(Event):
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
+        state.close_input()
         return []
 
 
@@ -60,18 +87,60 @@ class PickerArrival(Event):
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
-        if self.picker_available:
-            state.resource_manager.set_picker_available(self.picker_id)
-        elif not self.picker_available:
-            state.resource_manager.set_picker_unavailable(self.picker_id)
+        state.set_picker_availability(
+            self.picker_id,
+            bool(self.picker_available),
+            self.time,
+        )
+        if (
+            self.picker_available
+            and state.picker_should_query(self.picker_id)
+        ):
+            return [PickerTourQuery(self.time, self.picker_id)]
+        return []
+
+
+class PickerDeparture(Event):
+    """End a picker's shift without interrupting active work."""
+
+    def __init__(self, time: float, picker_id: int):
+        super().__init__(time)
+        self.picker_id = picker_id
+
+    def handle(self, state: 'State') -> list['Event']:
+        state.set_picker_availability(self.picker_id, False, self.time)
         return []
 
 class VolumeShiftAcrossDay(Event):
-    def __init__(self, time: float):
+    def __init__(
+        self,
+        time: float,
+        from_due: float | None = None,
+        new_due: float | None = None,
+        max_orders: int | None = None,
+    ):
         super().__init__(time)
+        self.from_due = from_due
+        self.new_due = new_due
+        self.max_orders = max_orders
 
     def handle(self, state: 'State') -> list['Event']:
-        return []
+        if self.from_due is None or self.new_due is None:
+            return []
+        shifted = state.reschedule_unreleased_orders(
+            from_due=self.from_due,
+            new_due=self.new_due,
+            new_release=self.time,
+            max_orders=self.max_orders,
+        )
+        return [
+            OrderArrival(
+                release_time,
+                order_id=order_id,
+                release_version=version,
+            )
+            for order_id, release_time, version in shifted
+        ] + [WMSRun(self.time + 1e-6)]
 
 class OrderIngestion(Event):
     def __init__(self, time: float):
@@ -94,76 +163,15 @@ class TruckDisruption(Event):
         assert to_time < from_time
 
     def handle(self, state: 'State') -> list['Event']:
-        # need to remove the disrupted te's from state
-        # in the specified due-date corridor collect orders until te is reached
-        # -> From historic ? Sort order history by due date
-        # find all tours that have these orders and cancel them
-        # re-add the orders with new deadlines to the order buffer.
-        # orders can be pre-batched or batched
-
-        print(f"Truck disruption at {self.time}: from {self.from_time} to {self.to_time}")
-        # first iterate over already scheduled tours
-        orders_pulled = []
-        batches_pulled = []
-        volume_satisfied = False
-
-        all_tours = state.tour_manager.all_tours
-        tours_to_cancel = []
-        seen_tours = 0
-        for tour_id, tour in all_tours.items():
-            seen_tours += 1
-            if tour.status not in [TourStates.DONE, TourStates.PENDING, TourStates.STARTED]:
-                if tour.batch.earliest_due_date >= self.from_time:
-                    for o in tour.batch.orders:
-                        orders_pulled.append(o)
-                    batches_pulled.append(tour.batch)
-                    tour.status = TourStates.CANCELLED
-                    tours_to_cancel.append(tour_id)
-                if len(orders_pulled) * self.palett_te_factor >= self.te_volume:
-                    volume_satisfied = True
-                    break
-
-        print("cancelled %d tours", len(tours_to_cancel))
-        # If volume not already satisfied, e.g. because no tours are scheduled collect from batch buffer.
-        if not volume_satisfied and len(tours_to_cancel) == 0:
-            for b in state.order_manager._pick_list_buffer:
-                if b.earliest_due_date >= self.from_time:
-                    for o in b.orders:
-                        o.due_date = self.to_time
-                        orders_pulled.append(o)
-                    # b.earliest_due_date = self.to_time
-                    # batches_pulled.append(b)
-                if len(orders_pulled) * self.palett_te_factor >= self.te_volume:
-                    volume_satisfied = True
-                    break
-
-
-        print("pulled %d batches", len(batches_pulled))
-        # if not volume_satisfied:
-        #     orders_pulled = []
-        #     for o_id, o in state.order_manager._order_history.items():
-        #         if o.due_date == self.from_time:
-        #             orders_pulled.append(o)
-        #             if len(orders_pulled) * self.palett_te_factor >= self.te_volume:
-        #                 break
-        #
-        #     for order in orders_pulled:
-        #         reassigned_order = WarehouseOrder(order_id=order.order_id,
-        #               due_date=self.to_time,
-        #               order_date=order.order_date,
-        #               pick_positions=order.pick_positions,
-        #               parent_order_id=order.parent_order_id)
-        #         state.order_manager.add_order_to_buffer(reassigned_order)
-
-        for b in batches_pulled:
-            # b.earliest_due_date = self.to_time
-            for o in b.orders:
-                logger.debug("%s cancelled", o)
-                o.due_date = self.to_time
-            state.order_manager.add_pick_list_to_buffer(b)
-
-        for o in orders_pulled:
-            state.tracker.on_volume_shift(o, from_time=self.from_time, to_time=self.to_time)
+        max_orders = max(
+            1,
+            int(self.te_volume / self.palett_te_factor),
+        )
+        state.disrupt_unstarted_work(
+            from_due=self.from_time,
+            new_due=self.to_time,
+            max_orders=max_orders,
+        )
         return []
 
 class TruckArrival(Event):
@@ -172,10 +180,6 @@ class TruckArrival(Event):
         self.wait_buffer = wait_buffer
 
     def handle(self, state: 'State') -> list['Event']:
-        n_pallets = 0
-        if hasattr(state, "dock_manager"):
-            n_pallets = state.dock_manager.n_staged_pallets
-        # return [TruckDeparture(self.time + 30 + self.wait_buffer, capacity=n_pallets)]
         return []
 
 class TruckDeparture(Event):
@@ -187,30 +191,22 @@ class TruckDeparture(Event):
         self.capacity = capacity
 
     def handle(self, state: 'State') -> list['Event']:
-        ts_delayed = []
-        ts_in_progress = []
-        ts_expected_finish = []
-        for t_id, t in state.tour_manager.all_tours.items():
-            if t.status == TourStates.STARTED:
-                ts_in_progress.append(t_id)
-                if t.batch.earliest_due_date == self.time:
-                    ts_delayed.append(t_id)
-                    ts_expected_finish.append(t.end_time_planned)
-
-        state.tracker.on_truck_departure_delays(self.time, ts_delayed, ts_expected_finish)
-        if hasattr(state, "dock_manager"):
-            if self.capacity:
-                state.dock_manager.release_pallets(self.capacity)
-                logger.warning("released %d pallets", self.capacity)
-            resources = state.resource_manager.get_resources().resources
-            idle_pickers = [p for p in resources if not p.occupied]
-            return [PickerArrival(self.time, p.id, p.available) for p in idle_pickers]
-        return []
+        return [
+            PickerTourQuery(self.time, picker_id)
+            for picker_id in state.depart_truck(self.time, self.capacity)
+        ]
 
 
 class WMSRun(Event):
     def __init__(self, time):
         super().__init__(time)
+
+    def handle(self, state: 'State') -> list['Event']:
+        return []
+
+
+class PlanningRun(Event):
+    """Configured scheduling/replanning checkpoint."""
 
     def handle(self, state: 'State') -> list['Event']:
         return []
@@ -225,8 +221,6 @@ class PickerIdle(Event):
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
-        # print(f"Picker {self.picker_id} arrived at {self.time}")
-        state.tracker.on_idle_start(self.picker_id, self.time)
         return []
 
 class BreakStart(Event):
@@ -236,21 +230,20 @@ class BreakStart(Event):
         self.break_duration = break_duration
 
     def handle(self, state: State) -> list[Event]:
-        state.is_break = True
         logger.debug("break start at %s", self.time)
-        state.break_duration = self.break_duration
-        return []
+        return [BreakEnd(state.start_break(self.time, self.break_duration))]
 
 class BreakEnd(Event):
     priority_score = 0
-    def __init__(self, time: float, picker_id: int):
+    def __init__(self, time: float):
         super().__init__(time)
-        self.picker_id = picker_id
 
     def handle(self, state: State) -> list[Event]:
-        state.is_break = False
-        logger.debug("Picker %d break end at %s", self.picker_id, self.time)
-        return [PickerTourQuery(self.time, self.picker_id)]
+        logger.debug("Facility break end at %s", self.time)
+        return [
+            PickerTourQuery(self.time, picker_id)
+            for picker_id in state.finish_break(self.time)
+        ]
 
 
 class PickerTourQuery(Event):
@@ -259,202 +252,178 @@ class PickerTourQuery(Event):
         self.picker_id = picker_id
 
     def handle(self, state: State) -> list[Event]:
-        # A picker queries a new tour everytime they are forced by e.g. a scheduling result
-        # Or after they finished their last tour to query other scheduled tours.
         super().handle(state)
-        picker = state.resource_manager.get_resource(
-            self.picker_id)
-        next_tour_id = state.tour_manager.get_next_tour_for_picker(
-            self.picker_id)
-        logger.info("Picker %s has pending tour with id=%s at %s", picker.id, next_tour_id, self.time)
-        if state.is_break:
-            print(f"break scheduled for {self.time + state.break_duration}")
-            return [BreakEnd(self.time + state.break_duration, self.picker_id)]
-
-        if next_tour_id is not None:
-            # There exists an assigned tour for the picker
-            next_tour = state.tour_manager.get_tour(next_tour_id)
-            if next_tour.status == TourStates.CANCELLED:
-                state.tour_manager.remove_canceled_tour_for_picker(picker.id, next_tour_id)
-                # peek_next_tour_id = state.tour_manager.get_next_tour_for_picker(picker.id)
-                logger.debug("Tour %d for picker %d is cancelled at %s.", next_tour_id, picker.id, self.time)
-                # if peek_next_tour_id:
-                #     peek_next_tour = state.tour_manager.get_tour(peek_next_tour_id)
-                #     print(f"Next tour in queue is {peek_next_tour_id} with start time {peek_next_tour.start_time}")
-                return [PickerTourQuery(self.time, self.picker_id)]
-                # return [PickerIdle(state.current_time, picker.id)]
-            start_time = state.current_time
-            if next_tour.start_time is not None:
-                start_time = max(next_tour.start_time, self.time)
-                # The tour is scheduled -> we use the start time of the tour
-                # Otherwise we greedily start the tour right away
-            next_tour.status = TourStates.PENDING
-            if picker.tour_setup_time:
-                start_time += picker.tour_setup_time
-            return [TourStart(start_time, next_tour_id)]
-        else:
-            # Nothing to do right now, picker is idle
-            picker.occupied = False
-            return [PickerIdle(state.current_time, picker.id)]
+        action, tour_id, action_time = state.query_picker_tour(
+            self.picker_id,
+            self.time,
+        )
+        if action == "retry":
+            return [PickerTourQuery(action_time, self.picker_id)]
+        if action == "start":
+            _, version = state.tour_target(tour_id)
+            return [TourStart(action_time, tour_id, version)]
+        if action == "idle":
+            return [PickerIdle(action_time, self.picker_id)]
+        return []
 
 
-class BaseTourEvent(Event):
-    priority_score = 1
-    def __init__(self, time: float, tour_id: int):
-        super().__init__(time)
-        self.tour_id = tour_id
+class InterventionRequest(BaseTourEvent):
+    """Pause execution so the active route suffix can be replanned."""
 
-    def get_tour(self, state: State) -> TourPlanningState:
-        return state.tour_manager.get_tour(self.tour_id)
+    def __init__(
+        self,
+        time: float,
+        tour_id: int,
+        picker_id: int,
+        route_version: int,
+        resumes_execution: bool = False,
+    ):
+        super().__init__(time, tour_id, route_version)
+        self.picker_id = picker_id
+        self.resumes_execution = resumes_execution
+        self.cancelled = False
+
+    def handle(self, state: State) -> list[Event]:
+        if not state.accept_intervention_request(
+            self.tour_id,
+            self.route_version,
+        ):
+            self.cancelled = True
+            return []
+        return []
 
 
 class TourStart(BaseTourEvent):
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
-        tour = self.get_tour(state)
-        state.tracker.on_idle_end(tour.assigned_resource, self.time)
-        # print(f"Tour {tour.tour_id}, picker {tour.assigned_resource} orders {tour.order_numbers}")
-        tour_id = tour.tour_id
-        res = state.resource_manager.get_resource(tour.assigned_resource)
-        # assert tour.route_nodes and tour.route_nodes[0] == (1, -1), \
-        #     f"Tour {tour.tour_id} does not start at depot (1,-1): {tour.route_nodes[0] if tour.route_nodes else None}"
-
-        assert isinstance(tour.annotated_route[0], RouteNode)
-
-        state.resource_manager.update_resource_location(tour.assigned_resource,
-                                                        tour.annotated_route[0])
-        if tour.status == TourStates.CANCELLED:
-            print(f"{tour.tour_id} cancelled at {self.time}")
-        state.tour_manager.start_tour(tour_id, self.time)
-        state.resource_manager.mark_picker_occupied(tour.assigned_resource)
-        picker = state.resource_manager.get_resource(tour.assigned_resource)
-        logger.info("resource %d started tour %d at t=%s", tour.assigned_resource, tour.tour_id, self.time)
-        state.tracker.on_tour_start(self.time)
-        if tour.at_end() and res.current_location == (0, -1):
-            return [TourEnd(self.time, tour.tour_id)]
-        if tour.at_end():
-            return [NodeArrival(self.time, tour.tour_id)]
-
-        start_time = self.time
-        return [TravelEvent(start_time , tour.tour_id)]
+        if self.is_stale(state):
+            return []
+        if not state.start_tour(self.tour_id, self.time):
+            return []
+        _, version = state.tour_target(self.tour_id)
+        return [TravelEvent(self.time, self.tour_id, version)]
 
 
 class TravelEvent(BaseTourEvent):
-    """Advance along the route."""
+    """Request one traversal and schedule its completion."""
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        tour = self.get_tour(state)
-        res = state.resource_manager.get_resource(tour.assigned_resource)
-
-        assert not tour.at_end(), f"Travel at end of route on tour {tour.tour_id}"
-
-        origin = tour.current_node()
-        dest = tour.next_node()
-
-        travel_distance = state.layout_manager.get_distance(origin, dest)
-        travel_time = travel_distance / res.speed
-        arrival_time = state.current_time + travel_time
-
-        logger.debug("Travel: Picker %d %s -> %s in %s min. Distance: %s",
-                     res.id, origin, dest, travel_time, travel_distance)
-        state.tracker.on_travel(picker_id=res.id, distance=travel_distance)
-        # mutate execution state
-        state.tour_manager.advance_cursor(tour.tour_id)  # move cursor to dest
-        assert isinstance(dest, RouteNode)
-        state.resource_manager.update_resource_location(tour.assigned_resource, dest)
-
-        return [NodeArrival(arrival_time, tour.tour_id)]
+        if self.is_stale(state):
+            return []
+        action, action_time = state.request_next_traversal(
+            self.tour_id,
+            self.time,
+        )
+        picker_id, version = state.tour_target(self.tour_id)
+        if action == "arrival":
+            return [NodeArrival(action_time, self.tour_id, version)]
+        if action == "end":
+            return [TourEnd(self.time, self.tour_id, version)]
+        if action == "intervention":
+            return [InterventionRequest(
+                self.time,
+                self.tour_id,
+                picker_id,
+                version,
+                resumes_execution=True,
+            )]
+        return []
 
 
 class NodeArrival(BaseTourEvent):
     """Handle arrival at a node: either pick, continue travel, or end at depot."""
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        tour = self.get_tour(state)
-        res = state.resource_manager.get_resource(tour.assigned_resource)
-        here = res.current_location
-        logger.info("Debug Picker %s arrives at %s", res.id, here)
-        # Finish only if we are at end AND at depot (0,-1)
-        if tour.at_end():
-            return [TourEnd(self.time, tour.tour_id)]
-
-        # If next planned pick is exactly here → start pick
-        if here.node_type == NodeType.PICK:
-            finish_at = self.time + res.time_per_pick
-            return [PickComplete(finish_at, tour.tour_id, pick_start=self.time)]
-
-        # Otherwise keep traveling (must not be at end)
-        return [TravelEvent(self.time, tour.tour_id)]
+        if self.is_stale(state):
+            return []
+        action, action_time, awakened = state.confirm_node_arrival(
+            self.tour_id,
+            self.time,
+        )
+        awakened_events = [
+            TravelEvent(self.time, waiting_tour_id, waiting_version)
+            for _, waiting_tour_id, waiting_version in awakened
+        ]
+        picker_id, version = state.tour_target(self.tour_id)
+        if action == "end":
+            return [*awakened_events, TourEnd(self.time, self.tour_id, version)]
+        if action == "intervention":
+            return [
+                *awakened_events,
+                InterventionRequest(
+                    self.time,
+                    self.tour_id,
+                    picker_id,
+                    version,
+                    resumes_execution=True,
+                )
+            ]
+        if action == "pick":
+            return [
+                *awakened_events,
+                PickComplete(
+                    action_time,
+                    self.tour_id,
+                    pick_start=self.time,
+                    route_version=version,
+                )
+            ]
+        if action == "travel":
+            awakened_events.append(TravelEvent(self.time, self.tour_id, version))
+        return awakened_events
 
 
 class PickComplete(BaseTourEvent):
     """Finish the pick at the current node; pop pick and mark positions fulfilled."""
-    def __init__(self, time: float, tour_id: int, pick_start: float):
-        super().__init__(time, tour_id)
+    def __init__(
+        self,
+        time: float,
+        tour_id: int,
+        pick_start: float,
+        route_version: int | None = None,
+    ):
+        super().__init__(time, tour_id, route_version)
         self.pick_start = pick_start
 
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        tour = self.get_tour(state)
-        res = state.resource_manager.get_resource(tour.assigned_resource)
-        here = res.current_location
-
-        # state.tour_manager.mark_pick_positions_fulfilled_at(tour.tour_id, here)
-
-        logger.debug("Pick complete: Picker %d at %s t=%s", res.id, here, self.time)
-        state.tracker.on_pick_end(
-            tour_id=self.tour_id,
-            picker_id=res.id,
-            order_id=tour.order_numbers[0],
-            item_id=None,
-            start_time=self.pick_start,
-            end_time=self.time
+        if self.is_stale(state):
+            return []
+        action, awakened = state.confirm_pick_operation(
+            self.tour_id,
+            self.pick_start,
+            self.time,
         )
-        if tour.at_end():
-            return [TourEnd(self.time, tour.tour_id)]
-        return [TravelEvent(self.time, tour.tour_id)]
+        awakened_events = [
+            NodeArrival(self.time, waiting_tour_id, waiting_version)
+            for _, waiting_tour_id, waiting_version in awakened
+        ]
+        picker_id, version = state.tour_target(self.tour_id)
+        if action == "end":
+            return [*awakened_events, TourEnd(self.time, self.tour_id, version)]
+        if action == "intervention":
+            return [
+                *awakened_events,
+                InterventionRequest(
+                    self.time,
+                    self.tour_id,
+                    picker_id,
+                    version,
+                    resumes_execution=True,
+                )
+            ]
+        return [*awakened_events, TravelEvent(self.time, self.tour_id, version)]
 
 
 class TourEnd(BaseTourEvent):
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
-        tour = self.get_tour(state)
-        res = state.resource_manager.get_resource(tour.assigned_resource)
-        here = res.current_location
-
-        assert here.position == state.layout_manager.get_layout().graph_data.end_location, f"TourEnd at non-depot {here} on tour {tour.tour_id}"
-        logger.info("resource %d: Tour %d completed at depot. Start time: %s Planned end: %s, actual end: %s Makespan: %s",
-                    res.id, tour.tour_id, tour.start_time, tour.end_time_planned, self.time, self.time - tour.start_time)
-        # finalize tour and free picker
-        state.tour_manager.finish_tour(tour.tour_id, self.time)
-        om = state.order_manager
-        on_time = []
-        delayed = []
-        for o_id in tour.order_numbers:
-            o = om.get_order_from_history(o_id)
-            if o.due_date:
-                if o.due_date < self.time:
-                    delayed.append(o_id)
-                else:
-                    on_time.append(o_id)
-
-        # state.tracker.update_on_tour_end(tour_start=tour.start_time, tour_finish=self.time, order_manager=om)
-        if self.tour_id == state.tour_manager.get_next_tour_for_picker(res.id):
-            logger.error("Tour ID %d matches next tour for picker (queues: %s)", self.tour_id, state.tour_manager._picker_tour_queues)
-            raise AssertionError(f"Tour {self.tour_id} should not be next tour for picker {res.id}")
-        n_pallets_dock = 0
-        if hasattr(state, "dock_manager"):
-            state.dock_manager.stage_pallets(1)
-            n_pallets_dock = state.dock_manager.n_staged_pallets
-        n_lines = len(tour.original_route.item_sequence)
-        state.tracker.on_tour_end(tour.tour_id,
-                                  tour.start_time,
-                                  self.time,
-                                  tour.order_numbers,
-                                  tour.assigned_resource,
-                                  on_time,
-                                  delayed,
-                                  n_pallets_dock,
-                                  n_lines)
-        return [PickerTourQuery(self.time, res.id)]
+        if self.is_stale(state):
+            return []
+        picker_id, awakened = state.complete_tour(self.tour_id, self.time)
+        resumed = [
+            TravelEvent(self.time, waiting_tour_id, waiting_version)
+            for _, waiting_tour_id, waiting_version in awakened
+        ]
+        return [*resumed, PickerTourQuery(self.time, picker_id)]
 

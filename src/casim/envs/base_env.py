@@ -69,7 +69,10 @@ class BaseEnv(gym.Env):
             if domain.problem_class in self.learnable_problems:
                 return False, domain
             # Non-learnable: solve with decision engine and keep going
-            events_to_add, solution = self.decision_engine.on_trigger(domain)
+            result = self.decision_engine.on_trigger(domain)
+            if result is None:
+                continue
+            events_to_add, solution = result
             self.sim.step(events_to_add, domain.problem_class, solution)
 
     def _action_to_solution(self, action: int | AlgorithmSolution):

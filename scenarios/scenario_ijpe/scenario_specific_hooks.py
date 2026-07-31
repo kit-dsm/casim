@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import heapq
 import json
 import math
 from pathlib import Path
@@ -18,23 +17,11 @@ from casim.events.operational_events import (
     WMSRun, VolumeShiftAcrossDay, OrderIngestion,
 )
 from scenarios.scenario_ijpe.generator.public.generate_order import generate_n_orders
-from scenarios.scenario_ijpe.grocery_retailer_loader_digraph import COL_ORDER_ID, COL_ARTICLE_ID, COL_QUANTITY, \
+from scenarios.scenario_ijpe.schema import COL_ORDER_ID, COL_ARTICLE_ID, COL_QUANTITY, \
     COL_ORDER_DATE, COL_DUE_DATE
 
 DAY_SEC = 86400
 HOUR_SEC = 3600
-
-
-class DockManager:
-    def __init__(self, K_dock: int):
-        self.K_dock = K_dock
-        self.n_staged_pallets: int = 0
-
-    def stage_pallets(self, n_pallets: int = 1) -> None:
-        self.n_staged_pallets += n_pallets
-
-    def release_pallets(self, n_pallets: int = 1) -> None:
-        self.n_staged_pallets = max(0, self.n_staged_pallets - n_pallets)
 
 
 def h(hour: float) -> int:
@@ -118,7 +105,7 @@ def make_break_hook(n_days: int, breaks, day_sec: int):
 
 def make_dock_manager_hook(K_dock: int):
     def hook(sim, domain) -> None:
-        sim.state.dock_manager = DockManager(K_dock=K_dock)
+        sim.state.configure_dock(K_dock)
 
     return hook
 
@@ -197,78 +184,12 @@ def make_cross_day_volume_shift_hook(
     to_time = t(to_day, to_hour, day_sec)
 
     def hook(sim, domain) -> None:
-        moved_orders = []
-        moved_event_ids = set()
-        moved_te = 0.0
-
-        order_arrival_events = [
-            event
-            for event in sim.events
-            if isinstance(event, OrderArrival)
-            and event.time >= disruption_time
-            and event.order.due_date == from_time
-        ]
-
-        order_arrival_events.sort(
-            key=lambda event: (
-                event.order.due_date,
-                event.order.order_date,
-                str(event.order.order_id),
-            )
-        )
-
-        for event in order_arrival_events:
-            if moved_te >= te_volume:
-                break
-
-            order = event.order
-
-            moved_event_ids.add(id(event))
-
-            # The order becomes known when the disruption information is available.
-            order.order_date = disruption_time
-
-            # The order now belongs to the pulled-ahead truck deadline.
-            order.due_date = to_time
-
-            moved_orders.append(order)
-            moved_te += palett_te_factor
-
-        if not moved_orders:
-            print(
-                f"No cross-day orders moved: "
-                f"from_time={from_time}, to_time={to_time}, "
-                f"disruption_time={disruption_time}"
-            )
-            return
-
-        # Remove old future arrivals.
-        sim.events[:] = [
-            event
-            for event in sim.events
-            if id(event) not in moved_event_ids
-        ]
-        heapq.heapify(sim.events)
-
-        # Re-add moved orders at the new information time.
-        for order in moved_orders:
-            sim.add_event(
-                OrderArrival(
-                    time=order.order_date,
-                    order=order,
-                )
-            )
-            sim.state.tracker.on_volume_shift(order, from_time, to_time)
-
-        # Force a WMS run after the moved orders have entered the buffer.
-        sim.add_event(WMSRun(disruption_time + 1e-6))
-        sim.add_event(VolumeShiftAcrossDay(disruption_time + 1e-6))
-
-        print(
-            f"Cross-day volume shift moved {len(moved_orders)} orders "
-            f"/ approx. {moved_te:.1f} TE "
-            f"from {from_time} to {to_time}."
-        )
+        sim.add_event(VolumeShiftAcrossDay(
+            disruption_time,
+            from_due=from_time,
+            new_due=to_time,
+            max_orders=max(1, int(te_volume / palett_te_factor)),
+        ))
 
     return hook
 
@@ -293,9 +214,20 @@ def make_generated_order_injection_hook(
 
     def hook(sim, domain) -> None:
         n_orders = math.ceil(target_te / palett_te_factor)
+        available_articles = {
+            str(article.article_id) for article in domain.articles.articles
+        }
+        local_calibration = {
+            **calibration,
+            "articles": [
+                article
+                for article in calibration["articles"]
+                if str(article["article_id"]) in available_articles
+            ],
+        }
 
         rows = generate_n_orders(
-            calibration=calibration,
+            calibration=local_calibration,
             n_orders=n_orders,
             order_date=trigger_time,
             due_date=due_time,
@@ -308,15 +240,7 @@ def make_generated_order_injection_hook(
         injected_orders = order_builder(rows, domain)
 
         for order in injected_orders:
-            domain.orders.orders.append(order) # needs to go in here for tracking. Shouldn't affect sim state etc.
-            # sim.state.tracker.on_order_ingestion(order.order_id, order.due_date)
-            sim.state.tracker.on_volume_shift(order, order.due_date, order.due_date)
-            sim.add_event(
-                OrderArrival(
-                    time=trigger_time,
-                    order=order,
-                )
-            )
+            sim.add_order(order)
 
         sim.add_event(WMSRun(trigger_time))
         sim.add_event(OrderIngestion(trigger_time + 1e-6))
