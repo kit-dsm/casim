@@ -1,0 +1,36 @@
+# @package _global_
+variant:
+  name: cios
+  execution: complete_information
+  solver: LorenzDPSolver
+  exactness:
+    complete_information: true
+    complete_instance_optimal: true
+
+engines:
+  decision_engine:
+    problems:
+      OBRSP:
+        solver:
+          _target_: scenarios.scenario_reopt.solver.LorenzDPSolver
+          batch_capacity_orders: ${solver.batch_capacity_orders}
+          max_states: ${solver.max_states}
+          max_runtime_s: ${solver.max_runtime_s}
+          release_mode: actual
+        commitment_policy:
+          _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
+    event_map:
+      SequencingDone:
+        _target_: hydra.utils.get_class
+        path: casim.events.decision_events.SequencingDone
+  simulation_engine:
+    problems:
+      OBRSP:
+        state_adapter:
+          _target_: casim.simulation_engine.state_adapter.OrderWindowAdapter
+        triggers: [casim.events.operational_events.OrderArrival, casim.events.operational_events.PickerIdle]
+        conditions:
+          - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+            threshold: 1
+          - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+            threshold: 1

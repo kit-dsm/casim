@@ -1,0 +1,58 @@
+name: unstarted_reopt
+disruption_replanning: true
+wms_hours: [6, 10, 14, 17]
+planning_hours: []
+planning_interval_minutes: 15
+decision_engine:
+  problems:
+    OBP:
+      solver:
+        _target_: casim.pipelines.pipeline_runner.CoSySolver
+        solution_ranker:
+          _target_: casim.pipelines.solution_ranker.SolutionRanker
+          objective: tardiness
+        repo: ${cosy_repo}
+      commitment_policy:
+        _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
+    RORSP:
+      solver:
+        _target_: casim.pipelines.pipeline_runner.CoSySolver
+        solution_ranker:
+          _target_: casim.pipelines.solution_ranker.SolutionRanker
+          objective: tardiness
+        repo: ${cosy_repo}
+      commitment_policy:
+        _target_: casim.decision_engine.commitment_policies.SchedulingCommitmentPolicy
+        n_jobs: null
+        max_jobs_per_picker: 1
+        planning_horizon_s: 14400
+  event_map:
+    PickListDone:
+      _target_: hydra.utils.get_class
+      path: casim.events.decision_events.PickListDone
+    SequencingDone:
+      _target_: hydra.utils.get_class
+      path: casim.events.decision_events.SequencingDone
+simulation_engine:
+  completion_mode: horizon
+  horizon_time: ${simulation.horizon_time}
+  problems:
+    OBP:
+      state_adapter:
+        _target_: casim.simulation_engine.state_adapter.OBPAdapter
+      triggers: [casim.events.operational_events.WMSRun]
+      conditions:
+        - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+          threshold: 1
+    RORSP:
+      state_adapter:
+        _target_: casim.simulation_engine.state_adapter.ReORSPAdapter
+        max_batches: 96
+        due_horizon_s: 21600
+      triggers: [casim.events.operational_events.PlanningRun]
+      conditions:
+        - _target_: casim.simulation_engine.conditions.NbrBatchesCondition
+          threshold: 1
+        - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+          threshold: 1
+        - _target_: casim.simulation_engine.conditions.BreakCondition

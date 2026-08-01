@@ -1,0 +1,39 @@
+# @package _global_
+variant:
+  name: reopt
+  execution: online
+  solver: LorenzDPSolver
+  exactness:
+    complete_information: false
+    reoptimization_subproblems_optimal: true
+
+engines:
+  decision_engine:
+    problems:
+      OBRSP:
+        solver:
+          _target_: scenarios.scenario_reopt.solver.LorenzDPSolver
+          batch_capacity_orders: ${solver.batch_capacity_orders}
+          max_states: ${solver.max_states}
+          max_runtime_s: ${solver.max_runtime_s}
+          release_mode: current
+        commitment_policy:
+          _target_: casim.decision_engine.commitment_policies.SchedulingCommitmentPolicy
+          n_jobs: 1
+    event_map:
+      SequencingDone:
+        _target_: hydra.utils.get_class
+        path: casim.events.decision_events.SequencingDone
+  simulation_engine:
+    completion_mode: drain
+    horizon_time: null
+    problems:
+      OBRSP:
+        state_adapter:
+          _target_: casim.simulation_engine.state_adapter.OrderWindowAdapter
+        triggers: [casim.events.operational_events.OrderArrival, casim.events.operational_events.PickerIdle, casim.events.operational_events.FlushRemainingOrders]
+        conditions:
+          - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+            threshold: 1
+          - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+            threshold: 1

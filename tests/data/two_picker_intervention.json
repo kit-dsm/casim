@@ -1,0 +1,42 @@
+{
+  "source": "deterministic CASIM intervention harness",
+  "release_times": {
+    "1": 0,
+    "2": 0,
+    "3": 1,
+    "4": 1,
+    "5": 3,
+    "6": 3,
+    "7": 4,
+    "8": 5
+  },
+  "orders": {
+    "1": [[3, 12], [2, 10]],
+    "2": [[3, 9]],
+    "3": [[2, 5], [3, 4]],
+    "4": [[1, 3]],
+    "5": [[1, 11]],
+    "6": [[2, 8], [3, 8]],
+    "7": [[1, 2]],
+    "8": [[3, 5], [2, 4]]
+  },
+  "n_pickers": 2,
+  "batch_capacity_orders": 2,
+  "picker_speed": 1,
+  "time_per_pick": 4,
+  "layout": {
+    "n_aisles": 3,
+    "n_pick_locations": 5,
+    "n_blocks": 2,
+    "dist_aisle": 2,
+    "dist_pick_locations": 1,
+    "dist_aisle_location": 1,
+    "dist_between_blocks": 2,
+    "dist_start": 0,
+    "dist_end": 0,
+    "start_location": [0, 0],
+    "end_location": [-1, 0],
+    "start_connection_point": [1, 0],
+    "end_connection_point": [1, 0]
+  }
+}

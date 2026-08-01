@@ -1,0 +1,3 @@
+name: six_day_stress
+profile_path: scenario_dynamic_operations/data/six_day_stress.json
+horizon_time: 540000

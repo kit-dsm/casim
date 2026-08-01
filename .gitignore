@@ -35,3 +35,8 @@ outputs/
 *.log
 scenarios/caches/
 tests/data/instances/caches/
+
+# Private IJPE source data stays local; public/generated CSV fixtures are tracked.
+scenarios/scenario_ijpe/data/*.xlsx
+scenarios/scenario_ijpe/data/order_stream_historic.csv
+scenarios/scenario_ijpe/data/id_maps.json

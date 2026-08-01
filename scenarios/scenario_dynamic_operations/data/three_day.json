@@ -1,0 +1,38 @@
+{
+  "seed": 20241024,
+  "n_days": 3,
+  "n_orders": 480,
+  "picker_counts": [8, 6, 7],
+  "cart_bins": 4,
+  "picker_speed": 1.0,
+  "time_per_pick": 30.0,
+  "tour_setup_time": 60.0,
+  "shift_start_hour": 6,
+  "shift_end_hour": 18,
+  "backlog_fraction": 0.55,
+  "due_hours": [10, 12, 14, 16],
+  "lines_per_order": [1, 3],
+  "breaks": [
+    {"start_hour": 9, "duration_minutes": 30},
+    {"start_hour": 14, "duration_minutes": 30}
+  ],
+  "urgent_burst": {"day": 1, "count": 20, "release_hour": 11, "due_hour": 12},
+  "due_time_disruption": {"day": 1, "event_hour": 10.5, "from_due_hour": 14, "new_due_hour": 12, "max_orders": 24},
+  "layout": {
+    "n_aisles": 6,
+    "n_pick_locations": 12,
+    "n_blocks": 2,
+    "dist_aisle": 4,
+    "dist_pick_locations": 2,
+    "dist_aisle_location": 1,
+    "dist_between_blocks": 5,
+    "dist_start": 2,
+    "dist_end": 2,
+    "start_location": [0, 0],
+    "end_location": [-1, 0],
+    "start_connection_point": [1, 0],
+    "end_connection_point": [1, 0],
+    "pick_capacity": 1,
+    "narrow_connector_capacity": 2
+  }
+}

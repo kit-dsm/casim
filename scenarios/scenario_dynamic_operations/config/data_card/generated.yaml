@@ -1,0 +1,67 @@
+# @package data_card
+name: scenario_dynamic_operations
+problem_class: ORSP
+objective: tardiness
+layout:
+  type: conventional
+  objects:
+    - name: LayoutNetwork
+      features:
+        - name: graph
+        - name: distance_matrix
+        - name: predecessor_matrix
+        - name: start_node
+        - name: end_node
+        - name: closest_node_to_start
+        - name: min_aisle_position
+        - name: max_aisle_position
+        - name: edge_capacity
+        - name: pick_capacity
+
+articles:
+  type: standard
+  objects:
+    - name: Article
+      features:
+        - name: article_id
+
+orders:
+  type: standard
+  objects:
+    - name: Order
+      features:
+        - name: order_id
+        - name: order_date
+        - name: due_date
+      objects:
+        - name: OrderPosition
+          features:
+            - name: amount
+            - name: article_id
+            - name: pick_node
+
+resources:
+  type: human
+  objects:
+    - name: Resource
+      features:
+        - name: speed
+        - name: time_per_pick
+      objects:
+        - name: PickCart
+          features:
+            - name: capacities
+            - name: dimensions_type
+              value: [orders]
+            - name: n_boxes
+              value: 4
+            - name: box_can_mix_orders
+              value: false
+
+storage:
+  type: dedicated
+  objects:
+    - name: StorageLocations
+      features:
+        - name: amount
+        - name: article_id

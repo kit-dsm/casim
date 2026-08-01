@@ -1,0 +1,43 @@
+defaults:
+  - _self_
+  - input: generated
+  - data_card: intervention_stress
+  - engines: insertion
+  - cosy_repo: dispatch_tsp
+  - intervention_repo: fill_nn
+
+hydra:
+  run:
+    dir: outputs/intervention_stress/${intervention_repo.name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/intervention_stress/multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${intervention_repo.name}
+  job_logging:
+    root:
+      level: WARNING
+  hydra_logging:
+    root:
+      level: WARNING
+
+project_root: ${hydra:runtime.cwd}
+instances_base: ${project_root}/scenarios
+cache_base: ${experiment.working_dir}/cache
+
+experiment:
+  name: intervention_stress
+  instance_name: intervention_stress
+  output_dir: ${hydra:runtime.output_dir}
+  working_dir: ${hydra:runtime.output_dir}/work
+  progress_every: 500
+
+viz:
+  record: true
+  launch: false
+  port: 8050
+
+luigi:
+  runtime: 2
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null

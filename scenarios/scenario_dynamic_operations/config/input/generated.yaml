@@ -1,0 +1,6 @@
+# @package input
+data_loader:
+  _target_: scenarios.scenario_dynamic_operations.loader.DynamicOperationsLoader
+  instances_dir: ${project_root}/scenarios
+load:
+  instance_path: ${simulation.profile_path}

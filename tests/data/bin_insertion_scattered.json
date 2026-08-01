@@ -1,0 +1,55 @@
+{
+  "source": "deterministic CASIM cart-bin insertion harness",
+  "release_times": {
+    "1": 0,
+    "2": 0,
+    "3": 1,
+    "4": 1,
+    "5": 3,
+    "6": 3,
+    "7": 4,
+    "8": 5
+  },
+  "orders": {
+    "1": [{"article_id": 101, "amount": 1}],
+    "2": [{"article_id": 102, "amount": 1}],
+    "3": [{"article_id": 103, "amount": 1}],
+    "4": [{"article_id": 101, "amount": 1}],
+    "5": [{"article_id": 102, "amount": 1}],
+    "6": [{"article_id": 103, "amount": 1}],
+    "7": [{"article_id": 101, "amount": 3}],
+    "8": [{"article_id": 102, "amount": 3}]
+  },
+  "storage": [
+    {"article_id": 101, "location": [1, 2], "quantity": 3},
+    {"article_id": 101, "location": [3, 10], "quantity": 2},
+    {"article_id": 102, "location": [2, 4], "quantity": 3},
+    {"article_id": 102, "location": [3, 8], "quantity": 2},
+    {"article_id": 103, "location": [1, 11], "quantity": 2},
+    {"article_id": 103, "location": [2, 8], "quantity": 2}
+  ],
+  "n_pickers": 2,
+  "batch_capacity_orders": 3,
+  "pick_cart": {
+    "n_boxes": 3,
+    "capacity_per_bin": 1,
+    "box_can_mix_orders": false
+  },
+  "picker_speed": 1,
+  "time_per_pick": 4,
+  "layout": {
+    "n_aisles": 3,
+    "n_pick_locations": 5,
+    "n_blocks": 2,
+    "dist_aisle": 2,
+    "dist_pick_locations": 1,
+    "dist_aisle_location": 1,
+    "dist_between_blocks": 2,
+    "dist_start": 0,
+    "dist_end": 0,
+    "start_location": [0, 0],
+    "end_location": [-1, 0],
+    "start_connection_point": [1, 0],
+    "end_connection_point": [1, 0]
+  }
+}

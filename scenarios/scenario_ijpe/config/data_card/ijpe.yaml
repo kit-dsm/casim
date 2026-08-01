@@ -1,0 +1,92 @@
+name: "scenario_ijpe"
+problem_class: ORSP
+
+objective: tardiness
+layout:
+  type: conventional
+  objects:
+    - name: LayoutParams
+      features:
+        - name: start_node
+          value: [0, 0]
+        - name: end_node
+          value: [0, 0]
+        - name: closest_node_to_start
+          value: [0, 0]
+        - name: min_aisle_position
+          value: 0
+        - name: max_aisle_position
+          value: 10
+        - name: n_pick_locations
+          value: 50
+        - name: dist_pick_locations
+          value: 1.5
+        - name: dist_bottom_to_pick_location
+          value: 0
+        - name: n_blocks
+          value: 2
+        - name: distance_matrix
+        - name: predecessor_matrix
+        - name: two_sided_aisle_rails
+        - name: top_bottom_crossings
+
+    - name: LayoutNetwork
+      features:
+        - name: graph
+        - name: distance_matrix
+
+articles:
+  type: standard
+  objects:
+    - name: Article
+      features:
+        - name: article_id
+
+orders:
+  type: standard
+  objects:
+    - name: Order
+      features:
+        - name: order_date
+        - name: due_date
+
+      objects:
+        - name: OrderPosition
+          features:
+            - name: article_id
+            - name: amount
+
+resources:
+  type: human
+  objects:
+    - name: HumanPicker
+      type: human
+      features:
+        - name: n_pickers
+          value: 25
+        - name: speed
+          value: 2306
+        - name: time_per_pick
+          value: 19
+        - name: tour_setup_time
+          value: 215
+
+      objects:
+        - name: PickCart
+          type: manual
+          features:
+            - name: capacities
+            - name: n_boxes
+              value: 1
+            - name: dimensions_type
+              value: [orders]
+            - name: box_can_mix_orders
+              value: false
+
+storage:
+  type: dedicated
+  objects:
+    - name: StorageLocations
+      features:
+        - name: amount
+        - name: article_id

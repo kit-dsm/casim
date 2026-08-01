@@ -1,0 +1,24 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: casim
+      - uses: actions/checkout@v4
+        with:
+          repository: kit-dsm/ware_ops_algos
+          path: ware_ops_algos
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+        working-directory: casim
+      - run: uv run pytest -m "not slow"
+        working-directory: casim

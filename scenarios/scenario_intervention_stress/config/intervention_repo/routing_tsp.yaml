@@ -1,0 +1,6 @@
+name: routing_tsp
+components:
+  - casim.pipelines.problem_based_template.InstanceLoader
+  - casim.pipelines.problem_based_template.PickListProvider
+  - casim.pipelines.subproblems.picker_routing.TSPRouting
+  - casim.pipelines.problem_based_template.ResultAggregationRouting

@@ -1,0 +1,39 @@
+defaults:
+  - input: paper_example
+  - data_card: reopt
+  - _self_
+  - variant: reopt
+
+hydra:
+  run:
+    dir: outputs/reopt/${variant.name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/reopt/multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${variant.name}
+  job_logging:
+    root:
+      level: WARNING
+  hydra_logging:
+    root:
+      level: WARNING
+
+project_root: ${hydra:runtime.cwd}
+instances_base: ${project_root}/scenarios
+cache_base: ${experiment.working_dir}/cache
+
+experiment:
+  instance_name: paper_example
+  output_dir: ${hydra:runtime.output_dir}
+  working_dir: ${project_root}/tmp/scenario_reopt/${variant.name}/${now:%Y-%m-%d_%H-%M-%S}
+
+solver:
+  batch_capacity_orders: 2
+  max_states: 2000000
+  max_runtime_s: 60.0
+
+luigi:
+  runtime: 60
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null

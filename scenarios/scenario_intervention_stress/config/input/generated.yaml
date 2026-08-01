@@ -1,0 +1,6 @@
+# @package input
+data_loader:
+  _target_: scenarios.scenario_reopt.loader.ReoptDataLoader
+  instances_dir: ${project_root}/scenarios
+load:
+  instance_path: scenario_intervention_stress/data/intervention_stress.json

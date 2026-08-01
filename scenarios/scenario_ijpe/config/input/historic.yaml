@@ -1,0 +1,18 @@
+# @package input
+data_loader:
+  _target_: scenarios.scenario_ijpe.loader.IJPELoader
+  instances_dir: ${project_root}/scenarios/scenario_ijpe/data
+  cache_dir: ${cache_base}/scenario_ijpe
+  problem_class: ${data_card.problem_class}
+  objective: ${data_card.objective}
+  n_pickers: 25
+  picker_speed: 2306
+  time_per_pick: 19
+  tour_setup_time: 215
+  cart_bins: 1
+  depot_access_cost: 0
+  inventory_quantity: 9999
+load:
+  orders_path: order_stream_historic.csv
+  layout_path: layout.csv
+  use_cache: true

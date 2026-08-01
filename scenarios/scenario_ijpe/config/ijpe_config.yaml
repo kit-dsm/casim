@@ -1,0 +1,43 @@
+defaults:
+  - _self_
+  - input: public_small
+  - data_card: ijpe
+  - engines: scenario_obp
+  - cosy_repo: ushape
+  - simulation: scenario3
+  - optional sweep: scenario_sweep
+  - override hydra/launcher: joblib
+
+hydra:
+  launcher:
+    n_jobs: 5
+  run:
+    dir: outputs/ijpe/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/ijpe/multirun
+    subdir: ${hydra:runtime.choices.cosy_repo}/${data_card.objective}/${hydra:runtime.choices.simulation}
+  job_logging:
+    root:
+      level: CRITICAL
+  hydra_logging:
+    root:
+      level: CRITICAL
+
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+
+project_root: ${hydra:runtime.cwd}
+instances_base: ${project_root}/scenarios
+cache_base: ${instances_base}/caches
+
+viz:
+  launch: false
+  port: 8050
+
+experiment:
+  name: ${data_card.name}
+  output_dir: ${hydra:runtime.output_dir}
+  instance_name: ${data_card.name}/${hydra:runtime.choices.cosy_repo}_${data_card.objective}

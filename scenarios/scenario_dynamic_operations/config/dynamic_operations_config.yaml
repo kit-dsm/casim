@@ -1,0 +1,43 @@
+defaults:
+  - _self_
+  - input: generated
+  - data_card: generated
+  - engines: periodic_rolling
+  - cosy_repo: due_nn_edd
+  - simulation: three_day
+
+hydra:
+  run:
+    dir: outputs/dynamic_operations/${engines.name}/${simulation.name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/dynamic_operations/multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${engines.name}_${simulation.name}
+  job_logging:
+    root:
+      level: WARNING
+  hydra_logging:
+    root:
+      level: WARNING
+
+project_root: ${hydra:runtime.cwd}
+instances_base: ${project_root}/scenarios
+cache_base: ${experiment.working_dir}/cache
+
+experiment:
+  name: dynamic_operations
+  instance_name: ${simulation.name}
+  output_dir: ${hydra:runtime.output_dir}
+  working_dir: ${hydra:runtime.output_dir}/work
+  progress_every: 1000
+
+viz:
+  record: true
+  launch: true
+  port: 8050
+
+luigi:
+  runtime: 30
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
