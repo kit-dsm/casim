@@ -1,0 +1,6 @@
+# @package experiment
+mode: single
+instance_id: H_abc1_40_29
+output_dir: ${hydra:runtime.output_dir}
+instance_name: ${experiment.instance_id}/${batching.name}-${selection.name}
+max_decisions: 10000

@@ -1,0 +1,6 @@
+# @package experiment
+mode: reference_set
+instance_id: null
+output_dir: ${hydra:runtime.output_dir}
+instance_name: reference_set/${batching.name}-${selection.name}
+max_decisions: 10000

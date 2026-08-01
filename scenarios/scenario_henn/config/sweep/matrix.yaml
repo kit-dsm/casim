@@ -1,0 +1,6 @@
+# @package _global_
+hydra:
+  sweeper:
+    params:
+      batching: fcfs,cw_like,ls
+      selection: first,short,long,sav

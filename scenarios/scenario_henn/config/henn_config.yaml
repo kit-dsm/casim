@@ -1,0 +1,53 @@
+defaults:
+  - input: historic
+  - data_card: henn
+  - engines: henn_online
+  - cosy_repo: henn
+  - batching: fcfs
+  - selection: short
+  - experiment: single
+  - optional sweep: null
+  - _self_
+
+hydra:
+  run:
+    dir: outputs/henn/${batching.name}-${selection.name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/henn/matrix/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${batching.name}-${selection.name}
+  job_logging:
+    root:
+      level: WARNING
+  hydra_logging:
+    root:
+      level: WARNING
+
+project_root: ${hydra:runtime.cwd}
+instances_base: ${project_root}/scenarios
+cache_base: ${hydra:runtime.output_dir}/cache
+
+reference:
+  workbook_path: ${instances_base}/scenario_henn/data/results/experiments.xlsx
+
+layout:
+  aisle_end_offset: 1.5
+  depot_half_span: 2.5
+
+timing:
+  travel_speed: 0.8
+  time_per_pick: 10.0
+  tour_setup_time: 180.0
+
+comparison:
+  absolute_tolerance_s: 0.001
+  relative_tolerance: 1.0e-12
+
+luigi:
+  runtime: 60
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+
+viz:
+  launch: false
