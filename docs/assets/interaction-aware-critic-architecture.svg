@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-labelledby="critic-title critic-desc">
+  <title id="critic-title">Interaction-aware critic internal architecture</title>
+  <desc id="critic-desc">The state feature matrix is encoded with one shared order encoder. Three parallel permutation-invariant lanes summarize every visible order, the orders selected by one complete candidate mask, and only pairs of selected orders using sum and absolute-difference features. The summaries are concatenated and mapped to one scalar value.</desc>
+  <defs>
+    <marker id="critic-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#475569"/>
+    </marker>
+    <marker id="mask-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#c2410c"/>
+    </marker>
+    <style>
+      .canvas { fill: #ffffff; }
+      .state { fill: #f8fafc; stroke: #64748b; stroke-width: 2; }
+      .encoder { fill: #eff6ff; stroke: #2563eb; stroke-width: 2.5; }
+      .mask { fill: #fff7ed; stroke: #ea580c; stroke-width: 2.5; }
+      .all-lane { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; }
+      .selected-lane { fill: #ecfdf5; stroke: #059669; stroke-width: 2; }
+      .pair-lane { fill: #fff7ed; stroke: #ea580c; stroke-width: 2; }
+      .value { fill: #f5f3ff; stroke: #7c3aed; stroke-width: 2.5; }
+      .inner { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.5; }
+      .data-line { fill: none; stroke: #475569; stroke-width: 2; marker-end: url(#critic-arrow); }
+      .mask-line { fill: none; stroke: #c2410c; stroke-width: 2; stroke-dasharray: 7 5; marker-end: url(#mask-arrow); }
+      .title { font: 700 28px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 16px system-ui, sans-serif; fill: #475569; }
+      .module-title { font: 700 17px system-ui, sans-serif; fill: #0f172a; letter-spacing: 0.4px; }
+      .label { font: 600 16px system-ui, sans-serif; fill: #172033; }
+      .text { font: 15px system-ui, sans-serif; fill: #334155; }
+      .small { font: 13px system-ui, sans-serif; fill: #475569; }
+      .shape { font: 600 14px ui-monospace, SFMono-Regular, Consolas, monospace; fill: #334155; }
+      .edge { font: 600 13px system-ui, sans-serif; fill: #475569; text-anchor: middle; }
+      .mask-edge { font: 600 13px system-ui, sans-serif; fill: #c2410c; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect class="canvas" width="1200" height="900"/>
+  <text class="title" x="36" y="46">Inside the interaction-aware critic</text>
+  <text class="subtitle" x="36" y="74">One complete candidate is evaluated at a time; h is the learned order-encoding width</text>
+
+  <!-- Inputs and shared encoder -->
+  <rect class="state" x="35" y="105" width="250" height="135" rx="13"/>
+  <text class="module-title" x="57" y="139">VISIBLE STATE</text>
+  <text class="label" x="57" y="174">Feature matrix X</text>
+  <text class="shape" x="57" y="201">n orders × 7 features</text>
+  <text class="small" x="57" y="224">one row x_i per visible order</text>
+
+  <rect class="encoder" x="355" y="95" width="485" height="155" rx="14"/>
+  <text class="module-title" x="379" y="131">SHARED ORDER ENCODER φ</text>
+  <rect class="inner" x="379" y="151" width="198" height="72" rx="9"/>
+  <text class="label" x="478" y="179" text-anchor="middle">Same network for every row</text>
+  <text class="shape" x="478" y="204" text-anchor="middle">x_i : 7 → e_i : h</text>
+  <rect class="inner" x="603" y="151" width="213" height="72" rx="9"/>
+  <text class="label" x="709" y="179" text-anchor="middle">Encoded order set</text>
+  <text class="shape" x="709" y="204" text-anchor="middle">E = {e_1, …, e_n}</text>
+  <path class="data-line" d="M577 187 H603"/>
+
+  <rect class="mask" x="900" y="105" width="265" height="135" rx="13"/>
+  <text class="module-title" x="922" y="139">COMPLETE CANDIDATE</text>
+  <text class="label" x="922" y="174">Selection mask a</text>
+  <text class="shape" x="922" y="201">a ∈ {0,1}^n</text>
+  <text class="small" x="922" y="224">1 = selected in this batch</text>
+
+  <path class="data-line" d="M285 172 H355"/>
+  <text class="edge" x="320" y="160">X</text>
+
+  <!-- Parallel aggregation lanes -->
+  <text class="module-title" x="36" y="305">THREE PARALLEL, PERMUTATION-INVARIANT SUMMARIES</text>
+
+  <rect class="all-lane" x="30" y="335" width="340" height="275" rx="14"/>
+  <text class="module-title" x="53" y="371">1 · ALL VISIBLE ORDERS</text>
+  <text class="text" x="53" y="405">Use every encoded order:</text>
+  <rect class="inner" x="53" y="430" width="294" height="78" rx="9"/>
+  <text class="shape" x="200" y="460" text-anchor="middle">g_all = mean_i(e_i)</text>
+  <text class="shape" x="200" y="488" text-anchor="middle">g_all ∈ R^h</text>
+  <text class="small" x="53" y="543">Captures the overall backlog context.</text>
+  <text class="small" x="53" y="570">No candidate filtering in this lane.</text>
+
+  <rect class="selected-lane" x="430" y="335" width="340" height="275" rx="14"/>
+  <text class="module-title" x="453" y="371">2 · SELECTED ORDERS</text>
+  <text class="text" x="453" y="405">Keep only rows with a_i = 1:</text>
+  <rect class="inner" x="453" y="430" width="294" height="92" rx="9"/>
+  <text class="shape" x="600" y="458" text-anchor="middle">g_selected = Σ_i a_i e_i</text>
+  <text class="shape" x="600" y="482" text-anchor="middle">÷ max(Σ_i a_i, 1)</text>
+  <text class="shape" x="600" y="507" text-anchor="middle">g_selected ∈ R^h</text>
+  <text class="small" x="453" y="556">Describes this complete batch as a set.</text>
+  <text class="small" x="453" y="581">Unselected orders do not enter its mean.</text>
+
+  <rect class="pair-lane" x="830" y="335" width="340" height="275" rx="14"/>
+  <text class="module-title" x="853" y="371">3 · SELECTED-ORDER PAIRS ONLY</text>
+  <text class="small" x="853" y="401">For i &lt; j with a_i = a_j = 1:</text>
+  <rect class="inner" x="853" y="420" width="294" height="105" rx="9"/>
+  <text class="shape" x="1000" y="450" text-anchor="middle">u_ij = [e_i + e_j ;</text>
+  <text class="shape" x="1000" y="474" text-anchor="middle">|e_i - e_j|] ∈ R^(2h)</text>
+  <text class="shape" x="1000" y="505" text-anchor="middle">ψ(u_ij) : 2h → h</text>
+  <text class="shape" x="1000" y="555" text-anchor="middle">g_pairs = mean_(i,j) ψ(u_ij)</text>
+  <text class="small" x="853" y="584">Fewer than two selected → zero vector.</text>
+
+  <!-- Encoded-set fan-out -->
+  <path class="data-line" d="M709 223 V270 H200 V335"/>
+  <path class="data-line" d="M709 223 V270 H600 V335"/>
+  <path class="data-line" d="M709 223 V270 H1000 V335"/>
+  <text class="edge" x="485" y="260">same encoded set E</text>
+
+  <!-- Candidate-mask filtering only where needed -->
+  <path class="mask-line" d="M1032 240 V300 H705 V335"/>
+  <path class="mask-line" d="M1032 240 V335"/>
+  <text class="mask-edge" x="850" y="292">mask a filters selected items</text>
+
+  <!-- Concatenation and value head -->
+  <rect class="value" x="300" y="680" width="545" height="105" rx="14"/>
+  <text class="module-title" x="324" y="714">CONCATENATE THE THREE VIEWS</text>
+  <text class="shape" x="572" y="751" text-anchor="middle">g = [g_all ; g_selected ; g_pairs] ∈ R^(3h)</text>
+
+  <rect class="value" x="900" y="680" width="270" height="105" rx="14"/>
+  <text class="module-title" x="924" y="714">VALUE HEAD</text>
+  <text class="shape" x="1035" y="751" text-anchor="middle">MLP(g) → scalar Q(X, a)</text>
+
+  <path class="data-line" d="M200 610 V650 H440 V680"/>
+  <path class="data-line" d="M600 610 V680"/>
+  <path class="data-line" d="M1000 610 V650 H705 V680"/>
+  <path class="data-line" d="M845 732 H900"/>
+
+  <!-- Invariance statement -->
+  <rect x="140" y="830" width="920" height="48" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+  <text class="label" x="600" y="860" text-anchor="middle">Permutation invariant: reordering visible orders—or swapping the two orders in a pair—cannot change Q.</text>
+</svg>
