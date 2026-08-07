@@ -30,3 +30,13 @@ Before adding an abstraction, state:
 5. why that alternative is insufficient.
 
 If this justification is weak, use the simpler alternative.
+
+Before adding a heuristic, policy, solver, or algorithm:
+
+1. Search `ware_ops_algos`, `src/casim`, and the existing scenarios.
+2. Identify the closest existing abstraction and configuration path.
+3. State why extending that implementation cannot satisfy the requirement.
+4. Identify every concrete current caller of the new implementation.
+5. Do not add scenario-local helpers that duplicate established decision logic.
+6. Do not introduce a new heuristic unless the user explicitly requested it,
+   or its absence and concrete necessity have first been reported to the user.

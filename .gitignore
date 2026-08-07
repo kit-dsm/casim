@@ -30,6 +30,8 @@ Thumbs.db
 
 # Project-specific
 outputs/
+/docs/research/
+/tmp/
 **/.hydra/
 **/logs/
 *.log
