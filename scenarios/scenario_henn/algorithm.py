@@ -191,8 +191,11 @@ def decide_henn(
     stream_exhausted: bool,
     selector: str,
     single_services: dict[int, float],
+    waiting_policy: str = "henn_4_1",
+    fill_threshold: float = 0.75,
+    max_age_s: float = 300.0,
 ) -> HennDecision:
-    """Apply the listing/proof interpretation of Henn Algorithm 4.1."""
+    """Select a Henn batch and apply the configured release policy."""
     if not isinstance(candidate, CombinedRoutingSolution):
         raise TypeError("Henn candidates must be CombinedRoutingSolution")
     if not candidate.routes:
@@ -201,6 +204,8 @@ def decide_henn(
         raise ValueError("Henn decision requires an idle picker")
 
     picker = snapshot.resources.resources[0]
+    if waiting_policy not in {"henn_4_1", "no_wait", "fill_or_age"}:
+        raise ValueError(f"Unknown Henn waiting policy: {waiting_policy!r}")
     routes = list(candidate.routes)
     candidate_rows = [
         {
@@ -216,6 +221,7 @@ def decide_henn(
         "selector": selector,
         "next_arrival_s": next_arrival,
         "stream_exhausted": stream_exhausted,
+        "waiting_policy": waiting_policy,
     }
 
     if stream_exhausted:
@@ -242,6 +248,42 @@ def decide_henn(
             details,
         )
 
+    if waiting_policy == "fill_or_age":
+        orders = list(snapshot.orders.orders or [])
+        visible_items = 0
+        for order in orders:
+            positions = getattr(order, "pick_positions", None)
+            if positions is None:
+                positions = getattr(order, "order_positions", ())
+            visible_items += sum(
+                int(getattr(position, "in_store", getattr(position, "amount", 0)))
+                for position in positions
+            )
+        capacity = max(1.0, float(picker.capacity or 1.0))
+        fill = min(1.0, visible_items / capacity)
+        oldest_age = max(
+            (
+                current_time - float(order.order_date or 0.0)
+                for order in orders
+            ),
+            default=0.0,
+        )
+        details.update(
+            {
+                "fill": fill,
+                "fill_threshold": fill_threshold,
+                "oldest_age_s": oldest_age,
+                "max_age_s": max_age_s,
+            }
+        )
+        if fill < fill_threshold and oldest_age < max_age_s:
+            return HennDecision(
+                "wait",
+                None,
+                None,
+                "fill_or_age_below_threshold",
+                details,
+            )
     if len(routes) > 1:
         selected = _select_route(
             routes,
@@ -265,6 +307,22 @@ def decide_henn(
         )
 
     route = routes[0]
+    if waiting_policy in {"no_wait", "fill_or_age"}:
+        solution = _schedule(
+            [route],
+            snapshot,
+            current_time,
+            selector,
+        )
+        details["selected_order_ids"] = sorted(route.batch.order_numbers)
+        return HennDecision(
+            "dispatch",
+            solution,
+            None,
+            f"{waiting_policy}_release",
+            details,
+        )
+
     critical_order = min(
         route.batch.orders,
         key=lambda order: (

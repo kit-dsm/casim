@@ -209,6 +209,9 @@ def run_henn_experiment(
                 stream_exhausted=next_arrival is None,
                 selector=str(cfg.selection.name),
                 single_services=single_service_cache,
+                waiting_policy=str(cfg.waiting.name),
+                fill_threshold=float(cfg.waiting.fill_threshold or 0.75),
+                max_age_s=float(cfg.waiting.max_age_s or 300.0),
             )
         except Exception as exc:
             raise RuntimeError(f"DECISION_RULE: {exc}") from exc
@@ -242,7 +245,7 @@ def run_henn_experiment(
             raise RuntimeError(f"SIMULATION: {exc}") from exc
 
     algorithm_id = (
-        f"henn_4_1+{cfg.batching.name}+"
+        f"{cfg.waiting.name}+{cfg.batching.name}+"
         f"s_shape+{cfg.selection.name}"
     )
     actual = normalize_actual(

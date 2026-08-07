@@ -1,0 +1,4 @@
+# @package waiting
+name: fill_or_age
+fill_threshold: 0.75
+max_age_s: 300.0

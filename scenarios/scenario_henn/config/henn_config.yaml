@@ -5,6 +5,7 @@ defaults:
   - cosy_repo: henn
   - batching: fcfs
   - selection: short
+  - waiting: henn_4_1
   - experiment: single
   - optional sweep: null
   - _self_

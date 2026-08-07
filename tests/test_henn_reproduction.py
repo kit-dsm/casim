@@ -224,6 +224,70 @@ def test_timed_wait_and_equality_dispatch():
     assert job.end_time == 270.0
 
 
+def test_no_wait_dispatches_where_henn_threshold_waits():
+    route = _route(0, 0, distance=8.0)
+    decision = decide_henn(
+        CombinedRoutingSolution(routes=[route]),
+        _snapshot(),
+        current_time=20.0,
+        next_arrival=50.0,
+        stream_exhausted=False,
+        selector="short",
+        single_services={},
+        waiting_policy="no_wait",
+    )
+    assert decision.action == "dispatch"
+    assert decision.reason == "no_wait_release"
+
+
+def test_fill_or_age_uses_the_configured_thresholds():
+    route = _route(0, 0, distance=8.0, amount=1)
+    snapshot = _snapshot()
+    snapshot.orders = SimpleNamespace(orders=route.batch.orders)
+    waiting = decide_henn(
+        CombinedRoutingSolution(routes=[route]),
+        snapshot,
+        current_time=20.0,
+        next_arrival=50.0,
+        stream_exhausted=False,
+        selector="short",
+        single_services={},
+        waiting_policy="fill_or_age",
+        fill_threshold=0.75,
+        max_age_s=300.0,
+    )
+    dispatch = decide_henn(
+        CombinedRoutingSolution(routes=[route]),
+        snapshot,
+        current_time=310.0,
+        next_arrival=400.0,
+        stream_exhausted=False,
+        selector="short",
+        single_services={},
+        waiting_policy="fill_or_age",
+        fill_threshold=0.75,
+        max_age_s=300.0,
+    )
+    assert waiting.action == "wait"
+    assert dispatch.action == "dispatch"
+
+
+@pytest.mark.parametrize("waiting_policy", ["henn_4_1", "no_wait", "fill_or_age"])
+def test_input_closure_dispatches_for_every_waiting_policy(waiting_policy):
+    route = _route(0, 0, distance=8.0)
+    decision = decide_henn(
+        CombinedRoutingSolution(routes=[route]),
+        _snapshot(),
+        current_time=20.0,
+        next_arrival=None,
+        stream_exhausted=True,
+        selector="short",
+        single_services={0: 200.0},
+        waiting_policy=waiting_policy,
+    )
+    assert decision.action == "dispatch"
+
+
 def test_final_arrival_dispatches_all_batches_sequentially():
     first = _route(0, 0, distance=8.0)
     second = _route(1, 1, distance=16.0)
