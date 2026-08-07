@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="330" viewBox="0 0 1040 330" role="img" aria-labelledby="title desc">
+  <title id="title">Normal tour execution flow</title>
+  <desc id="desc">A scheduled route starts a tour, alternates travel and node arrival, optionally completes a pick, and ends at the depot.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563"/>
+    </marker>
+    <style>
+      .box { fill: #f8fafc; stroke: #475569; stroke-width: 2; rx: 10; }
+      .event { fill: #eef6ff; stroke: #2563eb; }
+      .finish { fill: #ecfdf5; stroke: #059669; }
+      .line { fill: none; stroke: #4b5563; stroke-width: 2; marker-end: url(#arrow); }
+      .label { font: 15px system-ui, sans-serif; fill: #111827; text-anchor: middle; }
+      .edge { font: 13px system-ui, sans-serif; fill: #374151; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect class="box" x="25" y="65" width="155" height="62"/>
+  <text class="label" x="102" y="101">Scheduled Route</text>
+
+  <rect class="box event" x="225" y="65" width="145" height="62"/>
+  <text class="label" x="297" y="101">TourStart</text>
+
+  <rect class="box event" x="415" y="50" width="195" height="92"/>
+  <text class="label" x="512" y="87">TravelEvent</text>
+  <text class="label" x="512" y="110">reserve next edge</text>
+
+  <rect class="box event" x="655" y="50" width="195" height="92"/>
+  <text class="label" x="752" y="87">NodeArrival</text>
+  <text class="label" x="752" y="110">advance cursor</text>
+
+  <rect class="box finish" x="890" y="65" width="125" height="62"/>
+  <text class="label" x="952" y="101">TourEnd</text>
+
+  <rect class="box event" x="655" y="225" width="195" height="76"/>
+  <text class="label" x="752" y="257">PickComplete</text>
+  <text class="label" x="752" y="280">move remaining → done</text>
+
+  <path class="line" d="M180 96 H225"/>
+  <path class="line" d="M370 96 H415"/>
+  <path class="line" d="M610 96 H655"/>
+  <path class="line" d="M850 96 H890"/>
+  <text class="edge" x="870" y="82">depot</text>
+
+  <path class="line" d="M752 142 V225"/>
+  <text class="edge" x="795" y="188">pick node</text>
+
+  <path class="line" d="M655 263 H565 Q535 263 535 233 V142"/>
+  <text class="edge" x="590" y="250">next leg</text>
+
+  <path class="line" d="M655 116 H635 Q625 116 625 160 V185 Q625 205 605 205 H535 V142"/>
+  <text class="edge" x="590" y="195">route node</text>
+</svg>

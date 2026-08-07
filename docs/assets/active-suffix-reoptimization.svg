@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="600" viewBox="0 0 1060 600" role="img" aria-labelledby="title desc">
+  <title id="title">Active route suffix reoptimization flow</title>
+  <desc id="desc">An operational trigger creates an intervention request, projects and solves a residual problem, validates the result, and either rejects it, keeps an unchanged suffix, or installs a new version.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563"/>
+    </marker>
+    <style>
+      .box { fill: #f8fafc; stroke: #475569; stroke-width: 2; rx: 10; }
+      .event { fill: #eef6ff; stroke: #2563eb; }
+      .commit { fill: #ecfdf5; stroke: #059669; }
+      .reject { fill: #fef2f2; stroke: #dc2626; }
+      .decision { fill: #fff7ed; stroke: #ea580c; stroke-width: 2; }
+      .line { fill: none; stroke: #4b5563; stroke-width: 2; marker-end: url(#arrow); }
+      .label { font: 15px system-ui, sans-serif; fill: #111827; text-anchor: middle; }
+      .edge { font: 13px system-ui, sans-serif; fill: #374151; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect class="box event" x="35" y="45" width="180" height="70"/>
+  <text class="label" x="125" y="75">Operational trigger</text>
+  <text class="label" x="125" y="98">arrival or blocking</text>
+
+  <rect class="box event" x="270" y="45" width="180" height="70"/>
+  <text class="label" x="360" y="87">InterventionRequest</text>
+
+  <rect class="box event" x="505" y="35" width="230" height="90"/>
+  <text class="label" x="620" y="68">Residual snapshot</text>
+  <text class="label" x="620" y="91">position + remaining picks</text>
+
+  <rect class="box event" x="790" y="35" width="230" height="90"/>
+  <text class="label" x="905" y="68">Optimize suffix</text>
+  <text class="label" x="905" y="91">optionally fill empty bins</text>
+
+  <path class="line" d="M215 80 H270"/>
+  <path class="line" d="M450 80 H505"/>
+  <path class="line" d="M735 80 H790"/>
+
+  <polygon class="decision" points="905,175 1015,240 905,305 795,240"/>
+  <text class="label" x="905" y="232">Target and route</text>
+  <text class="label" x="905" y="255">still valid?</text>
+  <path class="line" d="M905 125 V175"/>
+
+  <rect class="box reject" x="520" y="205" width="205" height="70"/>
+  <text class="label" x="622" y="232">Reject, or ignore</text>
+  <text class="label" x="622" y="255">stale result</text>
+  <path class="line" d="M795 240 H725"/>
+  <text class="edge" x="760" y="226">no</text>
+
+  <polygon class="decision" points="905,350 1015,415 905,480 795,415"/>
+  <text class="label" x="905" y="407">Changed suffix or</text>
+  <text class="label" x="905" y="430">inserted order?</text>
+  <path class="line" d="M905 305 V350"/>
+  <text class="edge" x="925" y="331">yes</text>
+
+  <rect class="box" x="515" y="380" width="220" height="70"/>
+  <text class="label" x="625" y="407">Clear request</text>
+  <text class="label" x="625" y="430">keep version + events</text>
+  <path class="line" d="M795 415 H735"/>
+  <text class="edge" x="765" y="401">no</text>
+
+  <rect class="box commit" x="795" y="520" width="220" height="70"/>
+  <text class="label" x="905" y="547">Install atomically</text>
+  <text class="label" x="905" y="570">increment route version</text>
+  <path class="line" d="M905 480 V520"/>
+  <text class="edge" x="925" y="503">yes</text>
+
+  <rect class="box commit" x="230" y="520" width="230" height="70"/>
+  <text class="label" x="345" y="547">Continue execution</text>
+  <text class="label" x="345" y="570">if the trigger paused it</text>
+  <path class="line" d="M625 450 V485 Q625 555 460 555"/>
+  <path class="line" d="M795 555 H460"/>
+  <text class="edge" x="625" y="540">old-version events are now no-ops</text>
+</svg>
