@@ -9,6 +9,7 @@ from ware_ops_algos.algorithms import (
     RouteNode,
     ScheduledJob,
     SchedulingSolution,
+    WarehouseOrder,
 )
 from ware_ops_algos.domain_models import (
     Articles,
@@ -27,6 +28,46 @@ from .layout_manager import LayoutManager
 from .storage_manager import StorageManager
 from .dock_manager import DockManager
 from ..trackers import ExperimentTracker
+
+
+def _clone_route_plan(route: Route) -> Route:
+    """Detach mutable plan ownership without recopying immutable values."""
+    batch = route.batch
+    detached_batch = None
+    if batch is not None:
+        detached_batch = BatchObject(
+            batch_id=batch.batch_id,
+            orders=[
+                WarehouseOrder(
+                    order_id=order.order_id,
+                    parent_order_id=order.parent_order_id,
+                    due_date=order.due_date,
+                    order_date=order.order_date,
+                    pick_positions=tuple(order.pick_positions),
+                )
+                for order in batch.orders
+            ],
+            bin_assignments={
+                int(bin_id): tuple(order_ids)
+                for bin_id, order_ids in batch.bin_assignments.items()
+            },
+        )
+    return Route(
+        distance=route.distance,
+        route=None if route.route is None else list(route.route),
+        item_sequence=(
+            None
+            if route.item_sequence is None
+            else list(route.item_sequence)
+        ),
+        batch=detached_batch,
+        annotated_route=(
+            None
+            if route.annotated_route is None
+            else list(route.annotated_route)
+        ),
+        service_time=route.service_time,
+    )
 
 
 class State:
@@ -565,7 +606,7 @@ class State:
         picker_id = int(scheduled_job.picker_id)
         picker = self.resource_manager.get_resource(picker_id)
         tour_id = self.tour_manager.create_tour(
-            deepcopy(route),
+            _clone_route_plan(route),
             scheduled_job.job.processing_time,
         )
         try:
