@@ -1,0 +1,127 @@
+hydra:
+  run:
+    dir: outputs/henn_rl/structured/${experiment.mode}/${now:%Y-%m-%d_%H-%M-%S}
+  job_logging:
+    root:
+      level: WARNING
+  hydra_logging:
+    root:
+      level: WARNING
+
+experiment:
+  mode: pilot
+  output_dir: ${hydra:runtime.output_dir}
+  seed: 11
+  location_ablation: true
+  model_dir: null
+  evaluate_baselines: true
+
+imitation:
+  epochs: 30
+  learning_rate: 0.001
+
+baselines:
+  ls_time_limit_s: 0.25
+
+comparison:
+  workers: 3
+  model_dir: ${hydra:runtime.cwd}/outputs/henn_rl/structured_selected_pilot_seed11
+  temperature_model: ${hydra:runtime.cwd}/outputs/henn_rl/structured_temperature_confirm_seed11/temperature_selected.pt
+
+objective_study:
+  powers: [1.0, 1.5, 2.0]
+  passes: 4
+  checkpoints: [0, 8, 16, 32, 64, 128]
+  workers: 3
+
+critic_audit:
+  source_dir: ${hydra:runtime.cwd}/outputs/henn_rl/objective_study_seed11
+  powers: [1.0, 2.0]
+  selected_episode: 8
+  instance_ids:
+    - H_abc1_40_30
+    - H_abc2_60_19
+    - H_ran1_80_64
+    - H_ran2_100_53
+  state_quantiles: [0.33, 0.67]
+
+critic_calibration:
+  power: 2.0
+  pilot_episodes: 8
+  temperature: 1.0
+  instance_ids: ${critic_audit.instance_ids}
+  state_quantiles: ${critic_audit.state_quantiles}
+  counterfactual_instance_ids:
+    - H_abc1_40_31
+    - H_abc2_60_17
+    - H_ran1_80_61
+    - H_ran2_100_54
+  counterfactual_state_quantiles: [0.33, 0.67]
+  counterfactual_critic_epochs: 200
+  counterfactual_actor_epochs: 30
+  counterfactual_critic_learning_rate: 0.002
+  counterfactual_actor_learning_rate: 0.001
+  min_spearman: 0.60
+  max_critic_regret_fraction: 0.12
+  max_actor_regret_fraction: 0.25
+  min_soft_target_capture_fraction: 0.30
+  full_powers: [1.0, 2.0]
+
+critic_overfit:
+  source_dir: ${hydra:runtime.cwd}/outputs/henn_rl/critic_calibration_seed11
+  model_path: null
+  interaction_aware: true
+  interaction_loss: pairwise_top
+  validate: true
+  validation_instance_ids: ${critic_audit.instance_ids}
+  validation_state_quantiles: ${critic_audit.state_quantiles}
+  epochs: 2000
+  learning_rate: 0.003
+  min_spearman: 0.95
+  min_top_accuracy: 0.875
+
+critic_coverage:
+  source_dir: ${hydra:runtime.cwd}/outputs/henn_rl/critic_calibration_seed11
+  dataset_path: null
+  base_instance_ids:
+    - H_abc1_40_31
+    - H_abc2_60_17
+    - H_ran1_80_61
+    - H_ran2_100_54
+  additional_instance_ids:
+    - H_abc1_80_62
+    - H_abc2_100_55
+    - H_ran1_40_32
+    - H_ran2_60_20
+  outer_quantiles: [0.15, 0.85]
+  additional_quantiles: [0.15, 0.33, 0.67, 0.85]
+  state_counts: [8, 16, 32]
+  epochs: 2000
+  learning_rate: 0.003
+  workers: 3
+
+candidate_features:
+  source_dir: ${hydra:runtime.cwd}/outputs/henn_rl/critic_calibration_seed11
+  validation_source_dir: ${candidate_features.source_dir}
+  dataset_path: ${hydra:runtime.cwd}/outputs/henn_rl/critic_coverage_seed11/counterfactual_dataset.json
+  ridge_alpha: 1.0
+  mlp_hidden: 16
+  mlp_epochs: 500
+  mlp_learning_rate: 0.01
+
+srl:
+  episodes: 8
+  updates_per_episode: 10
+  checkpoint_every: 4
+  batch_size: 4
+  replay_capacity: 8000
+  actor_learning_rate: 0.001
+  critic_learning_rate: 0.002
+  sigma_forward: 0.1
+  sigma_target: 1.0
+  temperature: 0.001
+  temperatures: [0.001, 0.01, 0.1, 1.0, 10.0]
+  candidate_count: 40
+  epsilon: 0.01
+  fy_samples: 20
+  gamma: 1.0
