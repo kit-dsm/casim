@@ -1,0 +1,46 @@
+defaults:
+  - experiment: train
+  - data: henn_lorenz
+  - objective: flow
+  - tracking: disabled
+  - _self_
+
+hydra:
+  run:
+    dir: outputs/henn_rl/structured/${experiment.action}/${now:%Y-%m-%d_%H-%M-%S}
+  job_logging:
+    root:
+      level: WARNING
+  hydra_logging:
+    root:
+      level: WARNING
+
+seed: 11
+progress: true
+output_dir: ${hydra:runtime.output_dir}
+checkpoint: null
+objective_scale: null
+
+model:
+  feature_schema: deadline_v1
+  feature_count: 8
+  hidden: 32
+  critic: interaction
+  decoder: knapsack
+
+learner:
+  episodes: 128
+  updates_per_episode: 10
+  batch_size: 4
+  replay_capacity: 8000
+  actor_learning_rate: 0.001
+  critic_learning_rate: 0.002
+  sigma_forward: 0.1
+  sigma_target: 1.0
+  temperature: 0.001
+  candidate_count: 40
+  epsilon: 0.01
+  fy_samples: 20
+  critic_target: td
+  normalize_candidate_advantages: false
+  checkpoint_episodes: [0, 8, 16, 32, 64, 128]

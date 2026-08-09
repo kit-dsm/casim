@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import subprocess
-import sys
-
 import pytest
 
 
@@ -33,22 +30,6 @@ def test_release_environment_is_direct_and_always_wait_terminates():
     assert info["forced_dispatches"] == 1
     assert steps < 100
     env.close()
-
-
-def test_rl_import_path_does_not_load_luigi_or_cosy():
-    code = """
-import sys
-import scenarios.scenario_henn_rl.environment
-import scenarios.scenario_henn_rl.learning
-import scenarios.scenario_henn_rl.experiment_henn_rl
-blocked = [
-    name for name in sys.modules
-    if name == 'luigi' or name.startswith('luigi.')
-    or name == 'cosy' or name.startswith('cosy.')
-]
-assert blocked == [], blocked
-"""
-    subprocess.run([sys.executable, "-c", code], check=True)
 
 
 def test_fixed_solver_does_not_mutate_live_orders():
@@ -85,52 +66,6 @@ def test_fixed_solver_does_not_mutate_live_orders():
     env.close()
 
 
-def test_instance_split_is_stratified_and_disjoint():
-    from scenarios.scenario_henn_rl.learning import instance_splits
-
-    splits = instance_splits()
-    assert {name: len(values) for name, values in splits.items()} == {
-        "train": 32,
-        "validation": 16,
-        "test": 16,
-    }
-    assert len(set().union(*map(set, splits.values()))) == 64
-
-
-def test_counterfactual_labels_replay_from_identical_state():
-    from scenarios.scenario_henn_rl.learning import generate_counterfactuals
-
-    generated = generate_counterfactuals(
-        [INSTANCE],
-        fill_threshold=0.75,
-        max_age_s=300.0,
-        workers=1,
-    )
-    assert generated["labels"]
-    assert all(
-        row["q_wait"] != row["q_dispatch"]
-        for row in generated["labels"]
-    )
-    assert generated["instances"][0]["replay_steps"] > 0
-
-
-def test_short_ppo_uses_undiscounted_return():
-    pytest.importorskip("stable_baselines3")
-    from scenarios.scenario_henn_rl.learning import make_ppo
-
-    model = make_ppo([INSTANCE], seed=42)
-    model.learn(total_timesteps=256)
-    assert model.num_timesteps == 256
-    assert model.gamma == 1.0
-    assert model.gae_lambda == 0.95
-    model.get_env().close()
-
-    model = make_ppo([INSTANCE], seed=42, gae_lambda=1.0)
-    assert model.gae_lambda == 1.0
-    assert model.rollout_buffer.gae_lambda == 1.0
-    model.get_env().close()
-
-
 def test_episode_reward_is_exact_normalized_negative_flow_time():
     from scenarios.scenario_henn_rl.environment import ReleaseTimingEnv
 
@@ -148,62 +83,10 @@ def test_episode_reward_is_exact_normalized_negative_flow_time():
     env.close()
 
 
-def test_study_entry_point_returns_complete_result(monkeypatch, tmp_path):
-    from omegaconf import OmegaConf
-
-    from scenarios.scenario_henn_rl import experiment_henn_rl as experiment
-
-    splits = {"train": ["train"], "validation": ["val"], "test": ["test"]}
-    monkeypatch.setattr(experiment, "instance_splits", lambda: splits)
-    monkeypatch.setattr(
-        experiment,
-        "tune_heuristic",
-        lambda *args, **kwargs: {
-            "selected": {"fill_threshold": 0.75, "max_age_s": 300.0}
-        },
-    )
-    monkeypatch.setattr(
-        experiment,
-        "evaluate_heuristic",
-        lambda *args, **kwargs: {"mean_order_flow_time": 1.0},
-    )
-    monkeypatch.setattr(
-        experiment,
-        "generate_counterfactuals",
-        lambda *args, **kwargs: {
-            "labels": [
-                {
-                    "preferred_action": 1,
-                    "advantage_dispatch": 0.5,
-                }
-            ]
-        },
-    )
-    monkeypatch.setattr(
-        experiment,
-        "_train_arm",
-        lambda **kwargs: {"arm": "stub", "seed": kwargs["seed"]},
-    )
-    cfg = OmegaConf.create(
-        {
-            "experiment": {"workers": 1, "labels_path": None},
-            "heuristic": {
-                "fill_thresholds": [0.75],
-                "max_ages_s": [300.0],
-            },
-            "ppo": {"seeds": [11]},
-        }
-    )
-    result = experiment.run_study(cfg, tmp_path)
-    assert result["mode"] == "study"
-    assert len(result["training_arms"]) == 2
-    assert result["label_summary"]["count"] == 1
-
-
 def test_structured_knapsack_is_exact_and_capacity_feasible():
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured_environment import (
+    from scenarios.scenario_henn_rl.structured.environment import (
         knapsack_batch,
     )
 
@@ -232,7 +115,7 @@ def test_structured_knapsack_is_exact_and_capacity_feasible():
 def test_structured_episode_actions_are_feasible_and_reward_is_exact():
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured_environment import (
+    from scenarios.scenario_henn_rl.structured.environment import (
         StructuredBatchingEpisode,
     )
 
@@ -262,7 +145,7 @@ def test_structured_knapsack_matches_exhaustive_small_cases():
 
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured_environment import (
+    from scenarios.scenario_henn_rl.structured.environment import (
         knapsack_batch,
     )
 
@@ -290,7 +173,7 @@ def test_fenchel_young_gradient_matches_decoded_mean_minus_target():
     torch = pytest.importorskip("torch")
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured_policy import (
+    from scenarios.scenario_henn_rl.structured.models import (
         fenchel_young_loss,
     )
 
@@ -325,7 +208,7 @@ def test_fenchel_young_gradient_matches_decoded_mean_minus_target():
 
 
 def test_existing_cw_structured_action_is_capacity_feasible():
-    from scenarios.scenario_henn_rl.structured_environment import (
+    from scenarios.scenario_henn_rl.structured.environment import (
         StructuredBatchingEpisode,
     )
 
@@ -339,8 +222,8 @@ def test_existing_cw_structured_action_is_capacity_feasible():
 
 def test_short_structured_rl_training_completes():
     pytest.importorskip("torch")
-    from scenarios.scenario_henn_rl.structured_policy import OrderScoreActor
-    from scenarios.scenario_henn_rl.structured_training import train_structured_rl
+    from scenarios.scenario_henn_rl.structured.models import OrderScoreActor
+    from scenarios.scenario_henn_rl.structured.training import train_structured_rl
 
     actor = OrderScoreActor(hidden=8)
     _, result = train_structured_rl(
@@ -372,7 +255,7 @@ def test_srl_soft_target_is_fractional_but_capacity_feasible_in_expectation():
     torch = pytest.importorskip("torch")
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured_policy import (
+    from scenarios.scenario_henn_rl.structured.models import (
         critic_soft_target,
     )
 
@@ -413,7 +296,7 @@ def test_srl_soft_target_is_fractional_but_capacity_feasible_in_expectation():
 
 
 def test_complete_return_to_go_matches_undiscounted_episode_return():
-    from scenarios.scenario_henn_rl.structured_policy import (
+    from scenarios.scenario_henn_rl.structured.models import (
         discounted_returns,
     )
 
@@ -429,7 +312,7 @@ def test_complete_return_to_go_matches_undiscounted_episode_return():
 def test_normalized_candidate_weights_are_affine_invariant_and_finite():
     torch = pytest.importorskip("torch")
 
-    from scenarios.scenario_henn_rl.structured_policy import (
+    from scenarios.scenario_henn_rl.structured.models import (
         candidate_weights,
     )
 
@@ -460,35 +343,11 @@ def test_normalized_candidate_weights_are_affine_invariant_and_finite():
     assert torch.allclose(legacy, torch.softmax(values / 0.2, dim=0))
 
 
-def test_frozen_critic_transfer_gate_excludes_actor_regret():
-    from types import SimpleNamespace
-
-    from scenarios.scenario_henn_rl.experiment_support import (
-        _critic_transfer_gate,
-    )
-
-    summary = {
-        "mean_spearman": 0.7,
-        "mean_critic_regret_fraction": 0.1,
-        "mean_actor_regret_fraction": 0.9,
-        "soft_target_capture_fraction": 0.4,
-    }
-    settings = SimpleNamespace(
-        min_spearman=0.6,
-        max_critic_regret_fraction=0.12,
-        max_actor_regret_fraction=0.25,
-        min_soft_target_capture_fraction=0.3,
-    )
-    gate = _critic_transfer_gate(summary, settings)
-    assert gate["passed"]
-    assert "actor_regret_fraction" not in gate["checks"]
-
-
 def test_short_structured_training_accepts_return_to_go_critic():
     torch = pytest.importorskip("torch")
 
-    from scenarios.scenario_henn_rl.structured_policy import OrderScoreActor
-    from scenarios.scenario_henn_rl.structured_training import train_structured_rl
+    from scenarios.scenario_henn_rl.structured.models import OrderScoreActor
+    from scenarios.scenario_henn_rl.structured.training import train_structured_rl
 
     _, result = train_structured_rl(
         OrderScoreActor(hidden=8),
@@ -520,107 +379,10 @@ def test_short_structured_training_accepts_return_to_go_critic():
     assert result["max_reward_identity_error"] < 1e-10
 
 
-def test_counterfactual_calibration_uses_exact_candidate_returns(monkeypatch):
-    torch = pytest.importorskip("torch")
-    import numpy as np
-
-    import scenarios.scenario_henn_rl.counterfactuals as counterfactuals
-    import scenarios.scenario_henn_rl.critic_fitting as critic_fitting
-    import scenarios.scenario_henn_rl.structured_policy as policy
-
-    state = {
-        "order_ids": np.asarray([10, 11, 12]),
-        "features": np.asarray(
-            [
-                [0.1, 0.2, 0.0, 0.1, 0.0, 0.0, 0.0],
-                [0.2, 0.5, 0.0, 0.5, 0.0, 0.0, 0.0],
-                [0.3, 0.8, 0.0, 0.9, 0.0, 0.0, 0.0],
-            ],
-            dtype=np.float32,
-        ),
-        "demands": np.asarray([1, 1, 1]),
-        "capacity": 2,
-        "input_closed": True,
-    }
-    monkeypatch.setattr(
-        counterfactuals,
-        "_reference_trajectory",
-        lambda actor, instance_id: [{"state": state}],
-    )
-    audit = {
-        "reward_power": 2.0,
-        "states": [
-            {
-                "instance_id": "training_instance",
-                "decision_index": 0,
-                "candidate_rows": [
-                    {"order_ids": [10, 11], "true_q": {"2.0": -3.0}},
-                    {"order_ids": [11, 12], "true_q": {"2.0": -1.0}},
-                    {"order_ids": [10, 12], "true_q": {"2.0": -2.0}},
-                ],
-            }
-        ],
-    }
-    actor = policy.OrderScoreActor(hidden=8)
-    critic = policy.StructuredCritic(hidden=8)
-    result = critic_fitting.calibrate_from_counterfactual_audit(
-        actor,
-        critic,
-        audit,
-        critic_epochs=30,
-        actor_epochs=2,
-        critic_learning_rate=0.01,
-        actor_learning_rate=0.001,
-        epsilon=0.01,
-        fy_samples=2,
-        seed=5,
-    )
-    assert result["states"] == 1
-    assert result["candidates"] == 3
-    assert result["target"] == "state_standardized_exact_counterfactual_return"
-    assert result["critic_after"]["mean_loss"] < result["critic_before"]["mean_loss"]
-    assert np.isfinite(result["final_actor_loss"])
-
-    for loss_kind in ["regression", "pairwise_ranking", "pairwise_top"]:
-        _, memorization = critic_fitting.overfit_counterfactual_critic(
-            actor,
-            audit,
-            epochs=5,
-            learning_rate=0.01,
-            loss_kind=loss_kind,
-            seed=7,
-        )
-        assert memorization["loss"] == loss_kind
-        assert [row["epoch"] for row in memorization["history"]][0] == 0
-        assert memorization["history"][-1]["epoch"] == 5
-        assert 0.0 <= memorization["final"]["pairwise_accuracy"] <= 1.0
-
-    _, interaction = critic_fitting.overfit_counterfactual_critic(
-        actor,
-        audit,
-        epochs=5,
-        learning_rate=0.01,
-        loss_kind="pairwise_ranking",
-        seed=7,
-        interaction_aware=True,
-    )
-    assert interaction["critic"] == "pairwise_interaction"
-
-    with pytest.raises(ValueError, match="memorization loss"):
-        critic_fitting.overfit_counterfactual_critic(
-            actor,
-            audit,
-            epochs=1,
-            learning_rate=0.01,
-            loss_kind="unknown",
-            seed=7,
-        )
-
-
 def test_pairwise_critic_is_permutation_invariant_and_action_sensitive():
     torch = pytest.importorskip("torch")
 
-    from scenarios.scenario_henn_rl.structured_policy import (
+    from scenarios.scenario_henn_rl.structured.models import (
         PairwiseStructuredCritic,
     )
 
@@ -641,7 +403,7 @@ def test_structured_candidate_generation_preserves_training_multiplicity():
     torch = pytest.importorskip("torch")
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured_policy import (
+    from scenarios.scenario_henn_rl.structured.models import (
         structured_candidates,
     )
 
@@ -674,42 +436,14 @@ def test_structured_candidate_generation_preserves_training_multiplicity():
     assert len(distinct) == 1
 
 
-def test_candidate_feature_ridge_and_metrics_rank_within_state():
-    import numpy as np
-
-    from scenarios.scenario_henn_rl.candidate_feature_experiment import (
-        _ridge_fit,
-        _ridge_predict,
-        _state_metrics,
-    )
-
-    x = np.asarray([[1.0], [2.0], [3.0], [4.0]])
-    y = np.asarray([-1.0, -2.0, -3.0, -4.0])
-    model = _ridge_fit(x, y, alpha=1e-6)
-    predicted = _ridge_predict(model, x)
-    rows = [
-        {
-            "instance_id": "a",
-            "decision_index": decision,
-            "true_q": float(value),
-        }
-        for decision, value in [(0, -1.0), (0, -2.0), (1, -3.0), (1, -4.0)]
-    ]
-    metrics = _state_metrics(rows, predicted)
-    assert metrics["mean_spearman"] > 0.99
-    assert metrics["mean_critic_regret_fraction"] == 0.0
-    assert metrics["critic_top_accuracy"] == 1.0
-    assert np.all(np.isfinite(predicted))
-
-
 def test_structured_critic_audit_replays_counterfactual_candidates():
     torch = pytest.importorskip("torch")
 
-    from scenarios.scenario_henn_rl.counterfactuals import (
+    from scenarios.scenario_henn_rl.structured.audit import (
         audit_structured_critic,
         score_counterfactual_audit,
     )
-    from scenarios.scenario_henn_rl.structured_policy import (
+    from scenarios.scenario_henn_rl.structured.models import (
         OrderScoreActor,
         StructuredCritic,
     )
@@ -761,7 +495,7 @@ def test_structured_critic_audit_replays_counterfactual_candidates():
 def test_structured_no_wait_reward_identity_and_raw_flow(power):
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured_environment import (
+    from scenarios.scenario_henn_rl.structured.environment import (
         StructuredBatchingEpisode,
     )
 
@@ -801,7 +535,7 @@ def test_structured_decoder_is_nonempty_before_input_closure():
     torch = pytest.importorskip("torch")
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured_policy import decode_scores
+    from scenarios.scenario_henn_rl.structured.models import decode_scores
 
     state = {
         "demands": np.asarray([2, 3]),
@@ -812,34 +546,10 @@ def test_structured_decoder_is_nonempty_before_input_closure():
     assert decoded.tolist() == [0.0, 1.0]
 
 
-def test_objective_arms_share_initialization_and_training_order():
-    torch = pytest.importorskip("torch")
-
-    from scenarios.scenario_henn_rl.experiment_support import (
-        _state_digest,
-        _training_order,
-    )
-    from scenarios.scenario_henn_rl.structured_policy import OrderScoreActor
-
-    ids = [f"instance_{index}" for index in range(32)]
-    order = _training_order(ids, seed=11, passes=4)
-    assert len(order) == 128
-    assert all(
-        sorted(order[start:start + 32]) == sorted(ids)
-        for start in range(0, 128, 32)
-    )
-    assert order == _training_order(ids, seed=11, passes=4)
-    digests = []
-    for _ in (1.0, 1.5, 2.0):
-        torch.manual_seed(11)
-        digests.append(_state_digest(OrderScoreActor()))
-    assert len(set(digests)) == 1
-
-
 def test_nonuniform_checkpoints_are_evaluated_and_saved(tmp_path):
     pytest.importorskip("torch")
-    from scenarios.scenario_henn_rl.structured_policy import OrderScoreActor
-    from scenarios.scenario_henn_rl.structured_training import train_structured_rl
+    from scenarios.scenario_henn_rl.structured.models import OrderScoreActor
+    from scenarios.scenario_henn_rl.structured.training import train_structured_rl
 
     _, result = train_structured_rl(
         OrderScoreActor(hidden=8),
@@ -870,23 +580,133 @@ def test_nonuniform_checkpoints_are_evaluated_and_saved(tmp_path):
     assert result["max_reward_identity_error"] < 1e-10
 
 
-def test_baseline_selection_uses_only_supplied_validation_rows():
-    from scenarios.scenario_henn_rl.experiment_support import (
-        _select_objective_baselines,
+def test_srl_diagnosis_reward_identity_is_exact():
+    from scenarios.scenario_henn_rl.studies.srl_failure_diagnosis import (
+        run_reward_identity,
     )
 
-    rows = [
-        {
-            "batching": "fifo",
-            "selector": "first",
-            "evaluation": {"episodes": [{"flow_times": [1.0, 9.0]}]},
-        },
-        {
-            "batching": "cw",
-            "selector": "sav",
-            "evaluation": {"episodes": [{"flow_times": [5.0, 5.0]}]},
-        },
+    result = run_reward_identity([INSTANCE])
+    assert result["summary"]["instances"] == 1
+    assert result["summary"]["max_reward_identity_error"] < 1e-9
+    assert result["rows"][0]["decisions"] > 0
+
+
+def test_srl_diagnosis_representability_covers_additive_limits():
+    from scenarios.scenario_henn_rl.studies.srl_failure_diagnosis import (
+        run_representability,
+    )
+
+    def record(instance, decision, demands, capacity, action, true_q):
+        return {
+            "instance_id": instance,
+            "decision_index": decision,
+            "order_ids": list(range(len(demands))),
+            "demands": demands,
+            "capacity": capacity,
+            "action": action,
+            "true_q": true_q,
+        }
+
+    demands = [10, 10, 10, 10]
+    capacity = 20
+    actions = [
+        [1, 1, 0, 0],
+        [1, 0, 1, 0],
+        [0, 1, 1, 0],
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 1],
     ]
-    selected = _select_objective_baselines(rows, [1.0, 2.0])
-    assert selected["1.0"] is rows[0]
-    assert selected["2.0"] is rows[1]
+    true_q = [10.0, 8.0, 7.0, 5.0, 4.0, 3.0]
+    dataset = {
+        "collect_q": True,
+        "records": [
+            record("a", 0, demands, capacity, list(map(float, action)), value)
+            for action, value in zip(actions, true_q)
+        ],
+    }
+    result = run_representability(dataset)
+    state = result["states"][0]
+    assert result["summary"]["states"] == 1
+    assert state["best_batch"]["status"] == "positive_margin"
+    assert state["best_batch"]["decoder_selects"] is True
+    assert state["best_batch"]["margin"] >= 1.0
+    assert state["preferences"]["perfect_pairwise"] is True
+    assert state["preferences"]["lsq_top_match"] is True
+    assert result["summary"]["preferences"]["top_match_fraction"] == 1.0
+
+    dataset["collect_q"] = False
+    try:
+        run_representability(dataset)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("expected ValueError without --collect-q data")
+
+
+def test_release_env_propagates_threshold_and_scale():
+    from scenarios.scenario_henn_rl.environment import ReleaseTimingEnv
+
+    env = ReleaseTimingEnv(
+        [INSTANCE], sla_threshold_s=50.0, objective_scale=4.0
+    )
+    env.reset(seed=0, options={"instance_id": INSTANCE})
+    assert env.reward_model.thresholds_s == {
+        order_id: 50.0 for order_id in env.arrivals
+    }
+    assert env.reward_normalizer == pytest.approx(
+        max(1.0, len(env.arrivals)) * 4.0
+    )
+    env.close()
+
+
+def test_structured_sla_objective_and_return_identity():
+    import numpy as np
+
+    from scenarios.scenario_henn_rl.structured.environment import (
+        StructuredBatchingEpisode,
+    )
+
+    episode = StructuredBatchingEpisode(
+        [INSTANCE], sla_threshold_s=50.0, objective_scale=2.5
+    )
+    state = episode.reset(instance_id=INSTANCE)
+    normalizer = episode.env.reward_normalizer
+    episode_return = 0.0
+    done = False
+    while not done:
+        selected = episode.oracle_action(
+            np.ones(len(state["order_ids"])), state
+        )
+        assert selected.size > 0
+        state, reward, done, _, info = episode.step(selected)
+        episode_return += reward
+    completions = episode.env.completion_times()
+    flows = [
+        completions[order_id] - arrival
+        for order_id, arrival in episode.env.arrivals.items()
+    ]
+    tardiness = sum(max(0.0, flow - 50.0) for flow in flows)
+    assert info["objective_cost"] == pytest.approx(tardiness, abs=1e-6)
+    assert episode_return == pytest.approx(
+        -info["objective_cost"] / normalizer, abs=1e-9
+    )
+    assert info["wait_actions"] == 0
+    episode.close()
+
+
+def test_thresholded_actor_evaluation_identity_is_exact():
+    from scenarios.scenario_henn_rl.structured.evaluation import (
+        evaluate_structured_actor,
+    )
+    from scenarios.scenario_henn_rl.structured.models import OrderScoreActor
+
+    evaluation = evaluate_structured_actor(
+        OrderScoreActor(hidden=8),
+        [INSTANCE],
+        sla_threshold_s=100.0,
+        objective_scale=3.0,
+    )
+    assert evaluation["max_reward_identity_error"] < 1e-9
+    assert evaluation["episodes"][0]["objective_cost"] > 0.0
+

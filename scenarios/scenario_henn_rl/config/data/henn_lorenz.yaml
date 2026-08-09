@@ -1,0 +1,18 @@
+# @package data
+seed: 11
+base_instance_id: H_abc1_40_30
+order_counts: [40, 60, 80, 100]
+train_instances: 128
+validation_instances: 32
+test_instances: 32
+min_order_items: 4
+max_order_items: 24
+orders_per_four_hours: 90
+cart_capacity: 45
+location_policy: uniform
+minimum_lead_hours: 4
+cutoff_cadence_hours: 1
+travel_speed: 0.8
+time_per_pick: 10.0
+tour_setup_time: 180.0
+

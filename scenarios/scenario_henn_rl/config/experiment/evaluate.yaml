@@ -1,0 +1,11 @@
+# @package experiment
+action: evaluate
+split: validation
+baselines:
+  - batching: fifo
+    selector: first
+    time_limit_s: 0.25
+  - batching: cw
+    selector: sav
+    time_limit_s: 0.25
+

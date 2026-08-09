@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import numpy as np
 import torch
+from pathlib import Path
 from scipy.stats import spearmanr
 
 from scenarios.scenario_henn_rl.rewards import OrderCostReward
-from scenarios.scenario_henn_rl.structured_environment import StructuredBatchingEpisode
-from scenarios.scenario_henn_rl.structured_policy import (
+from scenarios.scenario_henn_rl.structured.environment import StructuredBatchingEpisode
+from scenarios.scenario_henn_rl.structured.models import (
     PairwiseStructuredCritic,
     StructuredCritic,
     _copy_state,
@@ -16,7 +17,15 @@ from scenarios.scenario_henn_rl.structured_policy import (
     decode_scores,
     fenchel_young_loss,
     structured_candidates,
+    load_workbench_checkpoint,
 )
+from scenarios.scenario_henn_rl.structured.data import (
+    GeneratedHennDataLoader,
+    generated_instance_splits,
+    generated_manifest,
+)
+from scenarios.scenario_henn_rl.structured.results import write_json
+from scenarios.scenario_henn_rl.structured.tracking import log_artifact
 
 
 def _indices_for_orders(state: dict[str, object], order_ids) -> np.ndarray:
@@ -32,8 +41,10 @@ def _indices_for_orders(state: dict[str, object], order_ids) -> np.ndarray:
     )
 
 
-def _reference_trajectory(actor, instance_id: str) -> list[dict[str, object]]:
-    episode = StructuredBatchingEpisode([instance_id])
+def _reference_trajectory(
+    actor, instance_id: str, episode_kwargs: dict | None = None
+) -> list[dict[str, object]]:
+    episode = StructuredBatchingEpisode([instance_id], **(episode_kwargs or {}))
     state = episode.reset(instance_id=instance_id)
     prefix: list[list[int]] = []
     trajectory = []
@@ -63,8 +74,11 @@ def _candidate_rollout(
     expected_state: dict[str, object],
     candidate_order_ids: list[int],
     powers: list[float],
+    sla_threshold_s: float = 0.0,
+    objective_scale: float | None = None,
+    episode_kwargs: dict | None = None,
 ) -> dict[str, object]:
-    episode = StructuredBatchingEpisode([instance_id])
+    episode = StructuredBatchingEpisode([instance_id], **(episode_kwargs or {}))
     state = episode.reset(instance_id=instance_id)
     done = False
     for order_ids in prefix:
@@ -80,14 +94,21 @@ def _candidate_rollout(
 
     now = float(episode.env.simulation.state.current_time)
     completions_before = episode.env.completion_times()
+    use_due_dates = bool((episode_kwargs or {}).get("use_order_due_dates"))
     models = {
         power: OrderCostReward(
             episode.env.arrivals,
             power=power,
-            normalizer=max(
-                1.0,
-                len(episode.env.arrivals)
-                * episode.env.episode_horizon**power,
+            thresholds_s=None if use_due_dates else sla_threshold_s,
+            due_times=episode.env.due_times if use_due_dates else None,
+            normalizer=(
+                max(1.0, len(episode.env.arrivals)) * objective_scale
+                if objective_scale is not None
+                else max(
+                    1.0,
+                    len(episode.env.arrivals)
+                    * episode.env.episode_horizon**power,
+                )
             ),
         )
         for power in powers
@@ -128,12 +149,15 @@ def audit_structured_critic(
     temperature: float,
     seed: int,
     normalize_advantages: bool = False,
+    sla_threshold_s: float = 0.0,
+    objective_scale: float | None = None,
+    episode_kwargs: dict | None = None,
 ) -> dict[str, object]:
     """Compare critic rankings with complete counterfactual continuations."""
     generator = torch.Generator().manual_seed(seed)
     rows = []
     for instance_id in instance_ids:
-        trajectory = _reference_trajectory(actor, instance_id)
+        trajectory = _reference_trajectory(actor, instance_id, episode_kwargs)
         indices = sorted(
             {
                 min(
@@ -174,6 +198,9 @@ def audit_structured_critic(
                     state,
                     order_ids,
                     comparison_powers,
+                    sla_threshold_s=sla_threshold_s,
+                    objective_scale=objective_scale,
+                    episode_kwargs=episode_kwargs,
                 )
                 candidate_rows.append(
                     {
@@ -407,3 +434,132 @@ def score_counterfactual_audit(
             ),
         },
     }
+
+
+def counterfactual_examples(
+    actor,
+    instance_ids: list[str],
+    *,
+    reward_power: float,
+    state_quantiles: list[float],
+    candidate_count: int,
+    sigma: float,
+    seed: int,
+    sla_threshold_s: float = 0.0,
+    objective_scale: float | None = None,
+    episode_kwargs: dict | None = None,
+) -> list[tuple[dict[str, object], list[torch.Tensor], torch.Tensor]]:
+    """Exact per-candidate Q labels for a sample of training states."""
+    generator = torch.Generator().manual_seed(seed)
+    examples = []
+    for instance_id in instance_ids:
+        trajectory = _reference_trajectory(actor, instance_id, episode_kwargs)
+        indices = sorted(
+            {
+                min(
+                    len(trajectory) - 1,
+                    max(0, int(round(q * (len(trajectory) - 1)))),
+                )
+                for q in state_quantiles
+            }
+        )
+        for decision_index in indices:
+            reference = trajectory[decision_index]
+            state = reference["state"]
+            candidates = structured_candidates(
+                actor,
+                state,
+                candidate_count=candidate_count,
+                sigma=sigma,
+                generator=generator,
+                deduplicate=True,
+            )
+            actions = []
+            true_values = []
+            for action in candidates:
+                selected_indices = torch.nonzero(
+                    action, as_tuple=False
+                ).flatten().cpu().numpy()
+                order_ids = [
+                    int(state["order_ids"][index])
+                    for index in selected_indices
+                ]
+                rollout = _candidate_rollout(
+                    actor,
+                    instance_id,
+                    reference["prefix"],
+                    state,
+                    order_ids,
+                    [reward_power],
+                    sla_threshold_s=sla_threshold_s,
+                    objective_scale=objective_scale,
+                    episode_kwargs=episode_kwargs,
+                )
+                actions.append(action)
+                true_values.append(float(rollout["true_q"][str(reward_power)]))
+            target = torch.as_tensor(true_values, dtype=torch.float32)
+            target = (target - target.mean()) / target.std(
+                unbiased=False
+            ).clamp_min(1e-6)
+            examples.append((_copy_state(state), actions, target))
+    return examples
+
+
+def run_audit(cfg: dict, output_dir: Path, tracking_run=None) -> dict[str, object]:
+    checkpoint_path = cfg.get("checkpoint")
+    if not checkpoint_path:
+        raise ValueError("Audit requires checkpoint=<path-to-best.pt>")
+    actor, critic, checkpoint = load_workbench_checkpoint(checkpoint_path)
+    objective_scale = checkpoint.get("objective_scale")
+    data_spec = dict(cfg["data"])
+    splits = generated_instance_splits(data_spec)
+    settings = cfg["experiment"]
+    split = str(settings["split"])
+    count = int(settings["instances"])
+    instance_ids = splits[split][:count]
+    loader = GeneratedHennDataLoader(data_spec)
+    objective = cfg["objective"]
+    episode_kwargs = {
+        "data_loader": loader,
+        "use_order_due_dates": bool(objective["use_order_due_dates"]),
+        "include_due_slack": True,
+    }
+    audit = audit_structured_critic(
+        actor,
+        critic,
+        instance_ids,
+        reward_power=float(objective["power"]),
+        comparison_powers=[float(objective["power"])],
+        state_quantiles=[float(value) for value in settings["state_quantiles"]],
+        candidate_count=int(settings["candidate_count"]),
+        sigma=float(settings["sigma"]),
+        temperature=float(settings["temperature"]),
+        seed=int(cfg["seed"]),
+        objective_scale=objective_scale,
+        episode_kwargs=episode_kwargs,
+    )
+    result = {
+        "mode": "audit",
+        "status": "complete",
+        "split": split,
+        "checkpoint": str(checkpoint_path),
+        "audit": audit,
+    }
+    result_path = output_dir / "result.json"
+    manifest_path = output_dir / "dataset_manifest.json"
+    write_json(result_path, result)
+    write_json(manifest_path, generated_manifest(data_spec))
+    if tracking_run is not None:
+        tracking_run.log(
+            {
+                f"audit/{key}": value
+                for key, value in audit["summary"].items()
+                if isinstance(value, (int, float))
+            }
+        )
+    log_artifact(
+        tracking_run,
+        output_dir,
+        [result_path, manifest_path, output_dir / "resolved_config.json"],
+    )
+    return result

@@ -20,7 +20,6 @@ from scenarios.scenario_henn.algorithm import (
 )
 from scenarios.scenario_henn_rl.environment import ReleaseTimingEnv
 
-
 def knapsack_batch(
     scores: np.ndarray,
     demands: np.ndarray,
@@ -56,6 +55,54 @@ def knapsack_batch(
     return np.asarray(selected, dtype=int)
 
 
+def route_aware_batch(
+    scores: np.ndarray,
+    demands: np.ndarray,
+    capacity: int,
+    order_positions: list[list[tuple[int, int]]],
+    route_cost_fn,
+    route_cost_scale: float,
+    *,
+    allow_empty: bool,
+) -> np.ndarray:
+    """Greedy marginal-cost route-aware batch selection.
+
+    Orders are considered in decreasing-score order and added to the batch
+    when their marginal contribution ``theta_i - [c(B+{i}) - c(B)] / scale``
+    is positive — the profitable-SPRP pricing logic applied greedily.  The
+    route cost ``c(B)`` is evaluated by ``route_cost_fn`` (the S-shape router
+    already used for dispatch), so the decoder optimises the same non-additive
+    route-distance term the simulator measures.
+    """
+    scores = np.asarray(scores, dtype=float)
+    n = len(scores)
+    if n == 0:
+        return np.asarray([], dtype=int)
+    order = np.argsort(-scores)
+    selected: list[int] = []
+    selected_demand = 0
+    current_cost = 0.0
+    current_value = 0.0
+    for i in order:
+        i = int(i)
+        if selected_demand + int(demands[i]) > capacity:
+            continue
+        candidate = selected + [i]
+        new_cost = route_cost_fn(order_positions, candidate)
+        new_value = float(scores[i]) + sum(scores[j] for j in selected) - new_cost / route_cost_scale
+        marginal = new_value - current_value
+        if marginal > 0 or (not selected and not allow_empty):
+            selected = candidate
+            selected_demand += int(demands[i])
+            current_cost = new_cost
+            current_value = new_value
+    if not selected and not allow_empty:
+        feasible = np.flatnonzero(demands <= capacity)
+        if feasible.size:
+            selected = [int(feasible[np.argmax(scores[feasible])])]
+    return np.asarray(selected, dtype=int)
+
+
 class StructuredBatchingEpisode:
     """Variable-order-set Henn episode for a structured batching policy."""
 
@@ -64,11 +111,27 @@ class StructuredBatchingEpisode:
         instance_ids: list[str] | tuple[str, ...],
         *,
         reward_power: float = 1.0,
+        sla_threshold_s: float = 0.0,
+        objective_scale: float | None = None,
+        data_loader=None,
+        use_order_due_dates: bool = False,
+        include_due_slack: bool = False,
+        decoder: str = "knapsack",
     ):
-        self.env = ReleaseTimingEnv(instance_ids, reward_power=reward_power)
+        self.env = ReleaseTimingEnv(
+            instance_ids,
+            reward_power=reward_power,
+            sla_threshold_s=sla_threshold_s,
+            objective_scale=objective_scale,
+            data_loader=data_loader,
+            use_order_due_dates=use_order_due_dates,
+        )
+        self.include_due_slack = bool(include_due_slack)
+        self.decoder = str(decoder)
         self.oracle_time_s = 0.0
         self.single_services: dict[int, float] = {}
         self.single_distances: dict[int, float] = {}
+        self._route_cost_scale = None
 
     def reset(self, *, seed=0, instance_id: str | None = None):
         options = None if instance_id is None else {"instance_id": instance_id}
@@ -77,6 +140,32 @@ class StructuredBatchingEpisode:
         self.single_services = {}
         self.single_distances = {}
         return self.state()
+
+    def _route_cost(self, order_positions_list, order_idx) -> float:
+        """S-shape route distance for the batch of orders at ``order_idx``."""
+        positions = []
+        for i in order_idx:
+            positions.extend(order_positions_list[i])
+        if not positions:
+            return 0.0
+        from ware_ops_algos.algorithms.routing.routing import PickPosition
+        pick_positions = [
+            PickPosition(order_number=0, article_id=-1, amount=1,
+                         pick_node=(int(a), int(y)), in_store=1)
+            for (a, y) in positions
+        ]
+        return float(self.env._router.solve(pick_positions).route.distance)
+
+    def _ensure_route_cost_scale(self, planning):
+        if self._route_cost_scale is not None:
+            return self._route_cost_scale
+        graph = planning.layout.graph_data
+        one_pass = (
+            graph.dist_pick_locations * (graph.n_pick_locations - 1)
+            + 2 * graph.dist_bottom_to_pick_location
+        )
+        self._route_cost_scale = float(max(1.0, graph.n_aisles * one_pass))
+        return self._route_cost_scale
 
     def state(self) -> dict[str, object]:
         planning, orders = self.env.resolved_buffer()
@@ -96,6 +185,7 @@ class StructuredBatchingEpisode:
         )
         features = []
         demands = []
+        order_positions = []
         for order in orders:
             positions = [
                 float(position.pick_node[1])
@@ -105,8 +195,13 @@ class StructuredBatchingEpisode:
                 int(position.in_store) for position in order.pick_positions
             )
             demands.append(demand)
-            features.append(
+            order_positions.append(
                 [
+                    (int(p.pick_node[0]), int(p.pick_node[1]))
+                    for p in order.pick_positions
+                ]
+            )
+            order_features = [
                     max(0.0, now - float(order.order_date or 0.0)) / horizon,
                     demand / max(1, capacity),
                     len(order.pick_positions) / max(1, capacity),
@@ -114,9 +209,15 @@ class StructuredBatchingEpisode:
                     max(positions) / position_scale,
                     float(np.mean(positions)) / position_scale,
                     len(orders) / max(1, len(self.env.arrivals)),
-                ]
-            )
-        return {
+            ]
+            if self.include_due_slack:
+                if order.due_date is None:
+                    raise ValueError("Deadline features require order due dates")
+                order_features.append(
+                    float(np.clip((float(order.due_date) - now) / horizon, -1.0, 1.0))
+                )
+            features.append(order_features)
+        state = {
             "order_ids": np.asarray(
                 [int(order.order_id) for order in orders], dtype=np.int64
             ),
@@ -124,7 +225,16 @@ class StructuredBatchingEpisode:
             "demands": np.asarray(demands, dtype=np.int64),
             "capacity": capacity,
             "input_closed": bool(self.env.simulation.state.input_closed),
+            "feature_schema": (
+                "deadline_v1" if self.include_due_slack else "legacy_v1"
+            ),
+            "decoder": self.decoder,
+            "order_positions": order_positions,
         }
+        if self.decoder == "route_aware":
+            state["_route_cost_fn"] = self._route_cost
+            state["_route_cost_scale"] = self._ensure_route_cost_scale(planning)
+        return state
 
     def oracle_action(self, scores: np.ndarray, state: dict[str, object]):
         started = time.perf_counter()

@@ -4,70 +4,65 @@ import json
 from pathlib import Path
 
 import hydra
-import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
-from scenarios.scenario_henn_rl.critic_audit_experiment import run_critic_audit
-from scenarios.scenario_henn_rl.critic_calibration_experiment import (
-    run_critic_calibration,
+from scenarios.scenario_henn_rl.structured.audit import run_audit
+from scenarios.scenario_henn_rl.structured.data import run_generation
+from scenarios.scenario_henn_rl.structured.evaluation import run_evaluation
+from scenarios.scenario_henn_rl.structured.results import write_json
+from scenarios.scenario_henn_rl.structured.tracking import (
+    log_artifact,
+    start_tracking,
 )
-from scenarios.scenario_henn_rl.critic_coverage_experiment import (
-    run_critic_coverage,
-)
-from scenarios.scenario_henn_rl.critic_memorization_experiment import (
-    run_critic_overfit,
-)
-from scenarios.scenario_henn_rl.candidate_feature_experiment import (
-    run_candidate_feature_study,
-)
-from scenarios.scenario_henn_rl.experiment_support import _ids_for_mode, _write_json
-from scenarios.scenario_henn_rl.objective_experiments import (
-    run_comparison,
-    run_objective_study,
-)
-from scenarios.scenario_henn_rl.policy_experiments import run_policy_experiment
+from scenarios.scenario_henn_rl.structured.training import run_training
 
 
 def run(cfg: DictConfig) -> dict[str, object]:
-    torch.manual_seed(int(cfg.experiment.seed))
-    output_dir = Path(cfg.experiment.output_dir).resolve()
+    resolved = OmegaConf.to_container(cfg, resolve=True)
+    output_dir = Path(resolved["output_dir"]).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    splits = _ids_for_mode(cfg)
-    mode = str(cfg.experiment.mode)
-    if mode == "critic_calibration":
-        return run_critic_calibration(cfg, splits, output_dir)
-    if mode == "critic_overfit":
-        return run_critic_overfit(cfg, splits, output_dir)
-    if mode == "critic_coverage":
-        return run_critic_coverage(cfg, splits, output_dir)
-    if mode == "candidate_features":
-        return run_candidate_feature_study(cfg, splits, output_dir)
-    if mode == "critic_audit":
-        return run_critic_audit(cfg, splits, output_dir)
-    if mode == "objective_study":
-        return run_objective_study(cfg, splits, output_dir)
-    if mode == "comparison":
-        result = run_comparison(cfg, splits)
-        _write_json(output_dir / "result.json", result)
-        return result
-    return run_policy_experiment(cfg, splits, output_dir)
+    config_path = output_dir / "resolved_config.json"
+    write_json(config_path, resolved)
+    if resolved["tracking"].get("enabled") and bool(
+        resolved.get("progress", True)
+    ):
+        print("Initializing W&B tracking...", flush=True)
+    tracking_run = start_tracking(resolved["tracking"], resolved)
+    if tracking_run is not None and bool(resolved.get("progress", True)):
+        url = getattr(tracking_run, "url", None)
+        print(
+            f"W&B tracking enabled{f': {url}' if url else '.'}",
+            flush=True,
+        )
+    try:
+        action = str(resolved["experiment"]["action"])
+        if action == "generate":
+            result = run_generation(resolved["data"], output_dir)
+            result = {"mode": "generate", "status": "complete", **result}
+            result_path = output_dir / "result.json"
+            write_json(result_path, result)
+            log_artifact(
+                tracking_run,
+                output_dir,
+                [config_path, result_path, output_dir / "dataset_manifest.json"],
+            )
+            return result
+        if action == "train":
+            return run_training(resolved, output_dir, tracking_run)
+        if action == "evaluate":
+            return run_evaluation(resolved, output_dir, tracking_run)
+        if action == "audit":
+            return run_audit(resolved, output_dir, tracking_run)
+        raise ValueError(f"Unknown structured experiment action: {action}")
+    finally:
+        if tracking_run is not None:
+            tracking_run.finish()
 
 
-@hydra.main(
-    version_base="1.3",
-    config_path="config",
-    config_name="structured_batching_config",
-)
+@hydra.main(version_base="1.3", config_path="config", config_name="structured")
 def main(cfg: DictConfig) -> None:
     result = run(cfg)
-    print(
-        json.dumps(
-            {
-                "status": result.get("status", "complete"),
-                "mode": result["mode"],
-            }
-        )
-    )
+    print(json.dumps({"status": result["status"], "mode": result["mode"]}))
 
 
 if __name__ == "__main__":

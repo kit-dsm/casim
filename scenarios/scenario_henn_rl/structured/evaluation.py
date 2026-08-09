@@ -4,9 +4,19 @@ import time
 
 import numpy as np
 import torch
+from pathlib import Path
+from tqdm.auto import tqdm
 
-from scenarios.scenario_henn_rl.structured_environment import StructuredBatchingEpisode
-from scenarios.scenario_henn_rl.structured_policy import _features
+from scenarios.scenario_henn_rl.structured.environment import StructuredBatchingEpisode
+from scenarios.scenario_henn_rl.structured.models import _features
+from scenarios.scenario_henn_rl.structured.data import (
+    GeneratedHennDataLoader,
+    generated_instance_splits,
+    generated_manifest,
+)
+from scenarios.scenario_henn_rl.structured.models import load_workbench_checkpoint
+from scenarios.scenario_henn_rl.structured.results import write_json
+from scenarios.scenario_henn_rl.structured.tracking import log_artifact, log_evaluation
 
 
 def evaluate_structured_actor(
@@ -15,12 +25,27 @@ def evaluate_structured_actor(
     *,
     location_features: bool = True,
     reward_power: float = 1.0,
+    sla_threshold_s: float = 0.0,
+    objective_scale: float | None = None,
+    episode_kwargs: dict | None = None,
+    show_progress: bool = False,
+    progress_desc: str = "Evaluating actor",
 ) -> dict[str, object]:
     episode = StructuredBatchingEpisode(
-        instance_ids, reward_power=reward_power
+        instance_ids,
+        reward_power=reward_power,
+        sla_threshold_s=sla_threshold_s,
+        objective_scale=objective_scale,
+        **(episode_kwargs or {}),
     )
     rows = []
-    for instance_id in instance_ids:
+    for instance_id in tqdm(
+        instance_ids,
+        desc=progress_desc,
+        unit="instance",
+        leave=False,
+        disable=not show_progress,
+    ):
         state = episode.reset(instance_id=instance_id)
         normalizer = episode.env.reward_normalizer
         done = False
@@ -50,6 +75,7 @@ def evaluate_structured_actor(
             completion - episode.env.arrivals[order_id]
             for order_id, completion in episode.env.completion_times().items()
         ]
+        tardiness = list(info["tardiness_by_order"].values())
         rows.append(
             {
                 **info,
@@ -83,10 +109,51 @@ def evaluate_structured_actor(
                 "inference_time_s": inference_time,
                 "mean_decision_latency_s": inference_time / max(1, decisions),
                 "flow_times": flow_times,
+                "mean_tardiness": float(np.mean(tardiness)) if tardiness else 0.0,
+                "max_tardiness": float(np.max(tardiness)) if tardiness else 0.0,
+                "violation_fraction": (
+                    float(np.count_nonzero(tardiness)) / len(tardiness)
+                    if tardiness
+                    else 0.0
+                ),
             }
         )
     episode.close()
     return _summarize(rows)
+
+
+def reference_objective_scale(
+    instance_ids: list[str],
+    *,
+    reward_power: float,
+    episode_kwargs: dict | None = None,
+    show_progress: bool = False,
+    progress_desc: str = "Reference objective scale evaluation",
+) -> float:
+    """Return a reward scale from the reference policy's per-order objective.
+
+    The scale is the mean per-order objective value of a fixed existing
+    policy, so the total normalized episode reward is near minus one under
+    the configured objective (flow time or tardiness) regardless of instance
+    size. This keeps critic Q-values on a scale that the configured candidate
+    temperature can resolve into informative soft targets.
+    """
+    reference = evaluate_existing_policy(
+        instance_ids,
+        batching="cw",
+        waiting_policy="no_wait",
+        selector="sav",
+        time_limit_s=0.25,
+        reward_power=reward_power,
+        episode_kwargs=episode_kwargs,
+        show_progress=show_progress,
+        progress_desc=progress_desc,
+    )
+    per_order = np.asarray(
+        [row["objective_per_order"] for row in reference["episodes"]],
+        dtype=float,
+    )
+    return max(1.0, float(np.mean(per_order)))
 
 
 def evaluate_existing_policy(
@@ -99,12 +166,27 @@ def evaluate_existing_policy(
     max_age_s: float = 300.0,
     time_limit_s: float = 1.0,
     reward_power: float = 1.0,
+    sla_threshold_s: float = 0.0,
+    objective_scale: float | None = None,
+    episode_kwargs: dict | None = None,
+    show_progress: bool = False,
+    progress_desc: str = "Evaluating baseline",
 ) -> dict[str, object]:
     episode = StructuredBatchingEpisode(
-        instance_ids, reward_power=reward_power
+        instance_ids,
+        reward_power=reward_power,
+        sla_threshold_s=sla_threshold_s,
+        objective_scale=objective_scale,
+        **(episode_kwargs or {}),
     )
     rows = []
-    for instance_id in instance_ids:
+    for instance_id in tqdm(
+        instance_ids,
+        desc=progress_desc,
+        unit="instance",
+        leave=False,
+        disable=not show_progress,
+    ):
         state = episode.reset(instance_id=instance_id)
         normalizer = episode.env.reward_normalizer
         done = False
@@ -149,6 +231,7 @@ def evaluate_existing_policy(
             completion - episode.env.arrivals[order_id]
             for order_id, completion in episode.env.completion_times().items()
         ]
+        tardiness = list(info["tardiness_by_order"].values())
         rows.append(
             {
                 **info,
@@ -182,6 +265,13 @@ def evaluate_existing_policy(
                 "inference_time_s": decision_time,
                 "mean_decision_latency_s": decision_time / max(1, decisions),
                 "flow_times": flow_times,
+                "mean_tardiness": float(np.mean(tardiness)) if tardiness else 0.0,
+                "max_tardiness": float(np.max(tardiness)) if tardiness else 0.0,
+                "violation_fraction": (
+                    float(np.count_nonzero(tardiness)) / len(tardiness)
+                    if tardiness
+                    else 0.0
+                ),
             }
         )
     episode.close()
@@ -242,6 +332,11 @@ def _summarize(rows: list[dict[str, object]]) -> dict[str, object]:
         "mean_orders_per_sim_hour": float(
             np.mean([row["orders_per_sim_hour"] for row in rows])
         ),
+        "mean_tardiness": float(np.mean([row["mean_tardiness"] for row in rows])),
+        "max_tardiness": float(np.max([row["max_tardiness"] for row in rows])),
+        "mean_violation_fraction": float(
+            np.mean([row["violation_fraction"] for row in rows])
+        ),
         "mean_wait_time_s": float(
             np.mean([row.get("wait_time_s", 0.0) for row in rows])
         ),
@@ -263,3 +358,73 @@ def _summarize(rows: list[dict[str, object]]) -> dict[str, object]:
         ),
         "episodes": rows,
     }
+
+
+def run_evaluation(cfg: dict, output_dir: Path, tracking_run=None) -> dict[str, object]:
+    checkpoint_path = cfg.get("checkpoint")
+    if not checkpoint_path:
+        raise ValueError("Evaluation requires checkpoint=<path-to-best.pt>")
+    actor, _, checkpoint = load_workbench_checkpoint(checkpoint_path)
+    objective_scale = checkpoint.get("objective_scale")
+    data_spec = dict(cfg["data"])
+    splits = generated_instance_splits(data_spec)
+    split = str(cfg["experiment"]["split"])
+    if split not in splits:
+        raise ValueError(f"Unknown evaluation split: {split}")
+    write_json(output_dir / "dataset_manifest.json", generated_manifest(data_spec))
+    loader = GeneratedHennDataLoader(data_spec)
+    objective = cfg["objective"]
+    episode_kwargs = {
+        "data_loader": loader,
+        "use_order_due_dates": bool(objective["use_order_due_dates"]),
+        "include_due_slack": True,
+        "decoder": str(cfg["model"].get("decoder", "knapsack")),
+    }
+    learned = evaluate_structured_actor(
+        actor,
+        splits[split],
+        reward_power=float(objective["power"]),
+        objective_scale=objective_scale,
+        episode_kwargs=episode_kwargs,
+        show_progress=bool(cfg.get("progress", True)),
+        progress_desc=f"Actor evaluation ({split})",
+    )
+    baselines = {}
+    for baseline in cfg["experiment"].get("baselines", []):
+        name = f"{baseline['batching']}_{baseline['selector']}"
+        baselines[name] = evaluate_existing_policy(
+            splits[split],
+            batching=str(baseline["batching"]),
+            waiting_policy="no_wait",
+            selector=str(baseline["selector"]),
+            time_limit_s=float(baseline.get("time_limit_s", 0.25)),
+            reward_power=float(objective["power"]),
+            objective_scale=objective_scale,
+            episode_kwargs=episode_kwargs,
+            show_progress=bool(cfg.get("progress", True)),
+            progress_desc=f"Baseline {name} ({split})",
+        )
+    result = {
+        "mode": "evaluate",
+        "status": "complete",
+        "split": split,
+        "checkpoint": str(checkpoint_path),
+        "checkpoint_selected_episode": checkpoint["selected_episode"],
+        "learned": learned,
+        "baselines": baselines,
+    }
+    result_path = output_dir / "result.json"
+    write_json(result_path, result)
+    log_evaluation(tracking_run, "evaluation/learned", learned)
+    for name, evaluation in baselines.items():
+        log_evaluation(tracking_run, f"evaluation/{name}", evaluation)
+    log_artifact(
+        tracking_run,
+        output_dir,
+        [
+            result_path,
+            output_dir / "dataset_manifest.json",
+            output_dir / "resolved_config.json",
+        ],
+    )
+    return result

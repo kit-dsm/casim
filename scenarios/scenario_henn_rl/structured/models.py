@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 import torch
+from pathlib import Path
 
-from scenarios.scenario_henn_rl.structured_environment import knapsack_batch
+from scenarios.scenario_henn_rl.structured.environment import knapsack_batch
 
 
 class OrderScoreActor(torch.nn.Module):
@@ -96,6 +97,35 @@ class PairwiseStructuredCritic(torch.nn.Module):
         return self.value(pooled).squeeze()
 
 
+def load_workbench_checkpoint(path: str | Path):
+    """Load a versioned workbench checkpoint and validate its feature schema."""
+    checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+    if checkpoint.get("format_version") != 1:
+        raise ValueError("Expected a versioned structured-workbench checkpoint")
+    if checkpoint.get("feature_schema") != "deadline_v1":
+        raise ValueError(
+            f"Unsupported feature schema: {checkpoint.get('feature_schema')!r}"
+        )
+    feature_count = int(checkpoint["feature_count"])
+    actor = OrderScoreActor(
+        feature_count=feature_count,
+        hidden=int(checkpoint["actor_hidden"]),
+    )
+    critic_types = {
+        "mean": StructuredCritic,
+        "interaction": PairwiseStructuredCritic,
+    }
+    critic_kind = str(checkpoint["critic_kind"])
+    if critic_kind not in critic_types:
+        raise ValueError(f"Unknown checkpoint critic: {critic_kind!r}")
+    critic = critic_types[critic_kind](feature_count=feature_count)
+    actor.load_state_dict(checkpoint["actor_state_dict"])
+    critic.load_state_dict(checkpoint["critic_state_dict"])
+    actor.eval()
+    critic.eval()
+    return actor, critic, checkpoint
+
+
 def _features(state: dict[str, object], *, location_features: bool = True):
     values = torch.as_tensor(state["features"], dtype=torch.float32)
     if not location_features:
@@ -111,6 +141,20 @@ def _mask(indices: np.ndarray, size: int):
 
 
 def decode_scores(scores, state: dict[str, object]):
+    if state.get("decoder") == "route_aware":
+        from scenarios.scenario_henn_rl.structured.environment import (
+            route_aware_batch,
+        )
+        indices = route_aware_batch(
+            scores.detach().cpu().numpy(),
+            state["demands"],
+            int(state["capacity"]),
+            state["order_positions"],
+            state["_route_cost_fn"],
+            float(state["_route_cost_scale"]),
+            allow_empty=False,
+        )
+        return _mask(indices, len(scores))
     indices = knapsack_batch(
         scores.detach().cpu().numpy(),
         state["demands"],
@@ -163,21 +207,40 @@ def critic_soft_target(
     generator,
     location_features: bool = True,
     normalize_advantages: bool = False,
+    actions: list[torch.Tensor] | None = None,
+    values: torch.Tensor | None = None,
 ):
-    """SRL Eq. (4): critic-weighted average of feasible candidates."""
+    """SRL Eq. (4): critic-weighted average of feasible candidates.
+
+    ``actions`` optionally supplies a pre-generated candidate set so the same
+    candidates can be weighted under several target configurations (used by the
+    actor-update audit's current-vs-normalized comparison); the generator is
+    then not consumed for candidate generation.  ``values`` optionally supplies
+    the candidate quality values directly (e.g. exact rollout Q in the
+    actor-update audit) instead of critic predictions; the same normalization
+    and softmax weighting then applies to those values.
+    """
     features = _features(state, location_features=location_features)
     with torch.no_grad():
-        actions = structured_candidates(
-            actor,
-            state,
-            candidate_count=candidate_count,
-            sigma=sigma,
-            generator=generator,
-            location_features=location_features,
-        )
-        values = torch.stack(
-            [critic(features, action) for action in actions]
-        )
+        if actions is None:
+            actions = structured_candidates(
+                actor,
+                state,
+                candidate_count=candidate_count,
+                sigma=sigma,
+                generator=generator,
+                location_features=location_features,
+            )
+        if values is not None:
+            if len(values) != len(actions):
+                raise ValueError(
+                    "Values count must match the candidate set size"
+                )
+            values = values
+        else:
+            values = torch.stack(
+                [critic(features, action) for action in actions]
+            )
         weights = candidate_weights(
             values,
             temperature=temperature,
@@ -186,14 +249,18 @@ def critic_soft_target(
         target = sum(
             weight * action for weight, action in zip(weights, actions)
         )
-    entropy = float(
-        -(weights * weights.clamp_min(1e-12).log()).sum().cpu()
-    )
+        entropy = float(
+            -(weights * weights.clamp_min(1e-12).log()).sum().cpu()
+        )
     return target, {
         "candidate_count": candidate_count,
         "unique_candidates": len({tuple(action.tolist()) for action in actions}),
         "candidate_q_spread": float((values.max() - values.min()).cpu()),
         "target_entropy": entropy,
+        "max_weight": float(weights.max().cpu()),
+        "effective_count": float(
+            1.0 / (weights.pow(2).sum().clamp_min(1e-12).cpu())
+        ),
         "normalized_advantages": normalize_advantages,
     }
 
@@ -260,4 +327,8 @@ def _copy_state(state: dict[str, object] | None):
         "demands": state["demands"].copy(),
         "capacity": int(state["capacity"]),
         "input_closed": bool(state["input_closed"]),
+        "decoder": state.get("decoder", "knapsack"),
+        "order_positions": list(state.get("order_positions", [])),
+        "_route_cost_fn": state.get("_route_cost_fn"),
+        "_route_cost_scale": state.get("_route_cost_scale"),
     }

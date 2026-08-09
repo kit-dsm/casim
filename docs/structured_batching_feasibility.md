@@ -1,6 +1,8 @@
 # Structured online batching feasibility
 
-Follow-up: [No-wait reward-generalization objective study](structured_batching_objective_study.md).
+See also [Structured-RL failure diagnosis](structured_batching_srl_diagnosis.md)
+for the post-training causal analysis of why the learned critic target does not
+reliably improve the chosen batch.
 
 ## Decision and implementation
 
@@ -133,13 +135,10 @@ grid. Decide which operational objective matters:
    operationally interesting. Its former result is invalid and is intentionally
    absent from this corrected feasibility conclusion.
 
-Raw results are under
-`outputs/henn_rl/corrected_comparison_seed11/result.json`; canonical parity
-traces are under its `cosy_parity` directory. Reproduce on Windows PowerShell:
-
-```powershell
-$env:OMP_NUM_THREADS = "1"
-$env:MKL_NUM_THREADS = "1"
-$env:OPENBLAS_NUM_THREADS = "1"
-.venv\Scripts\python.exe -m scenarios.scenario_henn_rl.experiment_structured_batching experiment.mode=comparison experiment.output_dir=outputs/henn_rl/corrected_comparison_seed11
-```
+Raw results were stored under
+`outputs/henn_rl/corrected_comparison_seed11/result.json` (canonical parity
+traces under its `cosy_parity` directory). Those historical outputs were
+superseded by the final-diagnosis cleanup; the feasibility numbers above are
+the documented conclusion. The canonical SRL-failure evidence now lives under
+`outputs/henn_rl/final_diagnosis/` (see
+`docs/structured_batching_srl_diagnosis.md`).

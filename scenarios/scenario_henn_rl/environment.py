@@ -145,7 +145,18 @@ class ReleaseTimingAdapter(StateAdapter):
         )
 
 
-def _setup_simulation(instance_id: str) -> SimulationEngine:
+def _setup_simulation(instance_id: str, data_loader=None) -> SimulationEngine:
+    loader_kwargs = {"instance_id": instance_id}
+    if data_loader is None:
+        data_loader = HennDataLoader(
+            instances_dir=HENN_DIR,
+            aisle_end_offset=1.5,
+            depot_half_span=2.5,
+            travel_speed=0.8,
+            time_per_pick=10.0,
+            tour_setup_time=180.0,
+        )
+        loader_kwargs["manifest_path"] = "reproduction/manifest.yaml"
     return SimulationEngine(
         state_adapters={"OBRP": ReleaseTimingAdapter()},
         triggers_map={
@@ -156,18 +167,8 @@ def _setup_simulation(instance_id: str) -> SimulationEngine:
         conditions_map={
             "OBRP": [NbrPickersCondition(1), NbrOrdersCondition(1)]
         },
-        loader_kwargs={
-            "manifest_path": "reproduction/manifest.yaml",
-            "instance_id": instance_id,
-        },
-        data_loader=HennDataLoader(
-            instances_dir=HENN_DIR,
-            aisle_end_offset=1.5,
-            depot_half_span=2.5,
-            travel_speed=0.8,
-            time_per_pick=10.0,
-            tour_setup_time=180.0,
-        ),
+        loader_kwargs=loader_kwargs,
+        data_loader=data_loader,
         event_loggers=[],
         completion_mode="drain",
         horizon_time=None,
@@ -184,14 +185,23 @@ class ReleaseTimingEnv(gym.Env):
         instance_ids: list[str] | tuple[str, ...],
         *,
         reward_power: float = 1.0,
+        sla_threshold_s: float = 0.0,
+        objective_scale: float | None = None,
+        data_loader=None,
+        use_order_due_dates: bool = False,
     ):
         super().__init__()
         if not instance_ids:
             raise ValueError("ReleaseTimingEnv requires at least one instance")
         self.instance_ids = tuple(instance_ids)
         self.reward_power = float(reward_power)
+        self.sla_threshold_s = float(sla_threshold_s)
+        self.objective_scale = (
+            None if objective_scale is None else float(objective_scale)
+        )
+        self.use_order_due_dates = bool(use_order_due_dates)
         self.instance_id = self.instance_ids[0]
-        self.simulation = _setup_simulation(self.instance_id)
+        self.simulation = _setup_simulation(self.instance_id, data_loader)
         self.release_adapter = self.simulation.state_adapters["OBRP"]
         import casim.simulation_engine.simulation_engine as simulation_module
 
@@ -206,6 +216,7 @@ class ReleaseTimingEnv(gym.Env):
         )
         self.snapshot = None
         self.arrivals: dict[int, float] = {}
+        self.due_times: dict[int, float] = {}
         self.episode_horizon = 1.0
         self.previous_accrued_cost = 0.0
         self.reward_model: OrderCostReward | None = None
@@ -232,17 +243,22 @@ class ReleaseTimingEnv(gym.Env):
             int(order.order_id): float(order.order_date or 0.0)
             for order in domain.orders.orders
         }
+        self.due_times = {
+            int(order.order_id): float(order.due_date)
+            for order in domain.orders.orders
+            if order.due_date is not None
+        }
+        if self.use_order_due_dates and len(self.due_times) != len(self.arrivals):
+            raise ValueError("Every generated order must have a due date")
         last_arrival = max(self.arrivals.values(), default=0.0)
         self.episode_horizon = max(1.0, last_arrival + 24 * 60 * 60)
         self.reward_model = OrderCostReward(
             self.arrivals,
             power=self.reward_power,
-            thresholds_s=0.0,
+            thresholds_s=(None if self.use_order_due_dates else self.sla_threshold_s),
+            due_times=(self.due_times if self.use_order_due_dates else None),
             weights=1.0,
-            normalizer=max(
-                1.0,
-                len(self.arrivals) * self.episode_horizon**self.reward_power,
-            ),
+            normalizer=self._configured_normalizer(),
         )
         self.previous_accrued_cost = 0.0
         self.wait_actions = 0
@@ -288,6 +304,14 @@ class ReleaseTimingEnv(gym.Env):
         if self.reward_model is None:
             return max(1.0, len(self.arrivals) * self.episode_horizon)
         return self.reward_model.normalizer
+
+    def _configured_normalizer(self) -> float:
+        """Return the per-instance objective scale used by the reward model."""
+        if self.objective_scale is not None:
+            return max(1.0, len(self.arrivals)) * self.objective_scale
+        return max(
+            1.0, len(self.arrivals) * self.episode_horizon**self.reward_power
+        )
 
     def reward_since_previous(self) -> float:
         """Accrue and return the configured objective-derived reward."""
@@ -521,6 +545,16 @@ class ReleaseTimingEnv(gym.Env):
 
     def info(self, forced_dispatch: bool) -> dict:
         tracker = self.simulation.state.tracker
+        completions = self.completion_times()
+        flow_times = {
+            order_id: completion - self.arrivals[order_id]
+            for order_id, completion in completions.items()
+        }
+        tardiness = {
+            order_id: max(0.0, completion - self.due_times[order_id])
+            for order_id, completion in completions.items()
+            if order_id in self.due_times
+        }
         return {
             "instance_id": self.instance_id,
             "forced_dispatch": bool(forced_dispatch),
@@ -534,4 +568,7 @@ class ReleaseTimingEnv(gym.Env):
             "forced_dispatches": self.forced_dispatches,
             "wait_time_s": self.wait_time_s,
             "pipeline_controlled_by_agent": False,
+            "flow_times_by_order": flow_times,
+            "tardiness_by_order": tardiness,
+            "violated_orders": sum(value > 0.0 for value in tardiness.values()),
         }

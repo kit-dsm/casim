@@ -1,0 +1,9 @@
+# @package experiment
+action: audit
+split: validation
+instances: 4
+state_quantiles: [0.33, 0.67]
+candidate_count: 40
+sigma: 1.0
+temperature: 0.001
+
