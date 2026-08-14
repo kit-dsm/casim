@@ -86,7 +86,7 @@ def test_episode_reward_is_exact_normalized_negative_flow_time():
 def test_structured_knapsack_is_exact_and_capacity_feasible():
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured.environment import (
+    from scenarios.scenario_henn_rl.structured.decoders import (
         knapsack_batch,
     )
 
@@ -127,9 +127,9 @@ def test_structured_episode_actions_are_feasible_and_reward_is_exact():
     info = {}
     while not terminated:
         selected = episode.oracle_action(
-            np.ones(len(state["order_ids"])), state
+            np.ones(len(state.order_ids)), state
         )
-        assert state["demands"][selected].sum() <= state["capacity"]
+        assert state.demands[selected].sum() <= state.capacity
         state, reward, terminated, truncated, info = episode.step(selected)
         assert not truncated
         episode_return += reward
@@ -145,7 +145,7 @@ def test_structured_knapsack_matches_exhaustive_small_cases():
 
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured.environment import (
+    from scenarios.scenario_henn_rl.structured.decoders import (
         knapsack_batch,
     )
 
@@ -173,9 +173,12 @@ def test_fenchel_young_gradient_matches_decoded_mean_minus_target():
     torch = pytest.importorskip("torch")
     import numpy as np
 
+    from scenarios.scenario_henn_rl.structured.decoders import make_decoder
     from scenarios.scenario_henn_rl.structured.models import (
         fenchel_young_loss,
     )
+    from scenarios.scenario_henn_rl.structured.policy import StructuredPolicy
+    from scenarios.scenario_henn_rl.structured.state import BatchingState
 
     class DirectActor(torch.nn.Module):
         def __init__(self):
@@ -185,16 +188,20 @@ def test_fenchel_young_gradient_matches_decoded_mean_minus_target():
         def forward(self, features):
             return self.scores
 
-    state = {
-        "features": np.zeros((3, 7), dtype=np.float32),
-        "demands": np.asarray([1, 1, 1]),
-        "capacity": 2,
-        "input_closed": False,
-    }
+    state = BatchingState(
+        order_ids=np.asarray([0, 1, 2], dtype=np.int64),
+        features=np.zeros((3, 7), dtype=np.float32),
+        demands=np.asarray([1, 1, 1]),
+        capacity=2,
+        order_positions=[[(0, 1)], [(0, 2)], [(1, 3)]],
+        input_closed=False,
+        feature_schema="legacy_v1",
+    )
     actor = DirectActor()
+    policy = StructuredPolicy(actor, make_decoder("knapsack"))
     target = torch.tensor([1.0, 0.0, 1.0])
     loss, decoded_mean = fenchel_young_loss(
-        actor,
+        policy,
         state,
         target,
         sample_count=20,
@@ -216,7 +223,7 @@ def test_existing_cw_structured_action_is_capacity_feasible():
     state = episode.reset(instance_id=INSTANCE)
     indices = episode.existing_policy_action(state, batching="cw")
     if len(indices):
-        assert state["demands"][indices].sum() <= state["capacity"]
+        assert state.demands[indices].sum() <= state.capacity
     episode.close()
 
 
@@ -255,9 +262,12 @@ def test_srl_soft_target_is_fractional_but_capacity_feasible_in_expectation():
     torch = pytest.importorskip("torch")
     import numpy as np
 
+    from scenarios.scenario_henn_rl.structured.decoders import make_decoder
     from scenarios.scenario_henn_rl.structured.models import (
         critic_soft_target,
     )
+    from scenarios.scenario_henn_rl.structured.policy import StructuredPolicy
+    from scenarios.scenario_henn_rl.structured.state import BatchingState
 
     class Actor(torch.nn.Module):
         def forward(self, features):
@@ -267,8 +277,9 @@ def test_srl_soft_target_is_fractional_but_capacity_feasible_in_expectation():
         def forward(self, features, action):
             return (features[:, 1] * action).sum()
 
-    state = {
-        "features": np.asarray(
+    state = BatchingState(
+        order_ids=np.asarray([0, 1, 2], dtype=np.int64),
+        features=np.asarray(
             [
                 [0.1, 1.0, 0, 0, 0, 0, 0],
                 [0.2, 2.0, 0, 0, 0, 0, 0],
@@ -276,12 +287,15 @@ def test_srl_soft_target_is_fractional_but_capacity_feasible_in_expectation():
             ],
             dtype=np.float32,
         ),
-        "demands": np.asarray([2, 3, 4]),
-        "capacity": 5,
-        "input_closed": False,
-    }
+        demands=np.asarray([2, 3, 4]),
+        capacity=5,
+        order_positions=[[(0, 1)], [(0, 2)], [(1, 3)]],
+        input_closed=False,
+        feature_schema="legacy_v1",
+    )
+    policy = StructuredPolicy(Actor(), make_decoder("knapsack"))
     target, diagnostics = critic_soft_target(
-        Actor(),
+        policy,
         Critic(),
         state,
         candidate_count=40,
@@ -403,29 +417,36 @@ def test_structured_candidate_generation_preserves_training_multiplicity():
     torch = pytest.importorskip("torch")
     import numpy as np
 
+    from scenarios.scenario_henn_rl.structured.decoders import make_decoder
     from scenarios.scenario_henn_rl.structured.models import (
         structured_candidates,
     )
+    from scenarios.scenario_henn_rl.structured.policy import StructuredPolicy
+    from scenarios.scenario_henn_rl.structured.state import BatchingState
 
     class Actor(torch.nn.Module):
         def forward(self, features):
             return torch.ones(len(features))
 
-    state = {
-        "features": np.zeros((3, 7), dtype=np.float32),
-        "demands": np.asarray([1, 1, 1]),
-        "capacity": 2,
-        "input_closed": False,
-    }
+    state = BatchingState(
+        order_ids=np.asarray([0, 1, 2], dtype=np.int64),
+        features=np.zeros((3, 7), dtype=np.float32),
+        demands=np.asarray([1, 1, 1]),
+        capacity=2,
+        order_positions=[[(0, 1)], [(0, 2)], [(1, 3)]],
+        input_closed=False,
+        feature_schema="legacy_v1",
+    )
+    policy = StructuredPolicy(Actor(), make_decoder("knapsack"))
     candidates = structured_candidates(
-        Actor(),
+        policy,
         state,
         candidate_count=4,
         sigma=0.0,
         generator=torch.Generator().manual_seed(1),
     )
     distinct = structured_candidates(
-        Actor(),
+        policy,
         state,
         candidate_count=4,
         sigma=0.0,
@@ -447,11 +468,19 @@ def test_structured_critic_audit_replays_counterfactual_candidates():
         OrderScoreActor,
         StructuredCritic,
     )
+    from scenarios.scenario_henn_rl.structured.policy import StructuredPolicy
 
     actor = OrderScoreActor(hidden=8)
+    episode_kwargs = {}
+    episode = __import__(
+        "scenarios.scenario_henn_rl.structured.environment",
+        fromlist=["StructuredBatchingEpisode"],
+    ).StructuredBatchingEpisode([INSTANCE], **episode_kwargs)
+    policy = StructuredPolicy(actor, episode.decoder)
+    episode.close()
     critic = StructuredCritic(hidden=8)
     result = audit_structured_critic(
-        actor,
+        policy,
         critic,
         [INSTANCE],
         reward_power=1.0,
@@ -473,7 +502,7 @@ def test_structured_critic_audit_replays_counterfactual_candidates():
     assert state["critic_top_regret"] >= 0.0
     assert state["actor_regret"] >= 0.0
     rescored = score_counterfactual_audit(
-        actor,
+        policy,
         critic,
         result,
         temperature=0.001,
@@ -505,7 +534,7 @@ def test_structured_no_wait_reward_identity_and_raw_flow(power):
     done = False
     while not done:
         selected = episode.oracle_action(
-            np.full(len(state["order_ids"]), -1.0), state
+            np.full(len(state.order_ids), -1.0), state
         )
         assert selected.size > 0
         state, reward, done, truncated, info = episode.step(selected)
@@ -535,14 +564,23 @@ def test_structured_decoder_is_nonempty_before_input_closure():
     torch = pytest.importorskip("torch")
     import numpy as np
 
-    from scenarios.scenario_henn_rl.structured.models import decode_scores
+    from scenarios.scenario_henn_rl.structured.decoders import make_decoder
+    from scenarios.scenario_henn_rl.structured.policy import StructuredPolicy
+    from scenarios.scenario_henn_rl.structured.state import BatchingState
 
-    state = {
-        "demands": np.asarray([2, 3]),
-        "capacity": 3,
-        "input_closed": False,
-    }
-    decoded = decode_scores(torch.tensor([-5.0, -2.0]), state)
+    state = BatchingState(
+        order_ids=np.asarray([0, 1], dtype=np.int64),
+        features=np.zeros((2, 7), dtype=np.float32),
+        demands=np.asarray([2, 3]),
+        capacity=3,
+        order_positions=[[(0, 1)], [(0, 2)]],
+        input_closed=False,
+        feature_schema="legacy_v1",
+    )
+    policy = StructuredPolicy(
+        torch.nn.Linear(7, 2), make_decoder("knapsack")
+    )
+    decoded = policy.decode(torch.tensor([-5.0, -2.0]), state)
     assert decoded.tolist() == [0.0, 1.0]
 
 
@@ -676,7 +714,7 @@ def test_structured_sla_objective_and_return_identity():
     done = False
     while not done:
         selected = episode.oracle_action(
-            np.ones(len(state["order_ids"])), state
+            np.ones(len(state.order_ids)), state
         )
         assert selected.size > 0
         state, reward, done, _, info = episode.step(selected)

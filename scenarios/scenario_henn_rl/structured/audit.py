@@ -1,23 +1,28 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import torch
-from pathlib import Path
 from scipy.stats import spearmanr
 
 from scenarios.scenario_henn_rl.rewards import OrderCostReward
+from scenarios.scenario_henn_rl.structured.checkpoint import (
+    assert_policy_compatible,
+    assert_route_cost_scale_matches,
+    checkpoint_decoder_name,
+    load_workbench_checkpoint,
+)
 from scenarios.scenario_henn_rl.structured.environment import StructuredBatchingEpisode
 from scenarios.scenario_henn_rl.structured.models import (
-    PairwiseStructuredCritic,
-    StructuredCritic,
-    _copy_state,
-    _features,
-    _mask,
     candidate_weights,
-    decode_scores,
-    fenchel_young_loss,
     structured_candidates,
-    load_workbench_checkpoint,
+)
+from scenarios.scenario_henn_rl.structured.policy import StructuredPolicy
+from scenarios.scenario_henn_rl.structured.state import (
+    action_mask,
+    copy_state,
+    BatchingState,
 )
 from scenarios.scenario_henn_rl.structured.data import (
     GeneratedHennDataLoader,
@@ -28,10 +33,10 @@ from scenarios.scenario_henn_rl.structured.results import write_json
 from scenarios.scenario_henn_rl.structured.tracking import log_artifact
 
 
-def _indices_for_orders(state: dict[str, object], order_ids) -> np.ndarray:
+def _indices_for_orders(state: BatchingState, order_ids) -> np.ndarray:
     index_by_order = {
         int(order_id): index
-        for index, order_id in enumerate(state["order_ids"])
+        for index, order_id in enumerate(state.order_ids.tolist())
     }
     missing = set(map(int, order_ids)) - set(index_by_order)
     if missing:
@@ -42,21 +47,22 @@ def _indices_for_orders(state: dict[str, object], order_ids) -> np.ndarray:
 
 
 def _reference_trajectory(
-    actor, instance_id: str, episode_kwargs: dict | None = None
+    policy: StructuredPolicy,
+    instance_id: str,
+    episode_kwargs: dict | None = None,
 ) -> list[dict[str, object]]:
+    """Actor-decided reference trajectory under the checkpoint policy."""
     episode = StructuredBatchingEpisode([instance_id], **(episode_kwargs or {}))
     state = episode.reset(instance_id=instance_id)
     prefix: list[list[int]] = []
     trajectory = []
     done = False
     while not done:
-        with torch.no_grad():
-            action = decode_scores(actor(_features(state)), state)
-        indices = torch.nonzero(action, as_tuple=False).flatten().cpu().numpy()
-        selected = [int(state["order_ids"][index]) for index in indices]
+        indices = policy.select_indices(state)
+        selected = [int(state.order_ids[index]) for index in indices]
         trajectory.append(
             {
-                "state": _copy_state(state),
+                "state": copy_state(state),
                 "prefix": [list(order_ids) for order_ids in prefix],
                 "actor_order_ids": selected,
             }
@@ -68,16 +74,17 @@ def _reference_trajectory(
 
 
 def _candidate_rollout(
-    actor,
+    policy: StructuredPolicy,
     instance_id: str,
     prefix: list[list[int]],
-    expected_state: dict[str, object],
+    expected_state: BatchingState,
     candidate_order_ids: list[int],
     powers: list[float],
     sla_threshold_s: float = 0.0,
     objective_scale: float | None = None,
     episode_kwargs: dict | None = None,
 ) -> dict[str, object]:
+    """Exact continuation Q of one candidate under the checkpoint policy."""
     episode = StructuredBatchingEpisode([instance_id], **(episode_kwargs or {}))
     state = episode.reset(instance_id=instance_id)
     done = False
@@ -87,9 +94,9 @@ def _candidate_rollout(
         )
         if done:
             raise RuntimeError("Counterfactual prefix terminated too early")
-    if not np.array_equal(state["order_ids"], expected_state["order_ids"]):
+    if not np.array_equal(state.order_ids, expected_state.order_ids):
         raise RuntimeError("Counterfactual replay reached a different buffer")
-    if not np.allclose(state["features"], expected_state["features"]):
+    if not np.allclose(state.features, expected_state.features):
         raise RuntimeError("Counterfactual replay reached different features")
 
     now = float(episode.env.simulation.state.current_time)
@@ -121,15 +128,12 @@ def _candidate_rollout(
         _indices_for_orders(state, candidate_order_ids)
     )
     while not done:
-        with torch.no_grad():
-            action = decode_scores(actor(_features(state)), state)
-        indices = torch.nonzero(action, as_tuple=False).flatten().cpu().numpy()
+        indices = policy.select_indices(state)
         state, _, done, _, _ = episode.step(indices)
     completions = episode.env.completion_times()
     true_q = {
-        str(power): -(
-            model.objective(completions) - accrued[power]
-        ) / model.normalizer
+        str(power): -(model.objective(completions) - accrued[power])
+        / model.normalizer
         for power, model in models.items()
     }
     episode.close()
@@ -137,7 +141,7 @@ def _candidate_rollout(
 
 
 def audit_structured_critic(
-    actor,
+    policy: StructuredPolicy,
     critic,
     instance_ids: list[str],
     *,
@@ -157,7 +161,7 @@ def audit_structured_critic(
     generator = torch.Generator().manual_seed(seed)
     rows = []
     for instance_id in instance_ids:
-        trajectory = _reference_trajectory(actor, instance_id, episode_kwargs)
+        trajectory = _reference_trajectory(policy, instance_id, episode_kwargs)
         indices = sorted(
             {
                 min(
@@ -171,14 +175,14 @@ def audit_structured_critic(
             reference = trajectory[decision_index]
             state = reference["state"]
             candidates = structured_candidates(
-                actor,
+                policy,
                 state,
                 candidate_count=candidate_count,
                 sigma=sigma,
                 generator=generator,
                 deduplicate=True,
             )
-            features = _features(state)
+            features = policy.features(state)
             with torch.no_grad():
                 predicted = np.asarray(
                     [float(critic(features, action)) for action in candidates]
@@ -189,10 +193,10 @@ def audit_structured_critic(
                     action, as_tuple=False
                 ).flatten().cpu().numpy()
                 order_ids = [
-                    int(state["order_ids"][index]) for index in selected_indices
+                    int(state.order_ids[index]) for index in selected_indices
                 ]
                 rollout = _candidate_rollout(
-                    actor,
+                    policy,
                     instance_id,
                     reference["prefix"],
                     state,
@@ -234,7 +238,7 @@ def audit_structured_critic(
                 {
                     "instance_id": instance_id,
                     "decision_index": decision_index,
-                    "visible_orders": len(state["order_ids"]),
+                    "visible_orders": len(state.order_ids),
                     "unique_candidates": len(candidate_rows),
                     "spearman": None if np.isnan(correlation) else float(correlation),
                     "predicted_q_spread": float(np.ptp(predicted)),
@@ -274,6 +278,7 @@ def audit_structured_critic(
     )
     return {
         "reward_power": reward_power,
+        "decoder": policy.decoder_name,
         "states": rows,
         "summary": {
             "state_count": len(rows),
@@ -329,8 +334,9 @@ def audit_structured_critic(
         },
     }
 
+
 def _counterfactual_examples(
-    actor, audit: dict[str, object], *, standardize_targets: bool = True
+    policy: StructuredPolicy, audit: dict[str, object], *, standardize_targets: bool = True
 ):
     power = str(audit["reward_power"])
     trajectories = {}
@@ -338,25 +344,27 @@ def _counterfactual_examples(
     for row in audit["states"]:
         instance_id = row["instance_id"]
         if instance_id not in trajectories:
-            trajectories[instance_id] = _reference_trajectory(actor, instance_id)
+            trajectories[instance_id] = _reference_trajectory(
+                policy, instance_id
+            )
         state = trajectories[instance_id][int(row["decision_index"])]["state"]
         actions = []
         targets = []
         for candidate in row["candidate_rows"]:
             indices = _indices_for_orders(state, candidate["order_ids"])
-            actions.append(_mask(indices, len(state["order_ids"])))
+            actions.append(action_mask(indices, len(state)))
             targets.append(float(candidate["true_q"][power]))
         target = torch.as_tensor(targets, dtype=torch.float32)
         if standardize_targets:
             target = (target - target.mean()) / target.std(
                 unbiased=False
             ).clamp_min(1e-6)
-        examples.append((_copy_state(state), actions, target))
+        examples.append((copy_state(state), actions, target))
     return examples
 
 
 def score_counterfactual_audit(
-    actor,
+    policy: StructuredPolicy,
     critic,
     audit: dict[str, object],
     *,
@@ -365,13 +373,13 @@ def score_counterfactual_audit(
 ) -> dict[str, object]:
     """Score a frozen critic on previously generated exact branches."""
     examples = _counterfactual_examples(
-        actor, audit, standardize_targets=False
+        policy, audit, standardize_targets=False
     )
     rows = []
     for (state, actions, true_values), source_row in zip(
         examples, audit["states"]
     ):
-        features = _features(state)
+        features = policy.features(state)
         with torch.no_grad():
             predicted = torch.stack(
                 [critic(features, action) for action in actions]
@@ -437,7 +445,7 @@ def score_counterfactual_audit(
 
 
 def counterfactual_examples(
-    actor,
+    policy: StructuredPolicy,
     instance_ids: list[str],
     *,
     reward_power: float,
@@ -448,12 +456,12 @@ def counterfactual_examples(
     sla_threshold_s: float = 0.0,
     objective_scale: float | None = None,
     episode_kwargs: dict | None = None,
-) -> list[tuple[dict[str, object], list[torch.Tensor], torch.Tensor]]:
+) -> list[tuple[BatchingState, list[torch.Tensor], torch.Tensor]]:
     """Exact per-candidate Q labels for a sample of training states."""
     generator = torch.Generator().manual_seed(seed)
     examples = []
     for instance_id in instance_ids:
-        trajectory = _reference_trajectory(actor, instance_id, episode_kwargs)
+        trajectory = _reference_trajectory(policy, instance_id, episode_kwargs)
         indices = sorted(
             {
                 min(
@@ -467,7 +475,7 @@ def counterfactual_examples(
             reference = trajectory[decision_index]
             state = reference["state"]
             candidates = structured_candidates(
-                actor,
+                policy,
                 state,
                 candidate_count=candidate_count,
                 sigma=sigma,
@@ -481,11 +489,10 @@ def counterfactual_examples(
                     action, as_tuple=False
                 ).flatten().cpu().numpy()
                 order_ids = [
-                    int(state["order_ids"][index])
-                    for index in selected_indices
+                    int(state.order_ids[index]) for index in selected_indices
                 ]
                 rollout = _candidate_rollout(
-                    actor,
+                    policy,
                     instance_id,
                     reference["prefix"],
                     state,
@@ -501,7 +508,7 @@ def counterfactual_examples(
             target = (target - target.mean()) / target.std(
                 unbiased=False
             ).clamp_min(1e-6)
-            examples.append((_copy_state(state), actions, target))
+            examples.append((copy_state(state), actions, target))
     return examples
 
 
@@ -519,13 +526,40 @@ def run_audit(cfg: dict, output_dir: Path, tracking_run=None) -> dict[str, objec
     instance_ids = splits[split][:count]
     loader = GeneratedHennDataLoader(data_spec)
     objective = cfg["objective"]
+    cp_decoder_name = checkpoint_decoder_name(checkpoint)
+    requested_decoder = str(cfg.get("decoder", {}).get("name", cp_decoder_name))
+    assert_policy_compatible(
+        checkpoint,
+        objective=dict(objective),
+        data_spec=data_spec,
+        decoder_name=requested_decoder,
+        feature_schema=str(cfg["model"]["feature_schema"]),
+    )
     episode_kwargs = {
         "data_loader": loader,
         "use_order_due_dates": bool(objective["use_order_due_dates"]),
         "include_due_slack": True,
+        "decoder": cp_decoder_name,
     }
+    # Reconstruct the exact actor-decoder combination stored in the checkpoint.
+    episode = StructuredBatchingEpisode(
+        instance_ids[:1],
+        reward_power=float(objective["power"]),
+        objective_scale=objective_scale,
+        **episode_kwargs,
+    )
+    _probe_state = episode.reset(instance_id=instance_ids[0])
+    assert_route_cost_scale_matches(checkpoint, _probe_state.route_cost_scale)
+    episode.close()
+    policy = StructuredPolicy(actor, episode.decoder, location_features=True)
+    if bool(cfg.get("progress", True)):
+        print(
+            f"Auditing checkpoint with decoder={cp_decoder_name} on {len(instance_ids)} "
+            f"{split} instances.",
+            flush=True,
+        )
     audit = audit_structured_critic(
-        actor,
+        policy,
         critic,
         instance_ids,
         reward_power=float(objective["power"]),
@@ -541,6 +575,7 @@ def run_audit(cfg: dict, output_dir: Path, tracking_run=None) -> dict[str, objec
     result = {
         "mode": "audit",
         "status": "complete",
+        "decoder": cp_decoder_name,
         "split": split,
         "checkpoint": str(checkpoint_path),
         "audit": audit,

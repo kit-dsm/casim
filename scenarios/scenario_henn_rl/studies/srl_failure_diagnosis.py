@@ -1,4 +1,13 @@
-"""Causal SRL-failure diagnostics for structured order batching.
+"""Legacy knapsack-specific SRL-failure diagnostics for structured order batching.
+
+.. warning::
+
+    This module is a **legacy, knapsack-only diagnostic**.  It is deliberately
+    not part of the supported training path and is not imported by the normal
+    entry point.  It reproduces the canonical SRL-failure evidence (reward
+    identity, exact-Q actor audit, representability) assuming the production
+    *knapsack* decoder.  It rejects route-aware checkpoints rather than
+    silently treating them as knapsack checkpoints.
 
 Compact reproduction of the four decisive evidence points:
 
@@ -49,24 +58,29 @@ from scipy.optimize import linprog, lsq_linear
 from scipy.stats import spearmanr
 
 from scenarios.scenario_henn_rl.structured.audit import _candidate_rollout
+from scenarios.scenario_henn_rl.structured.checkpoint import (
+    checkpoint_decoder_name,
+    load_workbench_checkpoint,
+)
 from scenarios.scenario_henn_rl.structured.data import (
     GeneratedHennDataLoader,
     generated_instance_splits,
 )
+from scenarios.scenario_henn_rl.structured.decoders import knapsack_batch
 from scenarios.scenario_henn_rl.structured.environment import (
     StructuredBatchingEpisode,
-    knapsack_batch,
 )
 from scenarios.scenario_henn_rl.structured.models import (
-    _copy_state,
-    _features,
     critic_soft_target,
-    decode_scores,
     fenchel_young_loss,
-    load_workbench_checkpoint,
     structured_candidates,
 )
+from scenarios.scenario_henn_rl.structured.policy import StructuredPolicy
 from scenarios.scenario_henn_rl.structured.results import write_json
+from scenarios.scenario_henn_rl.structured.state import (
+    action_mask,
+    copy_state,
+)
 
 DATA_SPEC = {
     "base_instance_id": "H_abc1_40_30",
@@ -94,23 +108,28 @@ def _episode_kwargs():
         "data_loader": loader,
         "use_order_due_dates": False,
         "include_due_slack": True,
+        "decoder": "knapsack",
     }
+
+
+def _knapsack_policy(actor, episode: StructuredBatchingEpisode) -> StructuredPolicy:
+    """Build the knapsack structured policy for an episode (legacy diagnostic)."""
+    return StructuredPolicy(actor, episode.decoder, location_features=True)
 
 
 def _trajectory(actor, instance_id: str, episode_kwargs: dict | None = None):
     """Actor-decided reference trajectory (states and chosen order IDs)."""
     episode = StructuredBatchingEpisode([instance_id], **(episode_kwargs or {}))
+    policy = _knapsack_policy(actor, episode)
     state = episode.reset(instance_id=instance_id)
     trajectory = []
     done = False
     while not done:
-        with torch.no_grad():
-            action = decode_scores(actor(_features(state)), state)
-        indices = torch.nonzero(action, as_tuple=False).flatten().cpu().numpy()
-        selected = [int(state["order_ids"][index]) for index in indices]
+        indices = policy.select_indices(state)
+        selected = [int(state.order_ids[index]) for index in indices]
         trajectory.append(
             {
-                "state": _copy_state(state),
+                "state": copy_state(state),
                 "actor_order_ids": selected,
             }
         )
@@ -119,9 +138,9 @@ def _trajectory(actor, instance_id: str, episode_kwargs: dict | None = None):
     return trajectory
 
 
-def _indices_for_orders(state: dict[str, object], order_ids) -> np.ndarray:
+def _indices_for_orders(state, order_ids) -> np.ndarray:
     index_by_order = {
-        int(order_id): index for index, order_id in enumerate(state["order_ids"])
+        int(order_id): index for index, order_id in enumerate(state.order_ids.tolist())
     }
     return np.asarray(
         [index_by_order[int(order_id)] for order_id in order_ids], dtype=int
@@ -157,12 +176,13 @@ def collect_dataset(
             }
         )
         episode = StructuredBatchingEpisode([instance_id], **(episode_kwargs or {}))
+        policy = _knapsack_policy(actor, episode)
         state = episode.reset(instance_id=instance_id)
         wanted = set(indices)
         for decision_index, reference in enumerate(trajectory):
             current_state = episode.state()
             if not np.array_equal(
-                current_state["order_ids"], reference["state"]["order_ids"]
+                current_state.order_ids, reference["state"].order_ids
             ):
                 raise RuntimeError("Replay diverged from reference order buffer")
             state = current_state
@@ -172,7 +192,7 @@ def collect_dataset(
                     for position in range(decision_index)
                 ]
                 candidates = structured_candidates(
-                    actor,
+                    policy,
                     state,
                     candidate_count=candidate_count,
                     sigma=sigma,
@@ -184,20 +204,20 @@ def collect_dataset(
                         action, as_tuple=False
                     ).flatten().cpu().numpy()
                     order_ids = [
-                        int(state["order_ids"][index]) for index in selected_indices
+                        int(state.order_ids[index]) for index in selected_indices
                     ]
                     record = {
                         "instance_id": instance_id,
                         "decision_index": decision_index,
-                        "order_ids": state["order_ids"].tolist(),
-                        "features": state["features"].tolist(),
-                        "demands": state["demands"].tolist(),
-                        "capacity": int(state["capacity"]),
+                        "order_ids": state.order_ids.tolist(),
+                        "features": state.features.tolist(),
+                        "demands": state.demands.tolist(),
+                        "capacity": int(state.capacity),
                         "action": action.tolist(),
                     }
                     if collect_q:
                         rollout = _candidate_rollout(
-                            actor,
+                            policy,
                             instance_id,
                             prefix_order_ids,
                             state,
@@ -240,16 +260,15 @@ def _full_episode_q(
 ) -> dict[str, float]:
     """Exact total Q of a policy over one whole episode from the initial state."""
     probe = StructuredBatchingEpisode([instance_id], **(episode_kwargs or {}))
+    policy = _knapsack_policy(policy_actor, probe)
     initial_state = probe.reset(instance_id=instance_id)
-    with torch.no_grad():
-        action = decode_scores(policy_actor(_features(initial_state)), initial_state)
-    indices = torch.nonzero(action, as_tuple=False).flatten().cpu().numpy()
+    indices = policy.select_indices(initial_state)
     initial_order_ids = [
-        int(initial_state["order_ids"][index]) for index in indices
+        int(initial_state.order_ids[index]) for index in indices
     ]
     probe.close()
     rollout = _candidate_rollout(
-        policy_actor,
+        policy,
         instance_id,
         [],
         initial_state,
@@ -331,11 +350,12 @@ def run_actor_update_audit(
             }
         )
         episode = StructuredBatchingEpisode([instance_id], **(episode_kwargs or {}))
+        policy = _knapsack_policy(actor, episode)
         state = episode.reset(instance_id=instance_id)
         for decision_index, reference in enumerate(trajectory):
             current_state = episode.state()
             if not np.array_equal(
-                current_state["order_ids"], reference["state"]["order_ids"]
+                current_state.order_ids, reference["state"].order_ids
             ):
                 raise RuntimeError("Replay diverged from reference order buffer")
             state = current_state
@@ -351,7 +371,7 @@ def run_actor_update_audit(
                 for position in range(decision_index)
             ]
             candidates = structured_candidates(
-                actor,
+                policy,
                 state,
                 candidate_count=candidate_count,
                 sigma=sigma,
@@ -359,16 +379,15 @@ def run_actor_update_audit(
                 deduplicate=False,
             )
 
-            with torch.no_grad():
-                before_action = decode_scores(actor(_features(state)), state)
+            before_action = policy.select_action(state)
             before_indices = torch.nonzero(
                 before_action, as_tuple=False
             ).flatten().cpu().numpy()
             before_order_ids = [
-                int(state["order_ids"][index]) for index in before_indices
+                int(state.order_ids[index]) for index in before_indices
             ]
             before_q = _candidate_rollout(
-                actor,
+                policy,
                 instance_id,
                 prefix_order_ids,
                 state,
@@ -398,12 +417,12 @@ def run_actor_update_audit(
                     [
                         torch.as_tensor(
                             _candidate_rollout(
-                                actor,
+                                policy,
                                 instance_id,
                                 prefix_order_ids,
                                 state,
                                 [
-                                    int(state["order_ids"][index])
+                                    int(state.order_ids[index])
                                     for index in torch.nonzero(
                                         action, as_tuple=False
                                     )
@@ -422,16 +441,16 @@ def run_actor_update_audit(
                 )
             for target_spec in targets:
                 updated_actor = copy.deepcopy(actor)
+                updated_policy = _knapsack_policy(updated_actor, episode)
 
                 target, diagnostic = critic_soft_target(
-                    actor,
+                    policy,
                     critic,
                     state,
                     candidate_count=candidate_count,
                     sigma=sigma,
                     temperature=float(target_spec["temperature"]),
                     generator=generator,
-                    location_features=True,
                     normalize_advantages=bool(
                         target_spec.get("normalize_advantages", False)
                     ),
@@ -444,13 +463,12 @@ def run_actor_update_audit(
                 )
                 fy_generator.set_state(fy_state)
                 actor_loss, _ = fenchel_young_loss(
-                    updated_actor,
+                    updated_policy,
                     state,
                     target,
                     sample_count=fy_samples,
                     epsilon=epsilon,
                     generator=fy_generator,
-                    location_features=True,
                 )
                 optimizer = torch.optim.Adam(
                     updated_actor.parameters(), lr=learning_rate
@@ -462,18 +480,15 @@ def run_actor_update_audit(
                 )
                 optimizer.step()
 
-                with torch.no_grad():
-                    after_action = decode_scores(
-                        updated_actor(_features(state)), state
-                    )
+                after_action = updated_policy.select_action(state)
                 after_indices = torch.nonzero(
                     after_action, as_tuple=False
                 ).flatten().cpu().numpy()
                 after_order_ids = [
-                    int(state["order_ids"][index]) for index in after_indices
+                    int(state.order_ids[index]) for index in after_indices
                 ]
                 after_q = _candidate_rollout(
-                    actor,
+                    policy,
                     instance_id,
                     prefix_order_ids,
                     state,
@@ -487,7 +502,7 @@ def run_actor_update_audit(
                     "target": target_spec["name"],
                     "instance_id": instance_id,
                     "decision_index": decision_index,
-                    "visible_orders": len(state["order_ids"]),
+                    "visible_orders": len(state.order_ids),
                     "q_before": float(before_q),
                     "q_after": float(after_q),
                     "delta_q": float(after_q - before_q),
@@ -895,7 +910,7 @@ def run_reward_identity(
         done = False
         while not done:
             selected = episode.oracle_action(
-                np.full(len(state["order_ids"]), -1.0), state
+                np.full(len(state.order_ids), -1.0), state
             )
             state, reward, done, _, info = episode.step(selected)
             episode_return += reward
@@ -936,7 +951,19 @@ def run_reward_identity(
 
 
 def _load_actor(checkpoint: str):
+    """Load a knapsack checkpoint; reject route-aware checkpoints.
+
+    This legacy diagnostic reproduces knapsack-specific SRL-failure evidence;
+    it must not silently treat a route-aware checkpoint as a knapsack one.
+    """
     actor, critic, checkpoint_dict = load_workbench_checkpoint(checkpoint)
+    decoder_name = checkpoint_decoder_name(checkpoint_dict)
+    if decoder_name != "knapsack":
+        raise ValueError(
+            f"This legacy diagnostic supports knapsack checkpoints only; "
+            f"checkpoint decoder is {decoder_name!r}. Use the supported audit "
+            f"entry point for route-aware checkpoints."
+        )
     actor.checkpoint_path = checkpoint
     actor.eval()
     critic.eval()

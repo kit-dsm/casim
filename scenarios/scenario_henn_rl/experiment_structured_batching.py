@@ -23,6 +23,14 @@ def run(cfg: DictConfig) -> dict[str, object]:
     output_dir.mkdir(parents=True, exist_ok=True)
     config_path = output_dir / "resolved_config.json"
     write_json(config_path, resolved)
+    action = str(resolved["experiment"]["action"])
+    decoder_name = str(resolved.get("decoder", {}).get("name", "knapsack"))
+    objective_name = str(resolved.get("objective", {}).get("name", "unknown"))
+    print(
+        f"Structured-batching run: action={action}, decoder={decoder_name}, "
+        f"objective={objective_name}, output_dir={output_dir}",
+        flush=True,
+    )
     if resolved["tracking"].get("enabled") and bool(
         resolved.get("progress", True)
     ):
@@ -35,7 +43,6 @@ def run(cfg: DictConfig) -> dict[str, object]:
             flush=True,
         )
     try:
-        action = str(resolved["experiment"]["action"])
         if action == "generate":
             result = run_generation(resolved["data"], output_dir)
             result = {"mode": "generate", "status": "complete", **result}

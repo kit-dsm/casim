@@ -61,7 +61,8 @@ def test_generated_splits_are_balanced_disjoint_and_reconstructable():
 
 @pytest.mark.parametrize("action", ["generate", "train", "evaluate", "audit"])
 @pytest.mark.parametrize("objective", ["flow", "sla"])
-def test_workbench_hydra_groups_compose(action, objective):
+@pytest.mark.parametrize("decoder", ["knapsack", "route_aware_greedy"])
+def test_workbench_hydra_groups_compose(action, objective, decoder):
     from hydra import compose, initialize_config_dir
 
     config_dir = str(
@@ -70,11 +71,17 @@ def test_workbench_hydra_groups_compose(action, objective):
     with initialize_config_dir(config_dir=config_dir, version_base="1.3"):
         cfg = compose(
             config_name="structured",
-            overrides=[f"experiment={action}", f"objective={objective}"],
+            overrides=[
+                f"experiment={action}",
+                f"objective={objective}",
+                f"decoder={decoder}",
+            ],
         )
     assert cfg.experiment.action == action
     assert cfg.objective.gamma == 1.0
+    assert cfg.decoder.name == decoder
     assert cfg.progress is True
+    assert "decoder" not in cfg.model
 
 
 def test_generated_deadlines_follow_hourly_four_hour_cutoff_rule():
@@ -128,13 +135,13 @@ def test_generated_episode_exposes_deadline_slack_and_exact_tardiness_reward():
         include_due_slack=True,
     )
     state = episode.reset(instance_id=instance_id)
-    assert state["features"].shape[1] == 8
-    assert state["feature_schema"] == "deadline_v1"
+    assert state.features.shape[1] == 8
+    assert state.feature_schema == "deadline_v1"
     episode_return = 0.0
     done = False
     while not done:
         indices = episode.oracle_action(
-            torch.ones(len(state["order_ids"])).numpy(), state
+            torch.ones(len(state.order_ids)).numpy(), state
         )
         state, reward, done, _, info = episode.step(indices)
         episode_return += reward
@@ -146,12 +153,12 @@ def test_generated_episode_exposes_deadline_slack_and_exact_tardiness_reward():
 
 
 def test_workbench_checkpoint_rejects_legacy_feature_schema(tmp_path):
-    from scenarios.scenario_henn_rl.structured.models import (
+    from scenarios.scenario_henn_rl.structured.checkpoint import (
         load_workbench_checkpoint,
     )
 
     path = tmp_path / "legacy.pt"
-    torch.save({"format_version": 1, "feature_schema": "legacy_v1"}, path)
+    torch.save({"format_version": 2, "feature_schema": "legacy_v1", "decoder": {"name": "knapsack"}}, path)
     with pytest.raises(ValueError, match="Unsupported feature schema"):
         load_workbench_checkpoint(path)
 

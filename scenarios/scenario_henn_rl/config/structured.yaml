@@ -2,6 +2,7 @@ defaults:
   - experiment: train
   - data: henn_lorenz
   - objective: flow
+  - decoder: knapsack
   - tracking: disabled
   - _self_
 
@@ -26,7 +27,6 @@ model:
   feature_count: 8
   hidden: 32
   critic: interaction
-  decoder: knapsack
 
 learner:
   episodes: 128
