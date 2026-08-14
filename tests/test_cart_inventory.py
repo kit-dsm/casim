@@ -15,9 +15,9 @@ from ware_ops_algos.algorithms import (
     SchedulingSolution,
 )
 
-from casim.decision_engine.commitment_policies import SchedulingCommitmentPolicy
+from casim.decision_engine.decision_engine import SchedulingCommitmentPolicy
 from casim.simulation_engine.state_adapter import OrderWindowAdapter
-from casim.simulation_engine.conditions import NbrPickersCondition
+from casim.simulation_engine.simulation_engine import NbrPickersCondition
 from casim.state import State
 from casim.state.storage_manager import StorageManager
 from scenarios.scenario_reopt.loader import ReoptDataLoader
@@ -95,7 +95,9 @@ def test_batch_commitment_rejects_a_stale_repeat_without_mutation():
     )
     for order in domain.orders.orders[:2]:
         state.receive_order(order)
-    assigned = GreedyItemAssignment(state.get_storage()).solve(
+    assigned = GreedyItemAssignment(
+        state.storage_manager.planning_snapshot()
+    ).solve(
         domain.orders.orders[:2]
     ).resolved_orders
     solution = BatchingSolution(batches=[BatchObject(1, assigned)])
@@ -127,7 +129,7 @@ def test_scattered_fixture_has_static_cart_spec_and_inventory():
 
 def test_inventory_reservation_confirmation_and_release_are_exact():
     domain = _domain()
-    manager = StorageManager(domain.articles, domain.storage)
+    manager = StorageManager(domain.storage)
     first = PickPosition(1, 101, 2, (1, 2), 2)
     second = PickPosition(2, 101, 1, (1, 2), 1)
 
@@ -159,7 +161,7 @@ def test_inventory_aggregates_duplicate_article_locations():
     duplicate = deepcopy(storage.locations[0])
     duplicate.amount = 2
     storage.locations.append(duplicate)
-    manager = StorageManager(domain.articles, storage)
+    manager = StorageManager(storage)
     amounts = {
         (location.article_id, location.x, location.y): location.amount
         for location in manager.planning_snapshot().locations
@@ -183,14 +185,14 @@ def test_planning_projection_does_not_share_mutable_operational_objects():
 
     assert snapshot.orders.orders[0] is not state.order_manager.get_order_buffer()[0]
     assert snapshot.resources.resources[0] is not (
-        state.resource_manager.get_resource(0)
+        state.get_resource(0)
     )
-    assert snapshot.storage is not state.storage_manager.get_storage()
+    assert snapshot.storage is not state.storage_manager.planning_snapshot()
     snapshot.orders.orders[0].order_positions[0].amount = 99
     snapshot.resources.resources[0].occupied = True
     snapshot.storage.locations[0].amount = 99
     assert state.order_manager.get_order_buffer()[0].order_positions[0].amount == 1
-    assert state.resource_manager.get_resource(0).occupied is False
+    assert state.get_resource(0).occupied is False
     assert state.storage_manager.planning_snapshot().locations[0].amount != 99
 
 
@@ -205,15 +207,17 @@ def test_order_window_excludes_picker_with_a_queued_tour():
     )
     raw = {order.order_id: order for order in domain.orders.orders}
     state.receive_order(raw[1])
-    resolved = GreedyItemAssignment(state.get_storage()).solve(
+    resolved = GreedyItemAssignment(
+        state.storage_manager.planning_snapshot()
+    ).solve(
         [raw[1]]
     ).resolved_orders
     batch = BatchObject(1, resolved)
     start = domain.layout.layout_network.start_node
     end = domain.layout.layout_network.end_node
-    state.commit_scheduled_job(
+    state.commit_scheduling_solution(SchedulingSolution(jobs=[
         _scheduled(_route(batch, start, end), picker_id=0)
-    )
+    ]))
     state.receive_order(raw[2])
 
     snapshot = OrderWindowAdapter().transform_state(state, "OBRSP")
@@ -222,7 +226,7 @@ def test_order_window_excludes_picker_with_a_queued_tour():
     assert NbrPickersCondition(1).get_decision(snapshot)
     assert not NbrPickersCondition(2).get_decision(snapshot)
 
-    state.resource_manager.set_picker_unavailable(1)
+    state.set_picker_availability(1, False, state.current_time)
     snapshot = OrderWindowAdapter().transform_state(state, "OBRSP")
     assert snapshot.resources.resources == []
     assert not NbrPickersCondition(1).get_decision(snapshot)
@@ -240,22 +244,26 @@ def test_active_plan_insertion_is_atomic_and_locks_on_first_pick():
     raw = {order.order_id: order for order in domain.orders.orders}
     state.receive_order(raw[1])
     state.receive_order(raw[2])
-    resolved = GreedyItemAssignment(state.get_storage()).solve(
+    resolved = GreedyItemAssignment(
+        state.storage_manager.planning_snapshot()
+    ).solve(
         [raw[1], raw[2]]
     ).resolved_orders
     initial_batch = BatchObject(1, resolved)
     start = domain.layout.layout_network.start_node
     end = domain.layout.layout_network.end_node
-    tour_id = state.commit_scheduled_job(
+    tour_id = state.commit_scheduling_solution(SchedulingSolution(jobs=[
         _scheduled(_route(initial_batch, start, end))
-    )
+    ]))[0]
     state.tour_manager.start_tour(tour_id, 0.0)
     tour = state.tour_manager.get_tour(tour_id)
     assert state.tour_manager.bin_order_ids(tour_id) == ((1,), (2,), ())
     assert state.tour_manager.locked_bin_ids(tour_id) == frozenset()
 
     state.receive_order(raw[5])
-    inserted = GreedyItemAssignment(state.get_storage()).solve(
+    inserted = GreedyItemAssignment(
+        state.storage_manager.planning_snapshot()
+    ).solve(
         [raw[5]]
     ).resolved_orders[0]
     merged = BatchObject(

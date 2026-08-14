@@ -53,7 +53,9 @@ def test_horizon_reports_orders_that_have_not_arrived(tmp_path):
 
 def test_horizon_reports_prebatched_work(tmp_path):
     def add_prebatched_work(engine, domain):
-        order = GreedyItemAssignment(engine.state.get_storage()).solve(
+        order = GreedyItemAssignment(
+            engine.state.storage_manager.planning_snapshot()
+        ).solve(
             [domain.orders.orders[0]]
         ).resolved_orders[0]
         engine.state.order_manager.add_pick_list_to_buffer(

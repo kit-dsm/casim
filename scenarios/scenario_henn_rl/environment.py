@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 
 import gymnasium as gym
@@ -7,8 +8,10 @@ import numpy as np
 from gymnasium import spaces
 from ware_ops_algos.algorithms import (
     BatchObject,
+    ClarkAndWrightBatching,
     CombinedRoutingSolution,
     GreedyItemAssignment,
+    LocalSearchBatching,
 )
 from ware_ops_algos.algorithms.batching.batching import FifoBatching
 from ware_ops_algos.algorithms.batching.batching_utils import CapacityChecker
@@ -28,11 +31,11 @@ from casim.events.operational_events import (
     OrderArrival,
     PickerIdle,
 )
-from casim.simulation_engine.conditions import (
+from casim.simulation_engine.simulation_engine import (
     NbrOrdersCondition,
     NbrPickersCondition,
+    SimulationEngine,
 )
-from casim.simulation_engine.simulation_engine import SimulationEngine
 from casim.simulation_engine.state_adapter import StateAdapter
 from scenarios.scenario_henn.algorithm import (
     _order_routes,
@@ -51,19 +54,6 @@ ROOT = Path(__file__).parents[2].resolve()
 HENN_DIR = ROOT / "scenarios" / "scenario_henn"
 
 
-class _NullProgress:
-    n = 0
-
-    def update(self, amount=1):
-        self.n += amount
-
-    def set_postfix_str(self, value):
-        return None
-
-    def close(self):
-        return None
-
-
 class ReleaseTimingAdapter(StateAdapter):
     """Cheap trigger view plus a detached fixed-solver projection."""
 
@@ -71,10 +61,11 @@ class ReleaseTimingAdapter(StateAdapter):
 
     @staticmethod
     def _available_resources(state, trigger=None, *, detached: bool):
-        resources = (
-            state.resource_manager.planning_snapshot()
+        resources = Resources(
+            state.resources.tpe,
+            deepcopy(state.resources.resources)
             if detached
-            else state.resource_manager.get_resources()
+            else state.resources.resources,
         )
         available = [
             resource
@@ -99,10 +90,10 @@ class ReleaseTimingAdapter(StateAdapter):
         return SimWarehouseDomain(
             problem_class=problem,
             objective=state.active_objective,
-            layout=state.layout_manager.get_layout(),
+            layout=state.layout_manager.layout,
             orders=OrdersDomain(OrderType.STANDARD, orders),
             resources=resources,
-            articles=state.storage_manager.get_articles(),
+            articles=state.articles,
             storage=storage,
             dynamic_warehouse_info=DynamicInfo(
                 tpe=WarehouseInfoType.ONLINE,
@@ -141,7 +132,7 @@ class ReleaseTimingAdapter(StateAdapter):
             problem,
             orders,
             self._available_resources(state, detached=True),
-            state.get_storage(),
+            state.storage_manager.planning_snapshot(),
         )
 
 
@@ -172,6 +163,7 @@ def _setup_simulation(instance_id: str, data_loader=None) -> SimulationEngine:
         event_loggers=[],
         completion_mode="drain",
         horizon_time=None,
+        show_progress=False,
     )
 
 
@@ -203,9 +195,6 @@ class ReleaseTimingEnv(gym.Env):
         self.instance_id = self.instance_ids[0]
         self.simulation = _setup_simulation(self.instance_id, data_loader)
         self.release_adapter = self.simulation.state_adapters["OBRP"]
-        import casim.simulation_engine.simulation_engine as simulation_module
-
-        simulation_module.tqdm = lambda *args, **kwargs: _NullProgress()
         self._batcher = None
         self._router = None
         self.action_space = spaces.Discrete(2)
@@ -407,7 +396,7 @@ class ReleaseTimingEnv(gym.Env):
         if not checker.orders_fit(selected):
             raise ValueError("Structured batch exceeds picker cart capacity")
         batch = BatchObject(batch_id=0, orders=selected)
-        routing = self._router.solve(batch.pick_positions)
+        routing = self.route(batch.pick_positions)
         routing.route.batch = batch
         solution = _schedule(
             [routing.route],
@@ -428,6 +417,73 @@ class ReleaseTimingEnv(gym.Env):
             problem_class,
             solution,
         )
+
+    def route(self, pick_positions):
+        """Route a list of pick positions with the fixed S-shape router."""
+        if self._router is None:
+            raise RuntimeError("Router is not configured before reset")
+        return self._router.solve(pick_positions)
+
+    def route_distance(
+        self, order_positions: list[list[tuple[int, int]]], selected_indices
+    ) -> float:
+        """Return the fixed S-shape distance for the batch at ``selected_indices``.
+
+        ``order_positions`` is the per-order list of ``(aisle, y)`` pick
+        positions stored in the structured state; the selected orders' positions
+        are flattened into synthetic pick positions and routed.  This is the
+        pure route-cost term used by the route-aware decoder and the same router
+        used for dispatch.
+        """
+        if self._router is None:
+            raise RuntimeError("Router is not configured before reset")
+        positions = []
+        for index in selected_indices:
+            positions.extend(order_positions[int(index)])
+        if not positions:
+            return 0.0
+        from ware_ops_algos.algorithms.routing.routing import PickPosition
+
+        pick_positions = [
+            PickPosition(
+                order_number=0,
+                article_id=-1,
+                amount=1,
+                pick_node=(int(aisle), int(y)),
+                in_store=1,
+            )
+            for (aisle, y) in positions
+        ]
+        return float(self._router.solve(pick_positions).route.distance)
+
+    def build_batches(self, orders, batching: str, *, articles, time_limit_s: float = 1.0):
+        """Build batches with the configured fixed pipeline batching algorithm.
+
+        ``articles`` is the planning-snapshot articles used for capacity
+        checking; the routing configuration is owned by the environment.
+        """
+        if self._batcher is None or self._routing_kwargs is None:
+            raise RuntimeError("Pipeline is not configured before reset")
+        pick_cart = self._routing_kwargs["picker"][0].pick_cart
+        if batching == "fifo":
+            return self._batcher.solve(orders)
+        if batching == "cw":
+            return ClarkAndWrightBatching(
+                pick_cart=pick_cart,
+                articles=articles,
+                routing_class=SShapeRouting,
+                routing_class_kwargs=self._routing_kwargs,
+            ).solve(orders)
+        if batching == "ls":
+            return LocalSearchBatching(
+                pick_cart=pick_cart,
+                articles=articles,
+                routing_class=SShapeRouting,
+                routing_class_kwargs=self._routing_kwargs,
+                start_batching_class=FifoBatching,
+                time_limit=time_limit_s,
+            ).solve(orders)
+        raise ValueError(f"Unknown existing batching policy: {batching}")
 
     def _configure_fixed_pipeline(self, domain) -> None:
         picker = domain.resources.resources[0]

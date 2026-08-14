@@ -21,12 +21,10 @@ from ware_ops_algos.domain_models import (
 )
 
 from .order_manager import OrderManager
-from .resource_manager import ResourceManager
 from .tour_manager import TourManager
 from ..domain_objects.tour_model import TourStates
 from .layout_manager import LayoutManager
 from .storage_manager import StorageManager
-from .dock_manager import DockManager
 from ..trackers import ExperimentTracker
 
 
@@ -80,12 +78,16 @@ class State:
                  storage: StorageLocations,
                  resources: Resources,
                  active_objective):
-        # time is a float (simulation time units)
         self.current_time: float = 0.0
         self.break_until: float = 0.0
-        self.resource_manager = ResourceManager(resources=resources)
-        self.storage_manager = StorageManager(articles=articles,
-                                              storage=storage)
+        self.resources = resources
+        self.articles = articles
+        self._resources_by_id = {
+            resource.id: resource for resource in resources.resources
+        }
+        if len(self._resources_by_id) != len(resources.resources):
+            raise ValueError("Resource IDs must be unique")
+        self.storage_manager = StorageManager(storage=storage)
         self.order_manager = OrderManager()
         self.tour_manager = TourManager()
         self.layout_manager = LayoutManager(layout=layout)
@@ -100,7 +102,6 @@ class State:
                     True,
                     self.current_time,
                 )
-        self.statistics = []
         self.done_flag = False
         self.input_closed = False
         self.completion_reason: str | None = None
@@ -108,7 +109,8 @@ class State:
         self.active_objective = active_objective
         self.intervention_enabled = False
         self.active_batch_insertion_enabled = False
-        self.dock_manager: DockManager | None = None
+        self.dock_capacity: int | None = None
+        self.n_staged_pallets = 0
 
     def unfinished_work(self) -> dict[str, object]:
         """Return the cross-manager work that prevents drain completion."""
@@ -154,7 +156,7 @@ class State:
         )
         occupied_picker_ids = sorted(
             resource.id
-            for resource in self.resource_manager.get_resources().resources
+            for resource in self.resources.resources
             if resource.occupied
         )
         reservation_tour_ids = list(
@@ -182,9 +184,11 @@ class State:
             )
         )
 
-
-    def get_storage(self) -> StorageLocations:
-        return self.storage_manager.planning_snapshot()
+    def get_resource(self, picker_id: int):
+        try:
+            return self._resources_by_id[picker_id]
+        except KeyError as exc:
+            raise ValueError(f"Unknown picker ID {picker_id}") from exc
 
     def register_order(self, order: Order) -> int:
         return self.order_manager.register_order(order)
@@ -214,20 +218,21 @@ class State:
         return shifted
 
     def configure_dock(self, capacity: int) -> None:
-        self.dock_manager = DockManager(capacity)
+        if capacity < 0:
+            raise ValueError("Dock capacity cannot be negative")
+        self.dock_capacity = int(capacity)
+        self.n_staged_pallets = 0
 
     def release_dock(self, quantity: int | None) -> int:
-        if self.dock_manager is None:
+        if self.dock_capacity is None:
             return 0
-        return self.dock_manager.release(quantity)
-
-    @property
-    def dock_fill(self) -> int:
-        return (
-            self.dock_manager.n_staged_pallets
-            if self.dock_manager is not None
-            else 0
+        released = (
+            self.n_staged_pallets
+            if quantity is None
+            else min(self.n_staged_pallets, max(0, int(quantity)))
         )
+        self.n_staged_pallets -= released
+        return released
 
     def depart_truck(self, time: float, capacity: int | None) -> list[int]:
         delayed = []
@@ -242,12 +247,12 @@ class State:
         self.tracker.on_truck_departure_delays(time, delayed, expected)
         self.tracker.on_truck_departure(
             time,
-            self.dock_fill if capacity is None else capacity,
+            self.n_staged_pallets if capacity is None else capacity,
         )
         self.release_dock(capacity)
         return [
             picker.id
-            for picker in self.resource_manager.get_resources().resources
+            for picker in self.resources.resources
             if not picker.occupied
         ]
 
@@ -275,7 +280,7 @@ class State:
         self.is_break = False
         return [
             picker.id
-            for picker in self.resource_manager.get_resources().resources
+            for picker in self.resources.resources
             if picker.available
             and not picker.occupied
             and self.tour_manager.has_future_tours(picker.id)
@@ -287,13 +292,10 @@ class State:
         available: bool,
         time: float,
     ) -> None:
-        picker = self.resource_manager.get_resource(picker_id)
+        picker = self.get_resource(picker_id)
         if bool(picker.available) == bool(available):
             return
-        if available:
-            self.resource_manager.set_picker_available(picker_id)
-        else:
-            self.resource_manager.set_picker_unavailable(picker_id)
+        picker.available = bool(available)
         self.tracker.on_availability_change(
             picker_id,
             available,
@@ -302,7 +304,7 @@ class State:
 
     def available_for_planning(self, picker_id: int) -> bool:
         """Picker is usable by the planner only if not occupied and not reserved by queued tours."""
-        res = self.resource_manager.get_resource(picker_id)
+        res = self.get_resource(picker_id)
         return (
             res.available
             and not res.occupied
@@ -315,24 +317,18 @@ class State:
         time: float,
     ) -> tuple[str, int | None, float]:
         """Reserve the next tour start or mark the picker idle."""
-        picker = self.resource_manager.get_resource(picker_id)
+        picker = self.get_resource(picker_id)
         if not picker.available:
-            self.resource_manager.mark_picker_free(picker_id)
+            picker.occupied = False
             return "none", None, float(time)
         if self.is_break:
             return "none", None, float(time)
         tour_id = self.tour_manager.get_next_tour_for_picker(picker_id)
         if tour_id is None:
-            self.resource_manager.mark_picker_free(picker_id)
+            picker.occupied = False
             self.tracker.on_idle_start(picker_id, time)
             return "idle", None, float(time)
         tour = self.tour_manager.get_tour(tour_id)
-        if tour.status == TourStates.CANCELLED:
-            self.tour_manager.remove_canceled_tour_for_picker(
-                picker_id,
-                tour_id,
-            )
-            return "retry", None, float(time)
         start_time = max(float(time), float(tour.start_time or time))
         if picker.tour_setup_time:
             start_time = max(
@@ -399,11 +395,6 @@ class State:
             return False
         return True
 
-    def add_statistic(self, picker_id: int,
-                      time_value: float,
-                      order_id: int) -> None:
-        self.statistics.append([picker_id, time_value, order_id])
-
     def commit_batching_solution(
         self,
         solution: BatchingSolution,
@@ -431,7 +422,7 @@ class State:
                 f"buffered: {sorted(missing)}"
             )
 
-        self.order_manager.clear_order_buffer_by_ids(sorted(parent_ids))
+        self.order_manager.commit_order_ids(sorted(parent_ids))
         for batch in batches:
             self.order_manager.add_pick_list_to_buffer(batch)
 
@@ -459,10 +450,6 @@ class State:
             )
         return [batch.batch_id for batch in batches]
 
-    @staticmethod
-    def _batch_key(batch: BatchObject) -> frozenset[int]:
-        return batch.order_numbers
-
     def _find_buffered_batch(
         self,
         batch: BatchObject,
@@ -470,7 +457,7 @@ class State:
         matches = [
             candidate
             for candidate in self.order_manager.get_pick_list_buffer()
-            if self._batch_key(candidate) == self._batch_key(batch)
+            if candidate.order_numbers == batch.order_numbers
         ]
         if len(matches) > 1:
             raise ValueError(
@@ -509,7 +496,7 @@ class State:
                 raise ValueError(
                     f"Tour {tour_id} is no longer replannable ({tour.status})"
                 )
-            replaceable[self._batch_key(tour.batch)] = tour
+            replaceable[tour.batch.order_numbers] = tour
 
         raw_ids = self.order_manager.buffered_order_ids()
         buffered_batches = []
@@ -520,7 +507,7 @@ class State:
                 raise ValueError(
                     "Scheduled job has no executable route and batch"
                 )
-            picker = self.resource_manager.get_resource(int(job.picker_id))
+            picker = self.get_resource(int(job.picker_id))
             if not picker.available:
                 raise ValueError(
                     f"Picker {picker.id} is unavailable for committed work"
@@ -533,7 +520,7 @@ class State:
             if batch_ids.issubset(raw_ids):
                 raw_to_commit.update(batch_ids)
                 continue
-            if self._batch_key(route.batch) in replaceable:
+            if route.batch.order_numbers in replaceable:
                 continue
             raise ValueError(
                 "Scheduled batch is neither buffered raw work, a buffered "
@@ -583,10 +570,6 @@ class State:
             raise
         return created
 
-    def commit_scheduled_job(self, scheduled_job: ScheduledJob) -> int:
-        solution = SchedulingSolution(jobs=[scheduled_job])
-        return self.commit_scheduling_solution(solution)[0]
-
     def commit_scheduling_decision(
         self,
         solution: SchedulingSolution,
@@ -604,7 +587,7 @@ class State:
         if route is None or route.batch is None:
             raise ValueError("Scheduled job has no executable route and batch")
         picker_id = int(scheduled_job.picker_id)
-        picker = self.resource_manager.get_resource(picker_id)
+        picker = self.get_resource(picker_id)
         tour_id = self.tour_manager.create_tour(
             _clone_route_plan(route),
             scheduled_job.job.processing_time,
@@ -640,18 +623,15 @@ class State:
 
     def start_tour(self, tour_id: int, time: float) -> bool:
         tour = self.tour_manager.get_tour(tour_id)
-        picker = self.resource_manager.get_resource(tour.assigned_resource)
+        picker = self.get_resource(tour.assigned_resource)
         if not picker.available:
             return False
         if not tour.annotated_route:
             raise ValueError(f"Tour {tour_id} has no executable route")
         self.tracker.on_idle_end(picker.id, time)
-        self.resource_manager.update_resource_location(
-            picker.id,
-            tour.annotated_route[0],
-        )
+        picker.current_location = tour.annotated_route[0]
         self.tour_manager.start_tour(tour_id, time)
-        self.resource_manager.mark_picker_occupied(picker.id)
+        picker.occupied = True
         self.tracker.on_tour_start(time)
         return True
 
@@ -688,7 +668,7 @@ class State:
             return "none", None
         if tour.at_end():
             return "end", float(time)
-        picker = self.resource_manager.get_resource(tour.assigned_resource)
+        picker = self.get_resource(tour.assigned_resource)
         origin = tour.current_node()
         destination = tour.next_node()
         already_waiting = tour.waiting_for == "edge_or_zone"
@@ -727,7 +707,7 @@ class State:
         time: float,
     ) -> tuple[str, float | None, list[tuple[int, int, int]]]:
         tour = self.tour_manager.get_tour(tour_id)
-        picker = self.resource_manager.get_resource(tour.assigned_resource)
+        picker = self.get_resource(tour.assigned_resource)
         awakened: list[tuple[int, int, int]] = []
         if tour.edge_destination is not None:
             awakened = self.layout_manager.release_travel(
@@ -735,10 +715,7 @@ class State:
             )
             destination = tour.edge_destination
             self.tour_manager.advance_cursor(tour_id)
-            self.resource_manager.update_resource_location(
-                picker.id,
-                destination,
-            )
+            picker.current_location = destination
             tour.executed_route_prefix.append(destination)
             self.tracker.on_travel(
                 picker_id=picker.id,
@@ -788,7 +765,7 @@ class State:
         time: float,
     ) -> tuple[str, list[tuple[int, int, int]]]:
         tour = self.tour_manager.get_tour(tour_id)
-        picker = self.resource_manager.get_resource(tour.assigned_resource)
+        picker = self.get_resource(tour.assigned_resource)
         completed = self.confirm_pick(tour_id, picker.current_location)
         awakened = self.layout_manager.release_pick(self._tour_token(tour))
         self.tracker.on_pick_end(
@@ -813,9 +790,9 @@ class State:
     ) -> tuple[int, list[tuple[int, int, int]]]:
         tour = self.tour_manager.get_tour(tour_id)
         picker_id = int(tour.assigned_resource)
-        end = self.layout_manager.get_layout().graph_data.end_location
+        end = self.layout_manager.layout.graph_data.end_location
         if (
-            self.resource_manager.get_resource(picker_id).current_location.position
+            self.get_resource(picker_id).current_location.position
             != end
         ):
             raise ValueError(f"Tour {tour_id} cannot complete away from {end}")
@@ -833,12 +810,12 @@ class State:
                 delayed.append(order_id)
         self.tour_manager.finish_tour(tour_id, time)
         self.order_manager.mark_orders_completed(tour.order_numbers)
-        self.resource_manager.mark_picker_free(picker_id)
-        n_pallets_dock = (
-            self.dock_manager.stage(1)
-            if self.dock_manager is not None
-            else 0
-        )
+        self.get_resource(picker_id).occupied = False
+        if self.dock_capacity is not None:
+            if self.n_staged_pallets + 1 > self.dock_capacity:
+                raise ValueError("Dock capacity exceeded")
+            self.n_staged_pallets += 1
+        n_pallets_dock = self.n_staged_pallets
         self.tracker.on_tour_end(
             tour.tour_id,
             tour.start_time,
@@ -996,11 +973,11 @@ class State:
             or self.tour_manager.get_active_tour_for_picker(picker_id) is not tour
         ):
             raise ValueError("Replacement target is not the picker's active tour")
-        depot = self.layout_manager.get_layout().graph_data.end_location
+        depot = self.layout_manager.layout.graph_data.end_location
         if not route.annotated_route or route.annotated_route[-1].position != depot:
             raise ValueError("Replacement route must return to the depot")
 
-        current = self.resource_manager.get_resource(picker_id).current_location
+        current = self.get_resource(picker_id).current_location
         if not isinstance(current, RouteNode):
             current = RouteNode(current, NodeType.ROUTE)
         origin_type = "node"
@@ -1040,8 +1017,8 @@ class State:
                 tour.annotated_route[tour.cursor:],
                 tour.annotated_route[tour.cursor + 1:],
             )
-            if left.position in self.layout_manager.get_layout().layout_network.graph
-            and right.position in self.layout_manager.get_layout().layout_network.graph
+            if left.position in self.layout_manager.layout.layout_network.graph
+            and right.position in self.layout_manager.layout.layout_network.graph
         )
         if origin_type == "edge":
             old_distance -= travelled
@@ -1051,7 +1028,7 @@ class State:
             list(owners) for owners in self.tour_manager.bin_order_ids(tour_id)
         ]
         allow_insertions = self.active_batch_insertion_enabled
-        self.tour_manager.validate_active_route(
+        validated_replacement = self.tour_manager.validate_active_route(
             tour_id,
             route,
             current,
@@ -1077,11 +1054,10 @@ class State:
             self._install_active_plan(
                 tour_id,
                 route,
-                current,
-                allow_insertions=allow_insertions,
                 interrupted_position=interrupted_position,
                 travelled_distance=travelled,
                 first_leg_distance=first_leg_distance,
+                validated_replacement=validated_replacement,
             )
         else:
             self.clear_intervention_request(tour_id)
@@ -1116,22 +1092,15 @@ class State:
         self,
         tour_id: int,
         route: Route,
-        current_position: RouteNode,
         *,
-        allow_insertions: bool,
         interrupted_position: RouteNode | None = None,
         travelled_distance: float = 0.0,
         first_leg_distance: float | None = None,
+        validated_replacement,
     ):
         tour = self.tour_manager.get_tour(tour_id)
         old_version = int(tour.route_version)
         old_ids = set(tour.batch.order_numbers)
-        self.tour_manager.validate_active_route(
-            tour_id,
-            route,
-            current_position,
-            allow_insertions=allow_insertions,
-        )
         inserted_ids = set(route.batch.order_numbers) - old_ids
         buffered_ids = {
             order.order_id
@@ -1186,8 +1155,7 @@ class State:
             updated = self.tour_manager.replace_active_route(
                 tour_id,
                 route,
-                current_position,
-                allow_insertions=allow_insertions,
+                validated_replacement=validated_replacement,
             )
             self.layout_manager.replace_token(
                 (
@@ -1202,10 +1170,9 @@ class State:
                 ),
             )
             if interrupted_position is not None:
-                self.resource_manager.update_resource_location(
-                    tour.assigned_resource,
-                    interrupted_position,
-                )
+                self.get_resource(
+                    tour.assigned_resource
+                ).current_location = interrupted_position
                 if not updated.executed_route_prefix or (
                     updated.executed_route_prefix[-1].position
                     != interrupted_position.position

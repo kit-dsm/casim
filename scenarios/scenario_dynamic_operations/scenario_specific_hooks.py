@@ -1,4 +1,4 @@
-from casim.events.base_events import Event
+from casim.events.operational_events import Event
 from casim.events.operational_events import (
     BreakStart,
     FlushRemainingOrders,

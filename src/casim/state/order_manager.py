@@ -11,7 +11,6 @@ class OrderManager:
         self._release_versions: dict[object, int] = {}
         self._order_buffer: dict[int, Order] = {}
         self._pick_list_buffer: list[BatchObject] = []
-        self._pick_list_assignments: dict[int, BatchObject | None] = {}
         self._order_history: dict[int, Order] = {}
         self._next_batch_id: int = 0
 
@@ -67,9 +66,6 @@ class OrderManager:
             scheduled.append((order.order_id, float(new_release), version))
         return scheduled
 
-    def unreleased_order_ids(self) -> set:
-        return set(self._unreleased_orders)
-
     def add_order_to_buffer(self, order: Order) -> None:
         if order.order_id in self._order_buffer:
             raise ValueError(f"Order {order.order_id} is already buffered")
@@ -86,10 +82,6 @@ class OrderManager:
             int(pick_list.batch_id) + 1,
         )
         self._pick_list_buffer.append(pick_list)
-
-    def add_selected_pick_list(self, pick_list: BatchObject,
-                               picker_id: int) -> None:
-        self._pick_list_assignments[picker_id] = pick_list
 
     def add_order_to_history(self, order: Order) -> None:
         o_id = order.order_id
@@ -117,9 +109,6 @@ class OrderManager:
     def get_order_buffer(self) -> list[Order]:
         return list(self._order_buffer.values())
 
-    def planning_order_buffer(self) -> list[Order]:
-        return copy.deepcopy(list(self._order_buffer.values()))
-
     def get_pick_list_buffer(self) -> list[BatchObject]:
         return list(self._pick_list_buffer)
 
@@ -128,35 +117,6 @@ class OrderManager:
 
     def buffered_batch_ids(self) -> set[int]:
         return {batch.batch_id for batch in self._pick_list_buffer}
-
-    def get_buffered_batches_by_ids(
-        self,
-        batch_ids: set[int],
-    ) -> list[BatchObject]:
-        return [
-            batch
-            for batch in self._pick_list_buffer
-            if batch.batch_id in batch_ids
-        ]
-
-    def planning_pick_list_buffer(self) -> list[BatchObject]:
-        return copy.deepcopy(self._pick_list_buffer)
-
-    def get_selected_pick_list(self, picker_id: int) -> BatchObject:
-        pl = self._pick_list_assignments[picker_id]
-        self._pick_list_assignments[picker_id] = None
-
-        return pl
-
-    def clear_order_buffer_by_ids(self, order_ids: list[int]) -> None:
-        for o_id in order_ids:
-            order = self._order_buffer.pop(o_id, None)
-            try:
-                assert isinstance(order, Order)
-            except AssertionError:
-                print(f"Order with id {o_id} not found in buffer, cannot clear")
-            if order is not None:
-                self.add_order_to_history(order)
 
     def commit_order_ids(self, order_ids: list[int]) -> None:
         """Move buffered orders to history, accepting already committed IDs."""
@@ -182,28 +142,8 @@ class OrderManager:
             self._order_history.pop(order.order_id, None)
             self._order_buffer[order.order_id] = order
 
-    def clear_order_buffer(self, orders: list[Order] | None = None) -> None:
-        if orders is None:
-            ids_to_clear = list(self._order_buffer.keys())
-        else:
-            ids_to_clear = [o.order_id for o in orders]
-
-        for o_id in ids_to_clear:
-            order = self._order_buffer.pop(o_id, None)
-            try:
-                assert isinstance(order, Order)
-            except AssertionError:
-                print(f"Order with id {o_id} not found in buffer, cannot clear")
-            if order is not None:
-                self.add_order_to_history(order)
-
-    def clear_pick_list_buffer(self, pls: list[BatchObject] | None = None) -> None:
-
-        if pls is None:
-            pls_to_clear = self.get_pick_list_buffer()
-        else:
-            pls_to_clear = pls
-        for pl in pls_to_clear:
+    def clear_pick_list_buffer(self, batches: list[BatchObject]) -> None:
+        for pl in batches:
             if pl in self._pick_list_buffer:
                 self._pick_list_buffer.remove(pl)
 
@@ -211,7 +151,11 @@ class OrderManager:
         self,
         batch_ids: set[int],
     ) -> list[BatchObject]:
-        selected = self.get_buffered_batches_by_ids(batch_ids)
+        selected = [
+            batch
+            for batch in self._pick_list_buffer
+            if batch.batch_id in batch_ids
+        ]
         if {batch.batch_id for batch in selected} != batch_ids:
             missing = sorted(
                 batch_ids - {batch.batch_id for batch in selected}
@@ -223,13 +167,6 @@ class OrderManager:
             if batch.batch_id not in batch_ids
         ]
         return selected
-
-    def restore_pick_lists(self, batches: list[BatchObject]) -> None:
-        existing = self.buffered_batch_ids()
-        for batch in batches:
-            if batch.batch_id not in existing:
-                self._pick_list_buffer.append(batch)
-                existing.add(batch.batch_id)
 
     def __deepcopy__(self, memo):
         cls = self.__class__

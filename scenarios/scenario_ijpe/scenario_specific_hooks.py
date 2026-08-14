@@ -103,7 +103,7 @@ def make_break_hook(n_days: int, breaks, day_sec: int):
     return hook
 
 
-def make_dock_manager_hook(K_dock: int):
+def make_dock_hook(K_dock: int):
     def hook(sim, domain) -> None:
         sim.state.configure_dock(K_dock)
 
@@ -350,7 +350,7 @@ def build_sim_hooks(cfg):
                 wms_run_hour=float(time_model.wms_run_hour),
                 day_sec=day_sec,
             ),
-            make_dock_manager_hook(
+            make_dock_hook(
                 K_dock=int(sim_cfg.dock.K_dock),
             ),
             make_break_hook(

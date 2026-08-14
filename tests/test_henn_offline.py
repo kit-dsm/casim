@@ -76,7 +76,7 @@ def test_existing_setup_discovers_one_pipeline_per_batching_variant(
 
     simulation.reset(hooks=build_sim_hooks(cfg))
 
-    assert len(decision_engine.get_solver("OBRP").pipelines) == 1
+    assert len(decision_engine.solver_map["OBRP"].pipelines) == 1
     assert sum(
         isinstance(event, OrderArrival)
         for event in simulation.events
@@ -87,7 +87,7 @@ def test_existing_setup_discovers_one_pipeline_per_batching_variant(
     ) == 1
     done, snapshot = simulation.run()
     assert not done
-    result = decision_engine.get_solver("OBRP").solve(snapshot, action=None)
+    result = decision_engine.solver_map["OBRP"].solve(snapshot, action=None)
     assert result is not None
     solution, _, _ = result
     assert isinstance(solution, CombinedRoutingSolution)

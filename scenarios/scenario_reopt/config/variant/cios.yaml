@@ -17,8 +17,6 @@ engines:
           max_states: ${solver.max_states}
           max_runtime_s: ${solver.max_runtime_s}
           release_mode: actual
-        commitment_policy:
-          _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
     event_map:
       SequencingDone:
         _target_: hydra.utils.get_class
@@ -30,7 +28,7 @@ engines:
           _target_: casim.simulation_engine.state_adapter.OrderWindowAdapter
         triggers: [casim.events.operational_events.OrderArrival, casim.events.operational_events.PickerIdle]
         conditions:
-          - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+          - _target_: casim.simulation_engine.simulation_engine.NbrPickersCondition
             threshold: 1
-          - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+          - _target_: casim.simulation_engine.simulation_engine.NbrOrdersCondition
             threshold: 1

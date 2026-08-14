@@ -86,9 +86,8 @@ inspect algorithm cards.
 
 | Owner | Mutable source of truth |
 |---|---|
-| `State` | Current time, completion flag, enabled intervention mode, and atomic cross-manager operations |
+| `State` | Current time, completion flags, picker state, dock state, and atomic cross-subsystem operations |
 | `OrderManager` | Buffered, committed, and completed orders |
-| `ResourceManager` | Picker availability, occupancy, and actual position |
 | `TourManager` | Planned/queued/active/completed tours and each active tour's execution state |
 | `StorageManager` | On-hand quantities and per-tour reservations |
 | `LayoutManager` | Static layout plus runtime edge/zone/pick-location occupancy and FIFO waiters |

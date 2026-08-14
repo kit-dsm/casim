@@ -9,7 +9,7 @@ from ware_ops_algos.domain_models import Resource
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.domain_objects.tour_model import TourStates
-from casim.events.base_events import Event
+from casim.events.operational_events import Event
 from casim.events.operational_events import OrderArrival
 from casim.io_helpers import dump_pickle
 from casim.state import State
@@ -156,7 +156,7 @@ class DashLogger(EventLogger):
         tour_manager = state.tour_manager
         pickers = {}
         active_picker_tour = {}
-        for picker in state.resource_manager.get_resources().resources:
+        for picker in state.resources.resources:
             if picker_ids is not None and picker.id not in picker_ids:
                 continue
             tour = tour_manager.get_active_tour_for_picker(picker.id)
@@ -382,30 +382,27 @@ class KPILogger(EventLogger):
         horizon = state.current_time
         horizon_h = horizon / 3600 if horizon else 0
 
-        total_orders = sum(len(oids) for _, _, _, oids, _, _, _, _  in t.completed_tours)
-        total_lines = sum(lines for _, _, _, _, _, _, _, lines in t.completed_tours)
-
-
         return {
             "completion_reason": state.completion_reason,
             "unfinished_work": state.unfinished_work(),
-            "makespan": max(
-                (end for _, _, end, _, _, _, _, _ in t.completed_tours),
-                default=0.0,
-            ),
+            "makespan": t.completion_makespan,
             "num_tours": len(t.completed_tours),
-            "num_orders_completed": total_orders,
+            "num_orders_completed": t.completed_order_count,
             "avg_tour_makespan": t.average_tour_makespan,
             "avg_batch_size": t.average_batch_size,
-            "orders_per_hour": total_orders / horizon_h if horizon_h else 0.0,
+            "orders_per_hour": (
+                t.completed_order_count / horizon_h if horizon_h else 0.0
+            ),
             "tours_per_hour": len(t.completed_tours) / horizon_h if horizon_h else 0.0,
             "distance_by_picker": dict(t.distance_by_picker),
             "idle_time_by_picker": dict(t.idle_time_by_picker),
             "total_distance": sum(t.distance_by_picker.values()),
             "total_delayed": t.total_delayed,
             "dock_utilization": dict(t.dock_utilization),
-            "total_tour_times": sum(t.process_times),
-            "picks_per_hour": total_lines / horizon_h if horizon_h else 0.0,
+            "total_tour_times": t.total_processing_time,
+            "picks_per_hour": (
+                t.completed_line_count / horizon_h if horizon_h else 0.0
+            ),
             "total_processing_time": t.total_processing_time
             # "total_on_time": t.total_on_time
         }
@@ -421,8 +418,8 @@ class KPILogger(EventLogger):
             f"on_time_ratio={100 * t.on_time_ratio:.1f}% "
             f"delayed_ratio={100 * t.delayed_ratio:.1f} "
             + (
-                f"dock_fill={state.dock_manager.n_staged_pallets}"
-                if state.dock_manager is not None
+                f"dock_fill={state.n_staged_pallets}"
+                if state.dock_capacity is not None
                 else ""
             )
         )

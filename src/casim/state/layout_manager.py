@@ -11,17 +11,43 @@ from ware_ops_algos.domain_models import LayoutData
 
 class LayoutManager:
     def __init__(self, layout: LayoutData):
-        self._layout = layout
-        self._dima = self._layout.layout_network.distance_matrix
+        self.layout = layout
+        self._dima = self.layout.layout_network.distance_matrix
         nodes = list(self._dima.index)
         self._node_to_idx = {n: i for i, n in enumerate(nodes)}
         self._dist = self._dima.to_numpy(dtype=float, copy=False)
         self._occupants = defaultdict(list)
         self._waiters = defaultdict(deque)
         self._held_by_token = {}
-
-    def get_layout(self):
-        return self._layout
+        graph = self.layout.layout_network.graph
+        self._edge_constraints = {}
+        for origin, destination, attributes in graph.edges(data=True):
+            zone_id = attributes.get("zone_id")
+            capacity = attributes.get("capacity")
+            if zone_id is not None:
+                constraint = ("zone", zone_id), int(capacity or 1)
+            elif capacity is not None:
+                constraint = (
+                    "edge",
+                    self._edge_id(graph, origin, destination),
+                ), int(capacity)
+            else:
+                constraint = None, None
+            self._edge_constraints[
+                self._edge_id(graph, origin, destination)
+            ] = constraint
+        self._node_constraints = {
+            node: (("pick", node), int(attributes["pick_capacity"]))
+            for node, attributes in graph.nodes(data=True)
+            if attributes.get("pick_capacity") is not None
+        }
+        self._congestion_keys = {
+            key
+            for key, _ in self._edge_constraints.values()
+            if key is not None
+        }
+        self._planning_cache_key = None
+        self._planning_cache = None
 
     def get_distance(self, a, b) -> float:
         return float(self._dist[self._node_to_idx[a.position], self._node_to_idx[b.position]])
@@ -33,29 +59,14 @@ class LayoutManager:
         return tuple(sorted((origin, destination), key=repr))
 
     def _edge_capacity(self, origin, destination):
-        graph = self._layout.layout_network.graph
-        if not graph.has_edge(origin, destination):
-            return None, None
-        attributes = graph.get_edge_data(origin, destination) or {}
-        zone_id = attributes.get("zone_id")
-        capacity = attributes.get("capacity")
-        if zone_id is not None:
-            return ("zone", zone_id), int(capacity or 1)
-        if capacity is not None:
-            return (
-                "edge",
-                self._edge_id(graph, origin, destination),
-            ), int(capacity)
-        return None, None
+        graph = self.layout.layout_network.graph
+        return self._edge_constraints.get(
+            self._edge_id(graph, origin, destination),
+            (None, None),
+        )
 
     def _node_capacity(self, node):
-        graph = self._layout.layout_network.graph
-        if node not in graph:
-            return None, None
-        capacity = graph.nodes[node].get("pick_capacity")
-        if capacity is None:
-            return None, None
-        return ("pick", node), int(capacity)
+        return self._node_constraints.get(node, (None, None))
 
     def _request(self, key, capacity, token) -> bool:
         if key is None:
@@ -118,9 +129,24 @@ class LayoutManager:
     def planning_layout(self, congestion_penalty: float = 0.0):
         """Return static layout or a detached occupied-edge cost snapshot."""
         if congestion_penalty <= 0:
-            return self._layout
-        projected = copy.copy(self._layout)
-        network = copy.copy(self._layout.layout_network)
+            return self.layout
+        occupied = tuple(
+            sorted(
+                (
+                    (key, len(tokens))
+                    for key, tokens in self._occupants.items()
+                    if tokens and key in self._congestion_keys
+                ),
+                key=lambda item: repr(item[0]),
+            )
+        )
+        if not occupied:
+            return self.layout
+        cache_key = float(congestion_penalty), occupied
+        if cache_key == self._planning_cache_key:
+            return self._planning_cache
+        projected = copy.copy(self.layout)
+        network = copy.copy(self.layout.layout_network)
         graph = network.graph.copy()
         for origin, destination, attributes in graph.edges(data=True):
             key, _ = self._edge_capacity(origin, destination)
@@ -150,4 +176,6 @@ class LayoutManager:
         )
         network.predecessor_matrix = np.asarray(predecessors)
         projected.layout_network = network
+        self._planning_cache_key = cache_key
+        self._planning_cache = projected
         return projected

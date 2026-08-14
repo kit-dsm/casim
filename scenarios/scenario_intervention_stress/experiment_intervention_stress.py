@@ -9,7 +9,7 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 
 from casim.viz.app import launch
-from casim.simulation_engine.conditions import NbrOrdersCondition
+from casim.simulation_engine.simulation_engine import NbrOrdersCondition
 from scenarios.experiment_commons import (
     load_and_flatten_data_card,
     setup_decision_engine,

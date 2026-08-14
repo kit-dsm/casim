@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import networkx as nx
+import numpy as np
 import pytest
 from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
@@ -113,6 +114,65 @@ def test_layout_capacity_waits_fifo_and_directed_origin_continues_forward():
     graph = projected.layout_network.graph
     assert graph.has_edge(synthetic.position, destination_node)
     assert not graph.has_edge(synthetic.position, origin_node)
+
+
+@pytest.mark.parametrize("directed", [False, True])
+def test_temporary_origin_projection_matches_graph_shortest_paths(directed):
+    domain = DynamicOperationsLoader(SCENARIO).load(
+        SCENARIO / "data" / "smoke.json"
+    )
+    layout = deepcopy(domain.layout)
+    if directed:
+        layout.layout_network.graph = nx.DiGraph(
+            layout.layout_network.graph
+        )
+    graph = layout.layout_network.graph
+    origin_node, destination_node = next(iter(graph.edges))
+    edge_distance = float(graph.edges[origin_node, destination_node]["weight"])
+    synthetic = RouteNode((-0.25, -0.25), NodeType.ROUTE)
+    tour = SimpleNamespace(
+        edge_origin=RouteNode(origin_node, NodeType.ROUTE),
+        edge_destination=RouteNode(destination_node, NodeType.ROUTE),
+        edge_distance=edge_distance,
+    )
+
+    projected = ActiveTourRoutingAdapter._layout_with_origin(
+        layout,
+        tour,
+        synthetic,
+        0.37,
+    )
+    network = projected.layout_network
+    expected = nx.floyd_warshall_numpy(
+        network.graph,
+        nodelist=network.node_list,
+        weight="weight",
+    )
+    np.testing.assert_allclose(
+        network.distance_matrix.to_numpy(),
+        expected,
+    )
+
+    source_idx = network.node_list.index(synthetic.position)
+    for target_idx, expected_distance in enumerate(expected[source_idx]):
+        if not np.isfinite(expected_distance) or target_idx == source_idx:
+            continue
+        path = [target_idx]
+        current_idx = target_idx
+        while current_idx != source_idx:
+            current_idx = network.predecessor_matrix[
+                source_idx, current_idx
+            ]
+            assert current_idx != -9999
+            path.append(current_idx)
+        path.reverse()
+        route_distance = sum(
+            network.graph.edges[
+                network.node_list[left], network.node_list[right]
+            ]["weight"]
+            for left, right in zip(path, path[1:])
+        )
+        assert route_distance == pytest.approx(expected_distance)
 
 
 @pytest.mark.parametrize(

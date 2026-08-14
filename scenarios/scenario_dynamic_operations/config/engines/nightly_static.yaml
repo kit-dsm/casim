@@ -12,8 +12,6 @@ decision_engine:
           _target_: casim.pipelines.solution_ranker.SolutionRanker
           objective: tardiness
         repo: ${cosy_repo}
-      commitment_policy:
-        _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
     ORSP:
       solver:
         _target_: casim.pipelines.pipeline_runner.CoSySolver
@@ -21,8 +19,6 @@ decision_engine:
           _target_: casim.pipelines.solution_ranker.SolutionRanker
           objective: tardiness
         repo: ${cosy_repo}
-      commitment_policy:
-        _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
   event_map:
     PickListDone:
       _target_: hydra.utils.get_class
@@ -39,15 +35,15 @@ simulation_engine:
         _target_: casim.simulation_engine.state_adapter.OBPAdapter
       triggers: [casim.events.operational_events.WMSRun]
       conditions:
-        - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+        - _target_: casim.simulation_engine.simulation_engine.NbrOrdersCondition
           threshold: 1
     ORSP:
       state_adapter:
         _target_: casim.simulation_engine.state_adapter.ORSPAdapter
       triggers: [casim.events.operational_events.PlanningRun]
       conditions:
-        - _target_: casim.simulation_engine.conditions.NbrBatchesCondition
+        - _target_: casim.simulation_engine.simulation_engine.NbrBatchesCondition
           threshold: 1
-        - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+        - _target_: casim.simulation_engine.simulation_engine.NbrPickersCondition
           threshold: 1
-        - _target_: casim.simulation_engine.conditions.BreakCondition
+        - _target_: casim.simulation_engine.simulation_engine.BreakCondition

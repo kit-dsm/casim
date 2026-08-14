@@ -8,33 +8,98 @@ from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
-from casim.events.base_events import Event, ProcessEvent
-from casim.events.operational_events import OrderArrival, FlushRemainingOrders
-from casim.events.operational_events import InterventionRequest
+from casim.events.operational_events import (
+    Event,
+    FlushRemainingOrders,
+    InterventionRequest,
+    OrderArrival,
+    ProcessEvent,
+)
 from casim.loggers import EventLogger
 from casim.state import State
-from casim.simulation_engine.conditions import (
-    Condition,
-    NbrBatchesCondition,
-    NbrOrdersCondition,
-)
 from casim.simulation_engine.state_adapter import StateAdapter
 
 logger = logging.getLogger(__name__)
+
+
+class BreakCondition:
+    def get_decision(self, state: SimWarehouseDomain) -> bool:
+        if state.dynamic_warehouse_info.is_break:
+            print(
+                f"At {state.dynamic_warehouse_info.time}: "
+                "break is active, skipping decision"
+            )
+            return False
+        return True
+
+
+class DockCapacityCondition:
+    def __init__(self, threshold: int):
+        self.threshold = threshold
+
+    def get_decision(self, state: SimWarehouseDomain) -> bool:
+        dynamic = state.dynamic_warehouse_info
+        return (
+            dynamic.n_staged_pallets + len(dynamic.active_tours)
+            <= self.threshold
+        )
+
+
+class NbrPickersCondition:
+    def __init__(self, threshold: int):
+        self.threshold = threshold
+
+    def get_decision(self, state: SimWarehouseDomain) -> bool:
+        return len(state.resources.resources) >= self.threshold
+
+
+class NbrOrdersCondition:
+    def __init__(self, threshold: int):
+        self.threshold = threshold
+
+    def get_decision(self, state: SimWarehouseDomain) -> bool:
+        return len(state.orders.orders) >= self.threshold
+
+
+class NbrBatchesCondition:
+    def __init__(self, threshold: int):
+        self.threshold = threshold
+
+    def get_decision(self, state: SimWarehouseDomain) -> bool:
+        return (
+            len(state.dynamic_warehouse_info.buffered_batches)
+            >= self.threshold
+        )
+
+
+class _NullProgress:
+    """No-op progress bar used when ``show_progress`` is disabled."""
+
+    n = 0
+
+    def update(self, amount=1):
+        self.n += amount
+
+    def set_postfix_str(self, value):
+        return None
+
+    def close(self):
+        return None
 
 
 class SimulationEngine:
     def __init__(self,
                  state_adapters: dict[str, StateAdapter],
                  triggers_map: dict[Type[Event], str],
-                 conditions_map: dict[str, Condition],
+                 conditions_map: dict[str, list],
                  loader_kwargs: dict,
                  data_loader: DataLoader = None,
                  event_loggers: list[EventLogger] | None = None,
                  completion_mode: str = "drain",
                  horizon_time: float | None = None,
                  intervention_enabled: bool = False,
-                 active_batch_insertion_enabled: bool = False):
+                 active_batch_insertion_enabled: bool = False,
+                 show_progress: bool = True):
 
         self.state_adapters = state_adapters
         self.state: State | None = None
@@ -61,15 +126,12 @@ class SimulationEngine:
         self._pending_snapshot = None
         self.intervention_enabled = intervention_enabled
         self.active_batch_insertion_enabled = active_batch_insertion_enabled
+        self.show_progress = bool(show_progress)
         if data_loader:
             self.data_loader = data_loader
 
-    def load_data(self) -> SimWarehouseDomain:
-        domain = self.data_loader.load(**self.loader_kwargs)
-        return domain
-
     def reset(self, hooks: list[Callable[['SimulationEngine', SimWarehouseDomain], None]] = ()):
-        domain = self.load_data()
+        domain = self.data_loader.load(**self.loader_kwargs)
         self.state = State(
             layout=domain.layout,
             articles=domain.articles,
@@ -172,10 +234,13 @@ class SimulationEngine:
             self._pending_snapshot = None
             return False, snapshot
         if not hasattr(self, "_pbar"):
-            self._pbar = tqdm(
-                desc="sim events", unit=" ev", unit_scale=True,
-                bar_format="{desc}: {n_fmt} [{elapsed}, {rate_fmt}] sim_t={postfix}",
-            )
+            if self.show_progress:
+                self._pbar = tqdm(
+                    desc="sim events", unit=" ev", unit_scale=True,
+                    bar_format="{desc}: {n_fmt} [{elapsed}, {rate_fmt}] sim_t={postfix}",
+                )
+            else:
+                self._pbar = _NullProgress()
         while self.events:
             if (
                 self.completion_mode == "horizon"
@@ -184,7 +249,6 @@ class SimulationEngine:
                 self.state.current_time = self.horizon_time
                 return self._finish("horizon_complete")
             event = heapq.heappop(self.events)
-            # logger.info(f"Event {event} popped at state time: {self.state.current_time}, events start: {event.time}")
             self.state.current_time = event.time
             events_to_add = event.handle(self.state)
 

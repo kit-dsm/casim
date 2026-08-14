@@ -28,6 +28,13 @@ class ExperimentTracker:
         self.interventions: list[dict] = []
         self.availability_intervals: list[dict] = []
         self._availability_start: dict[int, float] = {}
+        self._available_time_closed_by_picker: dict[int, float] = (
+            defaultdict(float)
+        )
+        self._completed_tour_time = 0.0
+        self._completed_order_count = 0
+        self._completed_line_count = 0
+        self._completion_makespan = 0.0
         # (tour_id, start_time, end_time, list[order_ids], picker_id)
 
     def on_travel(self, picker_id, distance):
@@ -60,7 +67,12 @@ class ExperimentTracker:
                     delayed,
                     n_pallets_dock,
                     n_lines):
+        duration = end_time - start_time
         self.completed_tours.append((tour_id, start_time, end_time, list(order_ids), picker_id, on_time, delayed, n_lines))
+        self._completed_tour_time += duration
+        self._completed_order_count += len(order_ids)
+        self._completed_line_count += n_lines
+        self._completion_makespan = max(self._completion_makespan, end_time)
         for delayed_order_id in delayed:
             self.all_delayed.append(delayed_order_id)
         for on_time_order_id in on_time:
@@ -69,7 +81,7 @@ class ExperimentTracker:
         self.avg_makespan.append((end_time, self.average_tour_makespan))
         util = self.current_utilization(end_time)
         self.picker_utilization.append((end_time, util))
-        self.process_times.append(end_time - start_time)
+        self.process_times.append(duration)
         # print(f"tour_id:  {tour_id} with order_ids: {order_ids} completed at time {end_time:.0f} with makespan {end_time - start_time:.1f} and picker utilization {util:.2%} and dock utilization {n_pallets_dock} pallets")
 
     def on_truck_departure(self, time, capacity):
@@ -101,6 +113,9 @@ class ExperimentTracker:
             return
         start = self._availability_start.pop(picker_id, None)
         if start is not None:
+            self._available_time_closed_by_picker[picker_id] += (
+                float(time) - start
+            )
             self.availability_intervals.append(
                 {
                     "picker_id": int(picker_id),
@@ -110,28 +125,38 @@ class ExperimentTracker:
             )
 
     def available_time_by_picker(self, end_time: float) -> dict[int, float]:
-        totals: dict[int, float] = defaultdict(float)
-        for interval in self.availability_intervals:
-            totals[interval["picker_id"]] += (
-                interval["end"] - interval["start"]
-            )
+        totals = dict(self._available_time_closed_by_picker)
         for picker_id, start in self._availability_start.items():
-            totals[picker_id] += max(0.0, float(end_time) - start)
-        return dict(totals)
+            totals[picker_id] = totals.get(picker_id, 0.0) + max(
+                0.0, float(end_time) - start
+            )
+        return totals
 
     def current_utilization(self, current_time: float) -> float:
-        total_tour_time = sum(
-            end - start
-            for _, start, end, _, _, _, _, _ in self.completed_tours
-        )
         available_time = sum(
             self.available_time_by_picker(current_time).values()
         )
-        return total_tour_time / available_time if available_time else 0.0
+        return (
+            self._completed_tour_time / available_time
+            if available_time
+            else 0.0
+        )
 
     @property
     def total_processing_time(self):
-        return sum(self.process_times)
+        return self._completed_tour_time
+
+    @property
+    def completed_order_count(self) -> int:
+        return self._completed_order_count
+
+    @property
+    def completed_line_count(self) -> int:
+        return self._completed_line_count
+
+    @property
+    def completion_makespan(self) -> float:
+        return self._completion_makespan
 
     @property
     def total_delayed(self) -> int:
@@ -157,15 +182,17 @@ class ExperimentTracker:
 
     @property
     def average_tour_makespan(self) -> float:
-        d = self.tour_durations
-        return sum(d) / len(d) if d else 0.0
+        return (
+            self._completed_tour_time / len(self.completed_tours)
+            if self.completed_tours
+            else 0.0
+        )
 
     @property
     def average_batch_size(self) -> float:
         if not self.completed_tours:
             return 0.0
-        total_orders = sum(len(order_ids) for _, _, _, order_ids, _, _, _, _ in self.completed_tours)
-        return total_orders / len(self.completed_tours)
+        return self._completed_order_count / len(self.completed_tours)
 
 
 class DecisionTracker:

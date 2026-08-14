@@ -12,8 +12,6 @@ decision_engine:
           _target_: casim.pipelines.solution_ranker.SolutionRanker
           objective: tardiness
         repo: ${cosy_repo}
-      commitment_policy:
-        _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
     ORSP:
       solver:
         _target_: casim.pipelines.pipeline_runner.CoSySolver
@@ -22,7 +20,7 @@ decision_engine:
           objective: tardiness
         repo: ${cosy_repo}
       commitment_policy:
-        _target_: casim.decision_engine.commitment_policies.SchedulingCommitmentPolicy
+        _target_: casim.decision_engine.decision_engine.SchedulingCommitmentPolicy
         n_jobs: null
         max_jobs_per_picker: 1
         planning_horizon_s: 14400
@@ -42,7 +40,7 @@ simulation_engine:
         _target_: casim.simulation_engine.state_adapter.OBPAdapter
       triggers: [casim.events.operational_events.WMSRun]
       conditions:
-        - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+        - _target_: casim.simulation_engine.simulation_engine.NbrOrdersCondition
           threshold: 1
     ORSP:
       state_adapter:
@@ -51,8 +49,8 @@ simulation_engine:
         due_horizon_s: 21600
       triggers: [casim.events.operational_events.PlanningRun]
       conditions:
-        - _target_: casim.simulation_engine.conditions.NbrBatchesCondition
+        - _target_: casim.simulation_engine.simulation_engine.NbrBatchesCondition
           threshold: 1
-        - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+        - _target_: casim.simulation_engine.simulation_engine.NbrPickersCondition
           threshold: 1
-        - _target_: casim.simulation_engine.conditions.BreakCondition
+        - _target_: casim.simulation_engine.simulation_engine.BreakCondition

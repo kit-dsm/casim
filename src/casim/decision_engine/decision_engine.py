@@ -1,40 +1,82 @@
 import logging
 import time
-from collections import defaultdict
+from dataclasses import replace
 
 from ware_ops_algos.algorithms import AlgorithmSolution, CombinedRoutingSolution, \
     SchedulingSolution, BatchingSolution
 
-from casim.decision_engine.commitment_policies import CommitmentPolicy, CommitAllPolicy
 from casim.domain_objects.sim_domain import SimWarehouseDomain
-from casim.events.base_events import Event
+from casim.events.operational_events import Event
 from casim.events.decision_events import SequencingDone, RoutingDone, PickListDone
 from casim.pipelines.pipeline_runner import CoSySolver
 from casim.trackers import DecisionTracker
 logger = logging.getLogger(__name__)
 
 
+class SchedulingCommitmentPolicy:
+    """Select a deterministic executable prefix from a full schedule."""
+
+    def __init__(
+        self,
+        n_jobs: int | None = None,
+        max_jobs_per_picker: int | None = None,
+        planning_horizon_s: float | None = None,
+    ):
+        self.n_jobs = n_jobs
+        self.max_jobs_per_picker = max_jobs_per_picker
+        self.planning_horizon_s = planning_horizon_s
+
+    def apply(
+        self,
+        solution: SchedulingSolution,
+        state_snapshot: SimWarehouseDomain,
+    ) -> SchedulingSolution:
+        committed = sorted(
+            solution.jobs,
+            key=lambda job: (
+                job.start_time,
+                job.end_time,
+                int(job.picker_id),
+                job.job.job_id,
+            ),
+        )
+        if self.planning_horizon_s is not None:
+            now = float(state_snapshot.dynamic_warehouse_info.time or 0.0)
+            limit = now + float(self.planning_horizon_s)
+            committed = [
+                job for job in committed if job.start_time <= limit
+            ]
+        if self.max_jobs_per_picker is not None:
+            per_picker: dict[int, int] = {}
+            selected = []
+            for job in committed:
+                picker_id = int(job.picker_id)
+                count = per_picker.get(picker_id, 0)
+                if count >= self.max_jobs_per_picker:
+                    continue
+                selected.append(job)
+                per_picker[picker_id] = count + 1
+            committed = selected
+        if self.n_jobs is not None:
+            committed = committed[: self.n_jobs]
+        return replace(solution, jobs=committed)
+
+
 class DecisionEngine:
     def __init__(self,
                  solver_map: dict[str, CoSySolver],
-                 commitment_policies: dict[str, CommitmentPolicy],
-                 learnable_problems: list[str] | None = None,
+                 commitment_policies: dict[str, SchedulingCommitmentPolicy] | None = None,
                  event_map: dict[str, Event] | None = None,
                  ):
 
         self.solver_map = solver_map
-        self.learnable_problems = learnable_problems or []
-        self.commitment_policies = commitment_policies
-        self.selected_pipelines = defaultdict(dict)
+        self.commitment_policies = commitment_policies or {}
         self.decision_tracker = DecisionTracker()
         self.event_map = event_map or {}
 
-    def get_solver(self, problem: str) -> CoSySolver:
-        return self.solver_map[problem]
-
     def on_trigger(self, state_snapshot: SimWarehouseDomain, action=None):
         problem = state_snapshot.problem_class
-        runner = self.get_solver(problem)
+        runner = self.solver_map[problem]
         start_time_sim = state_snapshot.dynamic_warehouse_info.time
         start_time = time.perf_counter()
         result = runner.solve(state_snapshot, action)
@@ -51,13 +93,18 @@ class DecisionEngine:
                 state_snapshot.problem_class,
                 elapsed)
 
-            policy = self.commitment_policies.get(problem) or CommitAllPolicy()
             full_solution = solution
-            solution = policy.apply(solution, state_snapshot)
+            policy = self.commitment_policies.get(problem)
+            if policy is not None:
+                solution = policy.apply(solution, state_snapshot)
             self.decision_tracker.on_commitment(
                 returned=self._solution_size(full_solution),
                 committed=self._solution_size(solution),
-                policy=policy.__class__.__name__,
+                policy=(
+                    policy.__class__.__name__
+                    if policy is not None
+                    else "CommitAllPolicy"
+                ),
             )
             return (
                 self.solution_to_events(
@@ -122,7 +169,8 @@ class DecisionEngine:
             )
 
         elif isinstance(solution, BatchingSolution):
-            events_to_return = self._batches_to_events(solution, finish_time)
+            cls = self.event_map.get("PickListDone", PickListDone)
+            events_to_return = [cls(finish_time, solution)]
 
         else:
             raise Exception("Not a known solution", type(solution))
@@ -200,8 +248,3 @@ class DecisionEngine:
                 )
             )
         return events_to_return
-
-
-    def _batches_to_events(self, batching_solution: BatchingSolution, finish_time):
-        cls = self.event_map.get("PickListDone", PickListDone)
-        return [cls(finish_time, batching_solution)]

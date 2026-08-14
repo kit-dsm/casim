@@ -1,17 +1,14 @@
-import copy
 from collections import defaultdict
 
 from ware_ops_algos.algorithms import PickPosition
 from ware_ops_algos.domain_models import (
-    Articles,
     Location,
     StorageLocations,
 )
 
 
 class StorageManager:
-    def __init__(self, articles: Articles, storage: StorageLocations):
-        self._articles = articles
+    def __init__(self, storage: StorageLocations):
         self._storage_type = storage.tpe
         self._on_hand: dict[
             tuple[int, int | float, int | float], float
@@ -23,15 +20,11 @@ class StorageManager:
             int,
             dict[tuple[int, int | float, int | float], float],
         ] = {}
-
-    def get_articles(self) -> Articles:
-        return self._articles
-
-    def get_storage(self) -> StorageLocations:
-        return self.planning_snapshot()
+        self._reserved: dict[
+            tuple[int, int | float, int | float], float
+        ] = defaultdict(float)
 
     def planning_snapshot(self) -> StorageLocations:
-        reserved = self._reserved_totals()
         snapshot = StorageLocations(
             self._storage_type,
             [
@@ -39,7 +32,7 @@ class StorageManager:
                     x=key[1],
                     y=key[2],
                     article_id=key[0],
-                    amount=self._on_hand[key] - reserved.get(key, 0.0),
+                    amount=self._on_hand[key] - self._reserved.get(key, 0.0),
                 )
                 for key in sorted(self._on_hand)
             ],
@@ -66,17 +59,6 @@ class StorageManager:
             )
         return dict(quantities)
 
-    def _reserved_totals(
-        self,
-    ) -> dict[tuple[int, int | float, int | float], float]:
-        totals: dict[
-            tuple[int, int | float, int | float], float
-        ] = defaultdict(float)
-        for reservation in self._reservations.values():
-            for key, quantity in reservation.items():
-                totals[key] += quantity
-        return dict(totals)
-
     def _reserve(
         self,
         tour_id: int,
@@ -89,9 +71,10 @@ class StorageManager:
         requested = self._pick_quantities(picks)
         if not requested:
             return
-        reserved = self._reserved_totals()
         for key, quantity in requested.items():
-            available = self._on_hand.get(key, 0.0) - reserved.get(key, 0.0)
+            available = self._on_hand.get(key, 0.0) - self._reserved.get(
+                key, 0.0
+            )
             if quantity > available:
                 raise ValueError(
                     "Insufficient available inventory for "
@@ -101,6 +84,7 @@ class StorageManager:
         reservation = self._reservations.setdefault(tour_id, {})
         for key, quantity in requested.items():
             reservation[key] = reservation.get(key, 0.0) + quantity
+            self._reserved[key] += quantity
 
     def reserve(
         self,
@@ -127,14 +111,23 @@ class StorageManager:
         if self._on_hand.get(key, 0.0) < quantity:
             raise ValueError(f"Inventory underflow for {key}")
         reservation[key] -= quantity
+        self._reserved[key] -= quantity
         self._on_hand[key] -= quantity
+        if self._reserved[key] == 0:
+            del self._reserved[key]
         if reservation[key] == 0:
             del reservation[key]
         if not reservation:
             del self._reservations[tour_id]
 
     def release_reservation(self, tour_id: int) -> None:
-        self._reservations.pop(tour_id, None)
+        reservation = self._reservations.pop(tour_id, None)
+        if reservation is None:
+            return
+        for key, quantity in reservation.items():
+            self._reserved[key] -= quantity
+            if self._reserved[key] == 0:
+                del self._reserved[key]
 
     def assert_reservation_empty(self, tour_id: int) -> None:
         remaining = self._reservations.get(tour_id, {})
@@ -151,7 +144,7 @@ class StorageManager:
     ) -> None:
         key = (article_id, node[0], node[1])
         updated = self._on_hand.get(key, 0.0) + float(quantity)
-        reserved = self._reserved_totals().get(key, 0.0)
+        reserved = self._reserved.get(key, 0.0)
         if updated < reserved:
             raise ValueError(
                 "Inventory adjustment would reduce on-hand below reserved "
@@ -177,18 +170,10 @@ class StorageManager:
         ],
     ) -> None:
         """Restore a reservation captured before an atomic state operation."""
+        self.release_reservation(tour_id)
         if reservation:
             self._reservations[tour_id] = dict(reservation)
+            for key, quantity in reservation.items():
+                self._reserved[key] += quantity
         else:
             self._reservations.pop(tour_id, None)
-
-    def __deepcopy__(self, memo):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            if k == "_articles":
-                setattr(result, k, v)
-            else:
-                setattr(result, k, copy.deepcopy(v, memo))
-        return result

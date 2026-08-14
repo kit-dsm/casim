@@ -2,11 +2,68 @@ import logging
 
 from ware_ops_algos.domain_models import Order
 
-from casim.events.base_events import BaseTourEvent, Event
 from casim.state import State
 
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+class Event:
+    event_counter = 0
+    priority_score = 1
+
+    def __init__(self, time: float):
+        self.time = time
+        self.id = Event.event_counter
+        Event.event_counter += 1
+
+    def __lt__(self, other: "Event"):
+        return (
+            self.time,
+            self.priority_score,
+            self.id,
+        ) < (
+            other.time,
+            other.priority_score,
+            other.id,
+        )
+
+    def __le__(self, other: "Event"):
+        return self.__lt__(other) or self.__eq__(other)
+
+    def __eq__(self, other: "Event"):
+        return (
+            self.time == other.time
+            and self.priority_score == other.priority_score
+            and self.id == other.id
+        )
+
+    def handle(self, state: State) -> list["Event"]:
+        return []
+
+
+class ProcessEvent(Event):
+    """Zero-latency state commitment produced by a decision."""
+
+    priority_score = 0
+
+
+class BaseTourEvent(Event):
+    def __init__(
+        self,
+        time: float,
+        tour_id: int,
+        route_version: int | None = None,
+    ):
+        super().__init__(time)
+        self.tour_id = tour_id
+        self.route_version = route_version
+
+    def is_stale(self, state: State) -> bool:
+        return state.tour_event_is_stale(
+            self.tour_id,
+            self.route_version,
+        )
 
 
 class OrderArrival(Event):
@@ -28,7 +85,6 @@ class OrderArrival(Event):
         self.cancelled = False
 
     def handle(self, state: State) -> list[Event]:
-        super().handle(state)
         if self.order is not None:
             state.receive_order(self.order)
         elif state.release_order(
@@ -56,11 +112,7 @@ class OrderArrival(Event):
 class ShiftStart(Event):
     priority_score = 0
 
-    def __init__(self, time: float):
-        super().__init__(time)
-
     def handle(self, state: 'State') -> list['Event']:
-        super().handle(state)
         state.start_shift(self.time)
         return []
 
@@ -68,11 +120,7 @@ class ShiftStart(Event):
 class FlushRemainingOrders(Event):
     priority_score = 0
 
-    def __init__(self, time: float):
-        super().__init__(time)
-
     def handle(self, state: 'State') -> list['Event']:
-        super().handle(state)
         state.close_input()
         return []
 
@@ -86,7 +134,6 @@ class PickerArrival(Event):
         self.picker_available = picker_available
 
     def handle(self, state: 'State') -> list['Event']:
-        super().handle(state)
         state.set_picker_availability(
             self.picker_id,
             bool(self.picker_available),
@@ -143,11 +190,7 @@ class VolumeShiftAcrossDay(Event):
         ] + [WMSRun(self.time + 1e-6)]
 
 class OrderIngestion(Event):
-    def __init__(self, time: float):
-        super().__init__(time)
-
-    def handle(self, state: 'State') -> list['Event']:
-        return []
+    pass
 
 
 
@@ -198,18 +241,11 @@ class TruckDeparture(Event):
 
 
 class WMSRun(Event):
-    def __init__(self, time):
-        super().__init__(time)
-
-    def handle(self, state: 'State') -> list['Event']:
-        return []
+    pass
 
 
 class PlanningRun(Event):
     """Configured scheduling/replanning checkpoint."""
-
-    def handle(self, state: 'State') -> list['Event']:
-        return []
 
 
 class PickerIdle(Event):
@@ -218,10 +254,6 @@ class PickerIdle(Event):
     def __init__(self, time: float, picker_id: int):
         super().__init__(time)
         self.picker_id = picker_id
-
-    def handle(self, state: 'State') -> list['Event']:
-        super().handle(state)
-        return []
 
 class BreakStart(Event):
     priority_score = 0
@@ -235,8 +267,6 @@ class BreakStart(Event):
 
 class BreakEnd(Event):
     priority_score = 0
-    def __init__(self, time: float):
-        super().__init__(time)
 
     def handle(self, state: State) -> list[Event]:
         logger.debug("Facility break end at %s", self.time)
@@ -252,7 +282,6 @@ class PickerTourQuery(Event):
         self.picker_id = picker_id
 
     def handle(self, state: State) -> list[Event]:
-        super().handle(state)
         action, tour_id, action_time = state.query_picker_tour(
             self.picker_id,
             self.time,
@@ -295,7 +324,6 @@ class InterventionRequest(BaseTourEvent):
 
 class TourStart(BaseTourEvent):
     def handle(self, state: 'State') -> list['Event']:
-        super().handle(state)
         if self.is_stale(state):
             return []
         if not state.start_tour(self.tour_id, self.time):
@@ -307,7 +335,6 @@ class TourStart(BaseTourEvent):
 class TravelEvent(BaseTourEvent):
     """Request one traversal and schedule its completion."""
     def handle(self, state: State) -> list[Event]:
-        super().handle(state)
         if self.is_stale(state):
             return []
         action, action_time = state.request_next_traversal(
@@ -333,7 +360,6 @@ class TravelEvent(BaseTourEvent):
 class NodeArrival(BaseTourEvent):
     """Handle arrival at a node: either pick, continue travel, or end at depot."""
     def handle(self, state: State) -> list[Event]:
-        super().handle(state)
         if self.is_stale(state):
             return []
         action, action_time, awakened = state.confirm_node_arrival(
@@ -386,7 +412,6 @@ class PickComplete(BaseTourEvent):
         self.pick_start = pick_start
 
     def handle(self, state: State) -> list[Event]:
-        super().handle(state)
         if self.is_stale(state):
             return []
         action, awakened = state.confirm_pick_operation(
@@ -417,7 +442,6 @@ class PickComplete(BaseTourEvent):
 
 class TourEnd(BaseTourEvent):
     def handle(self, state: State) -> list[Event]:
-        super().handle(state)
         if self.is_stale(state):
             return []
         picker_id, awakened = state.complete_tour(self.tour_id, self.time)

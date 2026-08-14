@@ -15,7 +15,7 @@ from ware_ops_algos.algorithms.scheduling.scheduling import (
 from ware_ops_algos.domain_models import OrdersDomain
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
-from casim.events.base_events import Event
+from casim.events.operational_events import Event
 
 
 class HennWakeUp(Event):

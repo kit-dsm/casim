@@ -6,9 +6,13 @@ from ware_ops_algos.algorithms import (
     SchedulingSolution,
 )
 
-from casim.events.base_events import ProcessEvent, Event
-from casim.events.operational_events import PickerTourQuery
-from casim.events.operational_events import NodeArrival, TravelEvent
+from casim.events.operational_events import (
+    Event,
+    NodeArrival,
+    PickerTourQuery,
+    ProcessEvent,
+    TravelEvent,
+)
 from casim.state import State
 
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -21,7 +25,6 @@ class PickListDone(ProcessEvent):
         self.solution = solution
 
     def handle(self, state: State) -> list[Event]:
-        super().handle(state)
         state.commit_batching_solution(self.solution)
         return []
 
@@ -43,11 +46,6 @@ class RoutingDone(ProcessEvent):
         self.expected_route_version = expected_route_version
         self.resumes_execution = resumes_execution
 
-    def handle(self, state: State) -> list[Event]:
-        super().handle(state)
-        return []
-
-
 class SequencingDone(ProcessEvent):
     priority_score = 0
     def __init__(
@@ -61,7 +59,6 @@ class SequencingDone(ProcessEvent):
         self.replace_tour_ids = tuple(replace_tour_ids)
 
     def handle(self, state: State) -> list[Event]:
-        super().handle(state)
         picker_ids = state.commit_scheduling_decision(
             self.solution,
             replace_tour_ids=self.replace_tour_ids,

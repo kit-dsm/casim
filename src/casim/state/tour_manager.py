@@ -13,7 +13,6 @@ from ware_ops_algos.domain_models import DimensionType, PickCart
 
 from casim.domain_objects.tour_model import (
     CartBinState,
-    Node,
     TourPlanningState,
     TourStates,
 )
@@ -25,14 +24,11 @@ logger = logging.getLogger(__name__)
 class TourManager:
     def __init__(self):
         self._tour_counter: int = 0
-        self._selected_orders: dict[int, WarehouseOrder | None] = {}  # order selected for the next picker to be routed
         self.all_tours: dict[int, TourPlanningState] = {}  # tour_id -> TourExecution
         self.assignable_tours: dict[int, TourPlanningState] = {}
         self._unassigned_tour_ids: set[int] = set()
         self._active_picker_tour: dict[int, int | None] = {}  # Maps picker_id -> current active tour_id (or None)
         self._picker_tour_queues: dict[int, list[int]] = defaultdict(list)
-        # self._scheduled_tours: dict[int, deque[int]] = defaultdict(deque)  # FUTURE WORK: Picker ID -> Queue of Tour IDs
-
         self._picker_history: dict[int, list[int]] = defaultdict(list)
 
     def create_tour(
@@ -336,18 +332,12 @@ class TourManager:
         self,
         tour_id: int,
         route: Route,
-        current_position: RouteNode,
         *,
-        allow_insertions: bool = False,
+        validated_replacement,
     ) -> TourPlanningState:
         tour = self.get_tour(tour_id)
         replacement_picks, inserted_orders, replacement_bins = (
-            self.validate_active_route(
-                tour_id,
-                route,
-                current_position,
-                allow_insertions=allow_insertions,
-            )
+            validated_replacement
         )
 
         if inserted_orders:
@@ -568,10 +558,6 @@ class TourManager:
             if self._active_picker_tour.get(picker_id) == tour_id:
                 self._active_picker_tour[picker_id] = None
 
-    def remove_canceled_tour_for_picker(self, picker_id, tour_id):
-        picker_tour_queue = self._picker_tour_queues[picker_id]
-        picker_tour_queue.remove(tour_id)
-
     def get_next_tour_for_picker(self, picker_id: int):
         picker_tour_queue = self._picker_tour_queues[picker_id]
         if picker_tour_queue:
@@ -605,20 +591,4 @@ class TourManager:
     def advance_cursor(self, tour_id: int) -> None:
         tour = self.get_tour(tour_id)
         tour.cursor += 1
-
-
-    # def mark_pick_positions_fulfilled_at(self, tour_id: int, node: Node) -> None:
-    #     tour = self.get_tour(tour_id)
-    #     for pp in tour.batch.pick_positions:
-    #         if pp.pick_node == node:
-    #             pp.fulfilled = True
-
-    def add_selected_order(self, order: WarehouseOrder, picker_id: int):
-        self._selected_orders[picker_id] = order
-
-    def get_selected_order(self, picker_id: int):
-        order = self._selected_orders[picker_id]
-        self._selected_orders[picker_id] = None
-        return order
-
 

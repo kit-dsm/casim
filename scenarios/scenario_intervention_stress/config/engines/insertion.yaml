@@ -8,7 +8,7 @@ decision_engine:
           objective: makespan
         repo: ${cosy_repo}
       commitment_policy:
-        _target_: casim.decision_engine.commitment_policies.SchedulingCommitmentPolicy
+        _target_: casim.decision_engine.decision_engine.SchedulingCommitmentPolicy
         n_jobs: 1
     OBRP:
       solver:
@@ -17,8 +17,6 @@ decision_engine:
           _target_: casim.pipelines.solution_ranker.SolutionRanker
           objective: distance
         repo: ${intervention_repo}
-      commitment_policy:
-        _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
   event_map:
     SequencingDone:
       _target_: hydra.utils.get_class
@@ -36,9 +34,9 @@ simulation_engine:
         _target_: casim.simulation_engine.state_adapter.OrderWindowAdapter
       triggers: [casim.events.operational_events.OrderArrival, casim.events.operational_events.PickerIdle, casim.events.operational_events.FlushRemainingOrders]
       conditions:
-        - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+        - _target_: casim.simulation_engine.simulation_engine.NbrPickersCondition
           threshold: 1
-        - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+        - _target_: casim.simulation_engine.simulation_engine.NbrOrdersCondition
           threshold: 2
     OBRP:
       state_adapter:

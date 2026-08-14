@@ -81,7 +81,7 @@ def run_experiment(cfg: DictConfig) -> dict[str, object]:
     initial_domain = simulation.reset(hooks=build_sim_hooks())
 
     if str(cfg.variant.execution) == "complete_information":
-        solver = decision_engine.get_solver("OBRSP")
+        solver = decision_engine.solver_map["OBRSP"]
         solution, solver_name, makespan = solver.solve(
             initial_domain
         )

@@ -52,6 +52,7 @@ def build_commitment_policies(cfg):
     return {
         problem_key: instantiate(problem_cfg.commitment_policy)
         for problem_key, problem_cfg in cfg.engines.decision_engine.problems.items()
+        if problem_cfg.get("commitment_policy") is not None
     }
 
 def setup_decision_engine(

@@ -145,7 +145,7 @@ def run_henn_experiment(
         int(order.order_id): float(order.order_date)
         for order in initial_domain.orders.orders
     }
-    solver = decision_engine.get_solver(initial_domain.problem_class)
+    solver = decision_engine.solver_map[initial_domain.problem_class]
     single_service_cache: dict[int, float] = {}
     trace: list[dict[str, object]] = []
     decision_index = 0
