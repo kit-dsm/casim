@@ -333,13 +333,13 @@ wheels = [
 
 [[package]]
 name = "cosy-luigi"
-version = "0.0.1.dev16"
+version = "0.0.1.dev17"
 source = { url = "https://github.com/cls-python/cosy-luigi/releases/download/nightly/cosy_luigi-nightly.tar.gz" }
 dependencies = [
     { name = "combinatory-synthesizer" },
     { name = "luigi" },
 ]
-sdist = { hash = "sha256:96b683efdd0f4b7d80b8e654afc6475de3795554ca7a7e483014f84f1c845c3a" }
+sdist = { hash = "sha256:d60815c27b5676cf653d2c916c1e0ab6d26ba380161aa782b339e90e7f3a225e" }
 
 [package.metadata]
 requires-dist = [
