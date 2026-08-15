@@ -451,3 +451,21 @@ class TourEnd(BaseTourEvent):
         ]
         return [*resumed, PickerTourQuery(self.time, picker_id)]
 
+
+def add_orders_hook(simulation, domain) -> None:
+    """Ingest all domain orders sorted by (arrival, id) and schedule the flush."""
+    orders = sorted(
+        domain.orders.orders,
+        key=lambda value: (
+            float(value.order_date or 0.0),
+            int(value.order_id),
+        ),
+    )
+    for order in orders:
+        simulation.add_order(order)
+    close_time = max(
+        (float(order.order_date or 0.0) for order in orders),
+        default=0.0,
+    )
+    simulation.add_event(FlushRemainingOrders(close_time))
+
