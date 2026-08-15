@@ -8,7 +8,6 @@ from ware_ops_algos.algorithms import AlgorithmSolution, CombinedRoutingSolution
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.operational_events import Event
 from casim.events.decision_events import SequencingDone, RoutingDone, PickListDone
-from casim.pipelines.pipeline_runner import CoSySolver
 from casim.trackers import DecisionTracker
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,7 @@ class SchedulingCommitmentPolicy:
 
 class DecisionEngine:
     def __init__(self,
-                 solver_map: dict[str, CoSySolver],
+                 solver_map: dict[str, object],
                  commitment_policies: dict[str, SchedulingCommitmentPolicy] | None = None,
                  event_map: dict[str, Event] | None = None,
                  ):
@@ -74,47 +73,63 @@ class DecisionEngine:
         self.decision_tracker = DecisionTracker()
         self.event_map = event_map or {}
 
-    def on_trigger(self, state_snapshot: SimWarehouseDomain, action=None):
+    def solve(self, state_snapshot: SimWarehouseDomain, action=None):
+        """Execute the already-prepared solver and record its decision."""
         problem = state_snapshot.problem_class
-        runner = self.solver_map[problem]
-        start_time_sim = state_snapshot.dynamic_warehouse_info.time
+        solver = self.solver_map[problem]
         start_time = time.perf_counter()
-        result = runner.solve(state_snapshot, action)
+        result = solver.solve(state_snapshot, action)
         if result is None:
             return None
         solution, solver_name, objective_value = result
         elapsed = time.perf_counter() - start_time
-        if solution:
-            self.on_solution(
-                solution,
-                solver_name,
-                objective_value,
-                state_snapshot.objective,
-                state_snapshot.problem_class,
-                elapsed)
+        if not solution:
+            return None
+        self._record_solution(
+            solution,
+            solver_name,
+            objective_value,
+            state_snapshot.objective,
+            problem,
+            elapsed,
+        )
+        return solution, solver_name, objective_value
 
-            full_solution = solution
-            policy = self.commitment_policies.get(problem)
-            if policy is not None:
-                solution = policy.apply(solution, state_snapshot)
-            self.decision_tracker.on_commitment(
-                returned=self._solution_size(full_solution),
-                committed=self._solution_size(solution),
-                policy=(
-                    policy.__class__.__name__
-                    if policy is not None
-                    else "CommitAllPolicy"
-                ),
-            )
-            return (
-                self.solution_to_events(
-                    solution,
-                    start_time_sim,
-                    state_snapshot,
-                ),
+    def commit(
+        self,
+        state_snapshot: SimWarehouseDomain,
+        solution: AlgorithmSolution,
+    ):
+        """Apply commitment policy and convert a semantic solution to events."""
+        full_solution = solution
+        policy = self.commitment_policies.get(state_snapshot.problem_class)
+        if policy is not None:
+            solution = policy.apply(solution, state_snapshot)
+        self.decision_tracker.on_commitment(
+            returned=self._solution_size(full_solution),
+            committed=self._solution_size(solution),
+            policy=(
+                policy.__class__.__name__
+                if policy is not None
+                else "CommitAllPolicy"
+            ),
+        )
+        return (
+            self.solution_to_events(
                 solution,
-            )
-        return None
+                state_snapshot.dynamic_warehouse_info.time,
+                state_snapshot,
+            ),
+            solution,
+        )
+
+    def on_trigger(self, state_snapshot: SimWarehouseDomain, action=None):
+        """Solve and commit one normal runtime decision."""
+        result = self.solve(state_snapshot, action)
+        if result is None:
+            return None
+        solution, _, _ = result
+        return self.commit(state_snapshot, solution)
 
     @staticmethod
     def _solution_size(solution: AlgorithmSolution) -> int:
@@ -126,7 +141,7 @@ class DecisionEngine:
             return len(solution.routes)
         return 0
 
-    def on_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem, elapsed):
+    def _record_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem, elapsed):
         if isinstance(best_solution, CombinedRoutingSolution):
             order_ids = [o for r in best_solution.routes for o in r.batch.order_numbers]
         elif isinstance(best_solution, SchedulingSolution):

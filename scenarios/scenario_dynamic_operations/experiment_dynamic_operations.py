@@ -5,15 +5,11 @@ from collections import Counter
 from pathlib import Path
 
 import hydra
-from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
+from casim.io_helpers import dump_json, dump_jsonl
+from casim.setup import build_runtime
 from casim.viz.app import launch
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card,
-    setup_decision_engine,
-    setup_scenario,
-)
 from scenarios.scenario_dynamic_operations.scenario_specific_hooks import (
     build_hooks,
 )
@@ -26,19 +22,7 @@ def _projected_count(snapshot) -> int:
 
 
 def run(cfg: DictConfig) -> dict:
-    data_card = load_and_flatten_data_card(
-        OmegaConf.to_container(cfg.data_card, resolve=True)
-    )
-    simulation = setup_scenario(cfg)
-    decision_engine = setup_decision_engine(
-        cfg,
-        data_card,
-        simulation.state_adapters,
-    )
-    decision_engine.event_map = {
-        name: instantiate(event)
-        for name, event in cfg.engines.decision_engine.event_map.items()
-    }
+    simulation, decision_engine = build_runtime(cfg)
     initial_domain = simulation.reset(hooks=build_hooks(cfg))
 
     decisions = []
@@ -160,15 +144,8 @@ def run(cfg: DictConfig) -> dict:
         "simulation_decision_latency": 0.0,
     }
     output = Path(cfg.experiment.output_dir)
-    output.mkdir(parents=True, exist_ok=True)
-    (output / "result.json").write_text(
-        json.dumps(result, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    (output / "decisions.jsonl").write_text(
-        "".join(json.dumps(row, sort_keys=True) + "\n" for row in decisions),
-        encoding="utf-8",
-    )
+    dump_json(output / "result.json", result)
+    dump_jsonl(output / "decisions.jsonl", decisions)
     return result
 
 

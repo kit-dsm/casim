@@ -1,32 +1,17 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import hydra
-from hydra.utils import instantiate
 from omegaconf import DictConfig
 
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card,
-    setup_decision_engine,
-    setup_scenario,
-)
+from casim.io_helpers import dump_json, dump_jsonl
+from casim.setup import build_runtime
 from scenarios.scenario_ijpe.scenario_specific_hooks import build_sim_hooks
 
 
 def run(cfg: DictConfig) -> dict:
-    card = load_and_flatten_data_card(cfg.data_card)
-    simulation = setup_scenario(cfg)
-    decision_engine = setup_decision_engine(
-        cfg,
-        card,
-        simulation.state_adapters,
-    )
-    decision_engine.event_map = {
-        name: instantiate(event)
-        for name, event in cfg.engines.decision_engine.event_map.items()
-    }
+    simulation, decision_engine = build_runtime(cfg)
     initial_domain = simulation.reset(hooks=build_sim_hooks(cfg))
 
     while True:
@@ -72,15 +57,8 @@ def run(cfg: DictConfig) -> dict:
         "decisions": len(decisions),
     }
     output = Path(cfg.experiment.output_dir)
-    output.mkdir(parents=True, exist_ok=True)
-    (output / "result.json").write_text(
-        json.dumps(result, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    (output / "decisions.jsonl").write_text(
-        "".join(json.dumps(row, sort_keys=True) + "\n" for row in decisions),
-        encoding="utf-8",
-    )
+    dump_json(output / "result.json", result)
+    dump_jsonl(output / "decisions.jsonl", decisions)
     return result
 
 

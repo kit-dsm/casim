@@ -72,7 +72,7 @@ class CoSySolver:
     def dump_domain(self, dynamic_domain: BaseWarehouseDomain):
         dump_pickle(str(self.cache_path), dynamic_domain)
 
-    def build_pipelines(self, data_card: DataCard):
+    def prepare(self, data_card: DataCard):
         config = get_config()
         config.set('PipelineParams', 'output_folder', str(self.output_folder))
         config.set('PipelineParams', 'domain_path', str(self.cache_path))

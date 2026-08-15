@@ -5,11 +5,8 @@ from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
 from ware_ops_algos.algorithms import CombinedRoutingSolution
 
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card,
-    setup_decision_engine,
-    setup_scenario,
-)
+from casim.setup import build_runtime
+from ware_ops_algos.domain_models import load_and_flatten_data_card
 from scenarios.scenario_henn.scenario_specific_hooks import build_sim_hooks
 from casim.events.operational_events import OrderArrival, FlushRemainingOrders
 
@@ -71,8 +68,7 @@ def test_existing_setup_discovers_one_pipeline_per_batching_variant(
     )
     OmegaConf.update(cfg, "luigi.runtime", 1, merge=False)
     data_card = load_and_flatten_data_card(cfg.data_card)
-    simulation = setup_scenario(cfg)
-    decision_engine = setup_decision_engine(cfg, data_card)
+    simulation, decision_engine = build_runtime(cfg, data_card)
 
     simulation.reset(hooks=build_sim_hooks(cfg))
 

@@ -40,3 +40,25 @@ Before adding a heuristic, policy, solver, or algorithm:
 5. Do not add scenario-local helpers that duplicate established decision logic.
 6. Do not introduce a new heuristic unless the user explicitly requested it,
    or its absence and concrete necessity have first been reported to the user.
+
+## Scenario conventions
+
+Start from `casim.setup.build_runtime(cfg)` where it naturally fits. Keep
+simulation/decision control flow explicit in the experiment file so a reader
+can follow `build -> reset -> run -> decide -> step -> report` without
+learning infrastructure.
+
+Scenario code should primarily contain study-specific inputs, hooks/events,
+decision deviations, and reporting. Reuse small primitive helpers
+(`casim.io_helpers.dump_json`, `casim.io_helpers.dump_jsonl`,
+`casim.events.operational_events.add_orders_hook`) for genuinely generic
+operations.
+
+Do not introduce scenario base classes, runners, registries, callback
+frameworks, or generic abstractions merely to eliminate a few repeated lines.
+Prefer a small amount of obvious duplication over an abstraction that hides
+the program's execution.
+
+Refactoring must preserve behavior, performance, determinism, and research
+semantics. Characterize behavior before simplifying code that affects
+objectives, normalization, observations, algorithms, or learning.

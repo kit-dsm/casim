@@ -5,16 +5,12 @@ from collections import Counter
 from pathlib import Path
 
 import hydra
-from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
+from casim.io_helpers import dump_json, dump_jsonl
 from casim.viz.app import launch
 from casim.simulation_engine.simulation_engine import NbrOrdersCondition
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card,
-    setup_decision_engine,
-    setup_scenario,
-)
+from casim.setup import build_runtime
 from scenarios.scenario_intervention_stress.scenario_specific_hooks import (
     add_orders_hook,
 )
@@ -77,19 +73,7 @@ def _decision_row(snapshot, solution, decision_engine) -> dict:
 
 
 def run(cfg: DictConfig) -> dict:
-    data_card = load_and_flatten_data_card(
-        OmegaConf.to_container(cfg.data_card, resolve=True)
-    )
-    simulation = setup_scenario(cfg)
-    decision_engine = setup_decision_engine(
-        cfg,
-        data_card,
-        simulation.state_adapters,
-    )
-    decision_engine.event_map = {
-        name: instantiate(event)
-        for name, event in cfg.engines.decision_engine.event_map.items()
-    }
+    simulation, decision_engine = build_runtime(cfg)
     initial_domain = simulation.reset(hooks=[add_orders_hook])
     configuration_warnings = []
     order_condition = next(
@@ -202,18 +186,8 @@ def run(cfg: DictConfig) -> dict:
         "simulation_decision_latency": 0.0,
     }
     output_dir = Path(cfg.experiment.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "result.json").write_text(
-        json.dumps(result, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    (output_dir / "decisions.jsonl").write_text(
-        "".join(
-            json.dumps(row, sort_keys=True) + "\n"
-            for row in decisions
-        ),
-        encoding="utf-8",
-    )
+    dump_json(output_dir / "result.json", result)
+    dump_jsonl(output_dir / "decisions.jsonl", decisions)
     return result
 
 

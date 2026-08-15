@@ -4,7 +4,7 @@ This scenario follows the standard CASIM experiment structure:
 
 1. Hydra composes the data, engine, CoSy, batching, selection, and experiment
    configuration.
-2. `experiment_commons` constructs the loader, simulation, and decision engine.
+2. `casim.setup` constructs the loader, simulation, and prepared decision engine.
 3. `simulation.reset(hooks=build_sim_hooks(cfg))` installs the order stream and
    the scenario-local wake-up trigger.
 4. CoSy generates candidate batches and S-shape routes.

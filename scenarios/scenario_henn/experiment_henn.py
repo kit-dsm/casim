@@ -3,20 +3,16 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
-import time
 from pathlib import Path
 
 import hydra
-from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from ware_ops_algos.algorithms import CombinedRoutingSolution
 
 from casim.events.operational_events import OrderArrival
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card,
-    setup_decision_engine,
-    setup_scenario,
-)
+from casim.io_helpers import dump_json, dump_jsonl
+from casim.setup import build_runtime
+from ware_ops_algos.domain_models import load_and_flatten_data_card
 from scenarios.scenario_henn.algorithm import (
     HennWakeUp,
     decide_henn,
@@ -29,22 +25,6 @@ from scenarios.scenario_henn.reference import (
     normalize_actual,
 )
 from scenarios.scenario_henn.scenario_specific_hooks import build_sim_hooks
-
-
-def _write_json(path: Path, value: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(value, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-
-
-def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
-        encoding="utf-8",
-    )
 
 
 def _instance_config(
@@ -78,16 +58,6 @@ def _instance_config(
         merge=False,
     )
     return instance_cfg
-
-
-def _configure_event_map(
-    cfg: DictConfig,
-    decision_engine,
-) -> None:
-    decision_engine.event_map = {
-        name: instantiate(event)
-        for name, event in cfg.engines.decision_engine.event_map.items()
-    }
 
 
 def _next_arrival(simulation) -> float | None:
@@ -166,12 +136,10 @@ def run_henn_experiment(
                 f"Exceeded {cfg.experiment.max_decisions} decisions"
             )
 
-        solve_started = time.perf_counter()
         try:
-            result = solver.solve(snapshot, action=None)
+            result = decision_engine.solve(snapshot, action=None)
         except Exception as exc:
             raise RuntimeError(f"CANDIDATE_GENERATION: {exc}") from exc
-        elapsed = time.perf_counter() - solve_started
         if result is None:
             raise RuntimeError(
                 "CANDIDATE_GENERATION: CoSy produced no candidate solution"
@@ -183,14 +151,6 @@ def run_henn_experiment(
                     "The configured Henn CoSy endpoint must return "
                     "CombinedRoutingSolution"
                 )
-            decision_engine.on_solution(
-                candidate,
-                solver_name,
-                objective_value,
-                snapshot.objective,
-                snapshot.problem_class,
-                elapsed,
-            )
             single_order_service_times(
                 snapshot,
                 solver,
@@ -231,15 +191,13 @@ def run_henn_experiment(
             continue
 
         try:
-            events = decision_engine.solution_to_events(
-                decision.solution,
-                simulation.state.current_time,
-                snapshot,
+            events, committed = decision_engine.commit(
+                snapshot, decision.solution
             )
             simulation.step(
                 events,
                 snapshot.problem_class,
-                decision.solution,
+                committed,
             )
         except Exception as exc:
             raise RuntimeError(f"SIMULATION: {exc}") from exc
@@ -315,13 +273,9 @@ def run_instance(
 
     try:
         data_card = load_and_flatten_data_card(instance_cfg.data_card)
-        simulation = setup_scenario(instance_cfg)
-        decision_engine = setup_decision_engine(
-            instance_cfg,
-            data_card,
-            simulation.state_adapters,
+        simulation, decision_engine = build_runtime(
+            instance_cfg, data_card
         )
-        _configure_event_map(instance_cfg, decision_engine)
     except Exception as exc:
         raise RuntimeError(f"CONFIGURATION: {exc}") from exc
     actual, trace = run_henn_experiment(
@@ -344,9 +298,9 @@ def run_instance(
     except Exception as exc:
         raise RuntimeError(f"OBJECTIVE_COMPARISON: {exc}") from exc
 
-    _write_json(instance_dir / "actual.json", actual)
-    _write_json(instance_dir / "comparison.json", comparisons)
-    _write_jsonl(instance_dir / "decision_trace.jsonl", trace)
+    dump_json(instance_dir / "actual.json", actual)
+    dump_json(instance_dir / "comparison.json", comparisons)
+    dump_jsonl(instance_dir / "decision_trace.jsonl", trace)
     _write_report(instance_dir / "report.md", actual, comparisons)
 
     comparison_by_id = {
@@ -375,7 +329,7 @@ def run_instance(
 
 
 def _write_summary(output_root: Path, rows: list[dict[str, object]]) -> None:
-    _write_json(output_root / "summary.json", rows)
+    dump_json(output_root / "summary.json", rows)
     fieldnames = sorted({key for row in rows for key in row})
     with (output_root / "summary.csv").open(
         "w",
@@ -386,7 +340,7 @@ def _write_summary(output_root: Path, rows: list[dict[str, object]]) -> None:
         writer.writeheader()
         writer.writerows(rows)
     failures = [row for row in rows if row["status"] != "COMPLETED"]
-    _write_json(output_root / "failures.json", failures)
+    dump_json(output_root / "failures.json", failures)
 
 
 def _failure(
@@ -464,7 +418,7 @@ def main(cfg: DictConfig) -> None:
             )
         except Exception as exc:
             failure = _failure(instance_id, phase, exc)
-            _write_json(
+            dump_json(
                 output_root
                 / "instances"
                 / instance_id

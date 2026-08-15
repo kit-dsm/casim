@@ -4,7 +4,7 @@ from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
 
 from casim.events.operational_events import OrderArrival
-from scenarios.experiment_commons import setup_scenario
+from casim.setup import build_simulation
 from scenarios.scenario_henn.algorithm import HennWakeUp
 from scenarios.scenario_henn.scenario_specific_hooks import build_sim_hooks
 
@@ -41,7 +41,7 @@ def test_reset_hooks_recreate_the_same_order_stream_without_duplicates(
         str(tmp_path),
         merge=False,
     )
-    simulation = setup_scenario(cfg)
+    simulation = build_simulation(cfg)
 
     simulation.reset(hooks=build_sim_hooks(cfg))
     first = [

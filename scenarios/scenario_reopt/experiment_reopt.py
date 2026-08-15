@@ -4,30 +4,11 @@ import json
 from pathlib import Path
 
 import hydra
-from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card,
-    setup_decision_engine,
-    setup_scenario,
-)
+from casim.io_helpers import dump_json, dump_jsonl
+from casim.setup import build_runtime
 from scenarios.scenario_reopt.scenario_specific_hooks import build_sim_hooks
-
-
-def _write_json(path: Path, value: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(value, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-
-
-def _write_trace(path: Path, rows: list[dict]) -> None:
-    path.write_text(
-        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
-        encoding="utf-8",
-    )
 
 
 def _committed_order_ids(solution) -> list[int]:
@@ -65,19 +46,7 @@ def run_experiment(cfg: DictConfig) -> dict[str, object]:
 
     output_dir = Path(cfg.experiment.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    data_card = load_and_flatten_data_card(
-        OmegaConf.to_container(cfg.data_card, resolve=True)
-    )
-    simulation = setup_scenario(cfg)
-    decision_engine = setup_decision_engine(
-        cfg,
-        data_card,
-        simulation.state_adapters,
-    )
-    decision_engine.event_map = {
-        name: instantiate(event)
-        for name, event in cfg.engines.decision_engine.event_map.items()
-    }
+    simulation, decision_engine = build_runtime(cfg)
     initial_domain = simulation.reset(hooks=build_sim_hooks())
 
     if str(cfg.variant.execution) == "complete_information":
@@ -103,7 +72,7 @@ def run_experiment(cfg: DictConfig) -> dict[str, object]:
             }
             for job in solution.jobs
         ]
-        _write_json(output_dir / "result.json", result)
+        dump_json(output_dir / "result.json", result)
         return result
 
     trace: list[dict[str, object]] = []
@@ -197,8 +166,8 @@ def run_experiment(cfg: DictConfig) -> dict[str, object]:
     ]
     if simulation.state.tracker.interventions:
         result["interventions"] = simulation.state.tracker.interventions
-    _write_json(output_dir / "result.json", result)
-    _write_trace(output_dir / "decision_trace.jsonl", trace)
+    dump_json(output_dir / "result.json", result)
+    dump_jsonl(output_dir / "decision_trace.jsonl", trace)
     return result
 
 
@@ -212,7 +181,7 @@ def main(cfg: DictConfig) -> None:
     try:
         result = run_experiment(cfg)
     except Exception as error:
-        _write_json(
+        dump_json(
             output_dir / "result.json",
             {
                 "instance": str(cfg.experiment.instance_name),

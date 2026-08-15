@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
 from ware_ops_algos.algorithms import (
     PickPosition,
     SchedulingSolution,
@@ -52,12 +49,6 @@ class LorenzDPSolver:
         max_runtime_s: float,
         release_mode: str,
         problem_class: str,
-        instances_dir: Path,
-        cache_dir: Path,
-        output_dir: Path,
-        instance_name: str,
-        verbose: bool = False,
-        luigi_cfg: Any = None,
     ):
         if release_mode not in {"actual", "current"}:
             raise ValueError(
@@ -68,9 +59,8 @@ class LorenzDPSolver:
         self.max_runtime_s = float(max_runtime_s)
         self.release_mode = release_mode
         self.problem_class = problem_class
-        self.instance_name = instance_name
 
-    def build_pipelines(self, data_card: DataCard) -> None:
+    def prepare(self, data_card: DataCard) -> None:
         if data_card.problem_class != self.problem_class:
             raise ValueError(
                 f"Data card problem {data_card.problem_class} does not match "

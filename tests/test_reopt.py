@@ -15,10 +15,8 @@ from ware_ops_algos.algorithms import (
 from ware_ops_algos.domain_models import DimensionType
 
 from casim.pipelines.pipeline_runner import CoSySolver
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card,
-    setup_decision_engine,
-)
+from casim.setup import build_runtime
+from ware_ops_algos.domain_models import load_and_flatten_data_card
 from scenarios.scenario_reopt.experiment_reopt import run_experiment
 from scenarios.scenario_reopt.loader import ReoptDataLoader
 from scenarios.scenario_reopt.solver import (
@@ -44,10 +42,6 @@ def _solver(release_mode: str) -> LorenzDPSolver:
         max_runtime_s=60.0,
         release_mode=release_mode,
         problem_class="OBRSP",
-        instances_dir=ROOT / "scenarios",
-        cache_dir=ROOT / "tmp",
-        output_dir=ROOT / "tmp",
-        instance_name="paper_example",
     )
 
 
@@ -271,7 +265,7 @@ def test_cios_run_writes_single_result(tmp_path):
 def test_no_wait_config_builds_one_real_cosy_pipeline(tmp_path):
     cfg = _config("no_wait", tmp_path)
     data_card = load_and_flatten_data_card(cfg.data_card)
-    decision_engine = setup_decision_engine(cfg, data_card)
+    _, decision_engine = build_runtime(cfg, data_card)
     solver = decision_engine.solver_map["OBRSP"]
     assert isinstance(solver, CoSySolver)
     assert len(solver.pipelines) == 1

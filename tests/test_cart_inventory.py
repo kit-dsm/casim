@@ -20,6 +20,7 @@ from casim.simulation_engine.state_adapter import OrderWindowAdapter
 from casim.simulation_engine.simulation_engine import NbrPickersCondition
 from casim.state import State
 from casim.state.storage_manager import StorageManager
+from casim.state.state import _clone_route_plan
 from scenarios.scenario_reopt.loader import ReoptDataLoader
 
 
@@ -340,3 +341,34 @@ def test_active_plan_insertion_is_atomic_and_locks_on_first_pick():
             first_pick.pick_node[1],
         )
     ] == 2.0
+
+
+def test_field_aware_route_clone_detaches_mutable_plan_ownership():
+    from ware_ops_algos.algorithms import WarehouseOrder
+
+    pick = PickPosition(1, 2, 1, (3, 4), 1)
+    order = WarehouseOrder(order_id=1, pick_positions=(pick,))
+    route = Route(
+        distance=5.0,
+        route=[(0, 0), (3, 4)],
+        item_sequence=[(3, 4)],
+        batch=BatchObject(0, [order], {0: (1,)}),
+        annotated_route=[
+            RouteNode((0, 0), NodeType.ROUTE),
+            RouteNode((3, 4), NodeType.PICK),
+        ],
+    )
+
+    detached = _clone_route_plan(route)
+    route.route.append((9, 9))
+    route.item_sequence.append((9, 9))
+    route.annotated_route.clear()
+    route.batch.orders[0].order_id = 99
+    route.batch.bin_assignments[0] = (99,)
+
+    assert detached.route == [(0, 0), (3, 4)]
+    assert detached.item_sequence == [(3, 4)]
+    assert len(detached.annotated_route) == 2
+    assert detached.batch.orders[0].order_id == 1
+    assert detached.batch.bin_assignments == {0: (1,)}
+    assert detached.batch.orders[0].pick_positions[0] is pick

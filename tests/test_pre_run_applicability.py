@@ -16,10 +16,8 @@ from casim.simulation_engine.state_adapter import (
     ActiveTourRoutingAdapter,
     OrderWindowAdapter,
 )
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card,
-    setup_decision_engine,
-)
+from casim.setup import build_runtime
+from ware_ops_algos.domain_models import load_and_flatten_data_card
 
 
 ROOT = Path(__file__).parents[1]
@@ -119,4 +117,4 @@ def test_incompatible_intervention_repository_fails_during_setup(tmp_path):
     )
 
     with pytest.raises(ValueError, match="form a pipeline"):
-        setup_decision_engine(cfg, card)
+        build_runtime(cfg, card)
