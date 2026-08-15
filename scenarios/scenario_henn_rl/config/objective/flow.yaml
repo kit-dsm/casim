@@ -1,6 +1,0 @@
-# @package objective
-name: flow
-power: 1.0
-gamma: 1.0
-use_order_due_dates: false
-

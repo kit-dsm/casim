@@ -25,11 +25,11 @@ from ware_ops_algos.domain_models import (
 )
 
 from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
+from casim.io_helpers import dump_json
 from scenarios.scenario_henn.loader import HennDataLoader
-from scenarios.scenario_henn_rl.structured.results import write_json
 
 
-ROOT = Path(__file__).parents[3].resolve()
+ROOT = Path(__file__).parents[2].resolve()
 HENN_DIR = ROOT / "scenarios" / "scenario_henn"
 SPLIT_CODES = {"train": 0, "validation": 1, "test": 2}
 
@@ -117,7 +117,7 @@ def run_generation(spec: dict, output_dir: Path) -> dict[str, object]:
                 }
             )
     result = {**manifest, "summary": samples}
-    write_json(output_dir / "dataset_manifest.json", result)
+    dump_json(output_dir / "dataset_manifest.json", result)
     return result
 
 

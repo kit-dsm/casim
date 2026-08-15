@@ -264,11 +264,24 @@ The reward should be validated independently of policy learning.
 7. **Absolute due-date tests.** Check due dates before, at, and after arrival,
    including the arrival-time cost jump for an already-overdue order.
 
-The CASIM implementation and non-learning validation are located in
-`scenarios/scenario_henn_rl/rewards.py` and
-`tests/test_order_cost_reward.py`, respectively. The current Henn environment
-uses the special case \(p=1\), \(L_i=0\), and \(w_i=1\), preserving its original
-total-flow objective while obtaining the general identity checks above.
+The CASIM implementation now uses a direct flow-time reward rather than the
+general `OrderCostReward` class. The special case \(p=1\), \(L_i=0\), \(w_i=1\)
+(total flow time) is implemented in `src/casim/envs/order_batching.py` as:
+
+```text
+reward = -delta_flow_time / (n_orders * objective_scale)
+```
+
+where `objective_scale` is the mean per-order flow time of a C&W/SAV reference
+policy on the validation split, computed once before training and held fixed.
+The identity in Equation (5) holds with \(Z = |\mathcal I| \cdot
+\text{objective\_scale}\). The general `OrderCostReward` class that supported
+arbitrary \(p\), \(L_i\), and \(w_i\) has been removed; the methodology above
+remains valid for any future implementation that needs those parameters.
+
+Reward identity is verified in every training and evaluation run via
+`reward_identity_error`, which checks that `sum(rewards)` equals
+`-total_flow_time / (n_orders * objective_scale)`.
 
 ## Reporting recommendations
 

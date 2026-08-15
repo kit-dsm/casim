@@ -194,10 +194,14 @@ class State:
         return self.order_manager.register_order(order)
 
     def release_order(self, order_id, release_version: int) -> Order | None:
-        return self.order_manager.release_order(order_id, release_version)
+        order = self.order_manager.release_order(order_id, release_version)
+        if order is not None:
+            self.tracker.on_order_arrival(order.order_id, self.current_time)
+        return order
 
     def receive_order(self, order: Order) -> None:
         self.order_manager.add_order_to_buffer(order)
+        self.tracker.on_order_arrival(order.order_id, self.current_time)
 
     def reschedule_unreleased_orders(
         self,
@@ -810,6 +814,9 @@ class State:
                 delayed.append(order_id)
         self.tour_manager.finish_tour(tour_id, time)
         self.order_manager.mark_orders_completed(tour.order_numbers)
+        completed_order_ids = self.order_manager.newly_completed_original_ids(
+            tour.order_numbers
+        )
         self.get_resource(picker_id).occupied = False
         if self.dock_capacity is not None:
             if self.n_staged_pallets + 1 > self.dock_capacity:
@@ -826,6 +833,7 @@ class State:
             delayed,
             n_pallets_dock,
             len(tour.completed_picks),
+            completed_order_ids,
         )
         return picker_id, awakened
 

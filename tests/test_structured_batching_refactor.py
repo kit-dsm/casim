@@ -1,545 +1,361 @@
-from __future__ import annotations
-
-import copy
-import pickle
+from itertools import combinations
 from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
+from omegaconf import OmegaConf
 
-from scenarios.scenario_henn_rl.structured.checkpoint import (
-    assert_policy_compatible,
+from learning.structured_batching.checkpoint import (
+    assert_checkpoint_compatible,
     build_checkpoint,
-    checkpoint_decoder_name,
-    load_workbench_checkpoint,
+    load_checkpoint,
     save_checkpoint,
 )
-from scenarios.scenario_henn_rl.structured.decoders import (
-    GreedyRouteAwareDecoder,
-    KnapsackDecoder,
-    brute_force_route_aware_batch,
+from learning.structured_batching.evaluate import (
+    cw_sav_choose_batch,
+    evaluate_policy,
+    fifo_choose_batch,
+    make_actor_choose_batch,
+)
+from learning.structured_batching.learning import (
+    complete_returns,
+    fenchel_young_loss,
+)
+from learning.structured_batching.policy import (
+    BatchingObservation,
+    OrderScoreActor,
+    PairwiseStructuredCritic,
+    StructuredCritic,
+    decode_action,
     greedy_route_aware_batch,
     knapsack_batch,
-    make_decoder,
 )
-from scenarios.scenario_henn_rl.structured.models import (
-    OrderScoreActor,
-    StructuredCritic,
-    structured_candidates,
+from learning.structured_batching.tracking import (
+    log_evaluation,
+    log_training,
+    log_validation,
+    start_tracking,
 )
-from scenarios.scenario_henn_rl.structured.policy import StructuredPolicy
-from scenarios.scenario_henn_rl.structured.state import (
-    BatchingState,
-    action_mask,
-    copy_state,
+from learning.structured_batching.train import run_training
+from scenarios.scenario_henn_rl.data import (
+    GeneratedHennDataLoader,
+    generated_instance_splits,
+    generated_manifest,
 )
+from scenarios.scenario_henn_rl.runtime import build_environment
 
-INSTANCE = "H_abc1_40_29"
+
+ROOT = Path(__file__).parents[1]
 
 
-def _state(
-    order_ids=None,
-    demands=(2, 3, 4),
-    capacity=5,
-    order_positions=None,
-    *,
-    route_cost_scale=10.0,
-    feature_count=8,
+class Router:
+    def __init__(self):
+        self.score_calls = 0
+
+    def score(self, positions):
+        self.score_calls += 1
+        values = sorted(float(position[1]) for position in positions)
+        return 0.0 if not values else 2.0 * max(values)
+
+
+class TrackingRun:
+    def __init__(self):
+        self.rows = []
+
+    def log(self, values):
+        self.rows.append(values)
+
+
+def _flatten_positions(order_positions, selected_indices):
+    return [
+        position
+        for index in selected_indices
+        for position in order_positions[int(index)]
+    ]
+
+
+def brute_force_route_aware_batch(
+    scores,
+    demands,
+    capacity,
+    order_positions,
+    router,
+    route_cost_scale,
 ):
-    n = len(demands)
-    if order_ids is None:
-        order_ids = list(range(n))
-    if order_positions is None:
-        order_positions = [[(0, 1)], [(0, 2)], [(1, 3)]][:n]
-    return BatchingState(
-        order_ids=np.asarray(order_ids, dtype=np.int64),
-        features=np.zeros((n, feature_count), dtype=np.float32),
-        demands=np.asarray(demands, dtype=np.int64),
-        capacity=capacity,
-        order_positions=order_positions,
-        input_closed=False,
-        feature_schema="deadline_v1",
-        route_cost_scale=route_cost_scale,
+    """Enumerate the exact small route-aware optimum for tests."""
+    scores = np.asarray(scores, dtype=float)
+    demands = np.asarray(demands, dtype=int)
+    scale = float(route_cost_scale) if route_cost_scale > 0 else 1.0
+    best, best_value, best_cost = [], -np.inf, 0.0
+    for size in range(1, len(scores) + 1):
+        for selected in combinations(range(len(scores)), size):
+            if demands[list(selected)].sum() > capacity:
+                continue
+            cost = float(router.score(_flatten_positions(order_positions, selected)))
+            value = float(scores[list(selected)].sum()) - cost / scale
+            if value > best_value + 1e-12:
+                best, best_value, best_cost = list(selected), value, cost
+    return np.asarray(best, dtype=int), float(best_value), float(best_cost)
+
+
+def _observation():
+    return BatchingObservation(
+        order_ids=np.asarray([10, 11, 12]),
+        features=np.asarray(
+            [
+                [0.1, 0.2, 0.1, 0.1, 0.2, 0.15, 0.3, 0.5],
+                [0.2, 0.3, 0.1, 0.3, 0.4, 0.35, 0.3, 0.4],
+                [0.3, 0.4, 0.2, 0.7, 0.8, 0.75, 0.3, 0.2],
+            ],
+            dtype=np.float32,
+        ),
+        demands=np.asarray([2, 3, 4]),
+        capacity=5,
+        order_positions=(((1, 1),), ((1, 4),), ((1, 8),)),
+        route_cost_scale=10.0,
     )
 
 
-def _route_cost_fn(order_positions, selected_indices):
-    """Deterministic synthetic route cost: count unique aisles + sum of y."""
-    positions = []
-    for i in selected_indices:
-        positions.extend(order_positions[int(i)])
-    if not positions:
-        return 0.0
-    aisles = {p[0] for p in positions}
-    return float(len(aisles) + sum(p[1] for p in positions))
-
-
-# ---------------------------------------------------------------------------
-# 1. Exact knapsack decoding matches brute-force enumeration on small states.
-# ---------------------------------------------------------------------------
-
-
-def test_knapsack_decoder_matches_brute_force():
-    rng = np.random.default_rng(7)
-    for size in range(1, 7):
-        scores = rng.normal(size=size)
-        demands = rng.integers(1, 5, size=size)
-        capacity = 7
-        from itertools import combinations
-
-        feasible = [
-            subset
-            for length in range(size + 1)
-            for subset in combinations(range(size), length)
-            if demands[list(subset)].sum() <= capacity
-        ]
-        optimum = max(sum(scores[i] for i in subset) for subset in feasible)
-        selected = knapsack_batch(scores, demands, capacity, allow_empty=True)
-        assert scores[selected].sum() == pytest.approx(optimum)
-    decoder = KnapsackDecoder()
-    state = _state(demands=(3, 4, 2), capacity=7)
-    scores = np.array([4.0, 5.0, 7.0])
-    result = decoder.select(scores, state)
-    # Best additive value is {1,2} = 5+7 = 12, demand 6 <= 7.
-    assert result.selected_indices.tolist() == [1, 2]
-    assert state.demands[result.selected_indices].sum() <= state.capacity
-    assert result.route_cost == 0.0
-
-
-# ---------------------------------------------------------------------------
-# 2. Greedy route-aware decoding: capacity, determinism, configured route
-#    cost, and distinguishability from the exact brute-force optimum.
-# ---------------------------------------------------------------------------
-
-
-def test_greedy_route_aware_decoder_respects_capacity_and_is_deterministic():
-    decoder = GreedyRouteAwareDecoder(route_cost_fn=_route_cost_fn)
-    state = _state(demands=(3, 4, 5), capacity=7, route_cost_scale=10.0)
-    scores = np.array([5.0, 4.0, 3.0])
-    first = decoder.select(scores, state)
-    second = decoder.select(scores, state)
-    assert np.array_equal(first.selected_indices, second.selected_indices)
-    assert state.demands[first.selected_indices].sum() <= state.capacity
-    assert first.route_cost == _route_cost_fn(
-        state.order_positions, first.selected_indices.tolist()
-    )
-
-
-def test_greedy_route_aware_uses_configured_route_cost():
-    decoder = GreedyRouteAwareDecoder(route_cost_fn=_route_cost_fn)
-    state = _state(demands=(2, 2), capacity=10, route_cost_scale=1.0)
-    scores = np.array([1.0, 1.0])
-    result = decoder.select(scores, state)
-    # With scale=1.0 the route-cost term dominates; the greedy decoder must
-    # reflect the configured route-cost function and scale.
-    assert result.route_cost == _route_cost_fn(
-        state.order_positions, result.selected_indices.tolist()
-    )
-    assert result.objective == pytest.approx(
-        float(scores[result.selected_indices].sum())
-        - result.route_cost / 1.0
-    )
-
-
-def test_greedy_route_aware_is_distinguishable_from_exact_optimum():
-    # Construct a small state where the greedy order-by-score acceptance
-    # differs from the true optimum so the distinction is observable.
-    # Order 0 has the highest score but a huge singleton route cost; because
-    # ``allow_empty=False`` forces the greedy to accept the first feasible
-    # order, it locks into order 0 and builds on it, while the exact optimum
-    # excludes order 0 and picks the two low-route-cost orders instead.
-    demands = (1, 1, 1)
-    capacity = 3
-    order_positions = [[(2, 10)], [(0, 1)], [(0, 1)]]
-    scores = np.array([5.0, 3.0, 3.0])
-    route_cost_scale = 1.0
-    greedy_idx, greedy_val, _ = greedy_route_aware_batch(
-        scores,
-        np.asarray(demands),
-        capacity,
-        order_positions,
-        _route_cost_fn,
-        route_cost_scale,
-        allow_empty=False,
-    )
-    exact_idx, exact_val, _ = brute_force_route_aware_batch(
-        scores,
-        np.asarray(demands),
-        capacity,
-        order_positions,
-        _route_cost_fn,
-        route_cost_scale,
-        allow_empty=False,
-    )
-    assert greedy_val < exact_val
-    assert not np.array_equal(greedy_idx, exact_idx)
-    # The exact optimum is the two co-aisle low-route-cost orders {1,2}.
-    assert sorted(exact_idx.tolist()) == [1, 2]
-    assert sorted(greedy_idx.tolist()) == [0, 1, 2]
-
-
-# ---------------------------------------------------------------------------
-# 3. An unknown decoder configuration fails loudly.
-# ---------------------------------------------------------------------------
-
-
-def test_unknown_decoder_fails_loudly():
-    with pytest.raises(ValueError, match="Unknown decoder"):
-        make_decoder("does_not_exist")
-    with pytest.raises(ValueError, match="route_cost_fn"):
-        make_decoder("route_aware_greedy", route_cost_fn=None)
-
-
-# ---------------------------------------------------------------------------
-# 4. Same actor, state, and decoder produce the same action in rollout
-#    collection, validation, evaluation, and audit.
-# ---------------------------------------------------------------------------
-
-
-def test_single_decoder_path_across_consumers():
-    from omegaconf import OmegaConf
-
-    from scenarios.scenario_henn_rl.structured.data import (
-        GeneratedHennDataLoader,
-        generated_instance_splits,
-    )
-    from scenarios.scenario_henn_rl.structured.environment import (
-        StructuredBatchingEpisode,
-    )
-    from scenarios.scenario_henn_rl.structured.evaluation import (
-        evaluate_structured_actor,
-    )
-    from scenarios.scenario_henn_rl.structured.audit import audit_structured_critic
-
+def _environment_factory():
     spec = OmegaConf.to_container(
         OmegaConf.load(
-            "scenarios/scenario_henn_rl/config/data/henn_lorenz.yaml"
+            ROOT / "scenarios/scenario_henn_rl/config/data/henn_lorenz.yaml"
         ),
         resolve=True,
     )
     spec.update(train_instances=4, validation_instances=4, test_instances=4)
-    instance_id = generated_instance_splits(spec)["train"][0]
-    loader = GeneratedHennDataLoader(spec)
-    episode_kwargs = {
-        "data_loader": loader,
-        "use_order_due_dates": True,
-        "include_due_slack": True,
-        "decoder": "route_aware_greedy",
-    }
-    actor = OrderScoreActor(feature_count=8, hidden=8)
-    episode = StructuredBatchingEpisode([instance_id], **episode_kwargs)
-    state = episode.reset(instance_id=instance_id)
-    policy = StructuredPolicy(actor, episode.decoder)
-    action = policy.select_action(state)
-    indices = torch.nonzero(action, as_tuple=False).flatten().numpy()
-    assert state.demands[indices].sum() <= state.capacity
-    # evaluate_structured_actor builds the same decoder via episode_kwargs.
-    evaluation = evaluate_structured_actor(
-        actor,
-        [instance_id],
-        episode_kwargs=episode_kwargs,
-    )
-    assert evaluation["instances"] == 1
-    # audit uses the same policy abstraction.
-    audit = audit_structured_critic(
-        policy,
-        StructuredCritic(feature_count=8),
-        [instance_id],
-        reward_power=1.0,
-        comparison_powers=[1.0],
-        state_quantiles=[0.5],
-        candidate_count=3,
-        sigma=0.5,
-        temperature=0.5,
-        seed=1,
-        episode_kwargs=episode_kwargs,
-    )
-    assert audit["decoder"] == "route_aware_greedy"
-    episode.close()
-
-
-# ---------------------------------------------------------------------------
-# 5. A route-aware checkpoint round-trip reproduces the same decoded action.
-# ---------------------------------------------------------------------------
-
-
-def test_route_aware_checkpoint_round_trip(tmp_path):
-    actor = OrderScoreActor(feature_count=8, hidden=8)
-    critic = StructuredCritic(feature_count=8)
-    decoder_config = {"name": "route_aware_greedy", "allow_empty": False}
-    checkpoint = build_checkpoint(
-        actor=actor,
-        critic=critic,
-        critic_kind="mean",
-        feature_schema="deadline_v1",
-        feature_count=8,
-        actor_hidden=8,
-        decoder_config=decoder_config,
-        objective={"name": "flow", "power": 1.0, "gamma": 1.0, "use_order_due_dates": False},
-        objective_scale=2.5,
-        data_spec={"base_instance_id": "H_abc1_40_30", "cart_capacity": 45},
-        selected_episode=3,
-        route_cost_scale=123.4,
-    )
-    path = tmp_path / "ra_best.pt"
-    save_checkpoint(path, checkpoint)
-    loaded_actor, loaded_critic, loaded = load_workbench_checkpoint(path)
-    assert checkpoint_decoder_name(loaded) == "route_aware_greedy"
-    assert loaded["route_cost_scale"] == pytest.approx(123.4)
-    # The actor weights round-trip exactly, so the same state + decoder
-    # produces the same action before and after the checkpoint save/load.
-    state = _state(demands=(2, 2, 2), capacity=4, route_cost_scale=123.4)
-    decoder = make_decoder(
-        checkpoint_decoder_name(loaded), route_cost_fn=_route_cost_fn
-    )
-    before = StructuredPolicy(actor, make_decoder("route_aware_greedy", route_cost_fn=_route_cost_fn)).select_action(state)
-    after = StructuredPolicy(loaded_actor, decoder).select_action(state)
-    assert torch.equal(before, after)
-
-
-# ---------------------------------------------------------------------------
-# 6. Best-checkpoint actor and critic come from the same validation point.
-# ---------------------------------------------------------------------------
-
-
-def test_best_checkpoint_actor_critic_same_point(tmp_path):
-    from omegaconf import OmegaConf
-
-    from scenarios.scenario_henn_rl.structured.data import (
-        GeneratedHennDataLoader,
-        generated_instance_splits,
-    )
-    from scenarios.scenario_henn_rl.structured.training import train_structured_rl
-
-    spec = OmegaConf.to_container(
-        OmegaConf.load("scenarios/scenario_henn_rl/config/data/henn_lorenz.yaml"),
-        resolve=True,
-    )
-    spec.update(train_instances=4, validation_instances=4, test_instances=4)
     splits = generated_instance_splits(spec)
+    manifest = generated_manifest(spec)
     loader = GeneratedHennDataLoader(spec)
-    episode_kwargs = {
-        "data_loader": loader,
-        "use_order_due_dates": True,
-        "include_due_slack": True,
-        "decoder": "knapsack",
-    }
-    actor = OrderScoreActor(feature_count=8, hidden=8)
-    critic, result = train_structured_rl(
-        actor,
-        splits["train"][:3],
-        episodes=3,
-        updates_per_episode=1,
-        batch_size=1,
-        replay_capacity=20,
-        actor_learning_rate=0.001,
-        critic_learning_rate=0.002,
-        sigma_forward=0.1,
-        sigma_target=0.2,
-        temperature=1.0,
-        candidate_count=3,
-        epsilon=0.01,
-        fy_samples=2,
-        gamma=1.0,
-        seed=11,
-        validation_ids=splits["validation"][:1],
-        checkpoint_episodes=[0, 1, 3],
-        checkpoint_dir=tmp_path,
-        reward_power=1.0,
-        feature_count=8,
-        feature_schema="deadline_v1",
-        actor_hidden=8,
-        episode_kwargs=episode_kwargs,
+
+    def factory():
+        return build_environment(data_loader=loader)
+
+    return spec, splits, factory, manifest
+
+
+def test_knapsack_is_exact_capacity_feasible_and_nonempty():
+    selected = knapsack_batch(
+        np.asarray([4.0, 5.0, 7.0]),
+        np.asarray([2, 3, 4]),
+        5,
     )
-    assert result["best_actor_critic_consistent"] is True
-    # Every advertised checkpoint file uses the same loadable schema.
-    for path in tmp_path.glob("*.pt"):
-        _, _, cp = load_workbench_checkpoint(path)
-        assert cp["format_version"] == 2
-        assert cp["feature_schema"] == "deadline_v1"
-        assert "decoder" in cp
+    assert selected.tolist() == [0, 1]
+    assert knapsack_batch(
+        np.asarray([-3.0, -1.0]), np.asarray([1, 1]), 1
+    ).tolist() == [1]
 
 
-# ---------------------------------------------------------------------------
-# 7. Evaluation rejects incompatible policy-defining configuration.
-# ---------------------------------------------------------------------------
+def test_route_decoder_is_pure_greedy_approximation():
+    state = _observation()
+    router = Router()
+    scores = np.asarray([1.0, 1.2, 2.0])
+    greedy, value, cost = greedy_route_aware_batch(
+        scores,
+        state.demands,
+        state.capacity,
+        state.order_positions,
+        router,
+        state.route_cost_scale,
+    )
+    exact, exact_value, _ = brute_force_route_aware_batch(
+        scores,
+        state.demands,
+        state.capacity,
+        state.order_positions,
+        router,
+        state.route_cost_scale,
+    )
+    assert state.demands[greedy].sum() <= state.capacity
+    assert value <= exact_value + 1e-12
+    assert cost >= 0.0
+    assert len(exact) > 0
+    assert router.score_calls > 0
 
 
-def test_evaluation_rejects_incompatible_config(tmp_path):
+def test_actor_and_critics_are_permutation_consistent():
+    torch.manual_seed(4)
+    state = _observation()
+    features = torch.tensor(state.features)
+    permutation = torch.tensor([2, 0, 1])
     actor = OrderScoreActor(feature_count=8, hidden=8)
-    critic = StructuredCritic(feature_count=8)
+    assert torch.allclose(
+        actor(features)[permutation], actor(features[permutation]), atol=1e-6
+    )
+    action = torch.tensor([1.0, 1.0, 0.0])
+    for critic in (
+        StructuredCritic(feature_count=8, hidden=8),
+        PairwiseStructuredCritic(feature_count=8, hidden=8),
+    ):
+        assert torch.allclose(
+            critic(features, action),
+            critic(features[permutation], action[permutation]),
+            atol=1e-6,
+        )
+
+
+def test_fenchel_young_loss_updates_actor_scores():
+    actor = OrderScoreActor(feature_count=8, hidden=8)
+    state = _observation()
+    target = decode_action(np.asarray([2.0, 1.0, 0.0]), state, "knapsack")
+    loss, mean_action = fenchel_young_loss(
+        actor,
+        state,
+        target,
+        "knapsack",
+        None,
+        sample_count=4,
+        epsilon=0.01,
+        generator=torch.Generator().manual_seed(3),
+    )
+    loss.backward()
+    assert torch.isfinite(loss)
+    assert mean_action.shape == target.shape
+    assert any(parameter.grad is not None for parameter in actor.parameters())
+
+
+def test_complete_returns_are_undiscounted():
+    assert complete_returns([-0.2, -0.1, -0.4]) == pytest.approx(
+        [-0.7, -0.5, -0.4]
+    )
+
+
+def test_tracking_records_useful_numeric_metrics_without_nested_episode_data(tmp_path):
+    assert start_tracking({"enabled": False}, {}, tmp_path) is None
+    run = TrackingRun()
+    log_training(
+        run,
+        {
+            "episode": 3,
+            "instance_id": "train-3",
+            "objective_per_order": 12.5,
+            "mean_batch_fill": 0.8,
+            "actor_time_s": 0.2,
+        },
+        [
+            {"episode": 3, "actor_loss": 2.0, "critic_gradient_norm": 0.5},
+            {"episode": 3, "actor_loss": 4.0, "critic_gradient_norm": 0.7},
+        ],
+    )
+    log_validation(
+        run,
+        3,
+        {
+            "mean_objective_per_order": 11.0,
+            "mean_decision_time_s": 0.1,
+            "episodes": [{"flow_times": [1.0]}],
+        },
+    )
+    log_evaluation(
+        run,
+        "fifo_first",
+        {"mean_objective_per_order": 13.0, "episodes": [{"flow_times": [1.0]}]},
+    )
+    assert run.rows[0]["train/episode"] == 3
+    assert run.rows[0]["train/objective_per_order"] == 12.5
+    assert run.rows[0]["update/actor_loss"] == pytest.approx(3.0)
+    assert "update/episode" not in run.rows[0]
+    assert run.rows[1]["validation/mean_decision_time_s"] == 0.1
+    assert "validation/episodes" not in run.rows[1]
+    assert run.rows[2]["evaluation/fifo_first/mean_objective_per_order"] == 13.0
+
+
+def test_checkpoint_round_trip_and_direct_compatibility(tmp_path):
+    actor = OrderScoreActor(feature_count=8, hidden=8)
+    critic = PairwiseStructuredCritic(feature_count=8, hidden=8)
+    data = {"seed": 11, "order_counts": [40]}
     checkpoint = build_checkpoint(
         actor=actor,
         critic=critic,
-        critic_kind="mean",
-        feature_schema="deadline_v1",
+        critic_kind="interaction",
         feature_count=8,
         actor_hidden=8,
-        decoder_config={"name": "knapsack", "allow_empty": False},
-        objective={"name": "flow", "power": 1.0, "gamma": 1.0, "use_order_due_dates": False},
-        objective_scale=1.0,
-        data_spec={"base_instance_id": "H_abc1_40_30", "cart_capacity": 45},
-        selected_episode=1,
+        decoder_name="knapsack",
+        data_spec=data,
+        selected_episode=3,
     )
-    path = tmp_path / "incompat.pt"
+    path = tmp_path / "policy.pt"
     save_checkpoint(path, checkpoint)
-    _, _, loaded = load_workbench_checkpoint(path)
-    # Requesting a different decoder is rejected.
-    with pytest.raises(ValueError, match="incompatible"):
-        assert_policy_compatible(loaded, decoder_name="route_aware_greedy")
-    # Requesting a different feature schema is rejected.
-    with pytest.raises(ValueError, match="schema"):
-        assert_policy_compatible(loaded, feature_schema="legacy_v1")
-    # Requesting a different objective is rejected.
-    with pytest.raises(ValueError, match="objective"):
-        assert_policy_compatible(
+    loaded_actor, loaded_critic, loaded = load_checkpoint(path)
+    assert loaded["selected_episode"] == 3
+    assert loaded["objective_scale"] == 1.0
+    assert type(loaded_actor) is type(actor)
+    assert type(loaded_critic) is type(critic)
+    assert_checkpoint_compatible(
+        loaded,
+        decoder_name="knapsack",
+        route_cost_scale=0.0,
+    )
+    with pytest.raises(ValueError, match="decoder"):
+        assert_checkpoint_compatible(
             loaded,
-            objective={"name": "sla_tardiness", "power": 1.0, "gamma": 1.0, "use_order_due_dates": True},
+            decoder_name="route_aware_greedy",
+            route_cost_scale=1.0,
+        )
+    with pytest.raises(ValueError, match="scale"):
+        assert_checkpoint_compatible(
+            loaded,
+            decoder_name="knapsack",
+            route_cost_scale=0.0,
+            objective_scale=2.0,
         )
 
 
-# ---------------------------------------------------------------------------
-# 8. Replay states contain no bound environment callables and survive
-#    copying or serialization.
-# ---------------------------------------------------------------------------
-
-
-def test_replay_state_has_no_bound_callables_and_survives_serialization():
-    state = _state(demands=(2, 3), capacity=5, route_cost_scale=7.5)
-    copied = copy_state(state)
-    assert copied is not state
-    assert np.array_equal(copied.order_ids, state.order_ids)
-    assert np.allclose(copied.features, state.features)
-    assert copied.order_positions is not state.order_positions
-    # The state carries no bound environment callable: it must pickle and the
-    # round-tripped copy must remain usable.
-    data = pickle.dumps(state)
-    restored = pickle.loads(data)
-    assert np.array_equal(restored.order_ids, state.order_ids)
-    assert restored.capacity == state.capacity
-    assert restored.route_cost_scale == state.route_cost_scale
-    # A knapsack decoder works on the restored, env-free state.
-    decoder = KnapsackDecoder()
-    result = decoder.select(np.array([0.5, 0.9]), restored)
-    assert sorted(result.selected_indices.tolist()) == [0, 1]
-
-
-# ---------------------------------------------------------------------------
-# 9. The existing reward identity remains valid.
-# ---------------------------------------------------------------------------
-
-
-def test_reward_identity_remains_valid():
-    from scenarios.scenario_henn_rl.structured.environment import (
-        StructuredBatchingEpisode,
-    )
-
-    episode = StructuredBatchingEpisode([INSTANCE], reward_power=1.5)
-    state = episode.reset(instance_id=INSTANCE)
-    normalizer = episode.env.reward_normalizer
-    episode_return = 0.0
-    done = False
-    while not done:
-        selected = episode.oracle_action(
-            np.full(len(state.order_ids), -1.0), state
-        )
-        state, reward, done, _, info = episode.step(selected)
-        episode_return += reward
-    assert episode_return == pytest.approx(
-        -info["objective_cost"] / normalizer, rel=1e-12
-    )
-    episode.close()
-
-
-# ---------------------------------------------------------------------------
-# 10. A minimal train -> load -> evaluate smoke test succeeds without Gurobi.
-# ---------------------------------------------------------------------------
-
-
-def test_minimal_train_load_evaluate_smoke(tmp_path):
-    import sys
-
-    from omegaconf import OmegaConf
-
-    from scenarios.scenario_henn_rl.structured.data import (
-        GeneratedHennDataLoader,
-        generated_instance_splits,
-    )
-    from scenarios.scenario_henn_rl.structured.training import (
-        train_structured_rl,
-    )
-    from scenarios.scenario_henn_rl.structured.evaluation import (
-        evaluate_structured_actor,
-    )
-
-    # Ensure no Gurobi module is importable for the duration of this test.
-    sys.modules["gurobipy"] = None  # type: ignore
-    try:
-        spec = OmegaConf.to_container(
-            OmegaConf.load("scenarios/scenario_henn_rl/config/data/henn_lorenz.yaml"),
-            resolve=True,
-        )
-        spec.update(train_instances=4, validation_instances=4, test_instances=4)
-        splits = generated_instance_splits(spec)
-        loader = GeneratedHennDataLoader(spec)
-        episode_kwargs = {
-            "data_loader": loader,
-            "use_order_due_dates": True,
-            "include_due_slack": True,
-            "decoder": "knapsack",
+def test_short_training_and_evaluation_use_same_casim_path(tmp_path):
+    data, splits, factory, manifest = _environment_factory()
+    cfg = OmegaConf.create(
+        {
+            "seed": 7,
+            "progress": False,
+            "objective_scale": 1.0,
+            "data": data,
+            "decoder": {"name": "knapsack"},
+            "model": {"hidden": 8, "critic": "interaction"},
+            "learner": {
+                "episodes": 1,
+                "updates_per_episode": 1,
+                "batch_size": 1,
+                "replay_capacity": 20,
+                "actor_learning_rate": 0.001,
+                "critic_learning_rate": 0.002,
+                "sigma_forward": 0.1,
+                "sigma_target": 0.5,
+                "temperature": 0.1,
+                "candidate_count": 3,
+                "epsilon": 0.01,
+                "fy_samples": 2,
+                "critic_target": "td",
+                "normalize_candidate_advantages": False,
+                "checkpoint_episodes": [0, 1],
+            },
         }
-        actor = OrderScoreActor(feature_count=8, hidden=8)
-        critic, result = train_structured_rl(
-            actor,
-            splits["train"][:1],
-            episodes=1,
-            updates_per_episode=1,
-            batch_size=1,
-            replay_capacity=10,
-            actor_learning_rate=0.001,
-            critic_learning_rate=0.002,
-            sigma_forward=0.1,
-            sigma_target=0.2,
-            temperature=1.0,
-            candidate_count=3,
-            epsilon=0.01,
-            fy_samples=2,
-            gamma=1.0,
-            seed=5,
-            validation_ids=splits["validation"][:1],
-            checkpoint_episodes=[0, 1],
-            checkpoint_dir=tmp_path,
-            feature_count=8,
-            feature_schema="deadline_v1",
-            actor_hidden=8,
-            episode_kwargs=episode_kwargs,
-        )
-        best_path = tmp_path / "best.pt"
-        save_checkpoint(
-            best_path,
-            build_checkpoint(
-                actor=actor,
-                critic=critic,
-                critic_kind="mean",
-                feature_schema="deadline_v1",
-                feature_count=8,
-                actor_hidden=8,
-                decoder_config={"name": "knapsack", "allow_empty": False},
-                objective={"name": "flow", "power": 1.0, "gamma": 1.0, "use_order_due_dates": True},
-                objective_scale=1.0,
-                data_spec=spec,
-                selected_episode=result["selected_episode"],
-            ),
-        )
-        loaded_actor, _, loaded = load_workbench_checkpoint(best_path)
-        assert checkpoint_decoder_name(loaded) == "knapsack"
-        evaluation = evaluate_structured_actor(
-            loaded_actor,
-            splits["validation"][:1],
-            episode_kwargs=episode_kwargs,
-        )
-        assert evaluation["instances"] == 1
-        assert evaluation["max_reward_identity_error"] < 1e-9
-    finally:
-        del sys.modules["gurobipy"]
+    )
+    result = run_training(
+        cfg,
+        tmp_path,
+        splits=splits,
+        dataset_manifest=manifest,
+        environment_factory=factory,
+    )
+    assert result["status"] == "complete"
+    assert result["max_reward_identity_error"] < 1e-9
+    actor, _, checkpoint = load_checkpoint(result["selected_checkpoint"])
+    assert checkpoint["objective_scale"] == 1.0
+    learned = evaluate_policy(
+        splits["test"][:1],
+        choose_batch=make_actor_choose_batch(actor, "knapsack"),
+        environment_factory=factory,
+        objective_scale=1.0,
+        decoder_name="knapsack",
+    )
+    fifo = evaluate_policy(
+        splits["test"][:1],
+        choose_batch=fifo_choose_batch,
+        environment_factory=factory,
+        objective_scale=1.0,
+        decoder_name="knapsack",
+    )
+    assert learned["instances"] == fifo["instances"] == 1
+    assert learned["max_reward_identity_error"] < 1e-9
+    assert fifo["max_reward_identity_error"] < 1e-9

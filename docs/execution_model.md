@@ -45,12 +45,20 @@ A backlog-based or periodic study may also use active-route intervention. It
 must explicitly select the intervention trigger, active-tour adapter, and
 compatible algorithms; no separate intervention overlay is required.
 
-## Initial domain and loading
+## Construction and preparation
 
-A scenario's `input` configuration names a `DataLoader`. `setup_scenario`
+A scenario's `input` configuration names a `DataLoader`. `casim.setup`
 instantiates it through Hydra, passes the configured source paths to
-`DataLoader.load`, and gives the
-resulting `SimWarehouseDomain` to `SimulationEngine.reset`.
+`DataLoader.load`, and gives the resulting `SimWarehouseDomain` to
+`SimulationEngine.reset`.
+
+`build_runtime(cfg)` is the shared construction boundary. Before the event
+loop it constructs the simulation problems, adapters, triggers, conditions,
+commitment policies, and solvers. Every solver is then prepared against the
+effective `DataCard`. For CoSy this includes applicability filtering and
+pipeline synthesis; direct solvers validate and cache only their own static
+requirements. Hydra construction and pipeline synthesis therefore do not
+occur in the decision loop.
 
 `SimWarehouseDomain` is the initial planning/domain input. On reset, CASIM
 creates its own runtime `State`; the domain is not the mutable source of truth
@@ -132,9 +140,9 @@ an arrival during a pick is handled after `PickComplete`.
 trigger event
   → SimulationEngine selects the configured problem
   → StateAdapter creates a detached planning snapshot
-  → DecisionEngine runs the configured CoSy pipeline
-  → commitment policy selects a solution subset
-  → DecisionEngine creates one process event
+  → DecisionEngine.solve runs the prepared CoSy or direct solver
+  → DecisionEngine.commit applies commitment policy
+  → DecisionEngine creates process events
   → SimulationEngine executes it synchronously at the trigger time
   → process event calls one State operation
   → managers update the operational truth
@@ -142,6 +150,12 @@ trigger event
 
 Adapters project state; they do not commit or cancel work. Solutions describe
 plans; they do not authorize operational changes.
+
+`DecisionEngine.on_trigger` is the normal `solve → commit` convenience path.
+A study with an actual intermediate policy may use the phases explicitly. The
+Henn study solves candidate batches, applies its waiting rule, and calls
+`commit` only when dispatching. An external or learned controller constructs
+an `AlgorithmSolution` and enters through the same `commit` phase.
 
 The process event never waits in the operational heap while decision latency
 is zero. Therefore a second event at the same timestamp cannot observe orders
@@ -259,7 +273,7 @@ approximations, not a pedestrian model of overtaking or following distance.
 
 ## Where to look
 
-- initial setup: `scenarios/experiment_commons.py`
+- shared construction and solver preparation: `src/casim/setup.py`
 - event loop: `src/casim/simulation_engine/simulation_engine.py`
 - runtime facade: `src/casim/state/state.py`
 - active-tour execution: `src/casim/domain_objects/tour_model.py`
@@ -267,7 +281,32 @@ approximations, not a pedestrian model of overtaking or following distance.
 - operational events: `src/casim/events/operational_events.py`
 - commitment events: `src/casim/events/decision_events.py`
 - planning projections: `src/casim/simulation_engine/state_adapter.py`
+- decision solve/commit seam: `src/casim/decision_engine/decision_engine.py`
+- externally controlled batching: `src/casim/envs/order_batching.py`
 - CoSy routing task: `src/casim/pipelines/subproblems/picker_routing.py`
+
+## Controlled decisions
+
+`OrderBatchingEnv` controls one configured problem class and receives an
+already-built `SimulationEngine` and `DecisionEngine`. It returns the existing
+planning snapshot and its resolved `WarehouseOrder`s as a tuple. All other
+snapshots continue through `DecisionEngine.on_trigger`, so routing and
+scheduling remain ordinary CASIM decisions.
+
+The learning code builds its `BatchingObservation` directly from those
+semantic objects. Selecting order IDs creates the existing ware-ops
+`BatchingSolution`, which enters through `DecisionEngine.commit`. The
+route-aware decoder uses the fixed router's side-effect-free `score` method;
+only the committed downstream routing decision calls `solve`.
+
+`ExperimentTracker` maintains accrued total flow time incrementally from order
+arrivals and completions. The batching reward is simply the negative increase
+in that operational KPI divided by the number of orders.
+
+The dependency direction is deliberate: `ware_ops_algos` provides domain
+objects and algorithms; CASIM owns operational state, projections, commitment,
+and its pipeline taxonomy; learning consumes the controlled-decision boundary;
+scenarios compose concrete studies and data sources.
 
 ## Scenario input versus DataCard
 

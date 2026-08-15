@@ -1,8 +1,9 @@
 # Structured online batching feasibility
 
-See also [Structured-RL failure diagnosis](structured_batching_srl_diagnosis.md)
-for the post-training causal analysis of why the learned critic target does not
-reliably improve the chosen batch.
+See also [objective-derived reward methodology](objective_derived_reward_methodology.md)
+for the general reward construction and its objective-exactness proof. The
+current implementation uses the total-flow-time special case with a fixed
+reference-policy normalization scale (see `src/casim/envs/order_batching.py`).
 
 ## Decision and implementation
 
@@ -19,8 +20,8 @@ loss, and `gamma=1`. The incremental holding-cost reward sums exactly to
 negative normalized total order flow time; the measured identity error remains
 below `3e-17`.
 
-The general objective-derived implementation and its non-RL validation are
-documented in [order_cost_reward.md](order_cost_reward.md).
+The general objective-derived methodology and its exactness proof are
+documented in [objective_derived_reward_methodology.md](objective_derived_reward_methodology.md).
 
 CoSy remains the canonical pipeline construction and applicability mechanism.
 The learning and evaluation loops use the equivalent fixed pipeline directly
@@ -139,6 +140,4 @@ Raw results were stored under
 `outputs/henn_rl/corrected_comparison_seed11/result.json` (canonical parity
 traces under its `cosy_parity` directory). Those historical outputs were
 superseded by the final-diagnosis cleanup; the feasibility numbers above are
-the documented conclusion. The canonical SRL-failure evidence now lives under
-`outputs/henn_rl/final_diagnosis/` (see
-`docs/structured_batching_srl_diagnosis.md`).
+the documented conclusion.

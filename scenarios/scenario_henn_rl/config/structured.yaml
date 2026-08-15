@@ -1,7 +1,6 @@
 defaults:
   - experiment: train
   - data: henn_lorenz
-  - objective: flow
   - decoder: knapsack
   - tracking: disabled
   - _self_
@@ -23,8 +22,6 @@ checkpoint: null
 objective_scale: null
 
 model:
-  feature_schema: deadline_v1
-  feature_count: 8
   hidden: 32
   critic: interaction
 

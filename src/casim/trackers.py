@@ -35,7 +35,47 @@ class ExperimentTracker:
         self._completed_order_count = 0
         self._completed_line_count = 0
         self._completion_makespan = 0.0
+        self._accrued_flow_time = 0.0
+        self._flow_time_updated_at = 0.0
+        self._active_order_ids: set[object] = set()
+        self.order_arrival_times: dict[object, float] = {}
+        self.order_completion_times: dict[object, float] = {}
         # (tour_id, start_time, end_time, list[order_ids], picker_id)
+
+    def _advance_flow_time(self, time: float) -> None:
+        time = float(time)
+        if time < self._flow_time_updated_at:
+            raise ValueError("Flow-time observations must be chronological")
+        self._accrued_flow_time += (
+            time - self._flow_time_updated_at
+        ) * len(self._active_order_ids)
+        self._flow_time_updated_at = time
+
+    def on_order_arrival(self, order_id, time: float) -> None:
+        """Start accumulating the operational flow time of one order."""
+        self._advance_flow_time(time)
+        if order_id in self.order_arrival_times:
+            raise ValueError(f"Order {order_id} arrived more than once")
+        self.order_arrival_times[order_id] = float(time)
+        self._active_order_ids.add(order_id)
+
+    def on_orders_completed(self, order_ids, time: float) -> None:
+        """Stop accumulating flow time for newly completed original orders."""
+        self._advance_flow_time(time)
+        for order_id in order_ids:
+            if order_id not in self._active_order_ids:
+                continue
+            self._active_order_ids.remove(order_id)
+            self.order_completion_times[order_id] = float(time)
+
+    def accrued_flow_time(self, current_time: float) -> float:
+        """Return total flow time accrued by completed and waiting orders."""
+        current_time = float(current_time)
+        if current_time < self._flow_time_updated_at:
+            raise ValueError("Flow time cannot be queried in the past")
+        return self._accrued_flow_time + (
+            current_time - self._flow_time_updated_at
+        ) * len(self._active_order_ids)
 
     def on_travel(self, picker_id, distance):
         self.distance_by_picker[picker_id] += distance
@@ -66,7 +106,8 @@ class ExperimentTracker:
                     on_time,
                     delayed,
                     n_pallets_dock,
-                    n_lines):
+                    n_lines,
+                    completed_order_ids=()):
         duration = end_time - start_time
         self.completed_tours.append((tour_id, start_time, end_time, list(order_ids), picker_id, on_time, delayed, n_lines))
         self._completed_tour_time += duration
@@ -82,6 +123,7 @@ class ExperimentTracker:
         util = self.current_utilization(end_time)
         self.picker_utilization.append((end_time, util))
         self.process_times.append(duration)
+        self.on_orders_completed(completed_order_ids, end_time)
         # print(f"tour_id:  {tour_id} with order_ids: {order_ids} completed at time {end_time:.0f} with makespan {end_time - start_time:.1f} and picker utilization {util:.2%} and dock utilization {n_pallets_dock} pallets")
 
     def on_truck_departure(self, time, capacity):
@@ -157,6 +199,10 @@ class ExperimentTracker:
     @property
     def completion_makespan(self) -> float:
         return self._completion_makespan
+
+    @property
+    def total_flow_time(self) -> float:
+        return self.accrued_flow_time(self._flow_time_updated_at)
 
     @property
     def total_delayed(self) -> int:

@@ -1,6 +1,5 @@
 # @package decoder
 # Greedy marginal-acceptance route-aware decoder. This is an approximate
 # decoder (greedy), not an exact profitable-SPRP pricing oracle; see
-# structured/decoders.py for the precise semantics.
+# learning/structured_batching/policy.py for the precise semantics.
 name: route_aware_greedy
-allow_empty: false

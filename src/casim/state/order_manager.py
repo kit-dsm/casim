@@ -106,6 +106,24 @@ class OrderManager:
             self.completed_orders.append(order)
             completed_ids.add(order_id)
 
+    def newly_completed_original_ids(self, order_ids: list[int]) -> list[int]:
+        """Return original orders completed by the latest tour completion."""
+        completed = {order.order_id for order in self.completed_orders}
+        roots = {
+            self.get_order_from_history(order_id).parent_order_id or order_id
+            for order_id in order_ids
+        }
+        result = []
+        for root in roots:
+            children = [
+                order.order_id
+                for order in self._order_history.values()
+                if order.parent_order_id == root
+            ]
+            if not children or all(child in completed for child in children):
+                result.append(root)
+        return result
+
     def get_order_buffer(self) -> list[Order]:
         return list(self._order_buffer.values())
 
