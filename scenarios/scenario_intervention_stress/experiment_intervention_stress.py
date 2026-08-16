@@ -21,9 +21,9 @@ def _decision_row(snapshot, solution, decision_engine) -> dict:
     row = {
         "time": float(dynamic.time),
         "problem": str(snapshot.problem_class),
-        "pipeline": str(decision[2]),
+        "pipeline": str(decision[3]),
         "algorithm_runtime_s": float(solution.execution_time),
-        "decision_elapsed_s": float(decision[6]),
+        "decision_elapsed_s": float(decision[7]),
         "solver_status": solution.solver_status,
         "objective_value": solution.objective_value,
         "objective_bound": solution.objective_bound,
@@ -76,7 +76,7 @@ def run(cfg: DictConfig) -> dict:
     initial_domain = simulation.reset(hooks=[add_orders_hook])
     configuration_warnings = []
     order_threshold = (
-        simulation.conditions_map.get("OBRSP", {}).get("orders")
+        simulation.conditions_map.get(("OBRSP", "none"), {}).get("orders")
     )
     if order_threshold is not None and simulation.state.intervention_enabled:
         arrivals = sorted(

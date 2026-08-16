@@ -39,11 +39,15 @@ def _card(features):
 
 
 _ORDER_WINDOW_FEATURES = StateAdapter(
+    problem_class="OBRSP",
+    replanning="none",
     orders={"source": "buffered"},
     resources={"source": "dispatchable", "scope": "trigger_if_present"},
 ).projected_features()
 
 _ACTIVE_TOUR_FEATURES = StateAdapter(
+    problem_class="OBRP",
+    replanning="active",
     active_tour={"source": "residual"},
     orders={"source": "buffered"},
 ).projected_features()

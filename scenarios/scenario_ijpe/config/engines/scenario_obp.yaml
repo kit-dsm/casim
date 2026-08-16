@@ -4,34 +4,27 @@ runtime:
   horizon_time: ${simulation.horizon_time}
 
 problems:
-  ORSP:
+  - problem_class: ORSP
+    replanning: none
     triggers: [ShiftStart]
-    expose:
-      batches: {source: buffered}
-      resources: {source: nonactive}
     requires: {batches: 1, pickers: 1, not_on_break: true}
     solver:
       type: cosy
       objective: ${data_card.objective}
       repo: ${cosy_repo}
 
-  OBP:
+  - problem_class: OBP
+    replanning: none
     triggers: [WMSRun]
-    expose:
-      orders: {source: buffered}
-      resources: {source: all}
     requires: {orders: 1}
     solver:
       type: cosy
       objective: ${data_card.objective}
       repo: ${cosy_repo}
 
-  RORSP:
+  - problem_class: ORSP
+    replanning: unstarted
     triggers: [TruckDisruption, VolumeShiftAcrossDay, OrderIngestion]
-    expose:
-      batches:
-        source: buffered_and_replannable
-      resources: {source: available}
     solver:
       type: cosy
       objective: ${data_card.objective}

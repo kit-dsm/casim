@@ -52,7 +52,7 @@ def _observation(environment, *, route_aware):
 
 def test_one_projection_and_assignment_per_exposed_decision(monkeypatch):
     environment, instance_id = _environment()
-    adapter = environment.simulation.state_adapters["OBP"]
+    adapter = environment.simulation.state_adapters[("OBP", "none")]
     original_transform = adapter.transform_state
     projections = 0
 
@@ -87,7 +87,7 @@ def test_one_projection_and_assignment_per_exposed_decision(monkeypatch):
     current, _, done = environment.step(
         observation.order_ids[selected].tolist()
     )
-    downstream = environment.decision_engine.solver_map["ORSP"]
+    downstream = environment.decision_engine.solver_map[("ORSP", "none")]
     assert downstream.solve_calls == 1
     if not done:
         assert current is environment.current
@@ -100,7 +100,7 @@ def test_route_decoder_scores_candidates_and_only_commit_solves_route():
     environment.reset(instance_id)
     observation = _observation(environment, route_aware=True)
     snapshot, _ = environment.current
-    downstream = environment.decision_engine.solver_map["ORSP"]
+    downstream = environment.decision_engine.solver_map[("ORSP", "none")]
     router = downstream.router_for(snapshot)
     calls = {"score": 0, "solve": 0}
     original_score = router.score

@@ -1236,21 +1236,21 @@ def plot_focused_gantt_for_scenario_day(
 PROBLEM_ORDER = ["OBP", "ORSP", "RORSP"]
 
 
-def _classify_problem(problem_class, pipeline: str) -> str:
+def _classify_problem(problem_class, replanning: str, pipeline: str) -> str:
     """Map a decision to its problem class.
 
-    The problem_class field is authoritative: ORSP and RORSP both emit a
-    *_scheduling_sol pipeline and cannot be told apart by name. The pipeline
-    suffix is only a fallback. Check RORSP before ORSP (substring overlap).
+    ``problem_class`` plus ``replanning`` is authoritative: ORSP with
+    ``replanning='unstarted'`` is the former RORSP. The pipeline suffix is
+    only a fallback for legacy traces that lack the replanning field.
     """
     s = str(problem_class).upper()
 
-    if "RORSP" in s:
-        return "RORSP"
-    if "ORSP" in s:
-        return "ORSP"
     if "OBP" in s:
         return "OBP"
+    if "ORSP" in s or "RORSP" in s:
+        if str(replanning).lower() == "unstarted" or "RORSP" in s:
+            return "RORSP"
+        return "ORSP"
 
     if pipeline.endswith("batching_sol"):
         return "OBP"
@@ -1272,8 +1272,9 @@ def load_decision_counts(decisions_file: Path) -> dict[str, int]:
 
     for decision in decisions:
         problem_class = decision["problem"]
+        replanning = decision.get("replanning", "none")
         pipeline = decision["pipeline"]
-        counts[_classify_problem(problem_class, pipeline)] += 1
+        counts[_classify_problem(problem_class, replanning, pipeline)] += 1
 
     if counts["OTHER"] > 0:
         raw = {str(decision["problem"]) for decision in decisions}
@@ -1480,10 +1481,11 @@ def evaluate_all(
                 "Number of decisions taken by the \\texttt{CoSySolver} per problem "
                 "class. OBP covers the pre-shift item assignment and batching handed "
                 "over by the WMS. ORSP covers routing and scheduling solved per shift. "
-                "RORSP covers re-planning and is triggered only by disruptions, so it "
-                "does not occur in the baseline. Picker routing is fixed to the "
-                "U-shaped heuristic and scheduling to earliest due date under a "
-                "tardiness objective."
+                "RORSP covers re-planning of unstarted tours (ORSP with "
+                "replanning=unstarted) and is triggered only by disruptions, "
+                "so it does not occur in the baseline. Picker routing is "
+                "fixed to the U-shaped heuristic and scheduling to earliest "
+                "due date under a tardiness objective."
             ),
             label="tab:decision_engine",
         ),

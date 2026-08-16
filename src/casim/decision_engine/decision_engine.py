@@ -67,18 +67,55 @@ class SchedulingCommitmentPolicy:
 
 class DecisionEngine:
     def __init__(self,
-                 solver_map: dict[str, object],
-                 commitment_policies: dict[str, SchedulingCommitmentPolicy] | None = None,
+                 solver_map: dict[tuple[str, str], object],
+                 commitment_policies: dict[tuple[str, str], SchedulingCommitmentPolicy] | None = None,
                  ):
 
         self.solver_map = solver_map
         self.commitment_policies = commitment_policies or {}
         self.decision_tracker = DecisionTracker()
 
+    def solver_for(self, problem_class: str):
+        """Return the unique solver bound to ``problem_class``.
+
+        Used by scenarios that solve a snapshot directly (complete-information
+        or candidate-generation paths) rather than through :meth:`on_trigger`.
+        Raises if ``problem_class`` is absent or bound to more than one
+        replanning scope, since either case makes the binding ambiguous.
+        """
+        matches = [
+            solver for (pc, _), solver in self.solver_map.items()
+            if pc == problem_class
+        ]
+        if not matches:
+            raise KeyError(
+                f"No solver bound to problem class {problem_class!r}"
+            )
+        if len(matches) > 1:
+            replannings = sorted(
+                replanning
+                for (pc, replanning) in self.solver_map
+                if pc == problem_class
+            )
+            raise ValueError(
+                f"Problem class {problem_class!r} is bound to multiple "
+                f"replanning scopes {replannings}; solve via on_trigger or "
+                f"qualify the binding"
+            )
+        return matches[0]
+
+    @staticmethod
+    def _binding(snapshot: SimWarehouseDomain) -> tuple[str, str]:
+        return (
+            snapshot.problem_class,
+            snapshot.dynamic_warehouse_info.replanning,
+        )
+
     def solve(self, state_snapshot: SimWarehouseDomain, action=None):
         """Execute the already-prepared solver and record its decision."""
         problem = state_snapshot.problem_class
-        solver = self.solver_map[problem]
+        replanning = state_snapshot.dynamic_warehouse_info.replanning
+        solver = self.solver_map[self._binding(state_snapshot)]
         start_time = time.perf_counter()
         result = solver.solve(state_snapshot, action)
         if result is None:
@@ -93,6 +130,7 @@ class DecisionEngine:
             objective_value,
             state_snapshot.objective,
             problem,
+            replanning,
             elapsed,
         )
         return solution, solver_name, objective_value
@@ -104,7 +142,7 @@ class DecisionEngine:
     ):
         """Apply commitment policy and convert a semantic solution to events."""
         full_solution = solution
-        policy = self.commitment_policies.get(state_snapshot.problem_class)
+        policy = self.commitment_policies.get(self._binding(state_snapshot))
         if policy is not None:
             solution = policy.apply(solution, state_snapshot)
         self.decision_tracker.on_commitment(
@@ -143,7 +181,7 @@ class DecisionEngine:
             return len(solution.routes)
         return 0
 
-    def _record_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem, elapsed):
+    def _record_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem, replanning, elapsed):
         if isinstance(best_solution, CombinedRoutingSolution):
             order_ids = [o for r in best_solution.routes for o in r.batch.order_numbers]
         elif isinstance(best_solution, SchedulingSolution):
@@ -155,6 +193,7 @@ class DecisionEngine:
 
         self.decision_tracker.on_decision(
             problem_class=problem,
+            replanning=replanning,
             input_ids=len(order_ids),
             selected_pipeline=solver_name,
             kpi_value=objective_value,
@@ -203,13 +242,12 @@ class DecisionEngine:
         """Turn sequencing solution into TourStart events."""
         replace_tour_ids = ()
         if state_snapshot is not None:
-            replace_tour_ids = tuple(
-                int(tour.tour_id)
-                for tour in (
-                    state_snapshot.dynamic_warehouse_info.replannable_tours or []
+            dynamic = state_snapshot.dynamic_warehouse_info
+            if dynamic.replanning == "unstarted":
+                replace_tour_ids = tuple(
+                    int(tour.tour_id)
+                    for tour in (dynamic.replannable_tours or [])
                 )
-                if state_snapshot.problem_class == "RORSP"
-            )
         return [
             SequencingDone(
                 finish_time,

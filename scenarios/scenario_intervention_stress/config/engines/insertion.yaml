@@ -3,11 +3,9 @@ runtime:
   horizon_time: null
 
 problems:
-  OBRSP:
+  - problem_class: OBRSP
+    replanning: none
     triggers: [OrderArrival, PickerIdle, FlushRemainingOrders]
-    expose:
-      orders: {source: buffered}
-      resources: {source: dispatchable, scope: trigger_if_present}
     requires: {orders: 2, pickers: 1}
     solver:
       type: cosy
@@ -16,11 +14,9 @@ problems:
     commit:
       n_jobs: 1
 
-  OBRP:
+  - problem_class: OBRP
+    replanning: active
     triggers: [InterventionRequest]
-    expose:
-      active_tour: {source: residual}
-      orders: {source: buffered}
     solver:
       type: cosy
       objective: distance

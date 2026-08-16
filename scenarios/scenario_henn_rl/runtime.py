@@ -18,6 +18,7 @@ from casim.simulation_engine.state_adapter import StateAdapter
 
 def build_environment(*, data_loader, objective_scale=1.0) -> OrderBatchingEnv:
     """Compose the study's controlled OBP and fixed downstream ORSP."""
+    downstream_binding = ("ORSP", "none")
     solver = FixedRouteScheduler(problem_class="ORSP")
     solver.prepare(
         DataCard(
@@ -32,14 +33,21 @@ def build_environment(*, data_loader, objective_scale=1.0) -> OrderBatchingEnv:
             warehouse_info={},
         )
     )
-    decision_engine = DecisionEngine(solver_map={"ORSP": solver})
+    decision_engine = DecisionEngine(solver_map={downstream_binding: solver})
     simulation = SimulationEngine(
         state_adapters={
-            "OBP": StateAdapter(
+            ("OBP", "none"): StateAdapter(
+                problem_class="OBP",
+                replanning="none",
                 orders={"source": "buffered"},
-                resources={"source": "dispatchable", "scope": "trigger_if_present"},
+                resources={
+                    "source": "dispatchable",
+                    "scope": "trigger_if_present",
+                },
             ),
-            "ORSP": StateAdapter(
+            downstream_binding: StateAdapter(
+                problem_class="ORSP",
+                replanning="none",
                 batches={"source": "buffered"},
                 resources={"source": "nonactive"},
             ),
@@ -47,14 +55,14 @@ def build_environment(*, data_loader, objective_scale=1.0) -> OrderBatchingEnv:
         data_loader=data_loader,
         loader_kwargs={"instance_id": ""},
         triggers_map={
-            OrderArrival: "OBP",
-            PickerIdle: "OBP",
-            FlushRemainingOrders: "OBP",
-            PickListDone: "ORSP",
+            OrderArrival: ("OBP", "none"),
+            PickerIdle: ("OBP", "none"),
+            FlushRemainingOrders: ("OBP", "none"),
+            PickListDone: downstream_binding,
         },
         conditions_map={
-            "OBP": {"pickers": 1, "orders": 1},
-            "ORSP": {"pickers": 1, "batches": 1},
+            ("OBP", "none"): {"pickers": 1, "orders": 1},
+            downstream_binding: {"pickers": 1, "batches": 1},
         },
         event_loggers=[],
         completion_mode="drain",

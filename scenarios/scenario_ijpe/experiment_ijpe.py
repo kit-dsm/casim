@@ -31,12 +31,13 @@ def run(cfg: DictConfig) -> dict:
     decisions = [
         {
             "problem": row[0],
-            "input_count": row[1],
-            "pipeline": row[2],
-            "objective_value": row[3],
-            "objective": row[4],
-            "algorithm_runtime_s": row[5],
-            "decision_elapsed_s": row[6],
+            "replanning": row[1],
+            "input_count": row[2],
+            "pipeline": row[3],
+            "objective_value": row[4],
+            "objective": row[5],
+            "algorithm_runtime_s": row[6],
+            "decision_elapsed_s": row[7],
         }
         for row in decision_engine.decision_tracker.decisions
     ]

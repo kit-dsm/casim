@@ -4,11 +4,9 @@ runtime:
   horizon_time: null
 
 problems:
-  OBRP:
+  - problem_class: OBRP
+    replanning: none
     triggers: [OrderArrival, PickerIdle, FlushRemainingOrders]
-    expose:
-      orders: {source: buffered}
-      resources: {source: dispatchable, scope: trigger_if_present}
     requires: {orders: 1, pickers: 1}
     solver:
       type: cosy

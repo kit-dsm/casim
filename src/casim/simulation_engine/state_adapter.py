@@ -254,18 +254,26 @@ def _layout_with_origin(layout, tour, origin, progress):
 class StateAdapter:
     """Project one decision problem's planning snapshot from operational state.
 
-    The adapter is configured by a small exposure mapping (orders, batches,
-    resources, active_tour) parsed from the engine YAML in :mod:`casim.setup`.
+    The adapter is the explicit boundary from mutable :class:`State` to one
+    detached planning snapshot.  It carries the decision's mathematical
+    ``problem_class`` and operational ``replanning`` scope plus a closed
+    exposure vocabulary (orders, batches, resources, active_tour) that
+    :mod:`casim.setup` derives from ``(problem_class, replanning)`` so the
+    user-facing configuration never names the low-level projection terms.
     """
 
     def __init__(
         self,
         *,
+        problem_class: str,
+        replanning: str = "none",
         orders: dict | None = None,
         batches: dict | None = None,
         resources: dict | None = None,
         active_tour: dict | None = None,
     ):
+        self.problem_class = problem_class
+        self.replanning = replanning
         self.orders_cfg = orders
         self.batches_cfg = batches
         self.resources_cfg = resources or {"source": "all"}
@@ -375,11 +383,11 @@ class StateAdapter:
     # ── main projection ──
 
     def transform_state(
-        self, state: State, problem: str, trigger=None
+        self, state: State, trigger=None
     ) -> SimWarehouseDomain:
         active = self._project_active_tour(state, trigger)
         if active is not None:
-            return self._active_tour_snapshot(state, problem, trigger, active)
+            return self._active_tour_snapshot(state, trigger, active)
 
         orders = _orders_snapshot(self._selected_orders(state))
         batches, replannable = self._selected_batches(state)
@@ -388,6 +396,7 @@ class StateAdapter:
         warehouse_info = DynamicInfo(
             tpe=WarehouseInfoType.ONLINE,
             time=state.current_time,
+            replanning=self.replanning,
             buffered_batches=_batches_snapshot(batches),
             replannable_tours=copy.deepcopy(replannable),
             done=state.done_flag,
@@ -396,14 +405,14 @@ class StateAdapter:
         )
         return _planning_domain(
             state,
-            problem,
+            self.problem_class,
             layout=state.layout_manager.layout,
             orders=orders,
             resources=resources,
             warehouse_info=warehouse_info,
         )
 
-    def _active_tour_snapshot(self, state, problem, trigger, active):
+    def _active_tour_snapshot(self, state, trigger, active):
         tour, picker, residual_batch, layout, origin, progress = active
         congestion_penalty = float(
             self.active_tour_cfg.get("congestion_penalty", 0.0)
@@ -416,6 +425,7 @@ class StateAdapter:
         warehouse_info = DynamicInfo(
             tpe=WarehouseInfoType.ONLINE,
             time=state.current_time,
+            replanning=self.replanning,
             current_picker=picker,
             buffered_batches=[residual_batch],
             done=state.done_flag,
@@ -438,7 +448,7 @@ class StateAdapter:
         )
         return _planning_domain(
             state,
-            problem,
+            self.problem_class,
             layout=layout,
             orders=orders,
             resources=Resources(ResourceType.HUMAN, [picker]),

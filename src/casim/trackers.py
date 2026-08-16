@@ -247,10 +247,11 @@ class DecisionTracker:
         self.commitments: list[dict] = []
         self.pipeline_counts: dict[str, int] = defaultdict(int)
 
-    def on_decision(self, problem_class, input_ids, selected_pipeline,
+    def on_decision(self, problem_class, replanning, input_ids, selected_pipeline,
                     kpi_value, kpi, runtime, elapsed):
         self.decisions.append((
             problem_class,
+            replanning,
             input_ids,
             selected_pipeline,
             kpi_value,

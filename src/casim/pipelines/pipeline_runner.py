@@ -197,7 +197,6 @@ class CoSySolver:
         suffix = {
             "OBRSP": "scheduling_sol.pkl",
             "ORSP": "scheduling_sol.pkl",
-            "RORSP": "scheduling_sol.pkl",
             "OBP": "batching_sol.pkl",
             "OSBP": "batching_sol.pkl",
             "ORP": "routing_sol.pkl", "OBRP": "routing_sol.pkl",

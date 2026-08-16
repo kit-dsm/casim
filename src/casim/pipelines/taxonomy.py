@@ -29,8 +29,4 @@ TAXONOMY = {
         "variables": ["routing", "scheduling"],
         "endpoint": "casim.pipelines.problem_based_template.ResultAggregationScheduling"
     },
-    "RORSP": {
-            "variables": ["routing", "scheduling"],
-            "endpoint": "casim.pipelines.problem_based_template.ResultAggregationScheduling"
-        },
 }

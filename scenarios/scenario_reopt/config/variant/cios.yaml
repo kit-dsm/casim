@@ -9,11 +9,9 @@ variant:
 
 engines:
   problems:
-    OBRSP:
+    - problem_class: OBRSP
+      replanning: none
       triggers: [OrderArrival, PickerIdle]
-      expose:
-        orders: {source: buffered}
-        resources: {source: dispatchable, scope: trigger_if_present}
       requires: {orders: 1, pickers: 1}
       solver:
         type: direct

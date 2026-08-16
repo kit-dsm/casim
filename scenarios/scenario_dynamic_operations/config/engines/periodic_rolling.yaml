@@ -9,26 +9,21 @@ runtime:
   horizon_time: ${simulation.horizon_time}
 
 problems:
-  OBP:
+  - problem_class: OBP
+    replanning: none
     triggers: [WMSRun]
-    expose:
-      orders: {source: buffered}
-      resources: {source: all}
     requires: {orders: 1}
     solver:
       type: cosy
       objective: tardiness
       repo: ${cosy_repo}
 
-  ORSP:
+  - problem_class: ORSP
+    replanning: none
     triggers: [PlanningRun]
-    expose:
-      batches:
-        source: buffered
-        due_horizon_s: 21600
-        limit: 96
-      resources: {source: nonactive}
     requires: {batches: 1, pickers: 1, not_on_break: true}
+    due_horizon_s: 21600
+    limit: 96
     solver:
       type: cosy
       objective: tardiness

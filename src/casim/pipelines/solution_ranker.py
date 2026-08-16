@@ -34,7 +34,7 @@ class SolutionRanker:
             else:
                 solution_object = CombinedRoutingSolution(routes=[r.route for r in sol])
 
-        elif problem_class in ["OBRSP", "ORSP", "RORSP"]:
+        elif problem_class in ["OBRSP", "ORSP"]:
             best_kpi_value = float("inf")
             for k, sol in solutions.items():
                 sol: SchedulingSolution

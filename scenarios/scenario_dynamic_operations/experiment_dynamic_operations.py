@@ -45,7 +45,8 @@ def run(cfg: DictConfig) -> dict:
         row = {
             "time": float(snapshot.dynamic_warehouse_info.time),
             "problem": str(snapshot.problem_class),
-            "pipeline": str(decision[2]),
+            "replanning": str(snapshot.dynamic_warehouse_info.replanning),
+            "pipeline": str(decision[3]),
             "raw_buffer_before": raw_before,
             "batch_buffer_before": batches_before,
             "projected_candidates": _projected_count(snapshot),
@@ -53,10 +54,10 @@ def run(cfg: DictConfig) -> dict:
             "committed_count": int(commitment["committed"]),
             "deferred_count": int(commitment["deferred"]),
             "algorithm_runtime_s": float(solution.execution_time),
-            "decision_elapsed_s": float(decision[6]),
+            "decision_elapsed_s": float(decision[7]),
             "replanned_tours": len(
                 snapshot.dynamic_warehouse_info.replannable_tours or []
-            ) if snapshot.problem_class == "RORSP" else 0,
+            ) if snapshot.dynamic_warehouse_info.replanning == "unstarted" else 0,
         }
         if hasattr(solution, "batches"):
             row["committed_order_count"] = sum(
@@ -109,7 +110,7 @@ def run(cfg: DictConfig) -> dict:
             "scheduled_orders": sum(
                 row["committed_order_count"]
                 for row in decisions
-                if row["problem"] in {"ORSP", "RORSP"}
+                if row["problem"] == "ORSP"
             ),
             "replanned_tours": sum(
                 row["replanned_tours"] for row in decisions

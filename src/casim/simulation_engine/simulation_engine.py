@@ -249,18 +249,17 @@ class SimulationEngine:
             or getattr(event, "cancelled", False)
         ):
             return None
-        problem = self.triggers_map[event.__class__]
-        state_snapshot = self.state_adapters[problem].transform_state(
+        decision_id = self.triggers_map[event.__class__]
+        state_snapshot = self.state_adapters[decision_id].transform_state(
             self.state,
-            problem,
             trigger=event,
         )
-        if not self._conditions_hold(problem, state_snapshot):
+        if not self._conditions_hold(decision_id, state_snapshot):
             return None
         if (
             self.completion_mode == "drain"
             and self.state.input_closed
-            and problem == self._drain_problem
+            and decision_id == self._drain_problem
         ):
             self._drain_signature = self._work_signature(
                 self.state.unfinished_work()

@@ -266,7 +266,7 @@ def test_no_wait_config_builds_one_real_cosy_pipeline(tmp_path):
     cfg = _config("no_wait", tmp_path)
     data_card = load_and_flatten_data_card(cfg.data_card)
     _, decision_engine = build_runtime(cfg, data_card)
-    solver = decision_engine.solver_map["OBRSP"]
+    solver = decision_engine.solver_for("OBRSP")
     assert isinstance(solver, CoSySolver)
     assert len(solver.pipelines) == 1
     component_names = {

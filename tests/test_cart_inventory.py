@@ -182,9 +182,11 @@ def test_planning_projection_does_not_share_mutable_operational_objects():
     for order in domain.orders.orders[:2]:
         state.receive_order(order)
     snapshot = StateAdapter(
+        problem_class="OBRSP",
+        replanning="none",
         orders={"source": "buffered"},
         resources={"source": "dispatchable", "scope": "trigger_if_present"},
-    ).transform_state(state, "OBRSP")
+    ).transform_state(state)
 
     assert snapshot.orders.orders[0] is not state.order_manager.get_order_buffer()[0]
     assert snapshot.resources.resources[0] is not (
@@ -224,17 +226,19 @@ def test_order_window_excludes_picker_with_a_queued_tour():
     state.receive_order(raw[2])
 
     adapter = StateAdapter(
+        problem_class="OBRSP",
+        replanning="none",
         orders={"source": "buffered"},
         resources={"source": "dispatchable", "scope": "trigger_if_present"},
     )
-    snapshot = adapter.transform_state(state, "OBRSP")
+    snapshot = adapter.transform_state(state)
 
     assert [picker.id for picker in snapshot.resources.resources] == [1]
     assert len(snapshot.resources.resources) >= 1
     assert len(snapshot.resources.resources) < 2
 
     state.set_picker_availability(1, False, state.current_time)
-    snapshot = adapter.transform_state(state, "OBRSP")
+    snapshot = adapter.transform_state(state)
     assert snapshot.resources.resources == []
     assert len(snapshot.resources.resources) < 1
 

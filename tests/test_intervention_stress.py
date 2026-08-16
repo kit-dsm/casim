@@ -55,13 +55,20 @@ def test_stress_policies_use_expected_intervention_pipeline():
                 ],
             )
             assert cfg.intervention_repo.name == policy
-            problems = cfg.engines.problems
-            assert "OBRSP" in problems
+            problem_classes = [
+                entry.problem_class for entry in cfg.engines.problems
+            ]
+            assert "OBRSP" in problem_classes
             if problem is None:
-                assert list(problems) == ["OBRSP"]
+                assert problem_classes == ["OBRSP"]
                 continue
-            assert problem in problems
-            components = problems[problem].solver.repo.components
+            assert problem in problem_classes
+            entry = next(
+                entry
+                for entry in cfg.engines.problems
+                if entry.problem_class == problem
+            )
+            components = entry.solver.repo.components
             assert any(component in value for value in components)
 
 
@@ -100,7 +107,7 @@ def test_stress_drains_all_orders_for_low_and_high_thresholds(
     OmegaConf.update(cfg, "viz.record", False, merge=False)
     OmegaConf.update(
         cfg,
-        "engines.problems.OBRSP.requires.orders",
+        "engines.problems.0.requires.orders",
         threshold,
         merge=False,
     )

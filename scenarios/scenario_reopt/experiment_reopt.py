@@ -50,7 +50,7 @@ def run_experiment(cfg: DictConfig) -> dict[str, object]:
     initial_domain = simulation.reset(hooks=build_sim_hooks())
 
     if str(cfg.variant.execution) == "complete_information":
-        solver = decision_engine.solver_map["OBRSP"]
+        solver = decision_engine.solver_for("OBRSP")
         solution, solver_name, makespan = solver.solve(
             initial_domain
         )
@@ -92,7 +92,7 @@ def run_experiment(cfg: DictConfig) -> dict[str, object]:
             raise RuntimeError("Configured solver returned no online decision")
         events, solution = decision
         selected_pipeline = (
-            decision_engine.decision_tracker.decisions[-1][2]
+            decision_engine.decision_tracker.decisions[-1][3]
         )
         decision_record = decision_engine.decision_tracker.decisions[-1]
         row: dict[str, object] = {
@@ -102,7 +102,7 @@ def run_experiment(cfg: DictConfig) -> dict[str, object]:
             "solver": "LorenzDPSolver" if variant == "reopt" else "CoSySolver",
             "pipeline_identifier": selected_pipeline,
             "algorithm_runtime_s": float(solution.execution_time),
-            "decision_elapsed_s": float(decision_record[6]),
+            "decision_elapsed_s": float(decision_record[7]),
             "solver_status": solution.solver_status,
             "objective_value": solution.objective_value,
             "objective_bound": solution.objective_bound,

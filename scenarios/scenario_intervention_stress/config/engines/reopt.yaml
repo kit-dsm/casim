@@ -3,11 +3,9 @@ runtime:
   horizon_time: null
 
 problems:
-  OBRSP:
+  - problem_class: OBRSP
+    replanning: none
     triggers: [OrderArrival, PickerIdle, FlushRemainingOrders]
-    expose:
-      orders: {source: buffered}
-      resources: {source: dispatchable, scope: trigger_if_present}
     requires: {orders: 2, pickers: 1}
     solver:
       type: cosy
