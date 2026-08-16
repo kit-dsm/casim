@@ -40,7 +40,8 @@ class CoSySolver:
         problem_class=None,
         verbose: bool = False,
         luigi_cfg = None,
-        repo=None
+        repo=None,
+        executor: str = "luigi",
     ):
         self.instance_name = instance_name
         self.instances_dir = Path(instances_dir)
@@ -54,17 +55,19 @@ class CoSySolver:
         self.solution_ranker = solution_ranker
         self.luigi_cfg = luigi_cfg
         self.repo_cfg = repo
-        self.luigi_logging_opts =  SimpleNamespace(
-            background=luigi_cfg.background,
-            logdir=luigi_cfg.logdir,
-            logging_conf_file=luigi_cfg.logging_conf_file,
-            log_level=luigi_cfg.log_level,
-        )
+        self.executor = str(executor)
+        if self.luigi_cfg is not None:
+            self.luigi_logging_opts = SimpleNamespace(
+                background=luigi_cfg.background,
+                logdir=luigi_cfg.logdir,
+                logging_conf_file=luigi_cfg.logging_conf_file,
+                log_level=luigi_cfg.log_level,
+            )
+        else:
+            self.luigi_logging_opts = None
         self.output_folder = Path(output_dir) / "cosy"
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
-        # pkg_dir = Path(ware_ops_algos.__file__).parent
-        # model_cards_path = pkg_dir / "algorithms" / "algorithm_cards"
         self.algorithm_cards = load_packaged_algo_cards()
         if self.verbose:
             print(f"Loaded {len(self.algorithm_cards)} model cards")
@@ -170,11 +173,16 @@ class CoSySolver:
             print("No valid pipelines found!")
             return None
 
-        luigi.interface.InterfaceLogging.setup(self.luigi_logging_opts)
-        if not action and not action == 0:
-            luigi.build(self.pipelines, local_scheduler=True)
+        if self.executor == "memory":
+            executor = InMemoryDagExecutor()
+            executor.execute_many(self.pipelines)
         else:
-            luigi.build(self.pipelines[action], local_scheduler=True)
+            luigi.interface.InterfaceLogging.setup(self.luigi_logging_opts)
+            if not action and not action == 0:
+                luigi.build(self.pipelines, local_scheduler=True)
+            else:
+                luigi.build(self.pipelines[action], local_scheduler=True)
+
         solutions = self._load_solutions(dynamic_domain.problem_class)
         self._cleanup_after_solution(self.output_folder)
         best_solution, best_key, best_kpi_value = self.select_strategy(solutions, dynamic_domain.problem_class)
@@ -200,29 +208,3 @@ class CoSySolver:
     @staticmethod
     def _cleanup_after_solution(output_folder: Path):
         clear_store()
-
-
-class OnlineCoSySolver(CoSySolver):
-    def solve(
-        self,
-        dynamic_domain: BaseWarehouseDomain,
-        action = None
-    ) -> tuple[AlgorithmSolution, str, float] | None:
-        self.dump_domain(dynamic_domain)
-
-        if not self.pipelines:
-            print("No valid pipelines found!")
-            return None
-
-        executor = InMemoryDagExecutor()
-        executor.execute_many(self.pipelines)
-
-        solutions = self._load_solutions(dynamic_domain.problem_class)
-        self._cleanup_after_solution(self.output_folder)
-
-        best_solution, best_key, best_kpi_value = self.select_strategy(
-            solutions,
-            dynamic_domain.problem_class,
-        )
-
-        return best_solution, best_key, best_kpi_value

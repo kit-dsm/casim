@@ -14,7 +14,7 @@ from scenarios.scenario_dynamic_operations.experiment_dynamic_operations import 
 from scenarios.scenario_dynamic_operations.loader import (
     DynamicOperationsLoader,
 )
-from casim.simulation_engine.state_adapter import ActiveTourRoutingAdapter
+from casim.simulation_engine.state_adapter import _layout_with_origin
 from casim.state.layout_manager import LayoutManager
 from ware_ops_algos.algorithms import NodeType, RouteNode
 
@@ -105,7 +105,7 @@ def test_layout_capacity_waits_fifo_and_directed_origin_continues_forward():
         edge_destination=RouteNode(destination_node, NodeType.ROUTE),
         edge_distance=2.0,
     )
-    projected = ActiveTourRoutingAdapter._layout_with_origin(
+    projected = _layout_with_origin(
         directed_layout,
         tour,
         synthetic,
@@ -136,7 +136,7 @@ def test_temporary_origin_projection_matches_graph_shortest_paths(directed):
         edge_distance=edge_distance,
     )
 
-    projected = ActiveTourRoutingAdapter._layout_with_origin(
+    projected = _layout_with_origin(
         layout,
         tour,
         synthetic,

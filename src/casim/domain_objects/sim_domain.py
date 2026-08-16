@@ -10,8 +10,6 @@ from casim.domain_objects.tour_model import TourPlanningState
 @dataclass(kw_only=True)
 class DynamicInfo(WarehouseInfo):
     time: float | None = None
-    congestion_rate: dict[str, float] = field(default_factory=dict)
-    active_tours: list[TourPlanningState] = field(default_factory=list)
     replannable_tours: list[TourPlanningState] = field(default_factory=list)
     current_picker: Resource | None = None
     buffered_batches: list[BatchObject] = field(default_factory=list)

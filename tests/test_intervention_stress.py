@@ -55,7 +55,7 @@ def test_stress_policies_use_expected_intervention_pipeline():
                 ],
             )
             assert cfg.intervention_repo.name == policy
-            problems = cfg.engines.decision_engine.problems
+            problems = cfg.engines.problems
             assert "OBRSP" in problems
             if problem is None:
                 assert list(problems) == ["OBRSP"]
@@ -100,7 +100,7 @@ def test_stress_drains_all_orders_for_low_and_high_thresholds(
     OmegaConf.update(cfg, "viz.record", False, merge=False)
     OmegaConf.update(
         cfg,
-        "engines.simulation_engine.problems.OBRSP.conditions.1.threshold",
+        "engines.problems.OBRSP.requires.orders",
         threshold,
         merge=False,
     )

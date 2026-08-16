@@ -7,7 +7,11 @@ from ware_ops_algos.algorithms import AlgorithmSolution, CombinedRoutingSolution
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.operational_events import Event
-from casim.events.decision_events import SequencingDone, RoutingDone, PickListDone
+from casim.events.decision_events import (
+    ActiveRouteReplacement,
+    SequencingDone,
+    PickListDone,
+)
 from casim.trackers import DecisionTracker
 logger = logging.getLogger(__name__)
 
@@ -65,13 +69,11 @@ class DecisionEngine:
     def __init__(self,
                  solver_map: dict[str, object],
                  commitment_policies: dict[str, SchedulingCommitmentPolicy] | None = None,
-                 event_map: dict[str, Event] | None = None,
                  ):
 
         self.solver_map = solver_map
         self.commitment_policies = commitment_policies or {}
         self.decision_tracker = DecisionTracker()
-        self.event_map = event_map or {}
 
     def solve(self, state_snapshot: SimWarehouseDomain, action=None):
         """Execute the already-prepared solver and record its decision."""
@@ -184,8 +186,7 @@ class DecisionEngine:
             )
 
         elif isinstance(solution, BatchingSolution):
-            cls = self.event_map.get("PickListDone", PickListDone)
-            events_to_return = [cls(finish_time, solution)]
+            events_to_return = [PickListDone(finish_time, solution)]
 
         else:
             raise Exception("Not a known solution", type(solution))
@@ -199,10 +200,7 @@ class DecisionEngine:
         finish_time,
         state_snapshot: SimWarehouseDomain | None,
     ):
-        """
-        Turn sequencing solution into TourStart events.
-        """
-        cls = self.event_map.get("SequencingDone", SequencingDone)
+        """Turn sequencing solution into TourStart events."""
         replace_tour_ids = ()
         if state_snapshot is not None:
             replace_tour_ids = tuple(
@@ -213,7 +211,7 @@ class DecisionEngine:
                 if state_snapshot.problem_class == "RORSP"
             )
         return [
-            cls(
+            SequencingDone(
                 finish_time,
                 sequencing_sol,
                 replace_tour_ids=replace_tour_ids,
@@ -225,41 +223,33 @@ class DecisionEngine:
         routing_solution: CombinedRoutingSolution,
         finish_time,
         state_snapshot: SimWarehouseDomain | None,
-    ) -> list[RoutingDone]:
-        events_to_return = []
-        routes = routing_solution.routes
-        cls = self.event_map.get("RoutingDone", RoutingDone)
+    ) -> list[ActiveRouteReplacement]:
         dynamic = (
             state_snapshot.dynamic_warehouse_info
             if state_snapshot is not None
             else None
         )
-        active_tour_id = (
-            dynamic.active_tour_id if dynamic is not None else None
-        )
-        route_version = (
-            dynamic.route_version if dynamic is not None else None
-        )
-        resumes_execution = (
-            dynamic.intervention_resumes_execution
-            if dynamic is not None
-            else False
-        )
+        if dynamic is None or dynamic.active_tour_id is None:
+            raise ValueError(
+                "CombinedRoutingSolution commitment requires an active tour; "
+                "standalone routing commitment is not supported"
+            )
+        active_tour_id = dynamic.active_tour_id
+        route_version = dynamic.route_version
+        resumes_execution = dynamic.intervention_resumes_execution
         picker_id = (
             dynamic.current_picker.id
-            if dynamic is not None
-            and dynamic.current_picker is not None
+            if dynamic.current_picker is not None
             else None
         )
-        for r in routes:
-            events_to_return.append(
-                cls(
-                    finish_time,
-                    r,
-                    picker_id=picker_id,
-                    tour_id=active_tour_id,
-                    expected_route_version=route_version,
-                    resumes_execution=resumes_execution,
-                )
+        return [
+            ActiveRouteReplacement(
+                finish_time,
+                r,
+                picker_id=picker_id,
+                tour_id=active_tour_id,
+                expected_route_version=route_version,
+                resumes_execution=resumes_execution,
             )
-        return events_to_return
+            for r in routing_solution.routes
+        ]

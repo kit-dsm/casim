@@ -12,16 +12,8 @@ from casim.events.operational_events import (
     PickerIdle,
     add_orders_hook,
 )
-from casim.simulation_engine.simulation_engine import (
-    NbrBatchesCondition,
-    NbrOrdersCondition,
-    NbrPickersCondition,
-    SimulationEngine,
-)
-from casim.simulation_engine.state_adapter import (
-    OrderWindowAdapter,
-    ORSPAdapter,
-)
+from casim.simulation_engine.simulation_engine import SimulationEngine
+from casim.simulation_engine.state_adapter import StateAdapter
 
 
 def build_environment(*, data_loader, objective_scale=1.0) -> OrderBatchingEnv:
@@ -43,8 +35,14 @@ def build_environment(*, data_loader, objective_scale=1.0) -> OrderBatchingEnv:
     decision_engine = DecisionEngine(solver_map={"ORSP": solver})
     simulation = SimulationEngine(
         state_adapters={
-            "OBP": OrderWindowAdapter(max_pickers=1),
-            "ORSP": ORSPAdapter(),
+            "OBP": StateAdapter(
+                orders={"source": "buffered"},
+                resources={"source": "dispatchable", "scope": "trigger_if_present"},
+            ),
+            "ORSP": StateAdapter(
+                batches={"source": "buffered"},
+                resources={"source": "nonactive"},
+            ),
         },
         data_loader=data_loader,
         loader_kwargs={"instance_id": ""},
@@ -55,8 +53,8 @@ def build_environment(*, data_loader, objective_scale=1.0) -> OrderBatchingEnv:
             PickListDone: "ORSP",
         },
         conditions_map={
-            "OBP": [NbrPickersCondition(1), NbrOrdersCondition(1)],
-            "ORSP": [NbrPickersCondition(1), NbrBatchesCondition(1)],
+            "OBP": {"pickers": 1, "orders": 1},
+            "ORSP": {"pickers": 1, "batches": 1},
         },
         event_loggers=[],
         completion_mode="drain",

@@ -29,23 +29,6 @@ class PickListDone(ProcessEvent):
         return []
 
 
-class RoutingDone(ProcessEvent):
-    def __init__(
-        self,
-        time: float,
-        route: Route,
-        picker_id: int | None = None,
-        tour_id: int | None = None,
-        expected_route_version: int | None = None,
-        resumes_execution: bool = False,
-    ):
-        super().__init__(time)
-        self.route = route
-        self.picker_id = picker_id
-        self.tour_id = tour_id
-        self.expected_route_version = expected_route_version
-        self.resumes_execution = resumes_execution
-
 class SequencingDone(ProcessEvent):
     priority_score = 0
     def __init__(
@@ -69,8 +52,24 @@ class SequencingDone(ProcessEvent):
         ]
 
 
-class ActiveRouteReplacement(RoutingDone):
+class ActiveRouteReplacement(ProcessEvent):
     """Atomically replace the unexecuted suffix of one active tour."""
+
+    def __init__(
+        self,
+        time: float,
+        route: Route,
+        picker_id: int | None = None,
+        tour_id: int | None = None,
+        expected_route_version: int | None = None,
+        resumes_execution: bool = False,
+    ):
+        super().__init__(time)
+        self.route = route
+        self.picker_id = picker_id
+        self.tour_id = tour_id
+        self.expected_route_version = expected_route_version
+        self.resumes_execution = resumes_execution
 
     def handle(self, state: State) -> list[Event]:
         if (

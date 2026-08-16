@@ -12,10 +12,7 @@ from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import (
 )
 
 from casim.pipelines.taxonomy import TAXONOMY
-from casim.simulation_engine.state_adapter import (
-    ActiveTourRoutingAdapter,
-    OrderWindowAdapter,
-)
+from casim.simulation_engine.state_adapter import StateAdapter
 from casim.setup import build_runtime
 from ware_ops_algos.domain_models import load_and_flatten_data_card
 
@@ -41,6 +38,17 @@ def _card(features):
     return card
 
 
+_ORDER_WINDOW_FEATURES = StateAdapter(
+    orders={"source": "buffered"},
+    resources={"source": "dispatchable", "scope": "trigger_if_present"},
+).projected_features()
+
+_ACTIVE_TOUR_FEATURES = StateAdapter(
+    active_tour={"source": "residual"},
+    orders={"source": "buffered"},
+).projected_features()
+
+
 def test_adapter_context_selects_residual_algorithms_only_when_needed():
     cards = load_packaged_algo_cards()
     mapper = DomainAlgorithmMapper(TAXONOMY)
@@ -49,14 +57,14 @@ def test_adapter_context_selects_residual_algorithms_only_when_needed():
         card.algo_name
         for card in mapper.filter(
             cards,
-            _card(OrderWindowAdapter.planning_features),
+            _card(_ORDER_WINDOW_FEATURES),
         )
     }
     active = {
         card.algo_name
         for card in mapper.filter(
             cards,
-            _card(ActiveTourRoutingAdapter.planning_features),
+            _card(_ACTIVE_TOUR_FEATURES),
         )
     }
 
@@ -68,7 +76,7 @@ def test_adapter_context_selects_residual_algorithms_only_when_needed():
 
 
 def test_residual_fifo_static_cart_requirements_are_checked_by_mapper():
-    card = _card(ActiveTourRoutingAdapter.planning_features)
+    card = _card(_ACTIVE_TOUR_FEATURES)
     card.resources["features"]["box_can_mix_orders"] = True
 
     applicable = {

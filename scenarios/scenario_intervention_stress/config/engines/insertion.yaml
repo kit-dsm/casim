@@ -1,45 +1,27 @@
-decision_engine:
-  problems:
-    OBRSP:
-      solver:
-        _target_: casim.pipelines.pipeline_runner.CoSySolver
-        solution_ranker:
-          _target_: casim.pipelines.solution_ranker.SolutionRanker
-          objective: makespan
-        repo: ${cosy_repo}
-      commitment_policy:
-        _target_: casim.decision_engine.decision_engine.SchedulingCommitmentPolicy
-        n_jobs: 1
-    OBRP:
-      solver:
-        _target_: casim.pipelines.pipeline_runner.CoSySolver
-        solution_ranker:
-          _target_: casim.pipelines.solution_ranker.SolutionRanker
-          objective: distance
-        repo: ${intervention_repo}
-  event_map:
-    SequencingDone:
-      _target_: hydra.utils.get_class
-      path: casim.events.decision_events.SequencingDone
-    RoutingDone:
-      _target_: hydra.utils.get_class
-      path: casim.events.decision_events.ActiveRouteReplacement
-
-simulation_engine:
+runtime:
   completion_mode: drain
   horizon_time: null
-  problems:
-    OBRSP:
-      state_adapter:
-        _target_: casim.simulation_engine.state_adapter.OrderWindowAdapter
-      triggers: [casim.events.operational_events.OrderArrival, casim.events.operational_events.PickerIdle, casim.events.operational_events.FlushRemainingOrders]
-      conditions:
-        - _target_: casim.simulation_engine.simulation_engine.NbrPickersCondition
-          threshold: 1
-        - _target_: casim.simulation_engine.simulation_engine.NbrOrdersCondition
-          threshold: 2
-    OBRP:
-      state_adapter:
-        _target_: casim.simulation_engine.state_adapter.ActiveTourRoutingAdapter
-      triggers: [casim.events.operational_events.InterventionRequest]
-      conditions: []
+
+problems:
+  OBRSP:
+    triggers: [OrderArrival, PickerIdle, FlushRemainingOrders]
+    expose:
+      orders: {source: buffered}
+      resources: {source: dispatchable, scope: trigger_if_present}
+    requires: {orders: 2, pickers: 1}
+    solver:
+      type: cosy
+      objective: makespan
+      repo: ${cosy_repo}
+    commit:
+      n_jobs: 1
+
+  OBRP:
+    triggers: [InterventionRequest]
+    expose:
+      active_tour: {source: residual}
+      orders: {source: buffered}
+    solver:
+      type: cosy
+      objective: distance
+      repo: ${intervention_repo}

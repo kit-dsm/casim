@@ -16,8 +16,7 @@ from ware_ops_algos.algorithms import (
 )
 
 from casim.decision_engine.decision_engine import SchedulingCommitmentPolicy
-from casim.simulation_engine.state_adapter import OrderWindowAdapter
-from casim.simulation_engine.simulation_engine import NbrPickersCondition
+from casim.simulation_engine.state_adapter import StateAdapter
 from casim.state import State
 from casim.state.storage_manager import StorageManager
 from casim.state.state import _clone_route_plan
@@ -182,7 +181,10 @@ def test_planning_projection_does_not_share_mutable_operational_objects():
     )
     for order in domain.orders.orders[:2]:
         state.receive_order(order)
-    snapshot = OrderWindowAdapter().transform_state(state, "OBRSP")
+    snapshot = StateAdapter(
+        orders={"source": "buffered"},
+        resources={"source": "dispatchable", "scope": "trigger_if_present"},
+    ).transform_state(state, "OBRSP")
 
     assert snapshot.orders.orders[0] is not state.order_manager.get_order_buffer()[0]
     assert snapshot.resources.resources[0] is not (
@@ -221,16 +223,20 @@ def test_order_window_excludes_picker_with_a_queued_tour():
     ]))
     state.receive_order(raw[2])
 
-    snapshot = OrderWindowAdapter().transform_state(state, "OBRSP")
+    adapter = StateAdapter(
+        orders={"source": "buffered"},
+        resources={"source": "dispatchable", "scope": "trigger_if_present"},
+    )
+    snapshot = adapter.transform_state(state, "OBRSP")
 
     assert [picker.id for picker in snapshot.resources.resources] == [1]
-    assert NbrPickersCondition(1).get_decision(snapshot)
-    assert not NbrPickersCondition(2).get_decision(snapshot)
+    assert len(snapshot.resources.resources) >= 1
+    assert len(snapshot.resources.resources) < 2
 
     state.set_picker_availability(1, False, state.current_time)
-    snapshot = OrderWindowAdapter().transform_state(state, "OBRSP")
+    snapshot = adapter.transform_state(state, "OBRSP")
     assert snapshot.resources.resources == []
-    assert not NbrPickersCondition(1).get_decision(snapshot)
+    assert len(snapshot.resources.resources) < 1
 
 
 def test_active_plan_insertion_is_atomic_and_locks_on_first_pick():

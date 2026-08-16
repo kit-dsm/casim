@@ -9,7 +9,6 @@ from omegaconf import DictConfig
 
 from casim.io_helpers import dump_json, dump_jsonl
 from casim.viz.app import launch
-from casim.simulation_engine.simulation_engine import NbrOrdersCondition
 from casim.setup import build_runtime
 from scenarios.scenario_intervention_stress.scenario_specific_hooks import (
     add_orders_hook,
@@ -76,20 +75,15 @@ def run(cfg: DictConfig) -> dict:
     simulation, decision_engine = build_runtime(cfg)
     initial_domain = simulation.reset(hooks=[add_orders_hook])
     configuration_warnings = []
-    order_condition = next(
-        (
-            condition
-            for condition in simulation.conditions_map.get("OBRSP", [])
-            if isinstance(condition, NbrOrdersCondition)
-        ),
-        None,
+    order_threshold = (
+        simulation.conditions_map.get("OBRSP", {}).get("orders")
     )
-    if order_condition is not None and simulation.state.intervention_enabled:
+    if order_threshold is not None and simulation.state.intervention_enabled:
         arrivals = sorted(
             float(order.order_date or 0.0)
             for order in initial_domain.orders.orders
         )
-        threshold = int(order_condition.threshold)
+        threshold = int(order_threshold)
         first_dispatch = (
             arrivals[threshold - 1]
             if 0 < threshold <= len(arrivals)

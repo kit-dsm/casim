@@ -3,47 +3,30 @@ disruption_replanning: false
 wms_hours: [6]
 planning_hours: [6]
 planning_interval_minutes: null
-decision_engine:
-  problems:
-    OBP:
-      solver:
-        _target_: casim.pipelines.pipeline_runner.CoSySolver
-        solution_ranker:
-          _target_: casim.pipelines.solution_ranker.SolutionRanker
-          objective: tardiness
-        repo: ${cosy_repo}
-    ORSP:
-      solver:
-        _target_: casim.pipelines.pipeline_runner.CoSySolver
-        solution_ranker:
-          _target_: casim.pipelines.solution_ranker.SolutionRanker
-          objective: tardiness
-        repo: ${cosy_repo}
-  event_map:
-    PickListDone:
-      _target_: hydra.utils.get_class
-      path: casim.events.decision_events.PickListDone
-    SequencingDone:
-      _target_: hydra.utils.get_class
-      path: casim.events.decision_events.SequencingDone
-simulation_engine:
+
+runtime:
   completion_mode: horizon
   horizon_time: ${simulation.horizon_time}
-  problems:
-    OBP:
-      state_adapter:
-        _target_: casim.simulation_engine.state_adapter.OBPAdapter
-      triggers: [casim.events.operational_events.WMSRun]
-      conditions:
-        - _target_: casim.simulation_engine.simulation_engine.NbrOrdersCondition
-          threshold: 1
-    ORSP:
-      state_adapter:
-        _target_: casim.simulation_engine.state_adapter.ORSPAdapter
-      triggers: [casim.events.operational_events.PlanningRun]
-      conditions:
-        - _target_: casim.simulation_engine.simulation_engine.NbrBatchesCondition
-          threshold: 1
-        - _target_: casim.simulation_engine.simulation_engine.NbrPickersCondition
-          threshold: 1
-        - _target_: casim.simulation_engine.simulation_engine.BreakCondition
+
+problems:
+  OBP:
+    triggers: [WMSRun]
+    expose:
+      orders: {source: buffered}
+      resources: {source: all}
+    requires: {orders: 1}
+    solver:
+      type: cosy
+      objective: tardiness
+      repo: ${cosy_repo}
+
+  ORSP:
+    triggers: [PlanningRun]
+    expose:
+      batches: {source: buffered}
+      resources: {source: nonactive}
+    requires: {batches: 1, pickers: 1, not_on_break: true}
+    solver:
+      type: cosy
+      objective: tardiness
+      repo: ${cosy_repo}

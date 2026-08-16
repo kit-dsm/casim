@@ -27,7 +27,7 @@ from casim.events.operational_events import (
     TourEnd,
     TravelEvent,
 )
-from casim.simulation_engine.state_adapter import ActiveTourRoutingAdapter
+from casim.simulation_engine.state_adapter import _residual_batch
 from scenarios.scenario_reopt.loader import ReoptDataLoader
 
 
@@ -189,7 +189,7 @@ def test_residual_batch_keeps_locked_active_order_membership():
         ),
         remaining_picks=[remaining],
     )
-    residual = ActiveTourRoutingAdapter._residual_batch(tour)
+    residual = _residual_batch(tour)
     assert residual.order_numbers == frozenset({1, 2})
     assert residual.orders[0].pick_positions == ()
     assert residual.orders[1].pick_positions == (remaining,)

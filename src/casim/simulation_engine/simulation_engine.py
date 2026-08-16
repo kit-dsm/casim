@@ -22,56 +22,6 @@ from casim.simulation_engine.state_adapter import StateAdapter
 logger = logging.getLogger(__name__)
 
 
-class BreakCondition:
-    def get_decision(self, state: SimWarehouseDomain) -> bool:
-        if state.dynamic_warehouse_info.is_break:
-            print(
-                f"At {state.dynamic_warehouse_info.time}: "
-                "break is active, skipping decision"
-            )
-            return False
-        return True
-
-
-class DockCapacityCondition:
-    def __init__(self, threshold: int):
-        self.threshold = threshold
-
-    def get_decision(self, state: SimWarehouseDomain) -> bool:
-        dynamic = state.dynamic_warehouse_info
-        return (
-            dynamic.n_staged_pallets + len(dynamic.active_tours)
-            <= self.threshold
-        )
-
-
-class NbrPickersCondition:
-    def __init__(self, threshold: int):
-        self.threshold = threshold
-
-    def get_decision(self, state: SimWarehouseDomain) -> bool:
-        return len(state.resources.resources) >= self.threshold
-
-
-class NbrOrdersCondition:
-    def __init__(self, threshold: int):
-        self.threshold = threshold
-
-    def get_decision(self, state: SimWarehouseDomain) -> bool:
-        return len(state.orders.orders) >= self.threshold
-
-
-class NbrBatchesCondition:
-    def __init__(self, threshold: int):
-        self.threshold = threshold
-
-    def get_decision(self, state: SimWarehouseDomain) -> bool:
-        return (
-            len(state.dynamic_warehouse_info.buffered_batches)
-            >= self.threshold
-        )
-
-
 class _NullProgress:
     """No-op progress bar used when ``show_progress`` is disabled."""
 
@@ -91,7 +41,7 @@ class SimulationEngine:
     def __init__(self,
                  state_adapters: dict[str, StateAdapter],
                  triggers_map: dict[Type[Event], str],
-                 conditions_map: dict[str, list],
+                 conditions_map: dict[str, dict],
                  loader_kwargs: dict,
                  data_loader: DataLoader = None,
                  event_loggers: list[EventLogger] | None = None,
@@ -203,26 +153,39 @@ class SimulationEngine:
         problem: str,
         snapshot: SimWarehouseDomain,
     ) -> bool:
-        conditions = self.conditions_map.get(problem) or []
-        for condition in conditions:
-            if condition is None:
-                continue
-            if (
-                self.state.input_closed
-                and problem == self._drain_problem
-            ):
-                if isinstance(condition, NbrOrdersCondition):
-                    if not snapshot.orders.orders:
-                        return False
-                    continue
-                if isinstance(condition, NbrBatchesCondition):
-                    buffered = (
-                        snapshot.dynamic_warehouse_info.buffered_batches
-                    )
-                    if not buffered:
-                        return False
-                    continue
-            if not condition.get_decision(snapshot):
+        requires = self.conditions_map.get(problem) or {}
+        if not requires:
+            return True
+        dynamic = snapshot.dynamic_warehouse_info
+        drain = (
+            self.state.input_closed
+            and problem == self._drain_problem
+        )
+        if drain:
+            if "orders" in requires and not snapshot.orders.orders:
+                return False
+            if "batches" in requires and not dynamic.buffered_batches:
+                return False
+            remaining = {
+                k: v for k, v in requires.items()
+                if k not in ("orders", "batches")
+            }
+        else:
+            remaining = requires
+        if "orders" in remaining:
+            if len(snapshot.orders.orders) < int(remaining["orders"]):
+                return False
+        if "batches" in remaining:
+            if len(dynamic.buffered_batches) < int(remaining["batches"]):
+                return False
+        if "pickers" in remaining:
+            if len(snapshot.resources.resources) < int(remaining["pickers"]):
+                return False
+        if remaining.get("not_on_break") and dynamic.is_break:
+            return False
+        if "dock_capacity" in remaining:
+            threshold = int(remaining["dock_capacity"])
+            if dynamic.n_staged_pallets > threshold:
                 return False
         return True
 

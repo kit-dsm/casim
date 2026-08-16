@@ -150,10 +150,8 @@ class IJPELoader(DataLoader):
         dynamic_info = DynamicInfo(
             tpe=WarehouseInfoType.OFFLINE,
             time=0.0,
-            congestion_rate={},
-            active_tours=[],
             current_picker=None,
-            buffered_batches=None,
+            buffered_batches=[],
             done=False,
             n_staged_pallets=0,
         )

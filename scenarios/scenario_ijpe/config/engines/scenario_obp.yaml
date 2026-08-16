@@ -1,55 +1,39 @@
-decision_engine:
-  problems:
-    ORSP:
-      solver:
-        _target_: casim.pipelines.pipeline_runner.CoSySolver
-        solution_ranker:
-          _target_: casim.pipelines.solution_ranker.SolutionRanker
-          objective: ${data_card.objective}
-        repo: ${cosy_repo}
-    OBP:
-      solver:
-        _target_: casim.pipelines.pipeline_runner.CoSySolver
-        solution_ranker:
-          _target_: casim.pipelines.solution_ranker.SolutionRanker
-          objective: ${data_card.objective}
-        repo: ${cosy_repo}
-
-    RORSP:
-      solver:
-        _target_: casim.pipelines.pipeline_runner.OnlineCoSySolver
-        solution_ranker:
-          _target_: casim.pipelines.solution_ranker.SolutionRanker
-          objective: ${data_card.objective}
-        repo: ${cosy_repo}
-  event_map:
-    SequencingDone:
-      _target_: hydra.utils.get_class
-      path: casim.events.decision_events.SequencingDone
-
-simulation_engine:
+# @package engines
+runtime:
   completion_mode: horizon
   horizon_time: ${simulation.horizon_time}
-  problems:
-    ORSP:
-      state_adapter:
-        _target_: casim.simulation_engine.state_adapter.ORSPAdapter
-      triggers: [casim.events.operational_events.ShiftStart]
-      conditions:
-        - _target_: casim.simulation_engine.simulation_engine.NbrPickersCondition
-          threshold: 1
-        - _target_: casim.simulation_engine.simulation_engine.NbrBatchesCondition
-          threshold: 1
-        - _target_: casim.simulation_engine.simulation_engine.BreakCondition
 
-    OBP:
-      state_adapter:
-        _target_: casim.simulation_engine.state_adapter.OBPAdapter
-      triggers: [casim.events.operational_events.WMSRun]
-      conditions: []
+problems:
+  ORSP:
+    triggers: [ShiftStart]
+    expose:
+      batches: {source: buffered}
+      resources: {source: nonactive}
+    requires: {batches: 1, pickers: 1, not_on_break: true}
+    solver:
+      type: cosy
+      objective: ${data_card.objective}
+      repo: ${cosy_repo}
 
-    RORSP:
-      state_adapter:
-        _target_: casim.simulation_engine.state_adapter.ReORSPAdapter
-      triggers: [casim.events.operational_events.TruckDisruption, casim.events.operational_events.VolumeShiftAcrossDay, casim.events.operational_events.OrderIngestion]
-      conditions: []
+  OBP:
+    triggers: [WMSRun]
+    expose:
+      orders: {source: buffered}
+      resources: {source: all}
+    requires: {orders: 1}
+    solver:
+      type: cosy
+      objective: ${data_card.objective}
+      repo: ${cosy_repo}
+
+  RORSP:
+    triggers: [TruckDisruption, VolumeShiftAcrossDay, OrderIngestion]
+    expose:
+      batches:
+        source: buffered_and_replannable
+      resources: {source: available}
+    solver:
+      type: cosy
+      objective: ${data_card.objective}
+      repo: ${cosy_repo}
+      executor: memory
