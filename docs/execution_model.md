@@ -41,6 +41,26 @@ exhaustive mode catalogue:
 | `scenario_intervention_stress` | arrivals only, event-driven | limited commitment; active route or active batch |
 | `scenario_dynamic_operations` | backlog plus arrivals, nightly or periodic | complete/time-fenced commitment; buffered, unstarted, or active-route replanning |
 
+### Decision bindings
+
+Each entry in `engines.problems` is a `(problem_class, replanning)` pair.
+`replanning` selects how far into already-committed work the variables may
+change. The exposure vocabulary (what the adapter projects) is derived from
+this pair; user YAML never names the low-level projection terms.
+
+| `problem_class` | `replanning` | Exposes | Research params |
+|---|---|---|---|
+| `OBP` | `none` | all orders, all pickers | `limit` |
+| `ORSP` | `none` | buffered batches, nonactive pickers | `due_horizon_s`, `limit` |
+| `ORSP` | `unstarted` | buffered + replannable batches, available pickers | `due_horizon_s`, `limit` |
+| `OBRSP` | `none` | buffered orders, dispatchable pickers | `limit` |
+| `OBRP` | `none` | buffered orders, dispatchable pickers | `limit` |
+| `ORP` | `active` | residual active tour | `congestion_penalty` |
+| `OBRP` | `active` | residual active tour + buffered orders | `congestion_penalty`, `limit` |
+
+Any other combination is rejected at setup. A `(problem_class, replanning)`
+pair may appear at most once per engine.
+
 A backlog-based or periodic study may also use active-route intervention. It
 must explicitly select the intervention trigger, active-tour adapter, and
 compatible algorithms; no separate intervention overlay is required.

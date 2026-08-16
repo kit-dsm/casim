@@ -28,9 +28,9 @@ executed prefix and advances the cursor. A pick is atomic: it finishes before
 an intervention can change the route. The tour ends only at the configured
 depot.
 
-Reoptimization of **unstarted** queued tours (`RORSP`) is separate. It can
-cancel and replace eligible future tours, but it does not alter an active
-tour's suffix.
+Reoptimization of **unstarted** queued tours (ORSP with
+`replanning=unstarted`) is separate. It can cancel and replace eligible
+future tours, but it does not alter an active tour's suffix.
 
 ## Active suffix reoptimization
 
