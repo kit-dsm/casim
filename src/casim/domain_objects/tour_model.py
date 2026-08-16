@@ -59,7 +59,7 @@ class TourPlanningState:
     end_time_planned: Optional[float] = None
     # execution state, mutable during picking
     cursor: int = 0                 # index into route_nodes
-    status: str = TourStates.PLANNED
+    status: TourStates = TourStates.PLANNED
     route_version: int = 0
     executed_route_prefix: list[RouteNode] = field(default_factory=list)
     remaining_picks: list[PickPosition] = field(default_factory=list)
@@ -98,3 +98,18 @@ class TourPlanningState:
     @property
     def is_picking(self) -> bool:
         return self.pick_ends_at is not None
+
+    @property
+    def is_replannable(self) -> bool:
+        return self.status in {
+            TourStates.PLANNED,
+            TourStates.ASSIGNED,
+            TourStates.SCHEDULED,
+        }
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in {
+            TourStates.DONE,
+            TourStates.CANCELLED,
+        }

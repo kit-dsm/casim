@@ -321,6 +321,12 @@ class TourManager:
             if tour_id is not None
         ]
 
+    def replannable_tours(self) -> list[TourPlanningState]:
+        return [
+            tour for tour in self.all_tours.values()
+            if tour.is_replannable
+        ]
+
     def get_active_tour_for_picker(
         self,
         picker_id: int,
@@ -584,6 +590,10 @@ class TourManager:
             ):
                 ready = max(ready, float(tour.end_time_planned))
         return ready
+
+    def mark_pending(self, tour_id: int) -> None:
+        """Reserve a queued tour as the next one to start for its picker."""
+        self.get_tour(tour_id).status = TourStates.PENDING
 
     def get_tour(self, tour_id: int) -> TourPlanningState:
         return self.all_tours[tour_id]

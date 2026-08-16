@@ -306,14 +306,18 @@ class State:
             time,
         )
 
-    def available_for_planning(self, picker_id: int) -> bool:
-        """Picker is usable by the planner only if not occupied and not reserved by queued tours."""
+    def is_dispatchable(self, picker_id: int) -> bool:
+        """Picker is usable for immediate dispatch: free and not reserved by queued tours."""
         res = self.get_resource(picker_id)
         return (
             res.available
             and not res.occupied
             and not self.tour_manager.has_future_tours(picker_id)
         )
+
+    def available_for_planning(self, picker_id: int) -> bool:
+        """Deprecated alias for :meth:`is_dispatchable`."""
+        return self.is_dispatchable(picker_id)
 
     def query_picker_tour(
         self,
@@ -339,7 +343,7 @@ class State:
                 start_time,
                 float(time + picker.tour_setup_time),
             )
-        tour.status = TourStates.PENDING
+        self.tour_manager.mark_pending(tour_id)
         return "start", tour_id, start_time
 
     def request_arrival_intervention(
