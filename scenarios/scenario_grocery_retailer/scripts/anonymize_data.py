@@ -1,7 +1,7 @@
 """Anonymize grocery retailer data by replacing identifying columns with sequential IDs.
 
 Usage:
-    python scripts/anonymize_data.py [--input data/] [--output data/anonymized/]
+    python scenarios/scenario_grocery_retailer/scripts/anonymize_data.py [--input data/] [--output data/anonymized/]
 
 Replaces: ARTIKELNR, KUNDENNR, PERS_NR, AUFTRAGSNR with sequential integers.
 Preserves: all timing, quantity, weight, volume, and location data.

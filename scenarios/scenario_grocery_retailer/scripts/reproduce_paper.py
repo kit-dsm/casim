@@ -2,11 +2,11 @@
 """Reproduce the WSC26 paper experiment results and plot.
 
 Usage:
-    python scripts/reproduce_paper.py            # uses anonymized data
-    python scripts/reproduce_paper.py --real      # uses real data (must be in data/)
+    python scenarios/scenario_grocery_retailer/scripts/reproduce_paper.py            # uses anonymized data
+    python scenarios/scenario_grocery_retailer/scripts/reproduce_paper.py --real      # uses real data (must be in data/)
 
 NOTE: The repository includes an anonymized version of the grocery retailer
-data (data/anonymized/) that preserves the structure and statistical
+data (scenarios/scenario_grocery_retailer/data/anonymized/) that preserves the structure and statistical
 properties of the original but replaces all identifying article, customer,
 order, and picker IDs with sequential integers. Results from the anonymized
 data will differ slightly from the paper due to changes in FiFo batching order.
@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 SCENARIO = "scenarios/scenario_grocery_retailer"
 OUTPUT_DIR = REPO_ROOT / SCENARIO / "outputs" / "multirun" / "paper_results"
 PLOT_OUTPUT = REPO_ROOT / SCENARIO / "outputs" / "combined_operational_decision_makespan.pdf"
@@ -26,7 +26,7 @@ PLOT_OUTPUT = REPO_ROOT / SCENARIO / "outputs" / "combined_operational_decision_
 VARIANTS = ["return", "midpoint", "largest_gap", "nearest_neighbour", "sshape", "adaptive_routing"]
 
 
-def run_sweep(data_dir: str = "data/anonymized"):
+def run_sweep(data_dir: str = "scenarios/scenario_grocery_retailer/data/anonymized"):
     cmd = [
         sys.executable,
         str(REPO_ROOT / "scenarios" / "scenario_grocery_retailer" / "experiment_grocery_retailer.py"),
@@ -83,7 +83,7 @@ def print_kpis():
 
 if __name__ == "__main__":
     if "--real" in sys.argv:
-        run_sweep(data_dir=None)
+        run_sweep(data_dir="scenarios/scenario_grocery_retailer/data")
     else:
         run_sweep(data_dir="scenarios/scenario_grocery_retailer/data/anonymized")
     generate_plot()
