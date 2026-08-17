@@ -26,7 +26,7 @@ from casim.decision_engine.decision_engine import (
 from casim.events import operational_events
 from casim.events.operational_events import InterventionRequest
 from casim.loggers import DashLogger, ProgressLogger
-from casim.pipelines.pipeline_runner import CoSySolver
+from casim.solvers.cosy_solver import CoSySolver
 from casim.pipelines.solution_ranker import SolutionRanker
 from casim.simulation_engine.simulation_engine import SimulationEngine
 from casim.simulation_engine.state_adapter import StateAdapter

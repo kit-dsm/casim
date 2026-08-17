@@ -14,7 +14,7 @@ from ware_ops_algos.algorithms import (
 )
 from ware_ops_algos.domain_models import DimensionType
 
-from casim.pipelines.pipeline_runner import CoSySolver
+from casim.solvers.cosy_solver import CoSySolver
 from casim.setup import build_runtime
 from ware_ops_algos.domain_models import load_and_flatten_data_card
 from scenarios.scenario_reopt.experiment_reopt import run_experiment
