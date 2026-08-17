@@ -33,7 +33,7 @@ luigi:
   logging_conf_file: null
 
 project_root: ${hydra:runtime.cwd}
-data_dir: ${project_root}/data
+data_dir: ${project_root}/scenarios/scenario_grocery_retailer/data
 instances_base: ${data_dir}/
 cache_base: ${instances_base}/caches
 verbose: True

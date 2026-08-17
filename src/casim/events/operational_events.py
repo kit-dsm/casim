@@ -101,6 +101,31 @@ class PickerIdle(Event):
         return []
 
 
+class BreakStart(Event):
+    priority_score = 0
+
+    def __init__(self, time: float, break_duration: float):
+        super().__init__(time)
+        self.break_duration = break_duration
+
+    def handle(self, state: State) -> list[Event]:
+        state.is_break = True
+        state.break_duration = self.break_duration
+        return []
+
+
+class BreakEnd(Event):
+    priority_score = 0
+
+    def __init__(self, time: float, picker_id: int):
+        super().__init__(time)
+        self.picker_id = picker_id
+
+    def handle(self, state: State) -> list[Event]:
+        state.is_break = False
+        return [PickerTourQuery(self.time, self.picker_id)]
+
+
 class PickerTourQuery(Event):
     def __init__(self, time: float, picker_id: int):
         super().__init__(time)
@@ -110,6 +135,8 @@ class PickerTourQuery(Event):
         # A picker queries a new tour everytime they are forced by e.g. a scheduling result
         # Or after they finished their last tour to query other scheduled tours.
         super().handle(state)
+        if state.is_break:
+            return [BreakEnd(self.time + state.break_duration, self.picker_id)]
         picker = state.resource_manager.get_resource(
             self.picker_id)
         # state.current_picker_id = self.picker_id

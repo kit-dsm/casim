@@ -10,7 +10,7 @@ from casim.viz.app import launch
 from casim.viz.gantt_chart import gantt_chart
 from scenarios.scenario_grocery_retailer.scripts.experiment_plots import picker_schedule_plots
 from scenarios.scenario_grocery_retailer.scenario_specific_hooks import add_orders_hook, picker_arrival_hook, \
-    shift_start_hook, make_truck_schedule_hook, wms_run_hook, make_dock_manager_hook
+    shift_start_hook, make_truck_schedule_hook, wms_run_hook, make_dock_manager_hook, break_start_hook
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -31,7 +31,8 @@ def main(cfg: DictConfig):
                      make_truck_schedule_hook(bin_minutes=30,
                                               sweep_time_sec=18*3600),
                      wms_run_hook,
-                     make_dock_manager_hook(K_dock=98)
+                     make_dock_manager_hook(K_dock=98),
+                     break_start_hook
                      ])
 
     done = False

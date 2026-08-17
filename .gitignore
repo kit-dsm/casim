@@ -30,4 +30,13 @@ Thumbs.db
 
 # Project-specific
 outputs/
+multirun/
+.hydra/
+wandb/
+tmp/
+.env
+docs/
+scenarios/caches/
 tests/data/instances/caches/
+scenarios/scenario_grocery_retailer/data/caches/
+scenarios/scenario_grocery_retailer/data/anonymized/caches/

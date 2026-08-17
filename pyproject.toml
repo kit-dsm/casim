@@ -27,7 +27,7 @@ dev = [
 ]
 
 [tool.uv.sources]
-ware_ops_algos = { path = "../ware_ops_algos", editable = true }
+ware_ops_algos = { git = "https://github.com/kit-dsm/ware_ops_algos.git", rev = "wsc26-paper" }
 cosy-luigi = { url = "https://github.com/cls-python/cosy-luigi/releases/download/nightly/cosy_luigi-nightly.tar.gz" }
 
 [tool.setuptools.packages.find]

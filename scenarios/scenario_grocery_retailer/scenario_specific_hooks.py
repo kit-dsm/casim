@@ -1,7 +1,7 @@
 import math
 
 import numpy as np
-from casim.events.operational_events import TruckDeparture, WMSRun, ShiftStart, PickerArrival
+from casim.events.operational_events import TruckDeparture, WMSRun, ShiftStart, PickerArrival, BreakStart
 
 SHIFT_START_SEC = 7 * 3600
 
@@ -42,6 +42,10 @@ def shift_start_hook(sim, domain):
 
 def wms_run_hook(sim, domain):
     sim.add_event(WMSRun(time=2 * 3600))
+
+def break_start_hook(sim, domain):
+    sim.add_event(BreakStart(time=43200, break_duration=1800))
+    sim.add_event(BreakStart(time=32400, break_duration=1800))
 
 
 def make_dock_manager_hook(K_dock: int = 98):
