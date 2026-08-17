@@ -20,7 +20,7 @@ def _set_paper_style() -> None:
         style="whitegrid",
         context="paper",
         palette="colorblind",
-        font_scale=1.1,
+        font_scale=1.4,
     )
     plt.rcParams.update(
         {
@@ -32,11 +32,11 @@ def _set_paper_style() -> None:
             "axes.facecolor": "white",
             "axes.spines.top": False,
             "axes.spines.right": False,
-            "axes.labelsize": 13,
-            "axes.titlesize": 14,
-            "legend.fontsize": 12,
-            "xtick.labelsize": 12,
-            "ytick.labelsize": 12,
+            "axes.labelsize": 16,
+            "axes.titlesize": 17,
+            "legend.fontsize": 15,
+            "xtick.labelsize": 15,
+            "ytick.labelsize": 15,
             "lines.linewidth": 1.0,
             "grid.alpha": 0.2,
             "grid.linewidth": 0.6,
@@ -138,7 +138,7 @@ def _plot_portfolio_decisions(ax, palette) -> None:
         transform=ax.transAxes,
         va="bottom",
         ha="left",
-        fontsize=12,
+        fontsize=15,
     )
 
     handles = [
@@ -185,7 +185,7 @@ def main() -> None:
     _set_paper_style()
     palette = sns.color_palette("colorblind", 6)
 
-    fig = plt.figure(figsize=(12.57, 5.69))
+    fig = plt.figure(figsize=(10.0, 4.53))
     gs = GridSpec(
         3, 2, figure=fig, width_ratios=[2, 1], height_ratios=[1, 1, 1],
         hspace=0.28, wspace=0.28,
@@ -201,8 +201,8 @@ def main() -> None:
     _add_bottom_legend(fig, palette)
 
     fig.subplots_adjust(
-        left=0.065, right=0.992, top=0.945, bottom=0.15,
-        hspace=0.28, wspace=0.28,
+        left=0.08, right=0.99, top=0.94, bottom=0.165,
+        hspace=0.30, wspace=0.28,
     )
     fig.savefig(OUTPUT)
     plt.close(fig)
