@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 from pathlib import Path
 
@@ -19,6 +20,8 @@ from casim.events.operational_events import (
 from scenarios.scenario_ijpe.generator.public.generate_order import generate_n_orders
 from scenarios.scenario_ijpe.schema import COL_ORDER_ID, COL_ARTICLE_ID, COL_QUANTITY, \
     COL_ORDER_DATE, COL_DUE_DATE
+
+logger = logging.getLogger(__name__)
 
 DAY_SEC = 86400
 HOUR_SEC = 3600
@@ -49,7 +52,10 @@ def make_picker_arrival_hook(n_days: int, arrival_hour: float, day_sec: int, n_p
             arrival_time = t(day, arrival_hour, day_sec)
             n_available = n_pickers_per_day[day]
 
-            assert n_available <= max_pickers, print(n_available, max_pickers)
+            assert n_available <= max_pickers, (
+                f"Requested {n_available} pickers but only {max_pickers} "
+                f"available"
+            )
 
             for idx, resource in enumerate(resources):
                 sim.add_event(
@@ -244,10 +250,13 @@ def make_generated_order_injection_hook(
 
         sim.add_event(WMSRun(trigger_time))
         sim.add_event(OrderIngestion(trigger_time + 1e-6))
-        print(
-            f"Generated order injection scheduled {len(injected_orders)} orders "
-            f"/ approx. {len(injected_orders) * palett_te_factor:.1f} TE "
-            f"at {trigger_time}, due {due_time}."
+        logger.info(
+            "Generated order injection scheduled %d orders / approx. %.1f TE "
+            "at %s, due %s.",
+            len(injected_orders),
+            len(injected_orders) * palett_te_factor,
+            trigger_time,
+            due_time,
         )
 
     return hook

@@ -69,12 +69,20 @@ def _planning_domain(
     )
 
 
+def _order_id_sort_key(order_id):
+    """Sort order IDs numerically when possible, lexicographically otherwise."""
+    try:
+        return (0, int(order_id))
+    except (ValueError, TypeError):
+        return (1, str(order_id))
+
+
 def _sort_orders(orders):
     return sorted(
         orders,
         key=lambda order: (
             float(order.order_date or 0.0),
-            int(order.order_id),
+            _order_id_sort_key(order.order_id),
         ),
     )
 

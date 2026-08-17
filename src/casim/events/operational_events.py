@@ -4,7 +4,6 @@ from ware_ops_algos.domain_models import Order
 
 from casim.state import State
 
-logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -93,7 +92,7 @@ class OrderArrival(Event):
         ) is None:
             self.cancelled = True
             return []
-        logger.info("Order %s arrived at t=%s", self.order_id, self.time)
+        logger.debug("Order %s arrived at t=%s", self.order_id, self.time)
         target = state.request_arrival_intervention(self.time)
         if target is None:
             return []
@@ -454,11 +453,12 @@ class TourEnd(BaseTourEvent):
 
 def add_orders_hook(simulation, domain) -> None:
     """Ingest all domain orders sorted by (arrival, id) and schedule the flush."""
+    from casim.simulation_engine.state_adapter import _order_id_sort_key
     orders = sorted(
         domain.orders.orders,
         key=lambda value: (
             float(value.order_date or 0.0),
-            int(value.order_id),
+            _order_id_sort_key(value.order_id),
         ),
     )
     for order in orders:

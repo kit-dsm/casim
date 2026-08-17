@@ -1,3 +1,4 @@
+import logging
 from copy import deepcopy
 
 from ware_ops_algos.algorithms import (
@@ -26,6 +27,8 @@ from ..domain_objects.tour_model import TourStates
 from .layout_manager import LayoutManager
 from .storage_manager import StorageManager
 from ..trackers import ExperimentTracker
+
+logger = logging.getLogger(__name__)
 
 
 def _clone_route_plan(route: Route) -> Route:
@@ -631,8 +634,10 @@ class State:
 
     def start_tour(self, tour_id: int, time: float) -> bool:
         tour = self.tour_manager.get_tour(tour_id)
+        if tour.status == TourStates.STARTED:
+            return False
         picker = self.get_resource(tour.assigned_resource)
-        if not picker.available:
+        if not picker.available or picker.occupied:
             return False
         if not tour.annotated_route:
             raise ValueError(f"Tour {tour_id} has no executable route")
@@ -824,7 +829,12 @@ class State:
         self.get_resource(picker_id).occupied = False
         if self.dock_capacity is not None:
             if self.n_staged_pallets + 1 > self.dock_capacity:
-                raise ValueError("Dock capacity exceeded")
+                logger.warning(
+                    "Dock capacity exceeded at t=%.0f: %d > %d",
+                    time,
+                    self.n_staged_pallets + 1,
+                    self.dock_capacity,
+                )
             self.n_staged_pallets += 1
         n_pallets_dock = self.n_staged_pallets
         self.tracker.on_tour_end(
