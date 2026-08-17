@@ -173,7 +173,7 @@ def _add_bottom_legend(fig, palette) -> None:
         loc="lower center",
         ncol=7,
         frameon=True,
-        bbox_to_anchor=(0.336, 0.01),
+        bbox_to_anchor=(0.36, 0.01),
         handlelength=1.33,
         handletextpad=0.71,
         columnspacing=1.28,
@@ -200,7 +200,7 @@ def main() -> None:
     _add_bottom_legend(fig, palette)
 
     fig.subplots_adjust(
-        left=0.08, right=0.99, top=0.94, bottom=0.23,
+        left=0.12, right=0.99, top=0.94, bottom=0.23,
         hspace=0.30, wspace=0.28,
     )
     fig.savefig(OUTPUT)
