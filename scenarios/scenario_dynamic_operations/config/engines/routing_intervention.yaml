@@ -15,7 +15,6 @@ problems:
     requires: {orders: 1}
     solver:
       type: cosy
-      objective: tardiness
       repo: ${cosy_repo}
 
   - problem_class: ORSP

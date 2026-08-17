@@ -1,3 +1,18 @@
+def solution_kind(problem_class: str) -> str:
+    """Derive the solution kind from the taxonomy variables.
+
+    A problem whose variables include ``scheduling`` returns a
+    ``SchedulingSolution``; one that includes ``routing`` returns a
+    ``CombinedRoutingSolution``; otherwise a ``BatchingSolution``.
+    """
+    variables = set(TAXONOMY[problem_class]["variables"])
+    if "scheduling" in variables:
+        return "SchedulingSolution"
+    if "routing" in variables:
+        return "CombinedRoutingSolution"
+    return "BatchingSolution"
+
+
 TAXONOMY = {
     "OBRP": {
         "variables": ["item_assignment", "batching", "routing"],

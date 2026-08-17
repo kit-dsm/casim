@@ -6,6 +6,22 @@ class SolutionRanker:
     def __init__(self, objective="distance"):
         self.objective = objective
 
+    @staticmethod
+    def supported_objectives(problem_class: str) -> frozenset[str]:
+        """Objectives the ranker actually honors for a problem class.
+
+        OBP / OSBP are not ranked by objective.  ORP / OBRP / BSRP are
+        always ranked by total distance.  OBRSP / ORSP support distance,
+        makespan, and tardiness.
+        """
+        if problem_class in ("OBP", "OSBP"):
+            return frozenset()
+        if problem_class in ("ORP", "OBRP", "BSRP"):
+            return frozenset({"distance"})
+        if problem_class in ("OBRSP", "ORSP"):
+            return frozenset({"distance", "makespan", "tardiness"})
+        raise ValueError(f"Not a known problem class: {problem_class}")
+
     def select_best(self, solutions: dict[str, object], problem_class: str):
         best_key = None
         best_kpi_value = None

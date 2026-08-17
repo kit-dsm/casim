@@ -42,3 +42,8 @@ tests/data/instances/caches/
 scenarios/scenario_ijpe/data/*.xlsx
 scenarios/scenario_ijpe/data/order_stream_historic.csv
 scenarios/scenario_ijpe/data/id_maps.json
+
+# Secrets and experiment run artifacts
+.env
+multirun/
+wandb/

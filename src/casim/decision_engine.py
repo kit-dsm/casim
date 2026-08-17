@@ -17,7 +17,17 @@ logger = logging.getLogger(__name__)
 
 
 class SchedulingCommitmentPolicy:
-    """Select a deterministic executable prefix from a full schedule."""
+    """Select a deterministic executable prefix from a full schedule.
+
+    Owns the closed schema for its configurable fields; the compiler
+    queries :attr:`FIELD_SPECS` to reject unknown commit keys.
+    """
+
+    FIELD_SPECS = {
+        "n_jobs": lambda v: v is None or (isinstance(v, int) and not isinstance(v, bool) and v > 0),
+        "max_jobs_per_picker": lambda v: v is None or (isinstance(v, int) and not isinstance(v, bool) and v > 0),
+        "planning_horizon_s": lambda v: v is None or (isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0),
+    }
 
     def __init__(
         self,

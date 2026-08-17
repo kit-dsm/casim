@@ -24,7 +24,7 @@ class SimulationEngine:
     def __init__(self,
                  state_adapters: dict[tuple[str, str], StateAdapter],
                  triggers_map: dict[Type[Event], tuple[str, str]],
-                 conditions_map: dict[tuple[str, str], dict],
+                 conditions_map: dict[tuple[str, str], object],
                  loader_kwargs: dict,
                  data_loader: DataLoader = None,
                  event_loggers: list[EventLogger] | None = None,
@@ -131,41 +131,16 @@ class SimulationEngine:
         decision_id: tuple[str, str],
         snapshot: SimWarehouseDomain,
     ) -> bool:
+        from casim.decision_card import evaluate_conditions
+
         requires = self.conditions_map.get(decision_id) or {}
         if not requires:
             return True
-        dynamic = snapshot.dynamic_warehouse_info
         drain = (
             self.state.input_closed
             and decision_id == self._drain_problem
         )
-        if drain:
-            if "orders" in requires and not snapshot.orders.orders:
-                return False
-            if "batches" in requires and not dynamic.buffered_batches:
-                return False
-            remaining = {
-                k: v for k, v in requires.items()
-                if k not in ("orders", "batches")
-            }
-        else:
-            remaining = requires
-        if "orders" in remaining:
-            if len(snapshot.orders.orders) < int(remaining["orders"]):
-                return False
-        if "batches" in remaining:
-            if len(dynamic.buffered_batches) < int(remaining["batches"]):
-                return False
-        if "pickers" in remaining:
-            if len(snapshot.resources.resources) < int(remaining["pickers"]):
-                return False
-        if remaining.get("not_on_break") and dynamic.is_break:
-            return False
-        if "dock_capacity" in remaining:
-            threshold = int(remaining["dock_capacity"])
-            if dynamic.n_staged_pallets > threshold:
-                return False
-        return True
+        return evaluate_conditions(requires, snapshot, drain=drain)
 
     def run(self) -> tuple[bool, SimWarehouseDomain | None]:
         if self._finished:

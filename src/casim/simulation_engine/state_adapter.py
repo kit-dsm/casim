@@ -438,6 +438,7 @@ class StateAdapter:
             buffered_batches=[residual_batch],
             done=state.done_flag,
             n_staged_pallets=state.n_staged_pallets,
+            is_break=state.is_break,
             active_tour_id=tour.tour_id,
             route_version=tour.route_version,
             intervention_resumes_execution=bool(trigger.resumes_execution),

@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 class Event:
     event_counter = 0
     priority_score = 1
+    decision_capabilities: frozenset[str] = frozenset()
 
     def __init__(self, time: float):
         self.time = time
@@ -249,6 +250,7 @@ class PlanningRun(Event):
 
 class PickerIdle(Event):
     priority_score = 1
+    decision_capabilities = frozenset({"picker_id"})
 
     def __init__(self, time: float, picker_id: int):
         super().__init__(time)
@@ -297,6 +299,10 @@ class PickerTourQuery(Event):
 
 class InterventionRequest(BaseTourEvent):
     """Pause execution so the active route suffix can be replanned."""
+
+    decision_capabilities = frozenset({
+        "picker_id", "tour_id", "route_version", "resumes_execution"
+    })
 
     def __init__(
         self,

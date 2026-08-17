@@ -5,6 +5,7 @@ import logging
 import luigi
 from cosy.maestro import Maestro
 from cosy_luigi import CoSyLuigiRepo
+from dataclasses import dataclass, field
 from hydra.utils import get_class
 from luigi.configuration import get_config
 from ware_ops_algos.algorithms import CombinedRoutingSolution, SchedulingSolution, BatchingSolution, AlgorithmSolution
@@ -31,6 +32,26 @@ from casim.pipelines.taxonomy import TAXONOMY
 
 logger = logging.getLogger(__name__)
 
+
+@dataclass
+class ApplicabilityReport:
+    """Inspectability result of :meth:`CoSySolver.prepare`.
+
+    The report records which configured components were considered,
+    which algorithm cards the :class:`DomainAlgorithmMapper` found applicable,
+    which configured components were excluded as inapplicable, which were
+    retained, and how many Maestro pipelines were generated.  It does not
+    re-evaluate applicability; it only surfaces what the single existing
+    evaluation already decided.
+    """
+
+    considered_components: list[str] = field(default_factory=list)
+    applicable_algorithms: list[str] = field(default_factory=list)
+    excluded_components: list[str] = field(default_factory=list)
+    retained_components: list[str] = field(default_factory=list)
+    pipelines: list = field(default_factory=list)
+
+
 class CoSySolver:
     def __init__(
         self,
@@ -55,6 +76,13 @@ class CoSySolver:
         self.endpoint = endpoint
         self.problem_class = problem_class
         self.pipelines = None
+        # Applicability report populated by :meth:`prepare` so the compiled
+        # engine can surface which configured components were considered,
+        # which algorithm cards the DomainAlgorithmMapper found applicable,
+        # which configured components were excluded as inapplicable, and
+        # which were retained.  Surfaced via :meth:`applicability_report`;
+        # it does not re-evaluate applicability.
+        self._applicability: ApplicabilityReport | None = None
         self.solution_ranker = solution_ranker
         self.luigi_cfg = luigi_cfg
         self.repo_cfg = repo
@@ -105,6 +133,7 @@ class CoSySolver:
                 verbose=False,
             )
             applicable_ids = {id(card) for card in applicable_cards}
+            applicable_algorithms = [card.algo_name for card in applicable_cards]
             algorithm_task_types = (
                 AbstractItemAssignment,
                 BatchingNode,
@@ -113,6 +142,7 @@ class CoSySolver:
                 OrderSplitter,
             )
             filtered_repo_classes = []
+            excluded: list[type] = []
             for component_cls in repo_classes:
                 matching_cards = [
                     card
@@ -140,6 +170,7 @@ class CoSySolver:
                             "Excluding inapplicable component %s",
                             component_cls.__name__,
                         )
+                    excluded.append(component_cls)
                     continue
                 filtered_repo_classes.append(component_cls)
 
@@ -166,11 +197,27 @@ class CoSySolver:
                     "The applicable configured components cannot form a "
                     f"pipeline for {problem}"
                 )
+            self._applicability = ApplicabilityReport(
+                considered_components=[cls.__name__ for cls in repo_classes],
+                applicable_algorithms=applicable_algorithms,
+                excluded_components=[cls.__name__ for cls in excluded],
+                retained_components=[cls.__name__ for cls in filtered_repo_classes],
+                pipelines=list(self.pipelines),
+            )
             if self.verbose:
                 logger.info("Found %d pipelines", len(self.pipelines))
         else:
             if self.verbose:
                 logger.info("Using cached pipelines")
+
+    def applicability_report(self) -> ApplicabilityReport | None:
+        """Return the cached applicability report from :meth:`prepare`.
+
+        Direct solvers do not produce a report; callers should treat
+        ``None`` as "no CoSy applicability evaluation".  Does not
+        re-evaluate applicability.
+        """
+        return self._applicability
 
     def solve(self, dynamic_domain: BaseWarehouseDomain, action: None) -> tuple[AlgorithmSolution, str, float] | None:
         self.dump_domain(dynamic_domain)

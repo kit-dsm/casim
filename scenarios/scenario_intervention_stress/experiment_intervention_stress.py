@@ -72,10 +72,15 @@ def _decision_row(snapshot, solution, decision) -> dict:
 
 def _validate_configuration(simulation, initial_domain) -> list[str]:
     warnings = []
-    order_threshold = (
-        simulation.conditions_map.get(("OBRSP", "none"), {}).get("orders")
-    )
-    if order_threshold is None or not simulation.state.intervention_enabled:
+    conditions = simulation.conditions_map.get(("OBRSP", "none"))
+    if not conditions or not simulation.state.intervention_enabled:
+        return warnings
+    order_threshold = None
+    for cond in conditions:
+        if cond.key == "orders":
+            order_threshold = cond.value
+            break
+    if order_threshold is None:
         return warnings
     arrivals = sorted(
         float(order.order_date or 0.0)

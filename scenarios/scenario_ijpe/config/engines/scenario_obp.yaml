@@ -19,7 +19,6 @@ problems:
     requires: {orders: 1}
     solver:
       type: cosy
-      objective: ${data_card.objective}
       repo: ${cosy_repo}
 
   - problem_class: ORSP

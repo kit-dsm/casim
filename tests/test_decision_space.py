@@ -3,27 +3,31 @@
 import pytest
 from omegaconf import OmegaConf
 
-from casim.setup import (
-    SUPPORTED_DECISIONS,
-    _derive_exposure,
-    _build_adapter,
-)
+from casim.decision_card import DECISION_CARDS, DecisionCompatibilityMapper
+from casim.setup import SUPPORTED_DECISIONS
+
+
+def _exposure(problem_class, replanning, **params):
+    card = DECISION_CARDS[(problem_class, replanning)]
+    return card.exposure_dict(
+        due_horizon_s=params.get("due_horizon_s"),
+        limit=params.get("limit"),
+        congestion_penalty=params.get("congestion_penalty", 0.0),
+    )
+
+
+def _resolve(problem_class, replanning):
+    return DecisionCompatibilityMapper().resolve(problem_class, replanning)
 
 
 @pytest.mark.parametrize(
     "problem_class, replanning",
     sorted(SUPPORTED_DECISIONS),
 )
-def test_derive_exposure_returns_nonempty_dict_for_every_supported_binding(
+def test_exposure_returns_nonempty_dict_for_every_supported_binding(
     problem_class, replanning
 ):
-    exposure = _derive_exposure(
-        problem_class,
-        replanning,
-        due_horizon_s=None,
-        limit=None,
-        congestion_penalty=0.0,
-    )
+    exposure = _exposure(problem_class, replanning)
     assert isinstance(exposure, dict)
     assert len(exposure) > 0
 
@@ -40,16 +44,10 @@ def test_derive_exposure_returns_nonempty_dict_for_every_supported_binding(
         ("OBRP", "active", {"active_tour", "orders"}),
     ],
 )
-def test_derive_exposure_produces_correct_exposure_keys(
+def test_exposure_produces_correct_exposure_keys(
     problem_class, replanning, expected_source_keys
 ):
-    exposure = _derive_exposure(
-        problem_class,
-        replanning,
-        due_horizon_s=None,
-        limit=None,
-        congestion_penalty=0.0,
-    )
+    exposure = _exposure(problem_class, replanning)
     assert set(exposure) == expected_source_keys
 
 
@@ -71,16 +69,10 @@ def test_derive_exposure_produces_correct_exposure_keys(
         ("OBRP", "active", "orders", "buffered"),
     ],
 )
-def test_derive_exposure_produces_correct_sources(
+def test_exposure_produces_correct_sources(
     problem_class, replanning, key, source
 ):
-    exposure = _derive_exposure(
-        problem_class,
-        replanning,
-        due_horizon_s=None,
-        limit=None,
-        congestion_penalty=0.0,
-    )
+    exposure = _exposure(problem_class, replanning)
     assert exposure[key]["source"] == source
 
 
@@ -98,49 +90,9 @@ def test_derive_exposure_produces_correct_sources(
         ("UNKNOWN", "none"),
     ],
 )
-def test_derive_exposure_raises_for_unsupported_bindings(problem_class, replanning):
+def test_resolve_raises_for_unsupported_bindings(problem_class, replanning):
     with pytest.raises(ValueError, match="Unsupported decision binding"):
-        _derive_exposure(
-            problem_class,
-            replanning,
-            due_horizon_s=None,
-            limit=None,
-            congestion_penalty=0.0,
-        )
-
-
-@pytest.mark.parametrize(
-    "problem_class, replanning",
-    sorted(SUPPORTED_DECISIONS),
-)
-def test_build_adapter_sets_problem_class_and_replanning(problem_class, replanning):
-    cfg = OmegaConf.create(
-        {
-            "problem_class": problem_class,
-            "replanning": replanning,
-        }
-    )
-    pc, rep, adapter = _build_adapter(cfg)
-    assert pc == problem_class
-    assert rep == replanning
-    assert adapter.problem_class == problem_class
-    assert adapter.replanning == replanning
-
-
-def test_build_adapter_defaults_replanning_to_none():
-    cfg = OmegaConf.create({"problem_class": "OBP"})
-    pc, rep, adapter = _build_adapter(cfg)
-    assert rep == "none"
-    assert adapter.replanning == "none"
-
-
-@pytest.mark.parametrize("replanning", ["planned", "all", "", "NONE"])
-def test_build_adapter_rejects_invalid_replanning(replanning):
-    cfg = OmegaConf.create(
-        {"problem_class": "OBP", "replanning": replanning}
-    )
-    with pytest.raises(ValueError, match="replanning must be one of"):
-        _build_adapter(cfg)
+        _resolve(problem_class, replanning)
 
 
 def test_supported_decisions_is_exactly_the_documented_set():
@@ -156,9 +108,8 @@ def test_supported_decisions_is_exactly_the_documented_set():
 
 
 def test_research_params_threaded_into_exposure():
-    exposure = _derive_exposure(
-        "ORSP",
-        "none",
+    exposure = _exposure(
+        "ORSP", "none",
         due_horizon_s=3600,
         limit=50,
         congestion_penalty=0.0,
@@ -168,9 +119,8 @@ def test_research_params_threaded_into_exposure():
 
 
 def test_congestion_penalty_threaded_into_active_tour():
-    exposure = _derive_exposure(
-        "ORP",
-        "active",
+    exposure = _exposure(
+        "ORP", "active",
         due_horizon_s=None,
         limit=None,
         congestion_penalty=1.5,
