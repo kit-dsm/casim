@@ -1,12 +1,11 @@
-import json
 from pathlib import Path
 from types import SimpleNamespace
 
 from ware_ops_algos.algorithms import BatchObject, GreedyItemAssignment
 from ware_ops_algos.domain_models import Order
 
-from casim.loggers import KPILogger
 from casim.simulation_engine.simulation_engine import SimulationEngine
+from casim.events.operational_events import OrderArrival
 from casim.state.order_manager import OrderManager
 from scenarios.scenario_reopt.loader import ReoptDataLoader
 
@@ -15,7 +14,7 @@ ROOT = Path(__file__).parents[1]
 SCENARIO = ROOT / "scenarios" / "scenario_reopt"
 
 
-def _engine(tmp_path, hook):
+def _engine(hook):
     domain = ReoptDataLoader(SCENARIO).load(
         SCENARIO / "data" / "paper_example.json"
     )
@@ -25,7 +24,7 @@ def _engine(tmp_path, hook):
         conditions_map={},
         loader_kwargs={},
         data_loader=SimpleNamespace(load=lambda **_: domain),
-        event_loggers=[KPILogger(tmp_path, print_every=None)],
+        event_loggers=[],
         completion_mode="horizon",
         horizon_time=2,
     )
@@ -33,25 +32,27 @@ def _engine(tmp_path, hook):
     return engine
 
 
-def test_horizon_reports_orders_that_have_not_arrived(tmp_path):
+def test_horizon_reports_orders_that_have_not_arrived():
     def add_future_order(engine, domain):
         order = domain.orders.orders[0]
         order.order_date = 5
         engine.add_order(order)
 
-    engine = _engine(tmp_path, add_future_order)
+    engine = _engine(add_future_order)
     done, _ = engine.run()
-    summary = json.loads(
-        (tmp_path / "kpis.json").read_text(encoding="utf-8")
-    )
 
     assert done
     assert engine.state.completion_reason == "horizon_complete"
     assert engine.state.current_time == 2
-    assert summary["pending_order_arrival_ids"] == [1]
+    pending_order_arrival_ids = sorted(
+        event.order_id
+        for event in engine.events
+        if isinstance(event, OrderArrival)
+    )
+    assert pending_order_arrival_ids == [1]
 
 
-def test_horizon_reports_prebatched_work(tmp_path):
+def test_horizon_reports_prebatched_work():
     def add_prebatched_work(engine, domain):
         order = GreedyItemAssignment(
             engine.state.storage_manager.planning_snapshot()
@@ -62,15 +63,13 @@ def test_horizon_reports_prebatched_work(tmp_path):
             BatchObject(1, [order])
         )
 
-    engine = _engine(tmp_path, add_prebatched_work)
+    engine = _engine(add_prebatched_work)
     done, _ = engine.run()
-    summary = json.loads(
-        (tmp_path / "kpis.json").read_text(encoding="utf-8")
-    )
 
     assert done
     assert engine.state.completion_reason == "horizon_complete"
-    assert summary["unfinished_work"]["buffered_batch_order_ids"] == [1]
+    unfinished = engine.state.unfinished_work()
+    assert unfinished["buffered_batch_order_ids"] == [1]
 
 
 def test_rescheduled_order_rejects_its_stale_arrival_version():

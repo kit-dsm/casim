@@ -15,15 +15,14 @@ from scenarios.scenario_intervention_stress.scenario_specific_hooks import (
 )
 
 
-def _decision_row(snapshot, solution, decision_engine) -> dict:
+def _decision_row(snapshot, solution, decision) -> dict:
     dynamic = snapshot.dynamic_warehouse_info
-    decision = decision_engine.decision_tracker.decisions[-1]
     row = {
         "time": float(dynamic.time),
         "problem": str(snapshot.problem_class),
-        "pipeline": str(decision[3]),
+        "pipeline": str(decision["pipeline"]),
         "algorithm_runtime_s": float(solution.execution_time),
-        "decision_elapsed_s": float(decision[7]),
+        "decision_elapsed_s": float(decision["decision_elapsed_s"]),
         "solver_status": solution.solver_status,
         "objective_value": solution.objective_value,
         "objective_bound": solution.objective_bound,
@@ -71,67 +70,58 @@ def _decision_row(snapshot, solution, decision_engine) -> dict:
     return row
 
 
-def run(cfg: DictConfig) -> dict:
-    simulation, decision_engine = build_runtime(cfg)
-    initial_domain = simulation.reset(hooks=[add_orders_hook])
-    configuration_warnings = []
+def _validate_configuration(simulation, initial_domain) -> list[str]:
+    warnings = []
     order_threshold = (
         simulation.conditions_map.get(("OBRSP", "none"), {}).get("orders")
     )
-    if order_threshold is not None and simulation.state.intervention_enabled:
-        arrivals = sorted(
-            float(order.order_date or 0.0)
-            for order in initial_domain.orders.orders
-        )
-        threshold = int(order_threshold)
-        first_dispatch = (
-            arrivals[threshold - 1]
-            if 0 < threshold <= len(arrivals)
-            else None
-        )
-        later_arrivals = (
-            sum(value > first_dispatch for value in arrivals)
-            if first_dispatch is not None
-            else 0
-        )
-        if later_arrivals == 0:
-            if first_dispatch is None:
-                configuration_warnings.append(
-                    "The order threshold exceeds this finite order stream; "
-                    "dispatch starts only during final draining, so "
-                    "arrival-driven intervention cannot occur."
-                )
-            else:
-                configuration_warnings.append(
-                    "The order threshold is first reachable at or after the "
-                    "final arrival; arrival-driven intervention cannot occur "
-                    "before final draining."
-                )
+    if order_threshold is None or not simulation.state.intervention_enabled:
+        return warnings
+    arrivals = sorted(
+        float(order.order_date or 0.0)
+        for order in initial_domain.orders.orders
+    )
+    threshold = int(order_threshold)
+    first_dispatch = (
+        arrivals[threshold - 1]
+        if 0 < threshold <= len(arrivals)
+        else None
+    )
+    later_arrivals = (
+        sum(value > first_dispatch for value in arrivals)
+        if first_dispatch is not None
+        else 0
+    )
+    if later_arrivals == 0:
+        if first_dispatch is None:
+            warnings.append(
+                "The order threshold exceeds this finite order stream; "
+                "dispatch starts only during final draining, so "
+                "arrival-driven intervention cannot occur."
+            )
+        else:
+            warnings.append(
+                "The order threshold is first reachable at or after the "
+                "final arrival; arrival-driven intervention cannot occur "
+                "before final draining."
+            )
+    return warnings
+
+
+def run(cfg: DictConfig) -> dict:
+    simulation, decision_engine = build_runtime(cfg)
+    initial_domain = simulation.reset(hooks=[add_orders_hook])
+    configuration_warnings = _validate_configuration(simulation, initial_domain)
 
     decisions = []
     while True:
         done, snapshot = simulation.run()
         if done:
             break
-        if snapshot is None:
-            raise RuntimeError("Simulation paused without a decision snapshot")
-        try:
-            selected = decision_engine.on_trigger(snapshot)
-        except Exception as exc:
-            raise RuntimeError(
-                "Decision failed for "
-                f"{snapshot.problem_class} at "
-                f"t={snapshot.dynamic_warehouse_info.time}; "
-                f"unfinished={simulation.state.unfinished_work()}"
-            ) from exc
-        if selected is None:
-            raise RuntimeError(
-                f"No decision for {snapshot.problem_class} at "
-                f"t={snapshot.dynamic_warehouse_info.time}"
-            )
-        events, solution = selected
-        decisions.append(_decision_row(snapshot, solution, decision_engine))
-        simulation.step(events, snapshot.problem_class, solution)
+        events, solution = decision_engine.on_trigger(snapshot)
+        decision = decision_engine.decision_tracker.decisions[-1]
+        decisions.append(_decision_row(snapshot, solution, decision))
+        simulation.step(events)
 
     tracker = simulation.state.tracker
     completed = tracker.completed_tours
@@ -177,7 +167,6 @@ def run(cfg: DictConfig) -> dict:
         "decision_elapsed_s": sum(
             row["decision_elapsed_s"] for row in decisions
         ),
-        "simulation_decision_latency": 0.0,
     }
     output_dir = Path(cfg.experiment.output_dir)
     dump_json(output_dir / "result.json", result)

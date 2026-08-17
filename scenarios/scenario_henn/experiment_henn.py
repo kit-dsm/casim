@@ -107,10 +107,7 @@ def run_henn_experiment(
     simulation,
     decision_engine,
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
-    try:
-        initial_domain = simulation.reset(hooks=build_sim_hooks(cfg))
-    except Exception as exc:
-        raise RuntimeError(f"INPUT_DATA: {exc}") from exc
+    initial_domain = simulation.reset(hooks=build_sim_hooks(cfg))
     arrivals = {
         int(order.order_id): float(order.order_date)
         for order in initial_domain.orders.orders
@@ -121,10 +118,7 @@ def run_henn_experiment(
     decision_index = 0
 
     while True:
-        try:
-            done, snapshot = simulation.run()
-        except Exception as exc:
-            raise RuntimeError(f"SIMULATION: {exc}") from exc
+        done, snapshot = simulation.run()
         if done:
             break
         if snapshot is None:
@@ -136,45 +130,37 @@ def run_henn_experiment(
                 f"Exceeded {cfg.experiment.max_decisions} decisions"
             )
 
-        try:
-            result = decision_engine.solve(snapshot, action=None)
-        except Exception as exc:
-            raise RuntimeError(f"CANDIDATE_GENERATION: {exc}") from exc
+        result = decision_engine.solve(snapshot, action=None)
         if result is None:
             raise RuntimeError(
-                "CANDIDATE_GENERATION: CoSy produced no candidate solution"
+                "CoSy produced no candidate solution at "
+                f"t={snapshot.dynamic_warehouse_info.time}"
             )
         candidate, solver_name, objective_value = result
-        try:
-            if not isinstance(candidate, CombinedRoutingSolution):
-                raise TypeError(
-                    "The configured Henn CoSy endpoint must return "
-                    "CombinedRoutingSolution"
-                )
-            single_order_service_times(
-                snapshot,
-                solver,
-                single_service_cache,
+        if not isinstance(candidate, CombinedRoutingSolution):
+            raise TypeError(
+                "The configured Henn CoSy endpoint must return "
+                "CombinedRoutingSolution"
             )
-        except Exception as exc:
-            raise RuntimeError(f"CANDIDATE_GENERATION: {exc}") from exc
+        single_order_service_times(
+            snapshot,
+            solver,
+            single_service_cache,
+        )
 
         next_arrival = _next_arrival(simulation)
-        try:
-            decision = decide_henn(
-                candidate=candidate,
-                snapshot=snapshot,
-                current_time=float(simulation.state.current_time),
-                next_arrival=next_arrival,
-                stream_exhausted=next_arrival is None,
-                selector=str(cfg.selection.name),
-                single_services=single_service_cache,
-                waiting_policy=str(cfg.waiting.name),
-                fill_threshold=float(cfg.waiting.fill_threshold or 0.75),
-                max_age_s=float(cfg.waiting.max_age_s or 300.0),
-            )
-        except Exception as exc:
-            raise RuntimeError(f"DECISION_RULE: {exc}") from exc
+        decision = decide_henn(
+            candidate=candidate,
+            snapshot=snapshot,
+            current_time=float(simulation.state.current_time),
+            next_arrival=next_arrival,
+            stream_exhausted=next_arrival is None,
+            selector=str(cfg.selection.name),
+            single_services=single_service_cache,
+            waiting_policy=str(cfg.waiting.name),
+            fill_threshold=float(cfg.waiting.fill_threshold or 0.75),
+            max_age_s=float(cfg.waiting.max_age_s or 300.0),
+        )
         trace.append(
             _trace_row(
                 decision_index,
@@ -190,17 +176,10 @@ def run_henn_experiment(
                 simulation.add_event(HennWakeUp(decision.wait_until))
             continue
 
-        try:
-            events, committed = decision_engine.commit(
-                snapshot, decision.solution
-            )
-            simulation.step(
-                events,
-                snapshot.problem_class,
-                committed,
-            )
-        except Exception as exc:
-            raise RuntimeError(f"SIMULATION: {exc}") from exc
+        events, committed = decision_engine.commit(
+            snapshot, decision.solution
+        )
+        simulation.step(events)
 
     algorithm_id = (
         f"{cfg.waiting.name}+{cfg.batching.name}+"

@@ -164,10 +164,22 @@ class DecisionEngine:
         )
 
     def on_trigger(self, state_snapshot: SimWarehouseDomain, action=None):
-        """Solve and commit one normal runtime decision."""
+        """Solve and commit one normal runtime decision.
+
+        Raises ``RuntimeError`` if the solver produces no valid solution,
+        so ordinary scenario loops do not need a separate ``None`` check.
+        Use :meth:`solve` directly when a scenario needs to inspect a
+        ``None`` result (Henn candidate generation).
+        """
         result = self.solve(state_snapshot, action)
         if result is None:
-            return None
+            dynamic = state_snapshot.dynamic_warehouse_info
+            raise RuntimeError(
+                f"Solver returned no decision for "
+                f"({state_snapshot.problem_class!r}, "
+                f"{dynamic.replanning!r}) at "
+                f"t={dynamic.time}"
+            )
         solution, _, _ = result
         return self.commit(state_snapshot, solution)
 
@@ -194,12 +206,12 @@ class DecisionEngine:
         self.decision_tracker.on_decision(
             problem_class=problem,
             replanning=replanning,
-            input_ids=len(order_ids),
-            selected_pipeline=solver_name,
-            kpi_value=objective_value,
-            kpi=objective,
-            runtime=best_solution.execution_time,
-            elapsed=elapsed
+            solution_order_count=len(order_ids),
+            pipeline=solver_name,
+            objective=objective,
+            objective_value=objective_value,
+            algorithm_runtime_s=best_solution.execution_time,
+            decision_elapsed_s=elapsed,
         )
 
     def solution_to_events(
@@ -208,7 +220,7 @@ class DecisionEngine:
         finish_time,
         state_snapshot: SimWarehouseDomain | None = None,
     ):
-        logger.info("Solution type: %s", type(solution))
+        logger.debug("Solution type: %s", type(solution))
 
         if isinstance(solution, CombinedRoutingSolution):
             events_to_return = self._routes_to_events(

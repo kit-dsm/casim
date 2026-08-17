@@ -21,6 +21,39 @@ def _projected_count(snapshot) -> int:
     return len(snapshot.dynamic_warehouse_info.buffered_batches or [])
 
 
+def _decision_row(snapshot, solution, decision, commitment) -> dict:
+    dynamic = snapshot.dynamic_warehouse_info
+    row = {
+        "time": float(dynamic.time),
+        "problem": str(snapshot.problem_class),
+        "replanning": str(dynamic.replanning),
+        "pipeline": str(decision["pipeline"]),
+        "raw_buffer_before": 0,
+        "batch_buffer_before": 0,
+        "projected_candidates": _projected_count(snapshot),
+        "solution_count": int(commitment["returned"]),
+        "committed_count": int(commitment["committed"]),
+        "deferred_count": int(commitment["deferred"]),
+        "algorithm_runtime_s": float(solution.execution_time),
+        "decision_elapsed_s": float(decision["decision_elapsed_s"]),
+    }
+    if hasattr(solution, "batches"):
+        row["committed_order_count"] = sum(
+            len(batch.orders) for batch in solution.batches
+        )
+    elif hasattr(solution, "jobs"):
+        row["committed_order_count"] = sum(
+            len(job.order_numbers) for job in solution.jobs
+        )
+    else:
+        row["committed_order_count"] = 0
+    if dynamic.replanning == "unstarted":
+        row["replannable_tours"] = len(
+            dynamic.replannable_tours or []
+        )
+    return row
+
+
 def run(cfg: DictConfig) -> dict:
     simulation, decision_engine = build_runtime(cfg)
     initial_domain = simulation.reset(hooks=build_hooks(cfg))
@@ -33,43 +66,13 @@ def run(cfg: DictConfig) -> dict:
         state = simulation.state
         raw_before = len(state.order_manager.get_order_buffer())
         batches_before = len(state.order_manager.get_pick_list_buffer())
-        selected = decision_engine.on_trigger(snapshot)
-        if selected is None:
-            raise RuntimeError(
-                f"No decision for {snapshot.problem_class} at "
-                f"t={snapshot.dynamic_warehouse_info.time}"
-            )
-        events, solution = selected
+        events, solution = decision_engine.on_trigger(snapshot)
         decision = decision_engine.decision_tracker.decisions[-1]
         commitment = decision_engine.decision_tracker.commitments[-1]
-        row = {
-            "time": float(snapshot.dynamic_warehouse_info.time),
-            "problem": str(snapshot.problem_class),
-            "replanning": str(snapshot.dynamic_warehouse_info.replanning),
-            "pipeline": str(decision[3]),
-            "raw_buffer_before": raw_before,
-            "batch_buffer_before": batches_before,
-            "projected_candidates": _projected_count(snapshot),
-            "solution_count": int(commitment["returned"]),
-            "committed_count": int(commitment["committed"]),
-            "deferred_count": int(commitment["deferred"]),
-            "algorithm_runtime_s": float(solution.execution_time),
-            "decision_elapsed_s": float(decision[7]),
-            "replanned_tours": len(
-                snapshot.dynamic_warehouse_info.replannable_tours or []
-            ) if snapshot.dynamic_warehouse_info.replanning == "unstarted" else 0,
-        }
-        if hasattr(solution, "batches"):
-            row["committed_order_count"] = sum(
-                len(batch.orders) for batch in solution.batches
-            )
-        elif hasattr(solution, "jobs"):
-            row["committed_order_count"] = sum(
-                len(job.order_numbers) for job in solution.jobs
-            )
-        else:
-            row["committed_order_count"] = 0
-        simulation.step(events, snapshot.problem_class, solution)
+        row = _decision_row(snapshot, solution, decision, commitment)
+        row["raw_buffer_before"] = raw_before
+        row["batch_buffer_before"] = batches_before
+        simulation.step(events)
         row["raw_buffer_after"] = len(
             state.order_manager.get_order_buffer()
         )
@@ -87,7 +90,7 @@ def run(cfg: DictConfig) -> dict:
         "scenario": "dynamic_operations",
         "policy": str(cfg.engines.name),
         "profile": str(cfg.simulation.name),
-        "status": state.completion_reason,
+        "status": "success",
         "completion_reason": state.completion_reason,
         "simulation_time": end_time,
         "received_orders": len(initial_domain.orders.orders),
@@ -107,13 +110,13 @@ def run(cfg: DictConfig) -> dict:
                 for row in decisions
                 if row["problem"] == "OBP"
             ),
-            "scheduled_orders": sum(
+            "scheduled_order_count": sum(
                 row["committed_order_count"]
                 for row in decisions
                 if row["problem"] == "ORSP"
             ),
-            "replanned_tours": sum(
-                row["replanned_tours"] for row in decisions
+            "replanning_decisions": sum(
+                1 for row in decisions if row["replanning"] == "unstarted"
             ),
             "raw_orders": len(state.order_manager.get_order_buffer()),
             "buffered_batches": len(
@@ -142,7 +145,6 @@ def run(cfg: DictConfig) -> dict:
         "decision_elapsed_s": sum(
             row["decision_elapsed_s"] for row in decisions
         ),
-        "simulation_decision_latency": 0.0,
     }
     output = Path(cfg.experiment.output_dir)
     dump_json(output / "result.json", result)

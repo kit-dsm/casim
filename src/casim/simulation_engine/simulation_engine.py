@@ -2,8 +2,6 @@ import heapq
 import logging
 from typing import Callable, Type
 
-from tqdm import tqdm
-
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
 
@@ -22,34 +20,18 @@ from casim.simulation_engine.state_adapter import StateAdapter
 logger = logging.getLogger(__name__)
 
 
-class _NullProgress:
-    """No-op progress bar used when ``show_progress`` is disabled."""
-
-    n = 0
-
-    def update(self, amount=1):
-        self.n += amount
-
-    def set_postfix_str(self, value):
-        return None
-
-    def close(self):
-        return None
-
-
 class SimulationEngine:
     def __init__(self,
-                 state_adapters: dict[str, StateAdapter],
-                 triggers_map: dict[Type[Event], str],
-                 conditions_map: dict[str, dict],
+                 state_adapters: dict[tuple[str, str], StateAdapter],
+                 triggers_map: dict[Type[Event], tuple[str, str]],
+                 conditions_map: dict[tuple[str, str], dict],
                  loader_kwargs: dict,
                  data_loader: DataLoader = None,
                  event_loggers: list[EventLogger] | None = None,
                  completion_mode: str = "drain",
                  horizon_time: float | None = None,
                  intervention_enabled: bool = False,
-                 active_batch_insertion_enabled: bool = False,
-                 show_progress: bool = True):
+                 active_batch_insertion_enabled: bool = False):
 
         self.state_adapters = state_adapters
         self.state: State | None = None
@@ -76,7 +58,6 @@ class SimulationEngine:
         self._pending_snapshot = None
         self.intervention_enabled = intervention_enabled
         self.active_batch_insertion_enabled = active_batch_insertion_enabled
-        self.show_progress = bool(show_progress)
         if data_loader:
             self.data_loader = data_loader
 
@@ -141,25 +122,22 @@ class SimulationEngine:
         self.state.completion_reason = reason
         self._finished = True
         logger.info("Simulation complete: %s", reason)
-        if hasattr(self, "_pbar"):
-            self._pbar.close()
-            del self._pbar
         for event_logger in self.event_loggers:
             event_logger.on_done(self)
         return True, None
 
     def _conditions_hold(
         self,
-        problem: str,
+        decision_id: tuple[str, str],
         snapshot: SimWarehouseDomain,
     ) -> bool:
-        requires = self.conditions_map.get(problem) or {}
+        requires = self.conditions_map.get(decision_id) or {}
         if not requires:
             return True
         dynamic = snapshot.dynamic_warehouse_info
         drain = (
             self.state.input_closed
-            and problem == self._drain_problem
+            and decision_id == self._drain_problem
         )
         if drain:
             if "orders" in requires and not snapshot.orders.orders:
@@ -196,14 +174,6 @@ class SimulationEngine:
             snapshot = self._pending_snapshot
             self._pending_snapshot = None
             return False, snapshot
-        if not hasattr(self, "_pbar"):
-            if self.show_progress:
-                self._pbar = tqdm(
-                    desc="sim events", unit=" ev", unit_scale=True,
-                    bar_format="{desc}: {n_fmt} [{elapsed}, {rate_fmt}] sim_t={postfix}",
-                )
-            else:
-                self._pbar = _NullProgress()
         while self.events:
             if (
                 self.completion_mode == "horizon"
@@ -214,10 +184,6 @@ class SimulationEngine:
             event = heapq.heappop(self.events)
             self.state.current_time = event.time
             events_to_add = event.handle(self.state)
-
-            self._pbar.update(1)
-            if self._pbar.n % 1000 == 0:
-                self._pbar.set_postfix_str(f"{self.state.current_time:.0f}s")
 
             for e in events_to_add:
                 self.add_event(e)
@@ -266,7 +232,7 @@ class SimulationEngine:
             )
         return state_snapshot
 
-    def step(self, events_to_add, problem_class, solution=None):
+    def step(self, events_to_add):
         """Synchronously commit a zero-latency decision result.
 
         Process events are the operational hand-off of a decision.  They run
@@ -304,7 +270,7 @@ class SimulationEngine:
             if current == previous_drain_signature:
                 raise RuntimeError(
                     "Drain decision made no operational progress for "
-                    f"problem {problem_class}"
+                    f"problem {self._drain_problem}"
                 )
         remaining = self.state.unfinished_work()
         if (

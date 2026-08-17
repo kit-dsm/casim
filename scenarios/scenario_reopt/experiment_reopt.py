@@ -87,22 +87,16 @@ def run_experiment(cfg: DictConfig) -> dict[str, object]:
         available = sorted(
             int(order.order_id) for order in snapshot.orders.orders
         )
-        decision = decision_engine.on_trigger(snapshot)
-        if decision is None:
-            raise RuntimeError("Configured solver returned no online decision")
-        events, solution = decision
-        selected_pipeline = (
-            decision_engine.decision_tracker.decisions[-1][3]
-        )
+        events, solution = decision_engine.on_trigger(snapshot)
         decision_record = decision_engine.decision_tracker.decisions[-1]
         row: dict[str, object] = {
             "decision_time": decision_time,
             "available_order_ids": available,
             "committed_order_ids": _committed_order_ids(solution),
             "solver": "LorenzDPSolver" if variant == "reopt" else "CoSySolver",
-            "pipeline_identifier": selected_pipeline,
+            "pipeline_identifier": decision_record["pipeline"],
             "algorithm_runtime_s": float(solution.execution_time),
-            "decision_elapsed_s": float(decision_record[7]),
+            "decision_elapsed_s": float(decision_record["decision_elapsed_s"]),
             "solver_status": solution.solver_status,
             "objective_value": solution.objective_value,
             "objective_bound": solution.objective_bound,
@@ -112,7 +106,7 @@ def run_experiment(cfg: DictConfig) -> dict[str, object]:
         row["planned_completion_time"] = float(
             max(job.end_time for job in solution.jobs)
         )
-        simulation.step(events, snapshot.problem_class, solution)
+        simulation.step(events)
         trace.append(row)
 
     completed = simulation.state.tracker.completed_tours

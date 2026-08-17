@@ -67,7 +67,6 @@ def build_environment(*, data_loader, objective_scale=1.0) -> OrderBatchingEnv:
         event_loggers=[],
         completion_mode="drain",
         horizon_time=None,
-        show_progress=False,
     )
     return OrderBatchingEnv(
         simulation,

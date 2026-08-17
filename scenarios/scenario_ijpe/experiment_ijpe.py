@@ -18,26 +18,20 @@ def run(cfg: DictConfig) -> dict:
         done, snapshot = simulation.run()
         if done:
             break
-        selected = decision_engine.on_trigger(snapshot)
-        if selected is None:
-            raise RuntimeError(
-                f"No decision for {snapshot.problem_class} at "
-                f"t={snapshot.dynamic_warehouse_info.time}"
-            )
-        events, solution = selected
-        simulation.step(events, snapshot.problem_class, solution)
+        events, solution = decision_engine.on_trigger(snapshot)
+        simulation.step(events)
 
     tracker = simulation.state.tracker
     decisions = [
         {
-            "problem": row[0],
-            "replanning": row[1],
-            "input_count": row[2],
-            "pipeline": row[3],
-            "objective_value": row[4],
-            "objective": row[5],
-            "algorithm_runtime_s": row[6],
-            "decision_elapsed_s": row[7],
+            "problem": row["problem_class"],
+            "replanning": row["replanning"],
+            "solution_order_count": row["solution_order_count"],
+            "pipeline": row["pipeline"],
+            "objective": row["objective"],
+            "objective_value": row["objective_value"],
+            "algorithm_runtime_s": row["algorithm_runtime_s"],
+            "decision_elapsed_s": row["decision_elapsed_s"],
         }
         for row in decision_engine.decision_tracker.decisions
     ]
@@ -45,7 +39,8 @@ def run(cfg: DictConfig) -> dict:
         "scenario": "scenario_ijpe",
         "input": str(cfg.input.load.orders_path),
         "simulation": str(cfg.simulation.name),
-        "status": simulation.state.completion_reason,
+        "status": "success",
+        "completion_reason": simulation.state.completion_reason,
         "simulation_time": float(simulation.state.current_time),
         "initial_orders": len(initial_domain.orders.orders),
         "completed_orders": len(simulation.state.order_manager.completed_orders),

@@ -124,7 +124,6 @@ class ExperimentTracker:
         self.picker_utilization.append((end_time, util))
         self.process_times.append(duration)
         self.on_orders_completed(completed_order_ids, end_time)
-        # print(f"tour_id:  {tour_id} with order_ids: {order_ids} completed at time {end_time:.0f} with makespan {end_time - start_time:.1f} and picker utilization {util:.2%} and dock utilization {n_pallets_dock} pallets")
 
     def on_truck_departure(self, time, capacity):
         self.truck_departures.append((time, capacity))
@@ -243,23 +242,35 @@ class ExperimentTracker:
 
 class DecisionTracker:
     def __init__(self):
-        self.decisions: list[tuple] = []
+        self.decisions: list[dict] = []
         self.commitments: list[dict] = []
         self.pipeline_counts: dict[str, int] = defaultdict(int)
 
-    def on_decision(self, problem_class, replanning, input_ids, selected_pipeline,
-                    kpi_value, kpi, runtime, elapsed):
-        self.decisions.append((
-            problem_class,
-            replanning,
-            input_ids,
-            selected_pipeline,
-            kpi_value,
-            kpi,
-            runtime,
-            elapsed
-        ))
-        self.pipeline_counts[selected_pipeline] += 1
+    def on_decision(
+        self,
+        *,
+        problem_class: str,
+        replanning: str,
+        solution_order_count: int,
+        pipeline: str,
+        objective: str,
+        objective_value: float,
+        algorithm_runtime_s: float,
+        decision_elapsed_s: float,
+    ) -> None:
+        self.decisions.append(
+            {
+                "problem_class": problem_class,
+                "replanning": replanning,
+                "solution_order_count": solution_order_count,
+                "pipeline": pipeline,
+                "objective": objective,
+                "objective_value": objective_value,
+                "algorithm_runtime_s": algorithm_runtime_s,
+                "decision_elapsed_s": decision_elapsed_s,
+            }
+        )
+        self.pipeline_counts[pipeline] += 1
 
     def on_commitment(
         self,

@@ -62,14 +62,8 @@ class OrderBatchingEnv:
                 )
                 self.current = (snapshot, tuple(assignment.resolved_orders))
                 return False
-            selected = self.decision_engine.on_trigger(snapshot)
-            if selected is None:
-                raise RuntimeError(
-                    f"No decision for {snapshot.problem_class} at "
-                    f"t={snapshot.dynamic_warehouse_info.time}"
-                )
-            events, solution = selected
-            self.simulation.step(events, snapshot.problem_class, solution)
+            events, solution = self.decision_engine.on_trigger(snapshot)
+            self.simulation.step(events)
 
     def step(self, order_ids):
         """Commit one feasible batch and advance to the next batching trigger."""
@@ -92,7 +86,7 @@ class OrderBatchingEnv:
             batches=[BatchObject(batch_id=0, orders=selected)],
         )
         events, committed = self.decision_engine.commit(snapshot, solution)
-        self.simulation.step(events, snapshot.problem_class, committed)
+        self.simulation.step(events)
         done = self._advance()
         current_flow_time = self.simulation.state.tracker.accrued_flow_time(
             self.simulation.state.current_time
