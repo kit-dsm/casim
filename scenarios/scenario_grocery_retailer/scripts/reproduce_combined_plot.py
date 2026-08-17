@@ -26,17 +26,16 @@ def _set_paper_style() -> None:
         {
             "figure.dpi": 300,
             "savefig.dpi": 300,
-            "savefig.bbox": "tight",
             "savefig.facecolor": "white",
             "figure.facecolor": "white",
             "axes.facecolor": "white",
             "axes.spines.top": False,
             "axes.spines.right": False,
-            "axes.labelsize": 14,
-            "axes.titlesize": 14,
-            "legend.fontsize": 14,
-            "xtick.labelsize": 14,
-            "ytick.labelsize": 14,
+            "axes.labelsize": 12,
+            "axes.titlesize": 13,
+            "legend.fontsize": 11.5,
+            "xtick.labelsize": 11.5,
+            "ytick.labelsize": 11.5,
             "lines.linewidth": 1.0,
             "grid.alpha": 0.2,
             "grid.linewidth": 0.6,
@@ -87,9 +86,9 @@ def _plot_operational_behavior(axes, palette) -> None:
     ax_dock, ax_mk, ax_ut = axes
     ax_dock.axhline(y=98, color="red", linestyle="--", linewidth=1.0)
 
-    ax_dock.set_ylabel("Number of\nPallets at Dock")
-    ax_mk.set_ylabel("Average Makespan\nper Tour [s]")
-    ax_ut.set_ylabel("Average Picker\nUtilization")
+    ax_dock.set_ylabel("Dock\npallets")
+    ax_mk.set_ylabel("Avg. tour\nmakespan [s]")
+    ax_ut.set_ylabel("Avg. picker\nutilization")
     ax_ut.set_xlabel("Time [s]")
 
     ax_dock.set_title("(a) Operational behavior")
@@ -138,7 +137,7 @@ def _plot_portfolio_decisions(ax, palette) -> None:
         transform=ax.transAxes,
         va="bottom",
         ha="left",
-        fontsize=14,
+        fontsize=11.5,
     )
 
     handles = [
@@ -201,7 +200,7 @@ def main() -> None:
     _add_bottom_legend(fig, palette)
 
     fig.subplots_adjust(
-        left=0.08, right=0.99, top=0.94, bottom=0.18,
+        left=0.08, right=0.99, top=0.94, bottom=0.23,
         hspace=0.30, wspace=0.28,
     )
     fig.savefig(OUTPUT)
