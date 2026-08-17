@@ -1,6 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import logging
 import luigi
 from cosy.maestro import Maestro
 from cosy_luigi import CoSyLuigiRepo
@@ -27,6 +28,8 @@ from casim.pipelines.problem_based_template import (
 )
 
 from casim.pipelines.taxonomy import TAXONOMY
+
+logger = logging.getLogger(__name__)
 
 class CoSySolver:
     def __init__(
@@ -70,7 +73,9 @@ class CoSySolver:
 
         self.algorithm_cards = load_packaged_algo_cards()
         if self.verbose:
-            print(f"Loaded {len(self.algorithm_cards)} model cards")
+            logger.info(
+                "Loaded %d model cards", len(self.algorithm_cards)
+            )
 
     def dump_domain(self, dynamic_domain: BaseWarehouseDomain):
         dump_pickle(str(self.cache_path), dynamic_domain)
@@ -91,7 +96,7 @@ class CoSySolver:
 
         if not self.pipelines:
             if self.verbose:
-                print("Building pipelines")
+                logger.info("Building pipelines")
             repo_classes = [get_class(path) for path in self.repo_cfg.components]
             mapper = DomainAlgorithmMapper(TAXONOMY)
             applicable_cards = mapper.filter(
@@ -131,9 +136,9 @@ class CoSySolver:
                     id(card) in applicable_ids for card in matching_cards
                 ):
                     if self.verbose:
-                        print(
-                            f"Excluding inapplicable component "
-                            f"{component_cls.__name__}"
+                        logger.info(
+                            "Excluding inapplicable component %s",
+                            component_cls.__name__,
                         )
                     continue
                 filtered_repo_classes.append(component_cls)
@@ -162,15 +167,15 @@ class CoSySolver:
                     f"pipeline for {problem}"
                 )
             if self.verbose:
-                print(f"Found {len(self.pipelines)} pipelines")
+                logger.info("Found %d pipelines", len(self.pipelines))
         else:
             if self.verbose:
-                print("Using cached pipelines")
+                logger.info("Using cached pipelines")
 
     def solve(self, dynamic_domain: BaseWarehouseDomain, action: None) -> tuple[AlgorithmSolution, str, float] | None:
         self.dump_domain(dynamic_domain)
         if not self.pipelines:
-            print("No valid pipelines found!")
+            logger.error("No valid pipelines found")
             return None
 
         if self.executor == "memory":

@@ -17,7 +17,6 @@ from casim.domain_objects.tour_model import (
     TourStates,
 )
 
-logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -258,10 +257,7 @@ class TourManager:
         # Maintain time-sorted queue of tours
         queue = queues[picker_id]
         queue.sort(key=lambda tid: self.get_tour(tid).start_time if self.get_tour(tid).start_time is not None else float('inf'))
-        logger.info(f"After scheduling tour {tour_id} tour manager has the following tours scheduled: ")
-        for t_id in queue:
-            t = self.get_tour(t_id)
-            logger.info(f"Tour {t_id} with start time: {t.start_time} end time: {t.end_time_planned}")
+        logger.debug("After scheduling tour %d, picker %d queue: %s", tour_id, picker_id, [self.get_tour(tid).start_time for tid in queue])
 
     def start_tour(self, tour_id: int, time: float):
         """
@@ -285,10 +281,7 @@ class TourManager:
         picker_id = tour.assigned_resource
         # Based on this check, tour should be in picker_tours_queue
         picker_tour_queue = self._picker_tour_queues[picker_id]
-        logger.info(f"Pre Tour Start: picker {picker_id} has the following tours scheduled: ")
-        for t_id in picker_tour_queue:
-            t = self.get_tour(t_id)
-            logger.info(f"Tour {t_id} with start time: {t.start_time} end time: {t.end_time_planned}")
+        logger.debug("Pre Tour Start: picker %d queue: %s", picker_id, list(picker_tour_queue))
 
         picker_tour_queue.remove(tour_id)
         if picker_id not in self._active_picker_tour.keys():

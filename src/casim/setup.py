@@ -25,7 +25,7 @@ from casim.decision_engine.decision_engine import (
 )
 from casim.events import operational_events
 from casim.events.operational_events import InterventionRequest
-from casim.loggers import DashLogger, KPILogger
+from casim.loggers import DashLogger, ProgressLogger
 from casim.pipelines.pipeline_runner import CoSySolver
 from casim.pipelines.solution_ranker import SolutionRanker
 from casim.simulation_engine.simulation_engine import SimulationEngine
@@ -278,9 +278,8 @@ def _construct_simulation(
 ) -> SimulationEngine:
     working_dir = cfg.experiment.get("working_dir", cfg.experiment.output_dir)
     event_loggers = [
-        KPILogger(
-            Path(working_dir) / "kpis",
-            print_every=cfg.experiment.get("progress_every", 5000),
+        ProgressLogger(
+            every=cfg.experiment.get("progress_every", 0),
         )
     ]
     viz_cfg = cfg.get("viz") or {}

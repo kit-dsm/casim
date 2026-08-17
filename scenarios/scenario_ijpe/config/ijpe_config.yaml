@@ -18,10 +18,10 @@ hydra:
     subdir: ${hydra:runtime.choices.cosy_repo}/${data_card.objective}/${hydra:runtime.choices.simulation}
   job_logging:
     root:
-      level: CRITICAL
+      level: INFO
   hydra_logging:
     root:
-      level: CRITICAL
+      level: WARNING
 
 luigi:
   log_level: CRITICAL
@@ -41,3 +41,4 @@ experiment:
   name: ${data_card.name}
   output_dir: ${hydra:runtime.output_dir}
   instance_name: ${data_card.name}/${hydra:runtime.choices.cosy_repo}_${data_card.objective}
+  progress_every: 0

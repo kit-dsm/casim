@@ -12,7 +12,7 @@ hydra:
     subdir: ${variant.name}
   job_logging:
     root:
-      level: WARNING
+      level: INFO
   hydra_logging:
     root:
       level: WARNING
@@ -25,6 +25,7 @@ experiment:
   instance_name: paper_example
   output_dir: ${hydra:runtime.output_dir}
   working_dir: ${project_root}/tmp/scenario_reopt/${variant.name}/${now:%Y-%m-%d_%H-%M-%S}
+  progress_every: 0
 
 solver:
   batch_capacity_orders: 2

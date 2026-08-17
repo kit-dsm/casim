@@ -14,7 +14,7 @@ hydra:
     subdir: ${engines.name}_${simulation.name}
   job_logging:
     root:
-      level: WARNING
+      level: INFO
   hydra_logging:
     root:
       level: WARNING
@@ -31,8 +31,8 @@ experiment:
   progress_every: 1000
 
 viz:
-  record: true
-  launch: true
+  record: false
+  launch: false
   port: 8050
 
 luigi:

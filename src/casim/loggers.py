@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import gzip
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -18,11 +19,69 @@ from casim.trackers import ExperimentTracker
 if TYPE_CHECKING:
     from casim.simulation_engine import SimulationEngine
 
+logger = logging.getLogger(__name__)
+
 
 class EventLogger:
     def on_reset(self, sim: SimulationEngine, domain: SimWarehouseDomain) -> None: ...
     def on_event(self, event: Event, sim: SimulationEngine) -> None: ...
     def on_done(self, sim: SimulationEngine) -> None: ...
+
+
+class ProgressLogger(EventLogger):
+    """Periodically log generic simulation progress via ``logging.info``.
+
+    Does not write files or print a final summary.  Configure with a
+    positive ``every`` to emit one ``logger.info`` line per *every*
+    events processed; pass ``every=0`` or ``None`` to disable.
+    """
+
+    def __init__(self, every: int | None = 0):
+        self.every = int(every) if every else 0
+        self.events = 0
+
+    def on_reset(self, sim, domain) -> None:
+        self.events = 0
+
+    def on_event(self, event, sim) -> None:
+        self.events += 1
+        if not self.every or self.events % self.every:
+            return
+        state = sim.state
+        tracker = state.tracker
+        buffered_orders = len(state.order_manager.get_order_buffer())
+        buffered_batches = len(state.order_manager.get_pick_list_buffer())
+        active_tours = len(state.tour_manager.active_tours())
+        completed_tours = len(tracker.completed_tours)
+        completed_orders = tracker.completed_order_count
+        distance = sum(tracker.distance_by_picker.values())
+        logger.info(
+            "t=%.0f (%.1f h) | events=%d | "
+            "buffered: orders=%d batches=%d | "
+            "active_tours=%d | "
+            "completed: tours=%d orders=%d | "
+            "distance=%.0f",
+            state.current_time,
+            state.current_time / 3600.0,
+            self.events,
+            buffered_orders,
+            buffered_batches,
+            active_tours,
+            completed_tours,
+            completed_orders,
+            distance,
+        )
+
+    def on_done(self, sim) -> None:
+        tracker = sim.state.tracker
+        logger.info(
+            "Simulation complete: %s | "
+            "tours=%d orders=%d distance=%.0f",
+            sim.state.completion_reason,
+            len(tracker.completed_tours),
+            tracker.completed_order_count,
+            sum(tracker.distance_by_picker.values()),
+        )
 
 
 class DashLogger(EventLogger):
@@ -70,7 +129,7 @@ class DashLogger(EventLogger):
         }
         order = getattr(event, "order", None)
         if order is not None:
-            context["order_id"] = int(order.order_id)
+            context["order_id"] = str(order.order_id)
         self._write_record(
             event_id=event.id,
             event_type=event.__class__.__name__,
@@ -341,126 +400,6 @@ class DashLogger(EventLogger):
         if hasattr(loc, "position"):
             loc = loc.position
         return (loc[0], loc[1])
-
-
-class KPILogger(EventLogger):
-    def __init__(self, out_dir: Path, print_every: int | None = 5000):
-        self.out_dir = Path(out_dir)
-        self.out_dir.mkdir(parents=True, exist_ok=True)
-        self.print_every = print_every
-        self._event_count = 0
-
-    def on_reset(self, sim, domain):
-        self._event_count = 0
-
-    def on_event(self, event, sim) -> None:
-        state = sim.state
-        self._event_count += 1
-        if self.print_every and self._event_count % self.print_every == 0:
-            self._print_progress(state)
-
-    def on_done(self, sim: SimulationEngine) -> None:
-        state = sim.state
-        summary = self._summary(state)
-        summary["pending_order_arrival_ids"] = sorted(
-            event.order_id
-            for event in sim.events
-            if isinstance(event, OrderArrival)
-        )
-        self._print_summary(summary)
-        with open(self.out_dir / "kpis.json", "w") as f:
-            json.dump(_jsonable(summary), f, indent=2)
-
-        tracker_dict = self._tracker_to_dict(state.tracker)
-
-        with open(self.out_dir / "tracker.json", "w") as f:
-            json.dump(_jsonable(tracker_dict), f, indent=2)
-
-    @staticmethod
-    def _summary(state: State) -> dict:
-        t = state.tracker
-        horizon = state.current_time
-        horizon_h = horizon / 3600 if horizon else 0
-
-        return {
-            "completion_reason": state.completion_reason,
-            "unfinished_work": state.unfinished_work(),
-            "makespan": t.completion_makespan,
-            "num_tours": len(t.completed_tours),
-            "num_orders_completed": t.completed_order_count,
-            "avg_tour_makespan": t.average_tour_makespan,
-            "avg_batch_size": t.average_batch_size,
-            "orders_per_hour": (
-                t.completed_order_count / horizon_h if horizon_h else 0.0
-            ),
-            "tours_per_hour": len(t.completed_tours) / horizon_h if horizon_h else 0.0,
-            "distance_by_picker": dict(t.distance_by_picker),
-            "idle_time_by_picker": dict(t.idle_time_by_picker),
-            "total_distance": sum(t.distance_by_picker.values()),
-            "total_delayed": t.total_delayed,
-            "dock_utilization": dict(t.dock_utilization),
-            "total_tour_times": t.total_processing_time,
-            "picks_per_hour": (
-                t.completed_line_count / horizon_h if horizon_h else 0.0
-            ),
-            "total_processing_time": t.total_processing_time
-            # "total_on_time": t.total_on_time
-        }
-
-    def _print_progress(self, state: State) -> None:
-        t = state.tracker
-        print(
-            f"[t={state.current_time:>10.0f}] "
-            f"events={self._event_count:>6d}  "
-            f"tours={len(t.completed_tours):>4d}  "
-            f"avg_batch={t.average_batch_size:.2f}  "
-            f"dist={sum(t.distance_by_picker.values()):.0f},"
-            f"on_time_ratio={100 * t.on_time_ratio:.1f}% "
-            f"delayed_ratio={100 * t.delayed_ratio:.1f} "
-            + (
-                f"dock_fill={state.n_staged_pallets}"
-                if state.dock_capacity is not None
-                else ""
-            )
-        )
-
-    @staticmethod
-    def _tracker_to_dict(tracker: ExperimentTracker) -> dict:
-        return {
-            "distance_by_picker": dict(tracker.distance_by_picker),
-            "idle_time_by_picker": dict(tracker.idle_time_by_picker),
-            "idle_intervals": tracker.idle_intervals,
-            "completed_tours": tracker.completed_tours,
-            "truck_departures": tracker.truck_departures,
-            "dock_utilization": tracker.dock_utilization,
-            "batch_buffer": tracker.batch_buffer,
-            "avg_makespan": tracker.avg_makespan,
-            "all_delayed": tracker.all_delayed,
-            "all_on_time": tracker.all_on_time,
-            "avg_utilization": tracker.picker_utilization,
-            "delayed_tours_exp_finish": tracker.delayed_expected_finish,
-            "total_processing_time": tracker.total_processing_time
-        }
-
-    @staticmethod
-    def _print_summary(s: dict) -> None:
-        print("\n" + "=" * 50)
-        print("KPI Summary")
-        print("=" * 50)
-        print(f"  makespan:            {s['makespan']:.0f}")
-        print(f"  tours completed:     {s['num_tours']}")
-        print(f"  orders completed:    {s['num_orders_completed']}")
-        print(f"  avg tour makespan:   {s['avg_tour_makespan']:.1f}")
-        print(f"  avg batch size:      {s['avg_batch_size']:.2f}")
-        print(f"  orders/hour:         {s['orders_per_hour']:.1f}")
-        print(f"  total distance:      {s['total_distance']:.0f}")
-        print(f"  total delayed:      {s['total_delayed']:.0f}")
-        print(f"  total tour times:    {s['total_tour_times']:.0f}")
-        print(f"  total processing time:    {s['total_processing_time']:.0f}")
-        for pid, d in s['distance_by_picker'].items():
-            idle = s['idle_time_by_picker'].get(pid, 0)
-            print(f"    picker {pid}: distance={d:.0f}  idle={idle:.0f}")
-        print("=" * 50 + "\n")
 
 
 def _jsonable(obj):

@@ -14,7 +14,7 @@ hydra:
     subdir: ${intervention_repo.name}
   job_logging:
     root:
-      level: WARNING
+      level: INFO
   hydra_logging:
     root:
       level: WARNING
@@ -31,7 +31,7 @@ experiment:
   progress_every: 500
 
 viz:
-  record: true
+  record: false
   launch: false
   port: 8050
 
