@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from omegaconf import OmegaConf
 
-import casim.envs.order_batching as batching_env
+from ware_ops_algos.algorithms import GreedyItemAssignment
 from casim.trackers import ExperimentTracker
 from learning.structured_batching.policy import (
     OrderScoreActor,
@@ -62,7 +62,7 @@ def test_one_projection_and_assignment_per_exposed_decision(monkeypatch):
         return original_transform(*args, **kwargs)
 
     monkeypatch.setattr(adapter, "transform_state", counted_transform)
-    original_assignment = batching_env.GreedyItemAssignment.solve
+    original_assignment = GreedyItemAssignment.solve
     assignments = 0
 
     def counted_assignment(self, *args, **kwargs):
@@ -71,7 +71,7 @@ def test_one_projection_and_assignment_per_exposed_decision(monkeypatch):
         return original_assignment(self, *args, **kwargs)
 
     monkeypatch.setattr(
-        batching_env.GreedyItemAssignment, "solve", counted_assignment
+        GreedyItemAssignment, "solve", counted_assignment
     )
     snapshot, orders = environment.reset(instance_id)
     assert snapshot.problem_class == "OBP"

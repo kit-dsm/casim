@@ -24,7 +24,7 @@ from ware_ops_algos.domain_models import (
     WarehouseInfoType,
 )
 
-from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
+from casim.domain_objects import DynamicInfo, SimWarehouseDomain
 from casim.io_helpers import dump_json
 from scenarios.scenario_henn.loader import HennDataLoader
 

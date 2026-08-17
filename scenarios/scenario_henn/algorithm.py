@@ -14,7 +14,7 @@ from ware_ops_algos.algorithms.scheduling.scheduling import (
 )
 from ware_ops_algos.domain_models import OrdersDomain
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain
+from casim.domain_objects import SimWarehouseDomain
 from casim.events.operational_events import Event
 
 

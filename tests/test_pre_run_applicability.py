@@ -117,7 +117,7 @@ def test_incompatible_intervention_repository_fails_during_setup(tmp_path):
         [
             "casim.pipelines.problem_based_template.InstanceLoader",
             "casim.pipelines.problem_based_template.OrdersProvider",
-            "casim.pipelines.subproblems.item_assingment.GreedyIA",
+            "casim.pipelines.subproblems.item_assignment.GreedyIA",
             "casim.pipelines.subproblems.batching.FiFo",
             "casim.pipelines.subproblems.picker_routing.SShape",
             "casim.pipelines.problem_based_template.ResultAggregationRouting",

@@ -31,7 +31,7 @@ from ware_ops_algos.domain_models import (
 )
 from ware_ops_algos.algorithms.algorithm_cards import AlgorithmCard
 
-from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
+from casim.domain_objects import DynamicInfo, SimWarehouseDomain
 from casim.pipelines.taxonomy import TAXONOMY
 from casim.io_helpers import dump_json
 

@@ -26,7 +26,7 @@ from ware_ops_algos.domain_models import (
     WarehouseInfoType,
 )
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain, DynamicInfo
+from casim.domain_objects import SimWarehouseDomain, DynamicInfo
 from casim.state import State
 
 

@@ -19,7 +19,7 @@ from omegaconf import DictConfig, OmegaConf
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import DataCard, load_and_flatten_data_card
 
-from casim.decision_engine.decision_engine import (
+from casim.decision_engine import (
     DecisionEngine,
     SchedulingCommitmentPolicy,
 )

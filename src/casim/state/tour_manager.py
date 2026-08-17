@@ -11,7 +11,7 @@ from ware_ops_algos.algorithms import (
 )
 from ware_ops_algos.domain_models import DimensionType, PickCart
 
-from casim.domain_objects.tour_model import (
+from casim.domain_objects import (
     CartBinState,
     TourPlanningState,
     TourStates,

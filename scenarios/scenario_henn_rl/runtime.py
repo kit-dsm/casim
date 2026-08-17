@@ -2,9 +2,9 @@
 
 from ware_ops_algos.domain_models import DataCard
 
-from casim.decision_engine.decision_engine import DecisionEngine
+from casim.decision_engine import DecisionEngine
 from casim.solvers.fixed_route_scheduler import FixedRouteScheduler
-from casim.envs.order_batching import OrderBatchingEnv
+from scenarios.scenario_henn_rl.order_batching import OrderBatchingEnv
 from casim.events.decision_events import PickListDone
 from casim.events.operational_events import (
     FlushRemainingOrders,

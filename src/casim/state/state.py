@@ -23,7 +23,7 @@ from ware_ops_algos.domain_models import (
 
 from .order_manager import OrderManager
 from .tour_manager import TourManager
-from ..domain_objects.tour_model import TourStates
+from ..domain_objects import TourStates
 from .layout_manager import LayoutManager
 from .storage_manager import StorageManager
 from ..trackers import ExperimentTracker

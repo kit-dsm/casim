@@ -5,7 +5,7 @@ from dataclasses import replace
 from ware_ops_algos.algorithms import AlgorithmSolution, CombinedRoutingSolution, \
     SchedulingSolution, BatchingSolution
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain
+from casim.domain_objects import SimWarehouseDomain
 from casim.events.operational_events import Event
 from casim.events.decision_events import (
     ActiveRouteReplacement,

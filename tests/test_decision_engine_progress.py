@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from casim.decision_engine.decision_engine import DecisionEngine
+from casim.decision_engine import DecisionEngine
 from casim.loggers import ProgressLogger
 
 

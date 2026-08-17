@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 
 from ware_ops_algos.domain_models import Resource
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain
-from casim.domain_objects.tour_model import TourStates
+from casim.domain_objects import SimWarehouseDomain
+from casim.domain_objects import TourStates
 from casim.events.operational_events import Event
 from casim.events.operational_events import OrderArrival
 from casim.io_helpers import dump_pickle

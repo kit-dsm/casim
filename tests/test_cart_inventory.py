@@ -15,7 +15,7 @@ from ware_ops_algos.algorithms import (
     SchedulingSolution,
 )
 
-from casim.decision_engine.decision_engine import SchedulingCommitmentPolicy
+from casim.decision_engine import SchedulingCommitmentPolicy
 from casim.simulation_engine.state_adapter import StateAdapter
 from casim.state import State
 from casim.state.storage_manager import StorageManager

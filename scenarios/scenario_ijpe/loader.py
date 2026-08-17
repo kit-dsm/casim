@@ -19,7 +19,7 @@ from ware_ops_algos.domain_models import (
     WarehouseInfoType,
 )
 
-from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
+from casim.domain_objects import DynamicInfo, SimWarehouseDomain
 from casim.io_helpers import dump_pickle, load_pickle
 from scenarios.scenario_ijpe.schema import *
 

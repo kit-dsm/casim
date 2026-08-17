@@ -5,7 +5,7 @@ from typing import Callable, Type
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain
+from casim.domain_objects import SimWarehouseDomain
 from casim.events.operational_events import (
     Event,
     FlushRemainingOrders,
