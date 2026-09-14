@@ -1,0 +1,12 @@
+# @package input
+data_loader:
+  _target_: scenarios.scenario_henn.loader.HennDataLoader
+  instances_dir: ${project_root}/scenarios/scenario_henn
+  aisle_end_offset: ${layout.aisle_end_offset}
+  depot_half_span: ${layout.depot_half_span}
+  travel_speed: ${timing.travel_speed}
+  time_per_pick: ${timing.time_per_pick}
+  tour_setup_time: ${timing.tour_setup_time}
+load:
+  manifest_path: reproduction/manifest.yaml
+  instance_id: H_abc1_40_29

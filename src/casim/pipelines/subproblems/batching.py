@@ -1,7 +1,21 @@
-from ware_ops_algos.algorithms import OrderNrFifoBatching, FifoBatching, DueDateBatching, LocalSearchBatching, \
-    NearestNeighbourhoodRouting, SShapeRouting, ClarkAndWrightBatching
+from ware_ops_algos.algorithms import (
+    ClarkAndWrightBatching,
+    DueDateBatching,
+    FifoBatching,
+    ItemAssignmentSolution,
+    LocalSearchBatching,
+    NearestNeighbourhoodRouting,
+    OrderNrFifoBatching,
+    ResidualBatchingInput,
+    ResidualFifoBatching,
+    SShapeRouting,
+)
 
-from casim.pipelines.problem_based_template import BatchingNode
+from casim.pipelines.problem_based_template import (
+    BatchingNode,
+    dump_pickle,
+    load_pickle,
+)
 
 
 class OrderNrFiFo(BatchingNode):
@@ -16,6 +30,29 @@ class FiFo(BatchingNode):
         articles = self._get_articles()
         resources = self._get_resources()
         return FifoBatching(pick_cart=resources.resources[0].pick_cart, articles=articles)
+
+
+class ResidualFiFo(BatchingNode):
+    """CoSy component for deterministic filling of empty active-tour bins."""
+
+    def run(self):
+        dynamic_info = load_pickle(
+            self.input()["instance"]["dynamic_warehouse_info"].path
+        )
+        resources = self._get_resources()
+        ia_solution: ItemAssignmentSolution = load_pickle(
+            self.input()["item_assignment_sol"]["item_assignment_sol"].path
+        )
+        solution = ResidualFifoBatching().solve(
+            ResidualBatchingInput(
+                active_batch=dynamic_info.buffered_batches[0],
+                candidate_orders=tuple(ia_solution.resolved_orders),
+                bin_order_ids=tuple(dynamic_info.cart_bin_order_ids),
+                locked_bin_ids=frozenset(dynamic_info.locked_bin_ids),
+                pick_cart=resources.resources[0].pick_cart,
+            )
+        )
+        dump_pickle(self.output()["batching_sol"].path, solution)
 
 
 class DueDate(BatchingNode):

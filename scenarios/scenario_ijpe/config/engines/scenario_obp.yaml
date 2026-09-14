@@ -8,7 +8,7 @@ decision_engine:
           objective: ${data_card.objective}
         repo: ${cosy_repo}
       commitment_policy:
-        _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
+        _target_: casim.decision_engine.CommitAllPolicy
 #        n_jobs: 1
     OBP:
       solver:
@@ -18,7 +18,7 @@ decision_engine:
           objective: ${data_card.objective}
         repo: ${cosy_repo}
       commitment_policy:
-        _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
+        _target_: casim.decision_engine.CommitAllPolicy
 
     RORSP:
       solver:
@@ -28,7 +28,7 @@ decision_engine:
           objective: ${data_card.objective}
         repo: ${cosy_repo}
       commitment_policy:
-        _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
+        _target_: casim.decision_engine.CommitAllPolicy
   event_map:
     SequencingDone:
       _target_: hydra.utils.get_class

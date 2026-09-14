@@ -1,0 +1,4 @@
+# @package batching
+name: ls
+component: casim.pipelines.subproblems.batching.LSBatchingSShapeFiFo
+paper_equivalent: false

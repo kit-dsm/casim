@@ -1,0 +1,14 @@
+# @package engines
+runtime:
+  completion_mode: drain
+  horizon_time: null
+
+problems:
+  - problem_class: OBRP
+    replanning: none
+    triggers: [OrderArrival, PickerIdle, FlushRemainingOrders]
+    requires: {orders: 1, pickers: 1}
+    solver:
+      type: cosy
+      objective: ${data_card.objective}
+      repo: ${cosy_repo}

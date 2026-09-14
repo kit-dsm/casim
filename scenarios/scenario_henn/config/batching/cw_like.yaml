@@ -1,0 +1,4 @@
+# @package batching
+name: cw_like
+component: casim.pipelines.subproblems.batching.ClarkAndWrightSShape
+paper_equivalent: false

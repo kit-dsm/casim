@@ -1,0 +1,4 @@
+# @package batching
+name: fcfs
+component: casim.pipelines.subproblems.batching.FiFo
+paper_equivalent: true

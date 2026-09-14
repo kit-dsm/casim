@@ -1,156 +1,90 @@
-import os
-import shutil
-import unittest
 from pathlib import Path
 
-import numpy as np
-from hydra import initialize, compose
-from hydra.core.global_hydra import GlobalHydra
+import pytest
+from hydra import compose, initialize_config_dir
+from omegaconf import OmegaConf
+from ware_ops_algos.algorithms import CombinedRoutingSolution
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain
-from casim.events.operational_events import (
-    FlushRemainingOrders,
-    NodeArrival,
-    PickerArrival,
-)
-from casim.simulation_engine.simulation_engine import SimulationEngine
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card,
-    setup_scenario,
-    setup_decision_engine,
-)
-from scenarios.scenario_henn_online.algorithm import (
-    HennWakeUp,
-    decide_henn,
-    insert_into_active_tour,
-    single_order_service_times,
-)
-
-TEST_DIR = Path(__file__).parent
-os.environ["PROJECT_ROOT"] = TEST_DIR.as_posix()
-
-def picker_arrival_hook(sim: SimulationEngine,
-                        domain: SimWarehouseDomain):
-    min_order_date = np.inf
-    for o in domain.orders.orders:
-        if o.order_date < min_order_date:
-            min_order_date = o.order_date
-    for resource in domain.resources.resources:
-        sim.add_event(PickerArrival(time=min_order_date,
-                                    picker_id=resource.id))
+from casim.setup import build_runtime
+from ware_ops_algos.domain_models import load_and_flatten_data_card
+from scenarios.scenario_henn.scenario_specific_hooks import build_sim_hooks
+from casim.events.operational_events import OrderArrival, FlushRemainingOrders
 
 
-def add_orders_hook(sim: SimulationEngine,
-                    domain: SimWarehouseDomain):
-    orders = domain.orders.orders
-    for order in orders:
-        sim.add_order(order)
-    sim.add_event(FlushRemainingOrders(max(o.order_date for o in orders)))
+SCENARIO_ROOT = (
+    Path(__file__).parents[1] / "scenarios" / "scenario_henn"
+).resolve()
 
 
-class TestHennOffline(unittest.TestCase):
-    def setUp(self):
-        if GlobalHydra.instance().is_initialized():
-            GlobalHydra.instance().clear()
-        self.tmp_dir = TEST_DIR / "tmp_output"
-        (self.tmp_dir / "event_logs").mkdir(parents=True, exist_ok=True)
-
-    def tearDown(self):
-        if self.tmp_dir.exists():
-            shutil.rmtree(self.tmp_dir, ignore_errors=True)
-
-    def _load_cfg(self, config_name="test_henn_online_config", overrides=None):
-        with initialize(version_base=None, config_path="./config"):
-            return compose(config_name=config_name, overrides=overrides or [])
-
-    def test_henn_offline(self):
-        cfg = self._load_cfg(overrides=[
-            "scenario.simulation_engine.problems.OBRP.conditions.1.threshold=1",
-        ])
-        datacard = load_and_flatten_data_card(cfg.data_card)
-        sim = setup_scenario(cfg)
-        decision_engine = setup_decision_engine(cfg, datacard)
-        sim.triggers_map[HennWakeUp] = "OBRP"
-
-        sim.reset(hooks=[add_orders_hook,
-                         picker_arrival_hook])
-
-        single_services = {}
-        actions = []
-        insertions = 0
-        while True:
-            done, state_snapshot = sim.run()
-            if done:
-                break
-            active_tour_id = (
-                state_snapshot.dynamic_warehouse_info.active_tour_id
-            )
-            if active_tour_id is not None:
-                result = decision_engine.solve(state_snapshot)
-                self.assertIsNotNone(result)
-                candidate, _, _ = result
-                tour = sim.state.tour_manager.get_tour(active_tour_id)
-                picker = sim.state.resource_manager.get_resource(
-                    tour.assigned_resource
-                )
-                replacement = insert_into_active_tour(
-                    candidate,
-                    tour,
-                    picker.current_location,
-                    state_snapshot.layout,
-                )
-                if replacement is None:
-                    version = sim.state.resume_active_tour(active_tour_id)
-                else:
-                    version = sim.state.commit_active_plan(
-                        active_tour_id,
-                        replacement,
-                        picker_id=tour.assigned_resource,
-                        expected_version=(
-                            state_snapshot.dynamic_warehouse_info.route_version
-                        ),
-                    )
-                    insertions += 1
-                sim.add_event(NodeArrival(
-                    sim.state.current_time,
-                    active_tour_id,
-                    version,
-                ))
-                continue
-            result = decision_engine.solve(state_snapshot)
-            self.assertIsNotNone(result)
-            candidate, _, _ = result
-            single_order_service_times(
-                state_snapshot,
-                decision_engine.get_solver("OBRP"),
-                single_services,
-            )
-            decision = decide_henn(
-                candidate,
-                state_snapshot,
-                sim.state.current_time,
-                sim.state.input_closed,
-                cfg.henn.selector,
-                single_services,
-                cfg.henn.waiting_policy,
-                cfg.henn.fill_threshold,
-                cfg.henn.max_age_s,
-            )
-            actions.append(decision.action)
-            if decision.action == "wait":
-                sim.add_event(HennWakeUp(decision.wait_until))
-                continue
-            events_to_add, solution = decision_engine.commit(
-                state_snapshot,
-                decision.solution,
-            )
-            sim.step(events_to_add, state_snapshot.problem_class, solution)
-
-        self.assertIn("dispatch", actions)
-        self.assertGreater(insertions, 0)
-        self.assertTrue(sim.state.input_closed)
-        self.assertEqual([], sim.state.order_manager.get_order_buffer())
+def _compose(*overrides):
+    with initialize_config_dir(
+        version_base=None,
+        config_dir=str(SCENARIO_ROOT / "config"),
+    ):
+        return compose(
+            config_name="henn_config",
+            overrides=list(overrides),
+        )
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.mark.parametrize("batching", ["fcfs", "cw_like", "ls"])
+@pytest.mark.parametrize("selection", ["first", "short", "long", "sav"])
+def test_hydra_composes_the_twelve_study_variants(batching, selection):
+    cfg = _compose(f"batching={batching}", f"selection={selection}")
+    assert cfg.batching.name == batching
+    assert cfg.selection.name == selection
+    assert cfg.data_card.problem_class == "OBRP"
+    assert cfg.cosy_repo.components[-1].endswith(
+        "ResultAggregationRouting"
+    )
+
+
+@pytest.mark.parametrize("batching", ["fcfs", "cw_like", "ls"])
+def test_existing_setup_discovers_one_pipeline_per_batching_variant(
+    batching,
+    tmp_path,
+):
+    cfg = _compose(f"batching={batching}")
+    project_root = Path(__file__).parents[1].resolve()
+    OmegaConf.update(cfg, "project_root", str(project_root), merge=False)
+    OmegaConf.update(
+        cfg,
+        "instances_base",
+        str(project_root / "scenarios"),
+        merge=False,
+    )
+    OmegaConf.update(cfg, "cache_base", str(tmp_path / "cache"), merge=False)
+    OmegaConf.update(
+        cfg,
+        "experiment.output_dir",
+        str(tmp_path),
+        merge=False,
+    )
+    OmegaConf.update(
+        cfg,
+        "experiment.instance_name",
+        f"smoke-{batching}",
+        merge=False,
+    )
+    OmegaConf.update(cfg, "luigi.runtime", 1, merge=False)
+    data_card = load_and_flatten_data_card(cfg.data_card)
+    simulation, decision_engine = build_runtime(cfg, data_card)
+
+    simulation.reset(hooks=build_sim_hooks(cfg))
+
+    assert len(decision_engine.solver_for("OBRP").pipelines) == 1
+    assert sum(
+        isinstance(event, OrderArrival)
+        for event in simulation.events
+    ) == 40
+    assert sum(
+        isinstance(event, FlushRemainingOrders)
+        for event in simulation.events
+    ) == 1
+    done, snapshot = simulation.run()
+    assert not done
+    result = decision_engine.solver_for("OBRP").solve(snapshot, action=None)
+    assert result is not None
+    solution, _, _ = result
+    assert isinstance(solution, CombinedRoutingSolution)
+    assert len(solution.routes) == 1
