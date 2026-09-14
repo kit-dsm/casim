@@ -1,7 +1,14 @@
 import copy
 from copy import deepcopy
 
-from ware_ops_algos.algorithms import Route, Job, WarehouseOrder, BatchObject, ScheduledJob
+from ware_ops_algos.algorithms import (
+    BatchObject,
+    NodeType,
+    Route,
+    RouteNode,
+    ScheduledJob,
+    WarehouseOrder,
+)
 from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources
 
 from .order_manager import OrderManager
@@ -44,8 +51,10 @@ class State:
             )
         self.statistics = []
         self.done_flag = False
+        self.input_closed = False
         self.is_break: bool = False
         self.active_objective = active_objective
+        self.active_batch_insertion_enabled = False
 
 
     def get_storage(self) -> StorageLocations:
@@ -100,4 +109,85 @@ class State:
         self.tour_manager.schedule_tour(tour_id,
                                         scheduled_job.start_time,
                                         scheduled_job.end_time)
+
+    def request_arrival_intervention(self):
+        """Request replanning of the first active tour at a safe boundary."""
+        if not self.active_batch_insertion_enabled:
+            return None
+        for tour in sorted(
+            self.tour_manager.active_tours(),
+            key=lambda value: value.tour_id,
+        ):
+            if tour.replan_requested or tour.intervention_event_pending:
+                continue
+            tour.replan_requested = True
+            if tour.is_travelling or tour.is_picking:
+                return None
+            tour.intervention_event_pending = True
+            return tour.tour_id, tour.assigned_resource, tour.route_version
+        return None
+
+    def tour_event_is_stale(
+        self, tour_id: int, route_version: int | None
+    ) -> bool:
+        if route_version is None:
+            return False
+        tour = self.tour_manager.all_tours.get(tour_id)
+        return tour is None or tour.route_version != route_version
+
+    def accept_intervention_request(
+        self, tour_id: int, route_version: int
+    ) -> bool:
+        tour = self.tour_manager.get_tour(tour_id)
+        return (
+            tour.route_version == route_version
+            and tour.status.value == "started"
+            and bool(self.order_manager.get_order_buffer())
+        )
+
+    def resume_active_tour(self, tour_id: int) -> int:
+        tour = self.tour_manager.get_tour(tour_id)
+        tour.replan_requested = False
+        tour.intervention_event_pending = False
+        return tour.route_version
+
+    def commit_active_plan(
+        self,
+        tour_id: int,
+        route: Route,
+        *,
+        picker_id: int,
+        expected_version: int,
+    ) -> int:
+        """Validate and atomically replace a node-boundary route suffix."""
+        tour = self.tour_manager.get_tour(tour_id)
+        if tour.route_version != expected_version:
+            return tour.route_version
+        if (
+            tour.assigned_resource != picker_id
+            or self.tour_manager.get_active_tour_for_picker(picker_id) is not tour
+        ):
+            raise ValueError("Replacement target is not the picker's active tour")
+        picker_position = self.resource_manager.get_resource(picker_id).current_location
+        if not isinstance(picker_position, RouteNode):
+            picker_position = RouteNode(picker_position, NodeType.ROUTE)
+
+        inserted_ids = set(route.batch.order_numbers) - set(tour.order_numbers)
+        missing = inserted_ids - {
+            order.order_id for order in self.order_manager.get_order_buffer()
+        }
+        if missing:
+            raise ValueError(
+                f"Insertion contains orders no longer buffered: {sorted(missing)}"
+            )
+        updated = self.tour_manager.replace_active_route(
+            tour_id,
+            route,
+            picker_position,
+        )
+        self.resource_manager.update_resource_location(
+            picker_id, updated.annotated_route[0]
+        )
+        self.order_manager.clear_order_buffer_by_ids(sorted(inserted_ids))
+        return updated.route_version
 

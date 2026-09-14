@@ -4,12 +4,11 @@ from typing import Callable, Type
 
 from tqdm import tqdm
 
-from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
-from casim.events.operational_events import OrderArrival, FlushRemainingOrders
+from casim.events.operational_events import OrderArrival
 from casim.loggers import EventLogger
 from casim.state import State
 from casim.simulation_engine.conditions import Condition
@@ -25,9 +24,10 @@ class SimulationEngine:
                  conditions_map: dict[str, Condition],
                  domain_cache_path: str,
                  loader_kwargs: dict,
-                 data_loader: DataLoader = None,
+                 data_loader=None,
                  reset_hook: Callable[['SimulationEngine'], None] = None,
-                 event_loggers: list[EventLogger] | None = None):
+                 event_loggers: list[EventLogger] | None = None,
+                 active_batch_insertion_enabled: bool = False):
 
         self.state_adapters = state_adapters
         self.state: State | None = None
@@ -39,6 +39,7 @@ class SimulationEngine:
         self.loader_kwargs = loader_kwargs
         self.event_loggers = event_loggers or []
         self._initial_domain = None
+        self.active_batch_insertion_enabled = active_batch_insertion_enabled
         if data_loader:
             self.data_loader = data_loader
 
@@ -55,6 +56,9 @@ class SimulationEngine:
             storage=domain.storage,
             resources=domain.resources,
             active_objective = domain.objective
+        )
+        self.state.active_batch_insertion_enabled = (
+            self.active_batch_insertion_enabled
         )
 
         for hook in (hooks or []):
@@ -91,13 +95,23 @@ class SimulationEngine:
             for el in self.event_loggers:
                 el.on_event(event, self)
 
+            if getattr(event, "cancelled", False):
+                continue
+
             if event.__class__ in self.triggers_map:
                 problem = self.triggers_map[event.__class__]
                 state_transformer = self.state_adapters[problem]
-                state_snapshot = state_transformer.transform_state(self.state, problem)
+                transform_event = getattr(
+                    state_transformer, "transform_event", None
+                )
+                if transform_event is None:
+                    state_snapshot = state_transformer.transform_state(
+                        self.state, problem
+                    )
+                else:
+                    state_snapshot = transform_event(self.state, event)
                 conditions = self.conditions_map.get(problem) or []
-                if (all(c.get_decision(state_snapshot) for c in conditions if c is not None) or
-                        isinstance(event, FlushRemainingOrders)):
+                if all(c.get_decision(state_snapshot) for c in conditions if c is not None):
                     return False, state_snapshot
 
             if not self.events and self.state.order_manager.get_order_buffer():

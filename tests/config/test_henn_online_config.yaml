@@ -23,3 +23,9 @@ experiment:
 viz:
   launch: true
   port: 8050
+
+henn:
+  waiting_policy: henn_4_1
+  selector: sav
+  fill_threshold: 0.75
+  max_age_s: 300.0

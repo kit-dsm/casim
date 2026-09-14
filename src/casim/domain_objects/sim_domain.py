@@ -17,6 +17,9 @@ class DynamicInfo(WarehouseInfo):
     done: bool = False
     is_break: bool = False
     n_staged_pallets: int = 0
+    replanning: str = "none"
+    active_tour_id: int | None = None
+    route_version: int | None = None
 
 
 class SimWarehouseDomain(BaseWarehouseDomain):

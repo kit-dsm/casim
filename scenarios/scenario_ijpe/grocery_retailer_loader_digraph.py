@@ -8,7 +8,6 @@ import pandas as pd
 from scipy.sparse.csgraph import floyd_warshall
 
 from ware_ops_algos.algorithms import Job, BatchObject, ScheduledJob
-from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import (
     Article, ArticleType, Articles,
     BoundingBox, DimensionType,
@@ -49,7 +48,7 @@ COL_HEIGHT = "height"
 COL_KOLLI_SIZE = "kolli_size"
 
 
-class WarehousePickingLoaderDigraph(DataLoader):
+class WarehousePickingLoaderDigraph:
     """Load a grocery retailer picking domain from a canonical order stream.
 
     Layout abstraction:
@@ -81,7 +80,7 @@ class WarehousePickingLoaderDigraph(DataLoader):
     MANUAL_CROSS_AISLE_Y: int | None = 28400
 
     def __init__(self, instances_dir: str | Path, cache_dir: str | Path = None, cfg=None):
-        super().__init__(instances_dir)
+        self.data_dir = Path(instances_dir)
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.cfg = cfg
 

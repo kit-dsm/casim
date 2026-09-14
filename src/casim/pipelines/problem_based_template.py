@@ -24,7 +24,6 @@ from ware_ops_algos.algorithms import (
     RoutingSolution,
     ItemAssignment, Scheduler, Job, build_jobs)
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import ConstraintEvaluator
-from ware_ops_algos.algorithms.order_splitting.order_splitting import OrderSplitting
 from ware_ops_algos.domain_models import (
     Articles,
     Resources,
@@ -142,7 +141,7 @@ class OrdersProvider(AbstractOrderProvider):
 
 
 class OrderSplitter(AbstractOrderProvider):
-    def _get_order_splitter(self) -> OrderSplitting:
+    def _get_order_splitter(self):
         ...
 
     def run(self):
@@ -297,106 +296,6 @@ class PickerRouting(AbstractPickerRouting):
         )
         dump_pickle(self.output()["routing_sol"].path, combined_sol)
 
-
-class HennWaitingPickerRouting(AbstractPickerRouting):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
-    item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
-
-    def _service_time(self, route, pick_positions) -> float:
-        resources = self._load_resources()
-        picker = resources.resources[0]
-
-        distance = route.distance
-
-        travel_speed = picker.speed
-        pick_time_per_item = picker.time_per_pick
-        setup_time = picker.tour_setup_time
-
-        n_items = sum(pos.in_store for pos in pick_positions)
-
-        return (
-            distance / travel_speed
-            + n_items * pick_time_per_item
-            + setup_time
-        )
-
-    def run(self):
-        router: Routing = self._get_inited_router()
-
-        batching_sol: BatchingSolution = load_pickle(
-            self.input()["batching_sol"]["batching_sol"].path
-        )
-
-        ia_sol: ItemAssignmentSolution = load_pickle(
-            self.input()["item_assignment_sol"]["item_assignment_sol"].path
-        )
-        resolved_by_id = {
-            o.order_id: o
-            for o in ia_sol.resolved_orders
-        }
-
-        routes = []
-        algo_name = None
-        execution_time = 0.0
-
-        single_order_service_time_cache: dict[int, float] = {}
-
-        for pl in batching_sol.pick_lists:
-            resolved_orders = [
-                resolved_by_id.get(o.order_id, o)
-                for o in pl.orders
-            ]
-            pl.orders = resolved_orders
-
-            router.reset_parameters()
-            routing_solution: RoutingSolution = router.solve(pl.pick_positions)
-
-            algo_name = routing_solution.algo_name
-            execution_time += routing_solution.execution_time
-
-            route = routing_solution.route
-            route.pick_list = pl
-
-            # st_j: service time of the whole candidate batch.
-            pl.service_time = self._service_time(
-                route=route,
-                pick_positions=pl.pick_positions,
-            )
-
-            # st_i: service time of each order if picked alone.
-            pl.single_order_service_times.clear()
-
-            for order in resolved_orders:
-                if order.order_id not in single_order_service_time_cache:
-                    router.reset_parameters()
-
-                    single_routing_solution: RoutingSolution = router.solve(
-                        order.pick_positions
-                    )
-
-                    execution_time += single_routing_solution.execution_time
-
-                    single_order_service_time_cache[order.order_id] = (
-                        self._service_time(
-                            route=single_routing_solution.route,
-                            pick_positions=order.pick_positions,
-                        )
-                    )
-
-                pl.single_order_service_times[order.order_id] = (
-                    single_order_service_time_cache[order.order_id]
-                )
-
-            routes.append(route)
-
-        combined_sol = CombinedRoutingSolution(
-            algo_name=f"{algo_name}_HennWaiting",
-            execution_time=execution_time,
-            routes=routes,
-        )
-
-        dump_pickle(self.output()["routing_sol"].path, combined_sol)
 
 # ─────────────────────────── Scheduling ─────────────────────────────────────
 

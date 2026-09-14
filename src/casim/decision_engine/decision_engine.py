@@ -33,26 +33,43 @@ class DecisionEngine:
     def get_solver(self, problem: str) -> CoSySolver:
         return self.solver_map[problem]
 
-    def on_trigger(self, state_snapshot: SimWarehouseDomain, action=None):
+    def solve(self, state_snapshot: SimWarehouseDomain, action=None):
+        """Solve one decision without changing simulation state."""
         problem = state_snapshot.problem_class
         runner = self.get_solver(problem)
-        start_time_sim = state_snapshot.dynamic_warehouse_info.time
         start_time = time.perf_counter()
-        solution, solver_name, objective_value = runner.solve(state_snapshot, action)
+        result = runner.solve(state_snapshot, action)
+        if result is None:
+            return None
+        solution, solver_name, objective_value = result
         elapsed = time.perf_counter() - start_time
-        if solution:
-            self.on_solution(
-                solution,
-                solver_name,
-                objective_value,
-                state_snapshot.objective,
-                state_snapshot.problem_class,
-                elapsed)
+        if solution is None:
+            return None
+        self.on_solution(
+            solution,
+            solver_name,
+            objective_value,
+            state_snapshot.objective,
+            problem,
+            elapsed,
+        )
+        return solution, solver_name, objective_value
 
-            policy = self.commitment_policies.get(problem) or CommitAllPolicy()
-            solution = policy.apply(solution, state_snapshot)
-            return self.solution_to_events(solution, start_time_sim), solution
-        return None
+    def commit(self, state_snapshot: SimWarehouseDomain, solution):
+        """Apply commitment policy and translate a decision into events."""
+        problem = state_snapshot.problem_class
+        policy = self.commitment_policies.get(problem) or CommitAllPolicy()
+        committed = policy.apply(solution, state_snapshot)
+        finish_time = state_snapshot.dynamic_warehouse_info.time
+        return self.solution_to_events(committed, finish_time), committed
+
+    def on_trigger(self, state_snapshot: SimWarehouseDomain, action=None):
+        """Compatibility path for scenarios that decide and commit at once."""
+        result = self.solve(state_snapshot, action)
+        if result is None:
+            return None
+        solution, _, _ = result
+        return self.commit(state_snapshot, solution)
 
     def on_solution(self, best_solution: AlgorithmSolution, solver_name, objective_value, objective, problem, elapsed):
         if isinstance(best_solution, CombinedRoutingSolution):

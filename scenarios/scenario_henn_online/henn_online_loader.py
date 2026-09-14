@@ -4,13 +4,12 @@ from typing import Any
 import networkx as nx
 import pandas as pd
 from scipy.sparse.csgraph import floyd_warshall
-from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import BaseWarehouseDomain, Order, Location, Article, PickCart, DimensionType, \
     ResourceType, Resource, Resources, OrdersDomain, OrderType, Articles, ArticleType, StorageLocations, StorageType, \
     LayoutData, LayoutType, LayoutNetwork, LayoutParameters, WarehouseInfoType, WarehouseInfo, OrderPosition
 
 
-class HennOnlineLoader(DataLoader):
+class HennOnlineLoader:
     def __init__(
             self,
             instances_dir: str | Path,
@@ -24,12 +23,19 @@ class HennOnlineLoader(DataLoader):
             cache_dir: Optional directory for caching parsed domains
             mirror_top_depot: If True, convert top-depot instances to bottom-depot via mirroring
         """
-        super().__init__(instances_dir)
+        self.data_dir = Path(instances_dir)
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.mirror_top_depot = mirror_top_depot
 
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _load_text(self, filename: str, encoding: str = "utf-8") -> list[str]:
+        path = Path(filename)
+        if not path.is_absolute():
+            path = self.data_dir / path
+        with path.open("r", encoding=encoding) as handle:
+            return [line.strip() for line in handle if line.strip()]
 
     def load(self, filepath: str, use_cache: bool = True) -> BaseWarehouseDomain:
         """
@@ -171,7 +177,9 @@ class HennOnlineLoader(DataLoader):
         Returns:
             BaseWarehouseDomain instance
         """
-        from ware_ops_algos.generators import ShelfStorageGraphGenerator
+        from ware_ops_algos.domain_models.layout.graph_generators import (
+            ShelfStorageGraphGenerator,
+        )
 
         header = parsed["header"]
         order_arrival_times = parsed["order_arrival_times"]

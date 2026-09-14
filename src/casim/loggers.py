@@ -130,7 +130,10 @@ class KPILogger(EventLogger):
 
 
         return {
-            "makespan": max(end for _, _, end, _, _, _, _, _ in t.completed_tours),
+            "makespan": max(
+                (end for _, _, end, _, _, _, _, _ in t.completed_tours),
+                default=0.0,
+            ),
             "num_tours": len(t.completed_tours),
             "num_orders_completed": total_orders,
             "avg_tour_makespan": t.average_tour_makespan,

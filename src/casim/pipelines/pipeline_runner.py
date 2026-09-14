@@ -89,7 +89,7 @@ class CoSySolver:
             maestro = Maestro(repo.cls_repo, repo.taxonomy)
             self.pipelines = list(maestro.query(endpoint_cls.target()))
             if self.verbose:
-                print(f"✓ Found {len(self.pipelines)} pipelines")
+                print(f"Found {len(self.pipelines)} pipelines")
         else:
             if self.verbose:
                 print("Using cached pipelines")

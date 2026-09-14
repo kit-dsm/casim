@@ -1,8 +1,8 @@
 decision_engine:
   problems:
-    OBRSP:
+    OBRP:
       solver:
-        _target_: casim.pipelines.pipeline_runner.CoSySolver
+        _target_: casim.pipelines.pipeline_runner.OnlineCoSySolver
         solution_ranker:
           _target_: casim.pipelines.solution_ranker.SolutionRanker
           objective: ${data_card.objective}
@@ -11,8 +11,9 @@ decision_engine:
         _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
 
 simulation_engine:
+  active_batch_insertion_enabled: true
   problems:
-    OBRSP:
+    OBRP:
       state_adapter:
         _target_: casim.simulation_engine.state_adapter.OrderWindowAdapter
       triggers: [OrderArrival, PickerIdle, FlushRemainingOrders]
@@ -20,4 +21,10 @@ simulation_engine:
         - _target_: casim.simulation_engine.conditions.NbrPickersCondition
           threshold: 1
         - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
-          threshold: 100
+          threshold: 1000
+    OBRP_ACTIVE:
+      state_adapter:
+        _target_: casim.simulation_engine.state_adapter.ActiveTourAdapter
+        problem_class: OBRP
+      triggers: [InterventionRequest]
+      conditions: []

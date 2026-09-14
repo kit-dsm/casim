@@ -1,7 +1,14 @@
 import logging
 from collections import defaultdict
+from copy import deepcopy
 
-from ware_ops_algos.algorithms import Route, NodeType, WarehouseOrder
+from ware_ops_algos.algorithms import (
+    NodeType,
+    PickPosition,
+    Route,
+    RouteNode,
+    WarehouseOrder,
+)
 
 from casim.domain_objects.tour_model import TourPlanningState, TourStates, Node
 
@@ -22,7 +29,7 @@ class TourManager:
 
         self._picker_history: dict[int, list[int]] = defaultdict(list)
 
-    def create_tour(self, route_plan: Route, processing_time: float) -> int:
+    def create_tour(self, route_plan: Route, processing_time: float = 0.0) -> int:
         """
         Create a new TourExecution from a routing plan for a given picker.
         Requires at least a route.
@@ -31,14 +38,19 @@ class TourManager:
         """
         self._tour_counter += 1
         tour_id = self._tour_counter
+        annotated_route = list(route_plan.annotated_route or [])
         new_tour = TourPlanningState(
             tour_id=tour_id,
             order_numbers=list(route_plan.batch.order_numbers),
             original_route=route_plan,
             batch=route_plan.batch,
             status=TourStates.PLANNED,
-            annotated_route=route_plan.annotated_route,
-            processing_time=processing_time
+            annotated_route=annotated_route,
+            processing_time=processing_time,
+            executed_route_prefix=(
+                [annotated_route[0]] if annotated_route else []
+            ),
+            remaining_picks=self._ordered_pick_positions(route_plan),
         )
 
         pick_nodes = [n for n in route_plan.annotated_route if n.node_type == NodeType.PICK]
@@ -47,6 +59,32 @@ class TourManager:
         self.all_tours[tour_id] = new_tour
         self._unassigned_tour_ids.add(tour_id)
         return tour_id
+
+    @staticmethod
+    def _ordered_pick_positions(route: Route) -> list[PickPosition]:
+        positions_by_node: dict[tuple, list[PickPosition]] = defaultdict(list)
+        for position in route.batch.pick_positions:
+            positions_by_node[position.pick_node].append(position)
+        for positions in positions_by_node.values():
+            positions.sort(key=lambda value: (
+                value.order_number,
+                value.article_id,
+                value.amount,
+            ))
+
+        ordered = []
+        for node in route.annotated_route or []:
+            if node.node_type != NodeType.PICK:
+                continue
+            candidates = positions_by_node.get(node.position, [])
+            if not candidates:
+                raise ValueError(
+                    f"Route pick {node.position} has no matching PickPosition"
+                )
+            ordered.append(candidates.pop(0))
+        if any(positions_by_node.values()):
+            raise ValueError("Route omits one or more batch pick positions")
+        return ordered
 
     def assign_tour(self, tour_id: int, picker_id: int):
         """
@@ -133,6 +171,95 @@ class TourManager:
                                            f"active tour id should be {tour_id} but is {active_tour_id}")
         self._active_picker_tour[picker_id] = None
         self._picker_history[picker_id].append(tour_id)
+
+    def active_tours(self) -> list[TourPlanningState]:
+        return [
+            self.all_tours[tour_id]
+            for tour_id in self._active_picker_tour.values()
+            if tour_id is not None
+        ]
+
+    def get_active_tour_for_picker(
+        self, picker_id: int
+    ) -> TourPlanningState | None:
+        tour_id = self._active_picker_tour.get(picker_id)
+        return self.all_tours.get(tour_id) if tour_id is not None else None
+
+    def confirm_next_pick(self, tour_id: int) -> PickPosition:
+        tour = self.get_tour(tour_id)
+        if not tour.remaining_picks:
+            raise ValueError(f"Tour {tour_id} has no remaining pick")
+        pick = tour.remaining_picks.pop(0)
+        if pick.pick_node != tour.current_node().position:
+            raise ValueError("Next pick does not match the current route node")
+        tour.completed_picks.append(pick)
+        tour.pick_started_at = None
+        tour.pick_ends_at = None
+        return pick
+
+    def replace_active_route(
+        self,
+        tour_id: int,
+        route: Route,
+        current_position: RouteNode,
+    ) -> TourPlanningState:
+        """Atomically replace an active tour's unexecuted suffix."""
+        tour = self.get_tour(tour_id)
+        if tour.status != TourStates.STARTED:
+            raise ValueError(f"Tour {tour_id} is not active")
+        if not route.annotated_route:
+            raise ValueError("Replacement route has no executable nodes")
+        if route.annotated_route[0].position != current_position.position:
+            raise ValueError("Replacement route starts away from the picker")
+
+        old_ids = set(tour.order_numbers)
+        new_ids = set(route.batch.order_numbers)
+        if not old_ids.issubset(new_ids):
+            raise ValueError("Replacement removed an active-tour order")
+        replacement_picks = self._ordered_pick_positions(route)
+        inserted_orders = [
+            deepcopy(order)
+            for order in route.batch.orders
+            if order.order_id not in old_ids
+        ]
+        expected = sorted(
+            [
+                *tour.remaining_picks,
+                *[
+                    pick
+                    for order in inserted_orders
+                    for pick in order.pick_positions
+                ],
+            ],
+            key=self._pick_key,
+        )
+        if sorted(replacement_picks, key=self._pick_key) != expected:
+            raise ValueError("Replacement changed the unexecuted picks")
+
+        # All validation happens before this mutation block.
+        tour.batch.orders.extend(inserted_orders)
+        tour.order_numbers = list(tour.batch.order_numbers)
+        tour.route_version += 1
+        tour.annotated_route = list(route.annotated_route)
+        tour.cursor = 0
+        tour.remaining_picks = replacement_picks
+        tour.edge_origin = None
+        tour.edge_destination = None
+        tour.edge_distance = None
+        tour.edge_started_at = None
+        tour.edge_arrives_at = None
+        tour.replan_requested = False
+        tour.intervention_event_pending = False
+        return tour
+
+    @staticmethod
+    def _pick_key(pick: PickPosition):
+        return (
+            pick.order_number,
+            pick.article_id,
+            pick.pick_node,
+            pick.amount,
+        )
 
     def remove_canceled_tour_for_picker(self, picker_id, tour_id):
         picker_tour_queue = self._picker_tour_queues[picker_id]

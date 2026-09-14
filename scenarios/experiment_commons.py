@@ -3,7 +3,6 @@ from typing import Type
 
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import DataCard
 
 from casim.decision_engine.decision_engine import DecisionEngine
@@ -11,10 +10,11 @@ from casim.events.base_events import Event
 from casim.loggers import KPILogger
 from casim.events.decision_events import RoutingDone, PickListDone
 from casim.events.operational_events import OrderArrival, PickerArrival, PickerTourQuery, PickerIdle, TourEnd, \
-    ShiftStart, FlushRemainingOrders, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion
+    ShiftStart, FlushRemainingOrders, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion, \
+    InterventionRequest
 from casim.simulation_engine.simulation_engine import SimulationEngine
 
-LOADER_REGISTRY: dict[str, Type[DataLoader]] = {}
+LOADER_REGISTRY: dict[str, type] = {}
 
 try:
     from scenarios.scenario_henn_online.henn_online_loader import HennOnlineLoader
@@ -55,7 +55,8 @@ EVENT_REGISTRY: dict[str, Type[Event]]  = {
     "WMSRun": WMSRun,
     "TruckDisruption": TruckDisruption,
     "VolumeShiftAcrossDay": VolumeShiftAcrossDay,
-    "OrderIngestion": OrderIngestion
+    "OrderIngestion": OrderIngestion,
+    "InterventionRequest": InterventionRequest,
 }
 
 
@@ -92,7 +93,7 @@ def load_and_flatten_data_card(raw) -> DataCard:
         warehouse_info=section(raw.get("warehouse_info", {})),
     )
 
-def build_data_loader(cfg: DictConfig) -> DataLoader:
+def build_data_loader(cfg: DictConfig):
     data_loader_cls = cfg.data_card.source.data_loader
     data_loader = LOADER_REGISTRY[data_loader_cls](
         instances_dir=Path(cfg.instances_base) /
@@ -103,7 +104,7 @@ def build_data_loader(cfg: DictConfig) -> DataLoader:
 def build_solvers(cfg):
     solver_map = {}
 
-    for problem_key, problem_cfg in cfg.engines.decision_engine.problems.items():
+    for problem_key, problem_cfg in cfg.scenario.decision_engine.problems.items():
         solver_map[problem_key] = instantiate(
             problem_cfg.solver,
             problem_class=problem_key,
@@ -120,7 +121,7 @@ def build_solvers(cfg):
 def build_commitment_policies(cfg):
     return {
         problem_key: instantiate(problem_cfg.commitment_policy)
-        for problem_key, problem_cfg in cfg.engines.decision_engine.problems.items()
+        for problem_key, problem_cfg in cfg.scenario.decision_engine.problems.items()
     }
 
 def build_state_adapters(cfg: DictConfig) -> dict:
@@ -167,7 +168,7 @@ def setup_scenario(cfg: DictConfig) -> SimulationEngine:
     instances_dir = Path(cfg.instances_base)
     cache_path = Path(cfg.cache_base) / "dynamic_info.pkl"
 
-    state_adapters, conditions_map, triggers_map = build_simulation_problems(cfg.engines)
+    state_adapters, conditions_map, triggers_map = build_simulation_problems(cfg.scenario)
 
     loader = build_data_loader(cfg)
     loader_kwargs = {
@@ -188,4 +189,9 @@ def setup_scenario(cfg: DictConfig) -> SimulationEngine:
         triggers_map=triggers_map,
         conditions_map=conditions_map,
         event_loggers=event_loggers,
+        active_batch_insertion_enabled=bool(
+            cfg.scenario.simulation_engine.get(
+                "active_batch_insertion_enabled", False
+            )
+        ),
     )
