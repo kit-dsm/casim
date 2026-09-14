@@ -1,8 +1,0 @@
-# @package _global_
-hydra:
-  mode: MULTIRUN
-  sweeper:
-    params:
-      cosy_repo: return, midpoint, largest_gap, nearest_neighbour, sshape, adaptive_routing
-      data_card.objective: makespan
-      scenario.simulation_engine.problems.ORSP.conditions.2.threshold: 98
