@@ -1,15 +1,53 @@
-"""Test that StochasticWaitingOptimizer works with casim domain objects."""
+"""Test that StochasticWaitingOptimizer works with casim domain objects.
+
+Two test groups:
+1. End-to-end: build WaitingAnalysisInput from a real Henn simulation
+   snapshot and verify the optimizer produces a valid WaitingSolution.
+2. Benchmark: construct the exact validate_a128 instance (Route A = (1,2,8))
+   from ware_ops_algos domain objects, run through the adapter and
+   StochasticWaitingOptimizer, and check E[D] against Mathematica reference
+   values to 1e-9 precision.
+"""
 
 from pathlib import Path
 
 import pytest
 from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
-from ware_ops_algos.algorithms import CombinedRoutingSolution
+from ware_ops_algos.algorithms import (
+    BatchObject,
+    CombinedRoutingSolution,
+    PickPosition,
+    Route,
+    WarehouseOrder,
+)
 from ware_ops_algos.algorithms.waiting import (
     StochasticWaitingOptimizer,
     WaitingAnalysisInput,
     WaitingSolution,
+)
+from ware_ops_algos.algorithms.waiting.stochastic_waiting import (
+    _build_warehouse_instance,
+)
+from ware_ops_algos.algorithms.waiting.analytic_progress.core import (
+    compute_segment_times,
+    theoretical_route_duration,
+)
+from ware_ops_algos.algorithms.waiting.analytic_progress.continuous_calculation import (
+    continuous_expected_detour,
+)
+from ware_ops_algos.domain_models import (
+    DimensionType,
+    LayoutData,
+    LayoutNetwork,
+    LayoutParameters,
+    LayoutType,
+    PickCart,
+    Resource,
+    Resources,
+    ResourceType,
+    StorageLocations,
+    StorageType,
 )
 from ware_ops_algos.domain_models import load_and_flatten_data_card
 
@@ -32,6 +70,9 @@ def _compose(*overrides):
             config_name="henn_config",
             overrides=list(overrides),
         )
+
+
+# ──────────────────────── End-to-end test ────────────────────────────
 
 
 def test_stochastic_waiting_optimizer_produces_decision(tmp_path):
@@ -97,3 +138,165 @@ def test_stochastic_waiting_optimizer_produces_decision(tmp_path):
     assert result_solution.predicted_completion_time > 0
     assert result_solution.initial_completion_time > 0
     assert result_solution.expected_detour >= 0
+
+
+# ─────────────────── Benchmark: validate_a128 ────────────────────────
+# Instance: Route A = (1, 2, 8), M=8, N_L=17, w=1.0, L=17.0, v=1.0, t_p=0.0
+# Reference values from project_4D4L validate_a128.py (Mathematica).
+
+TOL = 1e-9
+
+# E[D] spot-checks: (absolute_t, expected_E_D, label)
+# Exact rational values from Mathematica derivation.
+SPOT_CHECKS = [
+    (25.0, 289 / 136, "phase_2_vertical:8-25 s=17"),
+    (31.0, 59 / 8, "phase_3_horizontal:25-31 s=6"),
+    (48.0, 13.75, "phase_2_vertical:31-48 s=17"),
+    (66.0, 15.5, "phase_n_2_ret_up:49-66 s=17"),
+    (83.0, 147 / 4 + 289 / 136, "phase_n_1_ret_down:66-83 s=17"),
+]
+
+
+def _make_a128_domain():
+    """Build the validate_a128 benchmark instance from domain objects.
+
+    The adapter (_build_warehouse_instance) converts these to the internal
+    WarehouseInstance.  We construct minimal LayoutData + Resource +
+    WarehouseOrder objects that produce the same (M, N_L, w, L, v, t_p,
+    A, n_list, P) as the original WarehouseInstance(M=8, N_L=17, ...).
+    """
+    params = LayoutParameters(
+        n_aisles=8,
+        n_pick_locations=17,
+        n_blocks=1,
+        dist_top_to_pick_location=0.0,
+        dist_bottom_to_pick_location=0.0,
+        dist_pick_locations=1.0,
+        dist_aisle=1.0,
+        dist_start=0.0,
+        start_location=(0, 0),
+    )
+    layout = LayoutData(tpe=LayoutType.CONVENTIONAL, graph_data=params)
+    picker = Resource(
+        id=0,
+        speed=1.0,
+        time_per_pick=0.0,
+        tour_setup_time=0.0,
+    )
+    picker.available_at = 0.0
+
+    orders = []
+    for aisle in (1, 2, 8):
+        pp = PickPosition(
+            order_number=aisle,
+            article_id=aisle,
+            amount=1,
+            pick_node=(aisle, 1),
+            in_store=1,
+        )
+        order = WarehouseOrder(
+            order_id=aisle,
+            order_date=0.0,
+            pick_positions=(pp,),
+        )
+        orders.append(order)
+
+    return layout, picker, orders
+
+
+def test_a128_adapter_produces_correct_warehouse_instance():
+    """The adapter from domain objects to WarehouseInstance must
+    reproduce the exact benchmark parameters."""
+    layout, picker, orders = _make_a128_domain()
+    inst = _build_warehouse_instance(layout, picker, orders)
+
+    assert inst.M == 8
+    assert inst.N_L == 17
+    assert inst.w == 1.0
+    assert inst.L == 17.0
+    assert inst.v == 1.0
+    assert inst.t_p == 0.0
+    assert inst.A == [1, 2, 8]
+    assert inst.n_list == [1, 1, 1]
+    assert inst.k == 3
+    assert inst.n_ges == 3
+    assert (1, 1) in inst.P
+    assert (2, 1) in inst.P
+    assert (8, 1) in inst.P
+
+
+def test_a128_route_duration():
+    """T_end = 84.0 for the benchmark instance."""
+    layout, picker, orders = _make_a128_domain()
+    inst = _build_warehouse_instance(layout, picker, orders)
+    assert theoretical_route_duration(inst) == pytest.approx(84.0, abs=TOL)
+
+
+def test_a128_segment_times():
+    """Segment times match all 8 phase boundaries exactly."""
+    layout, picker, orders = _make_a128_domain()
+    inst = _build_warehouse_instance(layout, picker, orders)
+    T_in, T_out, T_end = compute_segment_times(inst)
+
+    assert T_end == pytest.approx(84.0, abs=TOL)
+    assert T_in[3] == pytest.approx(8.0, abs=TOL)
+    assert T_out[3] == pytest.approx(25.0, abs=TOL)
+    assert T_in[2] == pytest.approx(31.0, abs=TOL)
+    assert T_out[2] == pytest.approx(48.0, abs=TOL)
+    assert T_in[1] == pytest.approx(49.0, abs=TOL)
+    assert T_out[1] == pytest.approx(83.0, abs=TOL)
+
+
+@pytest.mark.parametrize(
+    ("t", "expected", "label"),
+    SPOT_CHECKS,
+    ids=[s[2] for s in SPOT_CHECKS],
+)
+def test_a128_continuous_ed_matches_reference(t, expected, label):
+    """Continuous E[D] at spot-check points matches Mathematica values
+    to 1e-9, running through the full adapter chain from domain objects."""
+    layout, picker, orders = _make_a128_domain()
+    inst = _build_warehouse_instance(layout, picker, orders)
+    T_in, T_out, T_end = compute_segment_times(inst)
+    t_clamped = min(t, T_end)
+    result = continuous_expected_detour(t_clamped, inst, T_in, T_out)
+    assert result.expected_detour == pytest.approx(expected, abs=TOL), (
+        f"{label}: t={t}, expected E[D]={expected:.9f}, "
+        f"got {result.expected_detour:.9f}"
+    )
+
+
+def test_a128_optimizer_runs_through_adapter():
+    """The StochasticWaitingOptimizer must run end-to-end on the
+    benchmark instance, producing a valid WaitingSolution via
+    the domain-object adapter."""
+    layout, picker, orders = _make_a128_domain()
+    base_orders = orders[:-1]
+    insert_order = orders[-1]
+
+    batch = BatchObject(batch_id=0, orders=base_orders)
+    route = Route(
+        distance=84.0,
+        batch=batch,
+    )
+
+    analysis_input = WaitingAnalysisInput(
+        layout=layout,
+        picker=picker,
+        base_orders=base_orders,
+        insert_order=insert_order,
+        base_route=route,
+        current_time=0.0,
+        expected_interarrival=28.8,
+    )
+
+    optimizer = StochasticWaitingOptimizer(engine="continuous")
+    result = optimizer.solve(analysis_input)
+
+    assert isinstance(result, WaitingSolution)
+    assert result.algo_name == "StochasticWaiting"
+    assert result.execution_time > 0
+    assert isinstance(result.should_wait, bool)
+    assert result.engine == "continuous"
+    assert result.predicted_completion_time > 0
+    assert result.initial_completion_time > 0
