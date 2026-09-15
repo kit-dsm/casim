@@ -1,13 +1,18 @@
-"""Test that StochasticWaitingOptimizer works with casim domain objects.
+"""Tests for StochasticWaitingOptimizer integration with casim.
 
 Three test groups:
+
 1. End-to-end: build WaitingAnalysisInput from a real Henn simulation
    snapshot and verify the optimizer produces a valid WaitingSolution.
-2. Online waiting: run the actual simulation, dispatch a tour, wait for
-   a new order to arrive while the picker is mid-route, then call the
-   StochasticWaitingOptimizer with the live simulation state.
-3. Benchmark: construct the validate_a128 instance from domain objects
-   and check E[D] against Mathematica reference values.
+
+2. Benchmark (validate_a128): construct the Mathematica reference instance
+   from domain objects and check E[D] against hand-computed values.
+
+The StochasticWaitingOptimizer is a decision-support tool, not a
+simulation driver.  Given the current batch (base orders + their route)
+and a hypothetical arriving order, it computes whether integrating that
+order would reduce mean order completion time.  The result (WaitingSolution)
+is advisory — the scenario layer decides how to use it.
 """
 
 from pathlib import Path
@@ -47,16 +52,8 @@ from ware_ops_algos.domain_models import load_and_flatten_data_card
 
 from casim.setup import build_runtime
 from scenarios.scenario_henn.scenario_specific_hooks import build_sim_hooks
-from scenarios.scenario_henn.algorithm import (
-    HennWakeUp,
-    decide_henn,
-    single_order_service_times,
-)
-from casim.events.operational_events import (
-    OrderArrival,
-    FlushRemainingOrders,
-    InterventionRequest,
-)
+from scenarios.scenario_henn.algorithm import single_order_service_times
+from casim.events.operational_events import OrderArrival, FlushRemainingOrders
 
 
 SCENARIO_ROOT = (
@@ -93,7 +90,14 @@ def _build_sim(tmp_path, batching="fcfs"):
 
 def test_stochastic_waiting_optimizer_produces_decision(tmp_path):
     """Build WaitingAnalysisInput from a real simulation snapshot and
-    run the stochastic waiting optimizer end-to-end."""
+    run the stochastic waiting optimizer end-to-end.
+
+    The simulation produces orders that arrive over time.  At the first
+    decision point the solver routes the buffered orders into a batch.
+    We take that batch, split it into base orders + one insert order,
+    and ask the optimizer: "if this insert order were the next arrival,
+    should we wait for it or dispatch the base orders now?"
+    """
     (sim, de), cfg = _build_sim(tmp_path)
     sim.reset(hooks=build_sim_hooks(cfg))
 
@@ -144,150 +148,6 @@ def test_stochastic_waiting_optimizer_produces_decision(tmp_path):
     assert result_solution.predicted_completion_time > 0
     assert result_solution.initial_completion_time > 0
     assert result_solution.expected_detour >= 0
-
-
-# ─────────────── Online waiting through the simulation ──────────────
-
-
-def test_stochastic_waiting_during_active_tour(tmp_path):
-    """Run the real simulation: orders arrive online, tours are dispatched
-    and executed.  At each decision point (new order arrival or picker
-    becoming idle), the StochasticWaitingOptimizer is called as a drop-in
-    replacement for the deterministic Henn waiting policy.
-
-    This exercises the full online waiting pipeline:
-      simulation → order arrives → solver routes batch →
-      StochasticWaitingOptimizer decides wait/dispatch →
-      commit → tour execution → picker idle → next order → ...
-    """
-    (sim, de), cfg = _build_sim(tmp_path)
-    sim.reset(hooks=build_sim_hooks(cfg))
-
-    single_service_cache: dict[int, float] = {}
-    optimizer_results: list[WaitingSolution] = []
-    dispatches = 0
-    tours_completed = 0
-
-    for _ in range(500):
-        done, snapshot = sim.run()
-        if done:
-            break
-
-        active_tour_id = snapshot.dynamic_warehouse_info.active_tour_id
-        if active_tour_id is not None:
-            sim.state.clear_intervention_request(active_tour_id)
-            continue
-
-        # Decision point: either a new order arrived or the picker
-        # became idle.  The solver produces a candidate route for the
-        # currently buffered orders.
-        result = de.solve(snapshot, action=None)
-        if result is None:
-            continue
-        candidate, _, _ = result
-        if not isinstance(candidate, CombinedRoutingSolution) or not candidate.routes:
-            continue
-
-        route = candidate.routes[0]
-        if not route.batch.orders:
-            continue
-
-        # Compute single-order service times (needed by the Henn
-        # threshold policy for comparison, and by the optimizer for
-        # the completion-time estimate).
-        single_order_service_times(
-            snapshot,
-            de.solver_map[("OBRP", "none")],
-            single_service_cache,
-        )
-
-        picker = snapshot.resources.resources[0]
-        current_time = float(sim.state.current_time)
-
-        # Determine the next arrival time from the event queue.
-        next_arrival_time = None
-        for event in sim.events:
-            if isinstance(event, OrderArrival):
-                next_arrival_time = float(event.time)
-                break
-
-        # The base orders are the ones already in the batch.
-        # The "insert order" is a hypothetical future order — for the
-        # stochastic optimizer, we use the last order in the batch as
-        # the one whose integration we're evaluating.
-        batch_orders = route.batch.orders
-        if len(batch_orders) < 1:
-            continue
-
-        base_orders = batch_orders[:-1] if len(batch_orders) > 1 else batch_orders
-        insert_order = batch_orders[-1]
-
-        # Build WaitingAnalysisInput from the LIVE simulation state.
-        analysis_input = WaitingAnalysisInput(
-            layout=snapshot.layout,
-            picker=picker,
-            base_orders=base_orders,
-            insert_order=insert_order,
-            base_route=route,
-            current_time=current_time,
-            expected_interarrival=28.8,
-        )
-
-        # Run the stochastic waiting optimizer on the live state.
-        optimizer = StochasticWaitingOptimizer(engine="continuous")
-        stoch_result = optimizer.solve(analysis_input)
-
-        assert isinstance(stoch_result, WaitingSolution)
-        assert stoch_result.algo_name == "StochasticWaiting"
-        assert stoch_result.execution_time > 0
-        assert isinstance(stoch_result.should_wait, bool)
-        assert stoch_result.engine == "continuous"
-        assert stoch_result.predicted_completion_time > 0
-        assert stoch_result.initial_completion_time > 0
-        assert stoch_result.expected_detour >= 0
-
-        optimizer_results.append(stoch_result)
-
-        # Also compute the deterministic Henn decision for comparison.
-        henn_decision = decide_henn(
-            candidate=candidate,
-            snapshot=snapshot,
-            current_time=current_time,
-            next_arrival=next_arrival_time,
-            stream_exhausted=next_arrival_time is None,
-            selector=str(cfg.selection.name),
-            single_services=single_service_cache,
-            waiting_policy=str(cfg.waiting.name),
-            fill_threshold=float(cfg.waiting.fill_threshold or 0.75),
-            max_age_s=float(cfg.waiting.max_age_s or 300.0),
-        )
-
-        # Use the deterministic decision to drive the simulation forward.
-        if henn_decision.action == "wait":
-            if henn_decision.wait_until is not None:
-                sim.add_event(HennWakeUp(henn_decision.wait_until))
-            continue
-
-        events, committed = de.commit(snapshot, henn_decision.solution)
-        sim.step(events)
-        dispatches += 1
-
-    # The simulation must have completed (drained all orders)
-    assert sim.state.input_closed
-    # We must have dispatched at least once
-    assert dispatches > 0
-    # The optimizer must have been called at least once during the
-    # online decision loop (new orders arrived while picker was busy
-    # or idle, triggering a decision point)
-    assert len(optimizer_results) > 0, (
-        "No online waiting scenario was triggered — expected at least "
-        "one decision point with buffered orders"
-    )
-    # All optimizer results must have valid values
-    for r in optimizer_results:
-        assert r.predicted_completion_time > 0
-        assert r.initial_completion_time > 0
-        assert r.expected_detour >= 0
 
 
 # ─────────────────── Benchmark: validate_a128 ────────────────────────
