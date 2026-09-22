@@ -6,7 +6,7 @@ import numpy as np
 from omegaconf import DictConfig
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
-from casim.events.operational_events import PickerArrival
+from casim.events.operational_events import OrderStreamClosed, PickerArrival
 from casim.simulation_engine.simulation_engine import SimulationEngine
 from casim.viz.app import launch
 from scenarios.experiment_commons import setup_scenario, setup_decision_engine, load_and_flatten_data_card
@@ -34,6 +34,7 @@ def add_orders_hook(sim: SimulationEngine,
     orders = domain.orders.orders
     for order in orders:
         sim.add_order(order)
+    sim.add_event(OrderStreamClosed(max(order.order_date for order in orders)))
 
 
 @hydra.main(config_path="config", config_name="henn_online_config")

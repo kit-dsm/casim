@@ -1,7 +1,7 @@
 defaults:
   - data_card: henn
   - cosy_repo: baseline_waiting_henn
-  - scenario: test_scenario
+  - engines: test_scenario
   - _self_
 
 project_root: ${oc.env:PROJECT_ROOT}

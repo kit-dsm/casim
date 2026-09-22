@@ -171,7 +171,7 @@ class HennOnlineLoader(DataLoader):
         Returns:
             BaseWarehouseDomain instance
         """
-        from ware_ops_algos.generators import ShelfStorageGraphGenerator
+        from ware_ops_algos.domain_models import ShelfStorageGraphGenerator
 
         header = parsed["header"]
         order_arrival_times = parsed["order_arrival_times"]
@@ -368,7 +368,7 @@ class HennOnlineLoader(DataLoader):
             else "OBRP"
         )
 
-        warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.OFFLINE)
+        warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE)
 
         return BaseWarehouseDomain(
             problem_class=problem_class,

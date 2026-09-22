@@ -1,4 +1,4 @@
-from ware_ops_algos.algorithms import AlgorithmSolution, SchedulingSolution, BatchingSolution
+from ware_ops_algos.algorithms import RoutingOrigin
 from ware_ops_algos.domain_models import Resources, WarehouseInfoType, ResourceType, OrdersDomain, OrderType, Order, \
     OrderPosition
 
@@ -14,32 +14,9 @@ class StateAdapter:
     def transform_state(self, state: State, problem: str):
         pass
 
-    def cleanup_state(self, state: State, solution: AlgorithmSolution):
-        pass
-
-
 class HennWaitingAdapter(StateAdapter):
-    def __init__(self):
-        super().__init__()
-        self.state_snapshot = None
-
     def transform_state(self, state: State, problem: str):
         buffered_orders = state.order_manager.get_order_buffer()
-
-        active_or_scheduled_tours = []
-        all_tours = state.tour_manager.all_tours
-        for tour_id, tour in all_tours.items():
-            if tour.status in [TourStates.SCHEDULED,
-                               TourStates.PENDING,
-                               TourStates.ASSIGNED]:
-                active_or_scheduled_tours.append(tour)
-
-        # collect raw orders from unstarted tours
-        for t in active_or_scheduled_tours:
-            for oid in t.order_numbers:
-                order = state.order_manager.get_order_from_history(oid)
-                buffered_orders.append(order)
-        # orders to be considered -> newly arrived + orders from pending tours
         orders = OrdersDomain(tpe=OrderType.STANDARD, orders=buffered_orders)
         for o in buffered_orders:
             assert isinstance(o, Order)
@@ -74,28 +51,81 @@ class HennWaitingAdapter(StateAdapter):
             storage=state.get_storage(),
             dynamic_warehouse_info=warehouse_info
         )
-        self.state_snapshot = dynamic_information
         return dynamic_information
 
-    def cleanup_state(self, state: State, solution: SchedulingSolution):
-        input_orders = {}
-        for o in self.state_snapshot.orders.orders:
-            input_orders[o.order_id] = o
 
-        orders = []
-        for j in solution.jobs:
-            for o_id in j.route.batch.order_numbers:
-                orders.append(input_orders[o_id])
-            state.add_sequencing_to_planning_state(j)
-        state.order_manager.clear_order_buffer(orders)
-        print(f"Garbage Collected {len(orders)} orders")
+class ActiveTourAdapter(StateAdapter):
+    """Project visible new orders and the unpicked suffix of one active tour."""
+
+    def transform_state(self, state: State, problem: str):
+        new_orders = state.order_manager.get_order_buffer()
+        if not new_orders:
+            return None
+        if len(state.resource_manager.get_resources().resources) != 1:
+            return None
+        active = [tour for tour in state.tour_manager.all_tours.values()
+                  if tour.status == TourStates.STARTED and tour.picking_until is None]
+        if len(active) != 1:
+            return None
+        tour = active[0]
+        picker = state.resource_manager.get_resource(tour.assigned_resource)
+        cart = picker.pick_cart
+        if cart and not cart.box_can_mix_orders:
+            available = cart.n_boxes or len(cart.capacities or [])
+            if len(set(tour.cart_bins.values())) >= available:
+                return None
+
+        orders = list(new_orders)
+        for order_id in tour.order_numbers:
+            picks = [pick for pick in tour.remaining_picks if pick.order_number == order_id]
+            if not picks:
+                continue
+            known = state.order_manager.get_order_from_history(order_id)
+            orders.append(Order(
+                order_id=order_id,
+                order_date=known.order_date,
+                due_date=known.due_date,
+                order_positions=[OrderPosition(
+                    order_number=order_id,
+                    article_id=pick.article_id,
+                    amount=pick.amount,
+                ) for pick in picks],
+            ))
+
+        position = tour.position_at(state.current_time)
+        if tour.edge_destination is not None and state.current_time < tour.edge_end_time:
+            duration = tour.edge_end_time - tour.edge_start_time
+            fraction = 1.0 if duration == 0 else (state.current_time - tour.edge_start_time) / duration
+            origin = RoutingOrigin(
+                position=position,
+                edge_destination=tour.edge_destination.position,
+                distance_to_destination=tour.edge_distance * (1.0 - fraction),
+            )
+        else:
+            origin = RoutingOrigin(position=position)
+        dynamic = DynamicInfo(
+            tpe=WarehouseInfoType.ONLINE,
+            time=state.current_time,
+            current_picker=picker,
+            active_tours=[tour],
+            active_tour_id=tour.tour_id,
+            active_route_version=tour.route_version,
+            routing_origin=origin,
+            done=state.done_flag,
+        )
+        return SimWarehouseDomain(
+            problem_class=problem,
+            objective=state.active_objective,
+            layout=state.layout_manager.get_layout(),
+            orders=OrdersDomain(tpe=OrderType.STANDARD, orders=orders),
+            resources=Resources(ResourceType.HUMAN, [picker]),
+            articles=state.storage_manager.get_articles(),
+            storage=state.get_storage(),
+            dynamic_warehouse_info=dynamic,
+        )
 
 
 class OrderWindowAdapter(StateAdapter):
-    def __init__(self):
-        super().__init__()
-        self.state_snapshot = None
-
     def transform_state(self, state: State, problem: str):
         buffered_orders = state.order_manager.get_order_buffer()
 
@@ -131,23 +161,7 @@ class OrderWindowAdapter(StateAdapter):
             storage=state.get_storage(),
             dynamic_warehouse_info=warehouse_info
         )
-        self.state_snapshot = dynamic_information
         return dynamic_information
-
-    def cleanup_state(self, state: State, solution: SchedulingSolution):
-        input_orders = {}
-        for o in self.state_snapshot.orders.orders:
-            input_orders[o.order_id] = o
-
-        orders = []
-        for j in solution.jobs:
-            for o_id in j.route.batch.order_numbers:
-                orders.append(input_orders[o_id])
-            state.add_sequencing_to_planning_state(j)
-        state.order_manager.clear_order_buffer(orders)
-        print(f"Garbage Collected {len(orders)} orders")
-
-
 
 class ORSPAdapter(StateAdapter):
     def __init__(self):
@@ -200,16 +214,6 @@ class ORSPAdapter(StateAdapter):
 
         return dynamic_information
 
-    def cleanup_state(self, state: State, solution: SchedulingSolution):
-        pls = []
-        for j in solution.jobs:
-            pls.append(j.job.route.batch)
-            state.add_sequencing_to_planning_state(j)
-        state.order_manager.clear_pick_list_buffer(pls)
-        # picker_id = solution.jobs[0].picker_id
-        # state.resource_manager.mark_picker_occupied(picker_id)
-        print(f"Garbage Collected {len(pls)} batches")
-
 class ReORSPAdapter(StateAdapter):
     def __init__(self):
         super().__init__()
@@ -218,9 +222,8 @@ class ReORSPAdapter(StateAdapter):
 
     def transform_state(self, state: State, problem: str):
         layout = state.layout_manager.get_layout()
-        buffered_pls = state.order_manager.get_pick_list_buffer()  ## this should contain stuff
+        buffered_pls = state.order_manager.get_pick_list_buffer()
         scheduled_tours = []
-        batches = []
         all_tours = state.tour_manager.all_tours
         for tour_id, tour in all_tours.items():  # collect all unstarted unfinished tours, STARTED and PENDING are executed as planned
             if tour.status not in [TourStates.STARTED,
@@ -228,7 +231,6 @@ class ReORSPAdapter(StateAdapter):
                                    TourStates.CANCELLED,
                                    TourStates.PENDING]:
                 scheduled_tours.append(tour)
-                tour.status = TourStates.CANCELLED
                 buffered_pls.append(tour.batch)
 
         n_staged_pallets = 0
@@ -265,16 +267,6 @@ class ReORSPAdapter(StateAdapter):
         )
 
         return dynamic_information
-
-    def cleanup_state(self, state: State, solution: SchedulingSolution):
-        pls = []
-        for j in solution.jobs:
-            pls.append(j.job.route.batch)
-            state.add_sequencing_to_planning_state(j)
-        state.order_manager.clear_pick_list_buffer(pls)
-        # picker_id = solution.jobs[0].picker_id
-        # state.resource_manager.mark_picker_occupied(picker_id)
-        print(f"Garbage Collected {len(pls)} batches")
 
 class OBPAdapter(StateAdapter):
     def __init__(self):
@@ -318,13 +310,6 @@ class OBPAdapter(StateAdapter):
 
         return dynamic_information
 
-    def cleanup_state(self, state: State, solution: BatchingSolution):
-        orders = [o for b in solution.batches for o in b.orders]
-        state.order_manager.clear_order_buffer(orders)
-        for b in solution.batches:
-            state.add_pick_list_to_planning_state(b)
-
-
 class OSBPAdapter(StateAdapter):
     def __init__(self):
         super().__init__()
@@ -367,41 +352,6 @@ class OSBPAdapter(StateAdapter):
 
         return dynamic_information
 
-    def cleanup_state(self, state: State, solution: BatchingSolution):
-        parent_ids = {
-            o.parent_order_id or o.order_id
-            for b in solution.batches
-            for o in b.orders
-        }
-        state.order_manager.clear_order_buffer_by_ids(parent_ids)
-        for b in solution.batches:
-            state.add_pick_list_to_planning_state(b)
-        split_orders = [
-            Order(
-                order_id=o.order_id,
-                parent_order_id=o.parent_order_id,
-                order_date=o.order_date,
-                due_date=o.due_date,
-                order_positions=[
-                    OrderPosition(
-                        order_number=o.order_id,
-                        article_id=pp.article_id,
-                        article_name=pp.article_id,
-                        amount=pp.amount,
-                    )
-                ],
-            )
-            for b in solution.batches
-            for o in b.orders
-            for pp in o.pick_positions
-        ]
-        for order in split_orders:
-            state.order_manager.add_order_to_buffer(order)
-            state.order_manager.clear_order_buffer([order])
-
-        print(f"Garbage Collected {len(parent_ids)} orders")
-
-
 class ReOSBPAdapter(StateAdapter):
     def __init__(self):
         super().__init__()
@@ -443,41 +393,6 @@ class ReOSBPAdapter(StateAdapter):
         )
 
         return dynamic_information
-
-    def cleanup_state(self, state: State, solution: BatchingSolution):
-        parent_ids = {
-            o.parent_order_id or o.order_id
-            for b in solution.batches
-            for o in b.orders
-        }
-        state.order_manager.clear_order_buffer_by_ids(parent_ids)
-        for b in solution.batches:
-            state.add_pick_list_to_planning_state(b)
-        split_orders = [
-            Order(
-                order_id=o.order_id,
-                parent_order_id=o.parent_order_id,
-                order_date=o.order_date,
-                due_date=o.due_date,
-                order_positions=[
-                    OrderPosition(
-                        order_number=o.order_id,
-                        article_id=pp.article_id,
-                        article_name=pp.article_id,
-                        amount=pp.amount,
-                    )
-                ],
-            )
-            for b in solution.batches
-            for o in b.orders
-            for pp in o.pick_positions
-        ]
-        for order in split_orders:
-            state.order_manager.add_order_to_buffer(order)
-            state.order_manager.clear_order_buffer([order])
-
-        print(f"Garbage Collected {len(parent_ids)} orders")
-
 
 class RLORSPAdapter(StateAdapter):
     def __init__(self):
@@ -532,16 +447,6 @@ class RLORSPAdapter(StateAdapter):
 
         return dynamic_information
 
-    def cleanup_state(self, state: State, solution: SchedulingSolution):
-        pls = []
-        for j in solution.jobs:
-            pls.append(j.job.route.batch)
-            state.add_sequencing_to_planning_state(j)
-        state.order_manager.clear_pick_list_buffer(pls)
-        # picker_id = solution.jobs[0].picker_id
-        # state.resource_manager.mark_picker_occupied(picker_id)
-        print(f"Garbage Collected {len(pls)} batches")
-
 class RLOSBPAdapter(StateAdapter):
     def __init__(self):
         super().__init__()
@@ -584,37 +489,3 @@ class RLOSBPAdapter(StateAdapter):
         )
 
         return dynamic_information
-
-    def cleanup_state(self, state: State, solution: BatchingSolution):
-        parent_ids = {
-            o.parent_order_id or o.order_id
-            for b in solution.batches
-            for o in b.orders
-        }
-        state.order_manager.clear_order_buffer_by_ids(parent_ids)
-        for b in solution.batches:
-            state.add_pick_list_to_planning_state(b)
-        split_orders = [
-            Order(
-                order_id=o.order_id,
-                parent_order_id=o.parent_order_id,
-                order_date=o.order_date,
-                due_date=o.due_date,
-                order_positions=[
-                    OrderPosition(
-                        order_number=o.order_id,
-                        article_id=pp.article_id,
-                        article_name=pp.article_id,
-                        amount=pp.amount,
-                    )
-                ],
-            )
-            for b in solution.batches
-            for o in b.orders
-            for pp in o.pick_positions
-        ]
-        for order in split_orders:
-            state.order_manager.add_order_to_buffer(order)
-            state.order_manager.clear_order_buffer([order])
-
-        print(f"Garbage Collected {len(parent_ids)} orders")

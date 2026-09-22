@@ -26,6 +26,14 @@ class OrderArrival(Event):
         return []
 
 
+class OrderStreamClosed(Event):
+    """The order source has announced that this finite stream is complete."""
+
+    def handle(self, state: State) -> list[Event]:
+        state.done_flag = True
+        return []
+
+
 class ShiftStart(Event):
     priority_score = 0
 
@@ -47,6 +55,22 @@ class FlushRemainingOrders(Event):
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
+        return []
+
+
+class WaitExpired(Event):
+    """Reconsider visible work when a waiting policy's deadline arrives."""
+
+    priority_score = 1
+
+    def __init__(self, time: float, version: int | None = None):
+        super().__init__(time)
+        self.version = version
+
+    def is_stale(self, state: State) -> bool:
+        return self.version is not None and self.version != state.wait_version
+
+    def handle(self, state: 'State') -> list['Event']:
         return []
 
 
@@ -300,17 +324,25 @@ class PickerTourQuery(Event):
 
 class BaseTourEvent(Event):
     priority_score = 1
-    def __init__(self, time: float, tour_id: int):
+    def __init__(self, time: float, tour_id: int, route_version: int | None = None):
         super().__init__(time)
         self.tour_id = tour_id
+        self.route_version = route_version
 
     def get_tour(self, state: State) -> TourPlanningState:
         return state.tour_manager.get_tour(self.tour_id)
+
+    def is_stale(self, state: State) -> bool:
+        tour = self.get_tour(state)
+        return (tour.status in (TourStates.CANCELLED, TourStates.DONE) or
+                self.route_version is not None and self.route_version != tour.route_version)
 
 
 class TourStart(BaseTourEvent):
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
+        if self.is_stale(state):
+            return []
         tour = self.get_tour(state)
         state.tracker.on_idle_end(tour.assigned_resource, self.time)
         # print(f"Tour {tour.tour_id}, picker {tour.assigned_resource} orders {tour.order_numbers}")
@@ -331,18 +363,20 @@ class TourStart(BaseTourEvent):
         logger.info("resource %d started tour %d at t=%s", tour.assigned_resource, tour.tour_id, self.time)
         state.tracker.on_tour_start(self.time)
         if tour.at_end() and res.current_location == (0, -1):
-            return [TourEnd(self.time, tour.tour_id)]
+            return [TourEnd(self.time, tour.tour_id, tour.route_version)]
         if tour.at_end():
-            return [NodeArrival(self.time, tour.tour_id)]
+            return [NodeArrival(self.time, tour.tour_id, tour.route_version)]
 
         start_time = self.time
-        return [TravelEvent(start_time , tour.tour_id)]
+        return [TravelEvent(start_time, tour.tour_id, tour.route_version)]
 
 
 class TravelEvent(BaseTourEvent):
     """Advance along the route."""
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
+        if self.is_stale(state):
+            return []
         tour = self.get_tour(state)
         res = state.resource_manager.get_resource(tour.assigned_resource)
 
@@ -351,53 +385,75 @@ class TravelEvent(BaseTourEvent):
         origin = tour.current_node()
         dest = tour.next_node()
 
-        travel_distance = state.layout_manager.get_distance(origin, dest)
+        if tour.cursor == 0 and tour.routing_origin and tour.routing_origin.edge_destination:
+            travel_distance = tour.routing_origin.distance_to_destination
+        else:
+            travel_distance = state.layout_manager.get_distance(origin, dest)
         travel_time = travel_distance / res.speed
         arrival_time = state.current_time + travel_time
 
         logger.debug("Travel: Picker %d %s -> %s in %s min. Distance: %s",
                      res.id, origin, dest, travel_time, travel_distance)
-        state.tracker.on_travel(picker_id=res.id, distance=travel_distance)
-        # mutate execution state
-        state.tour_manager.advance_cursor(tour.tour_id)  # move cursor to dest
-        assert isinstance(dest, RouteNode)
-        state.resource_manager.update_resource_location(tour.assigned_resource, dest)
-
-        return [NodeArrival(arrival_time, tour.tour_id)]
+        tour.edge_origin = origin
+        tour.edge_destination = dest
+        tour.edge_start_time = self.time
+        tour.edge_end_time = arrival_time
+        tour.edge_distance = travel_distance
+        return [NodeArrival(arrival_time, tour.tour_id, tour.route_version)]
 
 
 class NodeArrival(BaseTourEvent):
     """Handle arrival at a node: either pick, continue travel, or end at depot."""
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
+        if self.is_stale(state):
+            return []
         tour = self.get_tour(state)
         res = state.resource_manager.get_resource(tour.assigned_resource)
+        if tour.edge_destination is not None:
+            state.tracker.on_travel(picker_id=res.id, distance=tour.edge_distance)
+            state.tour_manager.advance_cursor(tour.tour_id)
+            state.resource_manager.update_resource_location(tour.assigned_resource, tour.edge_destination)
+            tour.edge_origin = tour.edge_destination = None
+            tour.edge_start_time = tour.edge_end_time = None
+            tour.edge_distance = None
         here = res.current_location
         logger.info("Debug Picker %s arrives at %s", res.id, here)
         # Finish only if we are at end AND at depot (0,-1)
         if tour.at_end():
-            return [TourEnd(self.time, tour.tour_id)]
+            return [TourEnd(self.time, tour.tour_id, tour.route_version)]
 
         # If next planned pick is exactly here → start pick
         if here.node_type == NodeType.PICK:
             finish_at = self.time + res.time_per_pick
-            return [PickComplete(finish_at, tour.tour_id, pick_start=self.time)]
+            tour.picking_until = finish_at
+            return [PickComplete(finish_at, tour.tour_id, pick_start=self.time,
+                                 route_version=tour.route_version)]
 
         # Otherwise keep traveling (must not be at end)
-        return [TravelEvent(self.time, tour.tour_id)]
+        return [TravelEvent(self.time, tour.tour_id, tour.route_version)]
 
 
 class PickComplete(BaseTourEvent):
     """Finish the pick at the current node; pop pick and mark positions fulfilled."""
-    def __init__(self, time: float, tour_id: int, pick_start: float):
-        super().__init__(time, tour_id)
+    def __init__(self, time: float, tour_id: int, pick_start: float,
+                 route_version: int | None = None):
+        super().__init__(time, tour_id, route_version)
         self.pick_start = pick_start
 
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
+        if self.is_stale(state):
+            return []
         tour = self.get_tour(state)
         res = state.resource_manager.get_resource(tour.assigned_resource)
         here = res.current_location
+        tour.picking_until = None
+        match = next((p for p in tour.remaining_picks if p.pick_node == here.position), None)
+        if match is None:
+            raise ValueError(f"No remaining pick at {here.position} on tour {tour.tour_id}")
+        tour.remaining_picks.remove(match)
+        tour.completed_picks.append(match)
 
         # state.tour_manager.mark_pick_positions_fulfilled_at(tour.tour_id, here)
 
@@ -405,19 +461,21 @@ class PickComplete(BaseTourEvent):
         state.tracker.on_pick_end(
             tour_id=self.tour_id,
             picker_id=res.id,
-            order_id=tour.order_numbers[0],
-            item_id=None,
+            order_id=match.order_number,
+            item_id=match.article_id,
             start_time=self.pick_start,
             end_time=self.time
         )
         if tour.at_end():
-            return [TourEnd(self.time, tour.tour_id)]
-        return [TravelEvent(self.time, tour.tour_id)]
+            return [TourEnd(self.time, tour.tour_id, tour.route_version)]
+        return [TravelEvent(self.time, tour.tour_id, tour.route_version)]
 
 
 class TourEnd(BaseTourEvent):
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
+        if self.is_stale(state):
+            return []
         tour = self.get_tour(state)
         res = state.resource_manager.get_resource(tour.assigned_resource)
         here = res.current_location
@@ -446,7 +504,7 @@ class TourEnd(BaseTourEvent):
         if hasattr(state, "dock_manager"):
             state.dock_manager.stage_pallets(1)
             n_pallets_dock = state.dock_manager.n_staged_pallets
-        n_lines = len(tour.original_route.item_sequence)
+        n_lines = len(tour.completed_picks)
         state.tracker.on_tour_end(tour.tour_id,
                                   tour.start_time,
                                   self.time,

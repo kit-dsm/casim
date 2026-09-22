@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - data_card: henn
-  - scenario: scenario_henn_order_window_waiting # scenario_henn_waiting scenario_henn_order_window_waiting
+  - engines: henn_waiting
   - cosy_repo: baseline_waiting_henn
   - optional sweep: None # waiting_strategy_sweep
 

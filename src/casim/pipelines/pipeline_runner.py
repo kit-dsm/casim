@@ -16,11 +16,13 @@ from casim.pipelines.solution_ranker import SolutionRanker
 from casim.pipelines.problem_based_template import (
     InstanceLoader, PickListProvider, ResultAggregationBatching, ResultAggregationRouting, ResultAggregationScheduling,
     clear_store, iter_store, dump_pickle, ResultAggregationSequencing,
+    ResultAggregationWaiting,
 )
 
 from casim.pipelines.taxonomy import TAXONOMY
 
 ENDPOINT_REGISTRY = {
+    "ResultAggregationWaiting": ResultAggregationWaiting,
     "ResultAggregationRouting":   ResultAggregationRouting,
     "ResultAggregationBatching":  ResultAggregationBatching,
     "ResultAggregationScheduling": ResultAggregationScheduling,
@@ -102,9 +104,11 @@ class CoSySolver:
 
         luigi.interface.InterfaceLogging.setup(self.luigi_logging_opts)
         if not action and not action == 0:
-            luigi.build(self.pipelines, local_scheduler=True)
+            built = luigi.build(self.pipelines, local_scheduler=True)
         else:
-            luigi.build(self.pipelines[action], local_scheduler=True)
+            built = luigi.build(self.pipelines[action], local_scheduler=True)
+        if not built:
+            raise RuntimeError(f"CoSy pipeline failed for {dynamic_domain.problem_class}")
         solutions = self._load_solutions(dynamic_domain.problem_class)
         self._cleanup_after_solution(self.output_folder)
         best_solution, best_key, best_kpi_value = self.select_strategy(solutions, dynamic_domain.problem_class)
@@ -117,6 +121,7 @@ class CoSySolver:
     @staticmethod
     def _load_solutions(problem_class: str) -> dict:
         suffix = {
+            "OBRSPW": "waiting_sol.pkl",
             "OBRSP": "sequencing_sol.pkl",
             "ORSP": "scheduling_sol.pkl",
             "RORSP": "scheduling_sol.pkl",

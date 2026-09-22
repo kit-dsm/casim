@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Deque, Optional
 
 # from tests.scratch_cbr import TourPlanningState
-from ware_ops_algos.algorithms import RouteNode, Route, BatchObject
+from ware_ops_algos.algorithms import RouteNode, Route, BatchObject, PickPosition, RoutingOrigin
 
 Node = tuple[float, float]
 
@@ -46,6 +46,26 @@ class TourPlanningState:
     # execution state, mutable during picking
     cursor: int = 0                 # index into route_nodes
     status: str = TourStates.PLANNED
+    route_version: int = 0
+    remaining_picks: list[PickPosition] = field(default_factory=list)
+    completed_picks: list[PickPosition] = field(default_factory=list)
+    edge_origin: RouteNode | None = None
+    edge_destination: RouteNode | None = None
+    edge_start_time: float | None = None
+    edge_end_time: float | None = None
+    edge_distance: float | None = None
+    picking_until: float | None = None
+    cart_bins: dict[int, int] = field(default_factory=dict)
+    routing_origin: RoutingOrigin | None = None
+
+    def position_at(self, time: float) -> tuple[float, float]:
+        if self.edge_origin is None:
+            return self.current_node().position
+        duration = self.edge_end_time - self.edge_start_time
+        fraction = 1.0 if duration == 0 else min(1.0, max(0.0, (time - self.edge_start_time) / duration))
+        start, end = self.edge_origin.position, self.edge_destination.position
+        return (start[0] + fraction * (end[0] - start[0]),
+                start[1] + fraction * (end[1] - start[1]))
 
     def current_node(self) -> RouteNode:
         return self.annotated_route[self.cursor]

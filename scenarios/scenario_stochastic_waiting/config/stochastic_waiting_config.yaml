@@ -1,0 +1,25 @@
+defaults:
+  - _self_
+  - data_card: stochastic_waiting
+  - engines: waiting
+  - cosy_repo: analytic_waiting
+  - insertion_repo: active_insertion
+  - simulation: reference
+
+project_root: ${hydra:runtime.cwd}
+instances_base: ${project_root}/scenarios
+cache_base: ${hydra:runtime.output_dir}/cache
+verbose: true
+
+experiment:
+  output_dir: ${hydra:runtime.output_dir}
+  instance_name: stochastic_waiting
+
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+
+viz:
+  launch: false

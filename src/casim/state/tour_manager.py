@@ -38,7 +38,8 @@ class TourManager:
             batch=route_plan.batch,
             status=TourStates.PLANNED,
             annotated_route=route_plan.annotated_route,
-            processing_time=processing_time
+            processing_time=processing_time,
+            remaining_picks=list(route_plan.batch.pick_positions),
         )
 
         pick_nodes = [n for n in route_plan.annotated_route if n.node_type == NodeType.PICK]

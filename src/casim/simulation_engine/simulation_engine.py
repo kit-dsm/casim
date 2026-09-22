@@ -1,4 +1,5 @@
 import heapq
+import copy
 import logging
 from typing import Callable, Type
 
@@ -6,10 +7,11 @@ from tqdm import tqdm
 
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
+from ware_ops_algos.algorithms import WaitingSolution, CombinedRoutingSolution
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
-from casim.events.operational_events import OrderArrival, FlushRemainingOrders
+from casim.events.operational_events import OrderArrival, FlushRemainingOrders, TravelEvent, WaitExpired
 from casim.loggers import EventLogger
 from casim.state import State
 from casim.simulation_engine.conditions import Condition
@@ -54,7 +56,8 @@ class SimulationEngine:
             articles=domain.articles,
             storage=domain.storage,
             resources=domain.resources,
-            active_objective = domain.objective
+            active_objective = domain.objective,
+            warehouse_info=domain.warehouse_info,
         )
 
         for hook in (hooks or []):
@@ -77,6 +80,8 @@ class SimulationEngine:
             )
         while self.events:
             event = heapq.heappop(self.events)
+            if isinstance(event, WaitExpired) and event.is_stale(self.state):
+                continue
             # logger.info(f"Event {event} popped at state time: {self.state.current_time}, events start: {event.time}")
             self.state.current_time = event.time
             events_to_add = event.handle(self.state)
@@ -91,18 +96,19 @@ class SimulationEngine:
             for el in self.event_loggers:
                 el.on_event(event, self)
 
-            if event.__class__ in self.triggers_map:
-                problem = self.triggers_map[event.__class__]
+            problems = self.triggers_map.get(event.__class__, [])
+            for problem in ([problems] if isinstance(problems, str) else problems):
                 state_transformer = self.state_adapters[problem]
-                state_snapshot = state_transformer.transform_state(self.state, problem)
+                projected = state_transformer.transform_state(self.state, problem)
+                if projected is None:
+                    continue
+                projected.dynamic_warehouse_info.wait_expired = isinstance(event, WaitExpired)
+                state_snapshot = copy.deepcopy(projected)
+                state_snapshot.warehouse_info = copy.deepcopy(self.state.warehouse_info)
                 conditions = self.conditions_map.get(problem) or []
                 if (all(c.get_decision(state_snapshot) for c in conditions if c is not None) or
                         isinstance(event, FlushRemainingOrders)):
                     return False, state_snapshot
-
-            if not self.events and self.state.order_manager.get_order_buffer():
-                self.state.done_flag = True
-                # self.add_event(FlushRemainingOrders(self.state.current_time))
 
         logger.info("Simulation complete")
         if hasattr(self, "_pbar"):
@@ -112,9 +118,22 @@ class SimulationEngine:
             el.on_done(self)
         return True, None
 
-    def step(self, events_to_add, problem_class, solution):
-        state_adapter = self.state_adapters[problem_class]
-        state_adapter.cleanup_state(self.state, solution)
+    def step(self, events_to_add, problem_class, solution, state_snapshot=None):
+        if (state_snapshot is not None and
+                state_snapshot.dynamic_warehouse_info.active_tour_id is not None):
+            if not isinstance(solution, CombinedRoutingSolution) or len(solution.routes) != 1:
+                raise ValueError("Active insertion requires one routed residual batch")
+            dynamic = state_snapshot.dynamic_warehouse_info
+            tour_id = dynamic.active_tour_id
+            version = self.state.commit_active_route(
+                solution.routes[0], tour_id,
+                dynamic.active_route_version, dynamic.current_picker.id,
+            )
+            self.add_event(TravelEvent(self.state.current_time, tour_id, version))
+            return
+        self.state.commit_solution(problem_class, solution)
         if events_to_add:
             for e in events_to_add:
+                if isinstance(e, WaitExpired):
+                    e.version = self.state.wait_version
                 self.add_event(e)

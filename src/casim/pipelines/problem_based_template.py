@@ -23,6 +23,7 @@ from ware_ops_algos.algorithms import (
     ItemAssignmentSolution,
     RoutingSolution,
     ItemAssignment, Scheduler, Job, build_jobs)
+from ware_ops_algos.algorithms import WaitingInput, WaitingSolution
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import ConstraintEvaluator
 from ware_ops_algos.algorithms.order_splitting.order_splitting import OrderSplitting
 from ware_ops_algos.domain_models import (
@@ -258,6 +259,9 @@ class AbstractPickerRouting(BaseComponent):
     def _load_resources(self) -> Resources:
         return load_pickle(self.input()["instance"]["resources"].path)
 
+    def _load_dynamic_info(self) -> DynamicInfo:
+        return load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
+
     def _load_layout(self) -> LayoutData:
         return load_pickle(self.input()["instance"]["layout"].path)
 
@@ -297,108 +301,6 @@ class PickerRouting(AbstractPickerRouting):
         )
         dump_pickle(self.output()["routing_sol"].path, combined_sol)
 
-
-class HennWaitingPickerRouting(AbstractPickerRouting):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
-    item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
-
-    def _service_time(self, route, pick_positions) -> float:
-        resources = self._load_resources()
-        picker = resources.resources[0]
-
-        distance = route.distance
-
-        travel_speed = picker.speed
-        pick_time_per_item = picker.time_per_pick
-        setup_time = picker.tour_setup_time
-
-        n_items = sum(pos.in_store for pos in pick_positions)
-
-        return (
-            distance / travel_speed
-            + n_items * pick_time_per_item
-            + setup_time
-        )
-
-    def run(self):
-        router: Routing = self._get_inited_router()
-
-        batching_sol: BatchingSolution = load_pickle(
-            self.input()["batching_sol"]["batching_sol"].path
-        )
-
-        ia_sol: ItemAssignmentSolution = load_pickle(
-            self.input()["item_assignment_sol"]["item_assignment_sol"].path
-        )
-        resolved_by_id = {
-            o.order_id: o
-            for o in ia_sol.resolved_orders
-        }
-
-        routes = []
-        algo_name = None
-        execution_time = 0.0
-
-        single_order_service_time_cache: dict[int, float] = {}
-
-        for pl in batching_sol.pick_lists:
-            resolved_orders = [
-                resolved_by_id.get(o.order_id, o)
-                for o in pl.orders
-            ]
-            pl.orders = resolved_orders
-
-            router.reset_parameters()
-            routing_solution: RoutingSolution = router.solve(pl.pick_positions)
-
-            algo_name = routing_solution.algo_name
-            execution_time += routing_solution.execution_time
-
-            route = routing_solution.route
-            route.pick_list = pl
-
-            # st_j: service time of the whole candidate batch.
-            pl.service_time = self._service_time(
-                route=route,
-                pick_positions=pl.pick_positions,
-            )
-
-            # st_i: service time of each order if picked alone.
-            pl.single_order_service_times.clear()
-
-            for order in resolved_orders:
-                if order.order_id not in single_order_service_time_cache:
-                    router.reset_parameters()
-
-                    single_routing_solution: RoutingSolution = router.solve(
-                        order.pick_positions
-                    )
-
-                    execution_time += single_routing_solution.execution_time
-
-                    single_order_service_time_cache[order.order_id] = (
-                        self._service_time(
-                            route=single_routing_solution.route,
-                            pick_positions=order.pick_positions,
-                        )
-                    )
-
-                pl.single_order_service_times[order.order_id] = (
-                    single_order_service_time_cache[order.order_id]
-                )
-
-            routes.append(route)
-
-        combined_sol = CombinedRoutingSolution(
-            algo_name=f"{algo_name}_HennWaiting",
-            execution_time=execution_time,
-            routes=routes,
-        )
-
-        dump_pickle(self.output()["routing_sol"].path, combined_sol)
-
-# ─────────────────────────── Scheduling ─────────────────────────────────────
 
 class AbstractScheduling(BaseComponent):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
@@ -484,9 +386,55 @@ class AbstractSequencing(BaseComponent):
             sequencing_sol,
         )
 
+
+class AbstractWaiting(BaseComponent):
+    """Apply one configured waiting algorithm to scheduled candidates."""
+
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+    scheduling_sol = CoSyLuigiTaskParameter(AbstractScheduling)
+
+    def output(self):
+        return {"waiting_sol": self.get_luigi_local_target_with_task_id("waiting_sol.pkl")}
+
+    def _get_inited_waiter(self):
+        raise NotImplementedError
+
+    def run(self):
+        domain = load_pickle(self.input()["instance"]["domain"].path)
+        scheduled = load_pickle(self.input()["scheduling_sol"]["scheduling_sol"].path)
+        if not domain.resources.resources:
+            raise ValueError("Waiting needs an available picker")
+        picker = domain.resources.resources[0]
+        waiter = self._get_inited_waiter()
+        single_services = None
+        if waiter.algo_name == "HennWaiting" and scheduled.jobs:
+            # Reuse the router selected upstream in this CoSy task graph.
+            routing_task = self.requires()["scheduling_sol"].requires()["routing_sol"]
+            router = routing_task._get_inited_router()
+            single_services = {}
+            for order in scheduled.jobs[0].job.route.batch.orders:
+                router.reset_parameters()
+                route = router.solve(order.pick_positions).route
+                single_services[order.order_id] = (
+                    picker.tour_setup_time + route.distance / picker.speed
+                    + sum(p.in_store for p in order.pick_positions) * picker.time_per_pick
+                )
+        decision = waiter.solve(WaitingInput(
+            candidates=tuple(scheduled.jobs),
+            current_time=domain.dynamic_warehouse_info.time,
+            input_closed=domain.dynamic_warehouse_info.done,
+            deadline_reached=domain.dynamic_warehouse_info.wait_expired,
+            picker=picker,
+            layout=domain.layout,
+            warehouse_info=domain.warehouse_info,
+            single_order_service_times=single_services,
+        ))
+        dump_pickle(self.output()["waiting_sol"].path, decision)
+
 # ─────────────────────────── Result Aggregation ──────────────────────────────
 
 _PARAM_TO_STAGE = {
+    "waiting_sol":         "waiting",
     "routing_sol":         "routing",
     "batching_sol":       "batching",
     "item_assignment_sol": "item_assignment",
@@ -550,7 +498,7 @@ class ResultAggregation(BaseComponent):
 
     def _build_provenance(self, summary: dict, collected: dict) -> None:
         provenance_list = []
-        for stage in ["item_assignment", "batching", "routing", "sequencing", "scheduling"]:
+        for stage in ["item_assignment", "batching", "routing", "sequencing", "scheduling", "waiting"]:
             if stage in collected:
                 entry = collected[stage]
                 provenance_list.append({
@@ -674,6 +622,16 @@ class ResultAggregationSequencing(ResultAggregation):
             sequencing_entry["solution"], orders
         )
         dump_json(self.output()["summary"].path, summary)
+
+
+class ResultAggregationWaiting(ResultAggregation):
+    waiting_sol = CoSyLuigiTaskParameter(AbstractWaiting)
+
+    def run(self):
+        collected = _collect_from_graph(self)
+        summary = {}
+        self._build_provenance(summary, collected)
+        dump_json(self.output()["summary"].path, summary)
 # ─────────────────────────── Graph Utilities ─────────────────────────────────
 
 def traverse_pipeline(vs: Iterable[CoSyLuigiTask], visited=None) -> list[CoSyLuigiTask]:
@@ -736,7 +694,7 @@ def problem_type_constraint(vs, subproblems, data_card: DataCard, models, get_cl
     for c in classes:
         for m in models:
             # if m.implementation["class_name"] == c.__name__:
-            if m.algo_name == c.__name__:
+            if m.implementation.get("component_name", m.algo_name) == c.__name__:
                 if m.problem_type not in problems:
                     print(f"{m.algo_name} not applicable {m.problem_type} not in {problems}")
                     return False
@@ -751,10 +709,11 @@ def feature_constraint(vs, data_card: DataCard, models, get_classes=None) -> boo
         "orders": data_card.orders,
         "resources": data_card.resources,
         "storage": data_card.storage,
+        "warehouse_info": data_card.warehouse_info,
     }
     for c in classes:
         for m in models:
-            if m.algo_name == c.__name__:
+            if m.implementation.get("component_name", m.algo_name) == c.__name__:
                 for domain, reqs in m.requirements.items():
                     section = domain_sections.get(domain)
                     if section is None:
@@ -780,7 +739,7 @@ def feature_constraint(vs, data_card: DataCard, models, get_classes=None) -> boo
                             print(f"{m.algo_name} not applicable, {feature_name} not in {domain_features}")
                             return False
                         evaluator = ConstraintEvaluator()
-                        if not evaluator.evaluate(feature_name, constraint):
+                        if not evaluator.evaluate(section["features"][feature_name], constraint):
                             print(f"{m.algo_name} not applicable, {feature_name} not in {domain_features}")
                             return False
     return True

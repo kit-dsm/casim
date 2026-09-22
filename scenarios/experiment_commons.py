@@ -10,8 +10,8 @@ from casim.decision_engine.decision_engine import DecisionEngine
 from casim.events.base_events import Event
 from casim.loggers import KPILogger
 from casim.events.decision_events import RoutingDone, PickListDone
-from casim.events.operational_events import OrderArrival, PickerArrival, PickerTourQuery, PickerIdle, TourEnd, \
-    ShiftStart, FlushRemainingOrders, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion
+from casim.events.operational_events import OrderArrival, OrderStreamClosed, PickerArrival, PickerTourQuery, PickerIdle, TourEnd, PickComplete, \
+    ShiftStart, FlushRemainingOrders, WaitExpired, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion
 from casim.simulation_engine.simulation_engine import SimulationEngine
 
 LOADER_REGISTRY: dict[str, Type[DataLoader]] = {}
@@ -19,6 +19,12 @@ LOADER_REGISTRY: dict[str, Type[DataLoader]] = {}
 try:
     from scenarios.scenario_henn_online.henn_online_loader import HennOnlineLoader
     LOADER_REGISTRY["HennOnlineLoader"] = HennOnlineLoader
+except ImportError:
+    pass
+
+try:
+    from scenarios.scenario_stochastic_waiting.loader import StochasticWaitingDataLoader
+    LOADER_REGISTRY["StochasticWaitingDataLoader"] = StochasticWaitingDataLoader
 except ImportError:
     pass
 
@@ -42,14 +48,17 @@ except ImportError:
 
 EVENT_REGISTRY: dict[str, Type[Event]]  = {
     "OrderArrival": OrderArrival,
+    "OrderStreamClosed": OrderStreamClosed,
     "RoutingDone": RoutingDone,
     "PickerArrival": PickerArrival,
     "PickerTourQuery": PickerTourQuery,
     "PickerIdle": PickerIdle,
     "TourEnd": TourEnd,
+    "PickComplete": PickComplete,
     # "PickListSelectionDone": PickListSelectionDone,
     "ShiftStart": ShiftStart,
     "FlushRemainingOrders": FlushRemainingOrders,
+    "WaitExpired": WaitExpired,
     "PickListDone": PickListDone,
     "TruckDeparture": TruckDeparture,
     "WMSRun": WMSRun,
@@ -154,12 +163,7 @@ def build_simulation_problems(cfg: DictConfig):
         ]
         for event_name in (pcfg.get("triggers") or []):
             event_cls = EVENT_REGISTRY[event_name]
-            if event_cls in triggers_map:
-                raise ValueError(
-                    f"Event '{event_name}' is already bound to problem "
-                    f"'{triggers_map[event_cls]}', cannot also bind to '{problem_key}'"
-                )
-            triggers_map[event_cls] = problem_key
+            triggers_map.setdefault(event_cls, []).append(problem_key)
 
     return state_adapters, conditions_map, triggers_map
 

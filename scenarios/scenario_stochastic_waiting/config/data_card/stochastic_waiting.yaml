@@ -1,0 +1,53 @@
+name: StochasticWaiting
+problem_class: OBRSPW
+objective: makespan
+source:
+  data_loader: StochasticWaitingDataLoader
+layout:
+  type: conventional
+  objects:
+    - name: LayoutParams
+      features:
+        - {name: n_blocks, value: 1}
+        - {name: start_node}
+        - {name: end_node}
+        - {name: closest_node_to_start}
+        - {name: min_aisle_position}
+        - {name: max_aisle_position}
+        - {name: distance_matrix}
+        - {name: predecessor_matrix}
+articles:
+  type: standard
+  objects:
+    - name: Article
+      features: [{name: article_id}]
+orders:
+  type: standard
+  objects:
+    - name: Order
+      features: [{name: order_date}, {name: order_id}]
+      objects:
+        - name: OrderPosition
+          features: [{name: amount}, {name: article_id}]
+resources:
+  type: human
+  objects:
+    - name: Resource
+      features: [{name: speed}, {name: time_per_pick}]
+      objects:
+        - name: PickCart
+          features: [{name: capacities}, {name: dimensions_type, value: [orders]}]
+storage:
+  type: dedicated
+  objects:
+    - name: StorageLocations
+      features: [{name: amount}, {name: article_id}]
+warehouse_info:
+  type: online
+  objects:
+    - name: Forecast
+      features:
+        - {name: arrival_process, value: exponential}
+        - {name: mean_interarrival_time_s, value: 28.8}
+        - {name: order_lines_per_order, value: 1}
+        - {name: pick_location_distribution, value: uniform_iid}

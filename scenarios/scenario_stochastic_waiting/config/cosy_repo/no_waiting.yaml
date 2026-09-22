@@ -5,5 +5,5 @@ components:
   - casim.pipelines.subproblems.batching.FiFo
   - casim.pipelines.subproblems.picker_routing.SShape
   - casim.pipelines.subproblems.scheduling.SPTScheduler
-  - casim.pipelines.subproblems.waiting.HennWaitingNode
+  - casim.pipelines.subproblems.waiting.NoWaitingNode
   - casim.pipelines.problem_based_template.ResultAggregationWaiting

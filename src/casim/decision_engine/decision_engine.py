@@ -3,12 +3,13 @@ import time
 from collections import defaultdict
 
 from ware_ops_algos.algorithms import AlgorithmSolution, CombinedRoutingSolution, \
-    SchedulingSolution, BatchingSolution
+    SchedulingSolution, BatchingSolution, WaitingSolution
 
 from casim.decision_engine.commitment_policies import CommitmentPolicy, CommitAllPolicy
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.events.decision_events import SequencingDone, RoutingDone, PickListDone
+from casim.events.operational_events import WaitExpired
 from casim.pipelines.pipeline_runner import CoSySolver
 from casim.trackers import DecisionTracker
 
@@ -61,6 +62,8 @@ class DecisionEngine:
             order_ids = [o for j in best_solution.jobs for o in j.job.route.batch.order_numbers]
         elif isinstance(best_solution, BatchingSolution):
             order_ids = [o_id for b in best_solution.batches for o_id in b.order_numbers]
+        elif isinstance(best_solution, WaitingSolution):
+            order_ids = [o for j in best_solution.jobs for o in j.order_numbers]
         else:
             raise ValueError(type(best_solution))
 
@@ -75,7 +78,7 @@ class DecisionEngine:
         )
 
     def solution_to_events(self, solution: AlgorithmSolution, finish_time):
-        logger.info("Solution type", type(solution))
+        logger.info("Solution type %s", type(solution))
 
         if isinstance(solution, CombinedRoutingSolution):
             events_to_return = self._routes_to_events(solution, finish_time)
@@ -85,6 +88,14 @@ class DecisionEngine:
 
         elif isinstance(solution, BatchingSolution):
             events_to_return = self._batches_to_events(solution, finish_time)
+        elif isinstance(solution, WaitingSolution):
+            if solution.action == "wait":
+                events_to_return = ([WaitExpired(solution.reconsider_at)]
+                                    if solution.reconsider_at is not None else [])
+            else:
+                events_to_return = self._schedules_to_events(
+                    SchedulingSolution(jobs=list(solution.jobs)), finish_time
+                )
 
         else:
             raise Exception("Not a known solution", type(solution))
