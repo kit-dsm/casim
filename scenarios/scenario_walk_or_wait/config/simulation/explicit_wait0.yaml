@@ -1,0 +1,14 @@
+source: explicit
+shift_start_s: 0.0
+capacity_orders: 4
+n_pickers: 1
+n_aisles: 8
+n_pick_locations: 16
+depot_aisle: 1
+walking_speed: 1.0
+pick_time_s: 1.0
+# First order arrives while the picker is already walking the empty aisle route.
+orders:
+  - {arrival_s: 8.0, due_s: 400.0, picks: [[2, 3]]}
+  - {arrival_s: 12.0, due_s: 400.0, picks: [[4, 5]]}
+  - {arrival_s: 30.0, due_s: 400.0, picks: [[6, 9]]}

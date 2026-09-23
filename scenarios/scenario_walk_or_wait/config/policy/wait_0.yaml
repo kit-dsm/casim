@@ -1,3 +1,2 @@
-# Documented selector that raises before any solver is built.
 wait_k: 0
-component: null
+component: casim.pipelines.subproblems.waiting.StartImmediatelyNode

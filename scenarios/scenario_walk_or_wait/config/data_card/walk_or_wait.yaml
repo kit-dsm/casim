@@ -9,6 +9,7 @@ layout:
     - name: LayoutParams
       features:
         - {name: n_blocks, value: 1}
+        - {name: n_aisles}
         - {name: start_node}
         - {name: end_node}
         - {name: closest_node_to_start}

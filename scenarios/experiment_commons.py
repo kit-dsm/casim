@@ -10,7 +10,7 @@ from casim.decision_engine.decision_engine import DecisionEngine
 from casim.events.base_events import Event
 from casim.loggers import KPILogger
 from casim.events.decision_events import RoutingDone, PickListDone
-from casim.events.operational_events import OrderArrival, OrderStreamClosed, PickerArrival, PickerTourQuery, PickerIdle, TourEnd, PickComplete, \
+from casim.events.operational_events import OrderArrival, OrderStreamClosed, PickerArrival, PickerTourQuery, PickerIdle, NodeArrival, TourEnd, PickComplete, \
     ShiftStart, FlushRemainingOrders, WaitExpired, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion
 from casim.simulation_engine.simulation_engine import SimulationEngine
 
@@ -59,6 +59,7 @@ EVENT_REGISTRY: dict[str, Type[Event]]  = {
     "PickerArrival": PickerArrival,
     "PickerTourQuery": PickerTourQuery,
     "PickerIdle": PickerIdle,
+    "NodeArrival": NodeArrival,
     "TourEnd": TourEnd,
     "PickComplete": PickComplete,
     # "PickListSelectionDone": PickListSelectionDone,

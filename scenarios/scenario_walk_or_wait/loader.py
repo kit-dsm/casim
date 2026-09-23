@@ -27,11 +27,12 @@ class WalkOrWaitDataLoader(DataLoader):
         sim = cfg.simulation
         capacity = int(sim.capacity_orders)
         wait_k = int(cfg.policy.wait_k)
-        if wait_k == 0:
-            raise ValueError("Paper wait-0 needs an empty dummy tour; CASIM has no faithful configured empty-tour start")
-        if wait_k < 1 or wait_k > capacity or wait_k > 4:
-            raise ValueError("Supported paper wait thresholds are 1..min(capacity, 4)")
-        expected_policy = f"casim.pipelines.subproblems.waiting.WaitFor{('One', 'Two', 'Three', 'Four')[wait_k - 1]}"
+        if wait_k < 0 or wait_k > capacity or wait_k > 4:
+            raise ValueError("Supported paper wait thresholds are 0..min(capacity, 4)")
+        expected_policy = (
+            "casim.pipelines.subproblems.waiting.StartImmediatelyNode" if wait_k == 0 else
+            f"casim.pipelines.subproblems.waiting.WaitFor{('One', 'Two', 'Three', 'Four')[wait_k - 1]}"
+        )
         if cfg.policy.component != expected_policy:
             raise ValueError("wait_k and the configured waiting component disagree")
         if capacity != 4:
@@ -47,8 +48,12 @@ class WalkOrWaitDataLoader(DataLoader):
         intervention = "OBRP" in cfg.engines.simulation_engine.problems
         if intervention and cfg.routing.name != "s_shape":
             raise ValueError("Active-route replacement supports S-Shape only; select paper_no_intervention for other routing")
-        if intervention and "casim.pipelines.subproblems.batching.RemainingRouteFiFo" not in cfg.insertion_repo.components:
-            raise ValueError("Paper intervention needs RemainingRouteFiFo in its configured CoSy repo")
+        if wait_k == 0 and not intervention:
+            raise ValueError("Paper wait-0 needs active-tour admission; select paper_intervention")
+        if wait_k == 0 and cfg.routing.name != "s_shape":
+            raise ValueError("Empty aisle patrol is defined for S-Shape routing only")
+        if intervention and "casim.pipelines.subproblems.batching.RemainingRouteAdmissionNode" not in cfg.insertion_repo.components:
+            raise ValueError("Paper intervention needs RemainingRouteAdmissionNode in its configured CoSy repo")
         if sim.source != "explicit":
             raise ValueError("Only explicit demonstration orders are loadable; published paper layouts are not imported")
 
@@ -70,6 +75,8 @@ class WalkOrWaitDataLoader(DataLoader):
         arrivals = [float(spec.arrival_s) for spec in specs]
         if arrivals != sorted(arrivals) or any(time < 0 for time in arrivals):
             raise ValueError("Order arrivals must be nonnegative and sorted")
+        if float(sim.shift_start_s) < 0 or float(sim.shift_start_s) > arrivals[0]:
+            raise ValueError("Shift start must be nonnegative and no later than the first order")
         if intervention and len(set(arrivals)) != len(arrivals):
             raise ValueError("Simultaneous arrivals lack a defined sequential intervention order")
 

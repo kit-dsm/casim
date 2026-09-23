@@ -2,6 +2,6 @@ components:
   - casim.pipelines.problem_based_template.InstanceLoader
   - casim.pipelines.problem_based_template.OrdersProvider
   - casim.pipelines.subproblems.item_assingment.GreedyIA
-  - casim.pipelines.subproblems.batching.RemainingRouteFiFo
+  - casim.pipelines.subproblems.batching.RemainingRouteAdmissionNode
   - casim.pipelines.subproblems.picker_routing.SShape
   - casim.pipelines.problem_based_template.ResultAggregationRouting

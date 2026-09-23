@@ -2,6 +2,9 @@
 
 For the published *Walking vs. Waiting* strategy mapping and configured
 wait-k examples, see `scenarios/scenario_walk_or_wait/README.md`. The
+paper's wait-0 now starts an empty all-aisle tour through the same configured
+waiting and CASIM commit path; an explicit delayed-arrival example makes its
+active-tour admission visible. The
 `scenario_stochastic_waiting` path below is an exploratory analytical
 integration. Its active insertion is automatic and is **not** the explainer
 mail's Phase 2 completion-time admission decision; it is not evidence of

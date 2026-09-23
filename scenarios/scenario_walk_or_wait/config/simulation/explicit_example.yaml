@@ -1,4 +1,5 @@
 source: explicit
+shift_start_s: 0.0
 capacity_orders: 4
 n_pickers: 1
 n_aisles: 8

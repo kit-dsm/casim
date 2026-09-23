@@ -10,6 +10,6 @@ def seed_orders(sim, domain):
 
 
 def seed_pickers(sim, domain):
-    first_arrival = min(order.order_date for order in domain.orders.orders)
+    shift_start = float(sim.data_loader.cfg.simulation.shift_start_s)
     for picker in domain.resources.resources:
-        sim.add_event(PickerArrival(first_arrival, picker.id, picker_available=True))
+        sim.add_event(PickerArrival(shift_start, picker.id, picker_available=True))

@@ -6,6 +6,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 
+from casim.domain_objects.tour_model import TourStates
 from scenarios.experiment_commons import (
     load_and_flatten_data_card, setup_decision_engine, setup_scenario,
 )
@@ -30,6 +31,10 @@ def report(sim, output_dir: Path, expected_orders: int) -> dict:
     total_lines = sum(lines for _, _, _, _, _, _, _, lines in completed)
     if total_lines == 0:
         raise ValueError("No picked items for paper metrics")
+    empty_starts = [
+        tour for tour in state.tour_manager.all_tours.values()
+        if tour.status == TourStates.DONE and not tour.original_route.batch.orders
+    ]
     metrics = {
         "mean_order_completion_time": sum(
             end - known[order_id].order_date for order_id, end in completion.items()
@@ -40,6 +45,8 @@ def report(sim, output_dir: Path, expected_orders: int) -> dict:
             for order_id, end in completion.items()
         ) / len(completion),
         "orders": len(completion),
+        "empty_tours_started": len(empty_starts),
+        "orders_admitted_after_empty_start": sum(len(tour.order_numbers) for tour in empty_starts),
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "paper_metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
@@ -50,7 +57,7 @@ def report(sim, output_dir: Path, expected_orders: int) -> dict:
 def main(cfg: DictConfig):
     data_card = load_and_flatten_data_card(cfg.data_card)
     sim = setup_scenario(cfg)
-    sim.reset(hooks=[seed_orders, seed_pickers])
+    sim.reset(hooks=[seed_pickers, seed_orders])
     decision_engine = setup_decision_engine(cfg, data_card)
 
     done = False
