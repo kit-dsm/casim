@@ -28,6 +28,21 @@ The **stochastic mathematics** comes from a different source: `2_Stochastic_Wait
 
 Two more `ware_ops_algos` additions, `order_splitting` and `data_loaders`, restore imports expected by CASIM main against this main-based worktree. `order_splitting.py` matches the existing feature-branch file. These are compatibility additions, not playground behavior or waiting theory; review them before merge.
 
+## Boundary between release and active insertion
+
+In the configured single-picker scenario, an `OrderArrival` can trigger both
+problem classes. `OBRSPW` is eligible while an order is buffered and the picker
+is free; it can wait or release a scheduled job. Releasing creates a tour and
+removes its orders from the buffer. `OBRP` becomes eligible only after that tour
+has actually started, when a new order is buffered and the cart has room. It
+reroutes the remaining picks. The interval between release and `TourStart` has
+no tour-revision policy; later orders stay buffered during it.
+
+The simulation engine now rejects an event that makes both problems eligible,
+instead of silently using their order in the YAML file. The expected detour in
+the analytical waiting model does not select or constrain the actual FIFO and
+S-shape insertion route. Their behavioral and numerical alignment is unproven.
+
 ## Scope and evidence
 
 The branch changes **42 CASIM files** and **22 `ware_ops_algos` files** relative to main. About 2,500 of the 2,822 added `ware_ops_algos` lines are analytical waiting modules. Calling the whole change “small” was misleading. The intended architecture is focused, but the source footprint and Henn migration are substantial.

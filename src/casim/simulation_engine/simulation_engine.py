@@ -97,6 +97,7 @@ class SimulationEngine:
                 el.on_event(event, self)
 
             problems = self.triggers_map.get(event.__class__, [])
+            selected = None
             for problem in ([problems] if isinstance(problems, str) else problems):
                 state_transformer = self.state_adapters[problem]
                 projected = state_transformer.transform_state(self.state, problem)
@@ -108,7 +109,14 @@ class SimulationEngine:
                 conditions = self.conditions_map.get(problem) or []
                 if (all(c.get_decision(state_snapshot) for c in conditions if c is not None) or
                         isinstance(event, FlushRemainingOrders)):
-                    return False, state_snapshot
+                    if selected is not None:
+                        raise ValueError(
+                            f"{type(event).__name__} makes both {selected.problem_class} "
+                            f"and {problem} eligible; configure exclusive decisions"
+                        )
+                    selected = state_snapshot
+            if selected is not None:
+                return False, selected
 
         logger.info("Simulation complete")
         if hasattr(self, "_pbar"):
