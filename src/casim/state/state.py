@@ -48,6 +48,7 @@ class State:
         self.statistics = []
         self.done_flag = False
         self.wait_version = 0
+        self.considered_active_orders: set[tuple[int, int]] = set()
         self.is_break: bool = False
         self.active_objective = active_objective
         self.warehouse_info = warehouse_info
@@ -122,9 +123,10 @@ class State:
     def commit_waiting(self, solution: WaitingSolution) -> None:
         """Validate a release before creating tours and process events."""
         if solution.action != "release":
-            if (solution.action != "wait" or solution.reconsider_at is None or
-                    solution.reconsider_at <= self.current_time):
-                raise ValueError("Waiting needs a future reconsideration time")
+            if solution.action != "wait":
+                raise ValueError("Unknown waiting action")
+            if solution.reconsider_at is not None and solution.reconsider_at <= self.current_time:
+                raise ValueError("Waiting reconsideration time must be in the future")
             self.wait_version += 1
             return
         released_ids = [oid for job in solution.jobs for oid in job.order_numbers]

@@ -1,0 +1,2 @@
+wait_k: 2
+component: casim.pipelines.subproblems.waiting.WaitForTwo

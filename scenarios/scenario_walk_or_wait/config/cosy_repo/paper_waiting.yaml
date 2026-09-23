@@ -1,0 +1,9 @@
+components:
+  - casim.pipelines.problem_based_template.InstanceLoader
+  - casim.pipelines.problem_based_template.OrdersProvider
+  - casim.pipelines.subproblems.item_assingment.GreedyIA
+  - casim.pipelines.subproblems.batching.FiFo
+  - ${routing.component}
+  - casim.pipelines.subproblems.scheduling.FIFOScheduler
+  - ${policy.component}
+  - casim.pipelines.problem_based_template.ResultAggregationWaiting

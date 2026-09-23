@@ -1,3 +1,5 @@
+import logging
+
 from ware_ops_algos.algorithms import RoutingOrigin
 from ware_ops_algos.domain_models import Resources, WarehouseInfoType, ResourceType, OrdersDomain, OrderType, Order, \
     OrderPosition
@@ -5,6 +7,9 @@ from ware_ops_algos.domain_models import Resources, WarehouseInfoType, ResourceT
 from casim.domain_objects.sim_domain import SimWarehouseDomain, DynamicInfo
 from casim.domain_objects.tour_model import TourStates
 from casim.state import State
+
+
+logger = logging.getLogger(__name__)
 
 
 class StateAdapter:
@@ -62,19 +67,22 @@ class ActiveTourAdapter(StateAdapter):
         if not new_orders:
             return None
         if len(state.resource_manager.get_resources().resources) != 1:
-            return None
+            raise ValueError("Active-tour admission currently requires exactly one picker")
         active = [tour for tour in state.tour_manager.all_tours.values()
                   if tour.status == TourStates.STARTED and tour.picking_until is None]
         if len(active) != 1:
+            if new_orders and any(
+                tour.status == TourStates.STARTED and tour.picking_until is not None
+                for tour in state.tour_manager.all_tours.values()
+            ):
+                logger.warning("Active-tour admission deferred until the current pick completes")
             return None
         tour = active[0]
+        new_orders = [order for order in new_orders
+                      if (tour.tour_id, order.order_id) not in state.considered_active_orders]
+        if not new_orders:
+            return None
         picker = state.resource_manager.get_resource(tour.assigned_resource)
-        cart = picker.pick_cart
-        if cart and not cart.box_can_mix_orders:
-            available = cart.n_boxes or len(cart.capacities or [])
-            if len(set(tour.cart_bins.values())) >= available:
-                return None
-
         orders = list(new_orders)
         for order_id in tour.order_numbers:
             picks = [pick for pick in tour.remaining_picks if pick.order_number == order_id]
@@ -111,6 +119,14 @@ class ActiveTourAdapter(StateAdapter):
             active_tour_id=tour.tour_id,
             active_route_version=tour.route_version,
             routing_origin=origin,
+            active_order_ids=frozenset(tour.order_numbers),
+            active_candidate_ids=frozenset(order.order_id for order in new_orders),
+            remaining_route_positions=tuple(
+                node.position for node in tour.annotated_route[
+                    tour.cursor + (1 if tour.edge_destination is not None else 0):
+                ]
+            ),
+            occupied_bins=len(set(tour.cart_bins.values())),
             done=state.done_flag,
         )
         return SimWarehouseDomain(

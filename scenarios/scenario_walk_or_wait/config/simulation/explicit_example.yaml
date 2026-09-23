@@ -1,0 +1,16 @@
+source: explicit
+capacity_orders: 4
+n_pickers: 1
+n_aisles: 8
+n_pick_locations: 16
+depot_aisle: 1
+walking_speed: 1.0
+pick_time_s: 1.0
+# Deliberately small, deterministic integration example; not a published instance.
+orders:
+  - {arrival_s: 0.0, due_s: 400.0, picks: [[2, 3]]}
+  - {arrival_s: 1.0, due_s: 400.0, picks: [[4, 5], [5, 7]]}
+  - {arrival_s: 2.0, due_s: 400.0, picks: [[6, 9]]}
+  - {arrival_s: 12.0, due_s: 400.0, picks: [[4, 5]]}
+  - {arrival_s: 14.0, due_s: 400.0, picks: [[7, 4]]}
+  - {arrival_s: 38.0, due_s: 400.0, picks: [[3, 8]]}

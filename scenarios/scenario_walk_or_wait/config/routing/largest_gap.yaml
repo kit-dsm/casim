@@ -1,0 +1,2 @@
+name: largest_gap
+component: casim.pipelines.subproblems.picker_routing.LargestGap

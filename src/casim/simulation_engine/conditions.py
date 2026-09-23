@@ -48,12 +48,15 @@ class NbrPickersCondition(Condition):
 
 
 class NbrOrdersCondition(Condition):
-    def __init__(self, threshold: int):
+    def __init__(self, threshold: int, allow_when_done: bool = False):
         super().__init__()
         self.threshold = threshold
+        self.allow_when_done = allow_when_done
 
     def get_decision(self, state: SimWarehouseDomain) -> bool:
-        if len(state.orders.orders) >= self.threshold:
+        if (len(state.orders.orders) >= self.threshold or
+                self.allow_when_done and state.dynamic_warehouse_info.done
+                and bool(state.orders.orders)):
             return True
         else:
             return False

@@ -90,6 +90,11 @@ class CoSySolver:
             repo = CoSyLuigiRepo(*repo_classes)
             maestro = Maestro(repo.cls_repo, repo.taxonomy)
             self.pipelines = list(maestro.query(endpoint_cls.target()))
+            if not self.pipelines:
+                raise ValueError(
+                    f"No CoSy pipeline for {problem}: check the configured components "
+                    "and their algorithm-card requirements"
+                )
             if self.verbose:
                 print(f"✓ Found {len(self.pipelines)} pipelines")
         else:
@@ -99,8 +104,7 @@ class CoSySolver:
     def solve(self, dynamic_domain: BaseWarehouseDomain, action: None) -> tuple[AlgorithmSolution, str, float] | None:
         self.dump_domain(dynamic_domain)
         if not self.pipelines:
-            print("⚠ No valid pipelines found!")
-            return None
+            raise RuntimeError(f"No configured CoSy pipeline for {dynamic_domain.problem_class}")
 
         luigi.interface.InterfaceLogging.setup(self.luigi_logging_opts)
         if not action and not action == 0:
@@ -146,8 +150,7 @@ class OnlineCoSySolver(CoSySolver):
         self.dump_domain(dynamic_domain)
 
         if not self.pipelines:
-            print("⚠ No valid pipelines found!")
-            return None
+            raise RuntimeError(f"No configured CoSy pipeline for {dynamic_domain.problem_class}")
 
         executor = InMemoryDagExecutor()
         executor.execute_many(self.pipelines)

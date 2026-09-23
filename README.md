@@ -24,3 +24,7 @@ We provide the configuration, experiment scripts and detailed results.
 
 In scenarios/scenario_henn_online we reproduce two classic waiting strategy approaches as detailed in Henn 2012. 
 This can be used as a starting point to get familiar with the framework.
+
+The [Walking vs. Waiting scenario](scenarios/scenario_walk_or_wait/README.md) maps
+the paper's wait-count and intervention rules to configured CASIM components. Its
+README lists supported strategy combinations and the remaining parity limits.

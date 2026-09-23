@@ -21,6 +21,10 @@ class DynamicInfo(WarehouseInfo):
     active_tour_id: int | None = None
     active_route_version: int | None = None
     routing_origin: RoutingOrigin | None = None
+    active_order_ids: frozenset[int] = frozenset()
+    active_candidate_ids: frozenset[int] = frozenset()
+    remaining_route_positions: tuple[tuple[float, float], ...] = ()
+    occupied_bins: int = 0
 
 
 class SimWarehouseDomain(BaseWarehouseDomain):

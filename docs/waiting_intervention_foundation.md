@@ -1,5 +1,12 @@
 # What this branch actually changes
 
+For the published *Walking vs. Waiting* strategy mapping and configured
+wait-k examples, see `scenarios/scenario_walk_or_wait/README.md`. The
+`scenario_stochastic_waiting` path below is an exploratory analytical
+integration. Its active insertion is automatic and is **not** the explainer
+mail's Phase 2 completion-time admission decision; it is not evidence of
+end-to-end parity for that method.
+
 This records `codex/waiting-intervention-foundation` against `main`. The branch is **not a cherry-pick of `codex/playground`**. It reimplements selected active-tour behavior in main's existing tour, event, adapter, and configured CoSy flow. Waiting and forecast support are separate additions. The WSC and IJPE papers describe the configured decision pipeline and replanning of **unstarted** tours; active-tour insertion and causal stochastic waiting are proposed extensions.
 
 ## What came from playground
@@ -34,8 +41,9 @@ In the configured single-picker scenario, an `OrderArrival` can trigger both
 problem classes. `OBRSPW` is eligible while an order is buffered and the picker
 is free; it can wait or release a scheduled job. Releasing creates a tour and
 removes its orders from the buffer. `OBRP` becomes eligible only after that tour
-has actually started, when a new order is buffered and the cart has room. It
-reroutes the remaining picks. The interval between release and `TourStart` has
+has actually started and a new order is buffered. Its configured batching
+algorithm checks cart capacity and remaining-route membership; rejection leaves
+the order buffered. The interval between release and `TourStart` has
 no tour-revision policy; later orders stay buffered during it.
 
 The simulation engine now rejects an event that makes both problems eligible,
@@ -45,7 +53,10 @@ S-shape insertion route. Their behavioral and numerical alignment is unproven.
 
 ## Scope and evidence
 
-The branch changes **42 CASIM files** and **22 `ware_ops_algos` files** relative to main. About 2,500 of the 2,822 added `ware_ops_algos` lines are analytical waiting modules. Calling the whole change “small” was misleading. The intended architecture is focused, but the source footprint and Henn migration are substantial.
+The earlier foundation work already had a substantial source footprint, chiefly
+from the analytical waiting modules and Henn migration. The configured paper
+scenario here is an additional, narrower strategy mapping; it does not make
+that whole branch a small change.
 
 `tests/test_waiting_intervention_contract.py` checks node and mid-edge insertion, arrival during a pick, preserved work, stale events, detached input, and same-time commitment through the configured path. Configured NoWaiting, analytical waiting, and Henn smoke runs and the existing CASIM tests passed during implementation. These checks establish an integration path. They do **not** establish numerical parity for Henn, equivalent stochastic results, or parity with all playground intervention behavior; those claims need separate evidence before a technical report makes them.
 

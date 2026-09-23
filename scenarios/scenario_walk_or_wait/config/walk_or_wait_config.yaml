@@ -1,0 +1,27 @@
+defaults:
+  - _self_
+  - data_card: walk_or_wait
+  - engines: paper_intervention
+  - policy: wait_1
+  - routing: s_shape
+  - cosy_repo: paper_waiting
+  - insertion_repo: paper_remaining_route
+  - simulation: explicit_example
+
+project_root: ${hydra:runtime.cwd}
+instances_base: ${project_root}/scenarios
+cache_base: ${hydra:runtime.output_dir}/cache
+verbose: true
+
+experiment:
+  output_dir: ${hydra:runtime.output_dir}
+  instance_name: walk_or_wait
+
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+
+viz:
+  launch: false

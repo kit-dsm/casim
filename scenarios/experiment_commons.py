@@ -29,6 +29,12 @@ except ImportError:
     pass
 
 try:
+    from scenarios.scenario_walk_or_wait.loader import WalkOrWaitDataLoader
+    LOADER_REGISTRY["WalkOrWaitDataLoader"] = WalkOrWaitDataLoader
+except ImportError:
+    pass
+
+try:
     from DEPRECATED.grocery_retailer_loader import WarehousePickingLoader
     LOADER_REGISTRY["WarehousePickingLoader"] = WarehousePickingLoader
 except ImportError:

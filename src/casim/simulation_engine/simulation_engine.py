@@ -129,14 +129,19 @@ class SimulationEngine:
     def step(self, events_to_add, problem_class, solution, state_snapshot=None):
         if (state_snapshot is not None and
                 state_snapshot.dynamic_warehouse_info.active_tour_id is not None):
-            if not isinstance(solution, CombinedRoutingSolution) or len(solution.routes) != 1:
-                raise ValueError("Active insertion requires one routed residual batch")
+            if not isinstance(solution, CombinedRoutingSolution) or len(solution.routes) > 1:
+                raise ValueError("Active intervention requires zero or one residual route")
             dynamic = state_snapshot.dynamic_warehouse_info
             tour_id = dynamic.active_tour_id
+            considered = {(tour_id, order_id) for order_id in dynamic.active_candidate_ids}
+            if not solution.routes:
+                self.state.considered_active_orders.update(considered)
+                return
             version = self.state.commit_active_route(
                 solution.routes[0], tour_id,
                 dynamic.active_route_version, dynamic.current_picker.id,
             )
+            self.state.considered_active_orders.update(considered)
             self.add_event(TravelEvent(self.state.current_time, tour_id, version))
             return
         self.state.commit_solution(problem_class, solution)
