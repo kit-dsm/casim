@@ -49,6 +49,12 @@ uv run python -m scenarios.scenario_walk_or_wait.experiment engines=paper_no_int
 uv run python -m scenarios.scenario_walk_or_wait.experiment engines=paper_no_intervention policy=wait_2 routing=nearest_neighbour
 ```
 
+To see the initially empty tour, run
+`uv run python -m scenarios.scenario_walk_or_wait.experiment policy=wait_0 simulation=explicit_wait0 viz.launch=true`
+and open `http://127.0.0.1:8050/` after the simulation finishes. The
+`TourStart` frame at t=0 shows tour 1 with zero orders; the default `wait_1`
+run has no empty start.
+
 The Hydra root selects the data card, engine config, CoSy repos, waiting
 component, routing component, and explicit orders. The hooks only seed arrivals
 and picker availability. The experiment follows build → reset → run → decide →

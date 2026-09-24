@@ -68,6 +68,9 @@ def main(cfg: DictConfig):
             sim.step(events, snapshot.problem_class, solution, snapshot)
 
     print(report(sim, Path(cfg.experiment.output_dir), len(cfg.simulation.orders)))
+    if cfg.viz.launch:
+        from casim.viz.app import launch
+        launch(Path(cfg.experiment.output_dir) / "viz", port=cfg.viz.port)
 
 
 if __name__ == "__main__":
