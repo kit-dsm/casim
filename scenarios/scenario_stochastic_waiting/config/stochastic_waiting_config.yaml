@@ -16,7 +16,7 @@ experiment:
   instance_name: stochastic_waiting
 
 luigi:
-  log_level: CRITICAL
+  log_level: ERROR
   logdir: null
   background: null
   logging_conf_file: null

@@ -129,6 +129,21 @@ class StochasticWaitingDataLoader(DataLoader):
         self,
         **kwargs,
     ) -> SimWarehouseDomain:
+        problems = self.cfg.engines.simulation_engine.problems
+        order_condition = "casim.simulation_engine.conditions.NbrOrdersCondition"
+        if not any(
+            condition.get("_target_") == order_condition
+            and int(condition.threshold) == 3
+            and condition.get("allow_when_done", False)
+            for condition in problems.OBRSPW.conditions
+        ):
+            raise ValueError("Analytical waiting requires OBRSPW to start at q-1 = 3 orders and flush on stream closure")
+        if not any(
+            condition.get("_target_") == order_condition
+            and int(condition.threshold) == 1
+            for condition in problems.OBRP.conditions
+        ):
+            raise ValueError("Active insertion requires OBRP to consider each new order")
         arrival_times_s = self.cfg.simulation.arrival_times_s
         aisles = self.cfg.simulation.aisles
         arrivals = [float(value) for value in arrival_times_s]

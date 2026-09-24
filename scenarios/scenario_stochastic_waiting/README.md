@@ -12,6 +12,10 @@ other batch size while the stream is open; closure releases a final partial
 batch. The forecast in `WarehouseInfo` is separate from the
 realised event stream in `simulation/reference.yaml`.
 
+The loader checks the configured three-order waiting gate and one-order active
+insertion gate. Luigi logs task errors at `ERROR` level, so an invalid policy
+input is visible instead of appearing only as a generic CoSy failure.
+
 The mail's Phase 2 is **not implemented here**. The configured OBRP path
 automatically routes eligible buffered orders into an active tour; it does not
 compare adding an order with leaving it for the next batch using deterministic
