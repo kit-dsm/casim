@@ -243,7 +243,7 @@ def create_app(events, static):
             patched["data"][picker_idx[p["id"]]]["x"] = [x]
             patched["data"][picker_idx[p["id"]]]["y"] = [y]
 
-        event_label = f"{snap['event_type']} #{snap['event_id']:05d}"
+        event_label = snap.get("decision_summary") or f"{snap['event_type']} #{snap['event_id']:05d}"
         time_label = f"t = {snap['time']}"
         frame_label = f"{frame + 1} / {n}"
 

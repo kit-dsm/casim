@@ -8,7 +8,7 @@ from ware_ops_algos.domain_models import DataCard
 
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.events.base_events import Event
-from casim.loggers import KPILogger
+from casim.loggers import DashLogger, KPILogger
 from casim.events.decision_events import RoutingDone, PickListDone
 from casim.events.operational_events import OrderArrival, OrderStreamClosed, PickerArrival, PickerTourQuery, PickerIdle, NodeArrival, TourEnd, PickComplete, \
     ShiftStart, FlushRemainingOrders, WaitExpired, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion
@@ -188,8 +188,8 @@ def setup_scenario(cfg: DictConfig) -> SimulationEngine:
     }
 
     event_loggers = [KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
-    # if cfg.viz.launch:
-    #     event_loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
+    if cfg.viz.launch:
+        event_loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
 
     return SimulationEngine(
         state_adapters=state_adapters,

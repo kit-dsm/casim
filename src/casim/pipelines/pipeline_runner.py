@@ -96,7 +96,7 @@ class CoSySolver:
                     "and their algorithm-card requirements"
                 )
             if self.verbose:
-                print(f"✓ Found {len(self.pipelines)} pipelines")
+                print(f"Found {len(self.pipelines)} pipelines")
         else:
             if self.verbose:
                 print("Using cached pipelines")

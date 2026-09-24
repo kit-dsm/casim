@@ -1,5 +1,7 @@
 """Configured stochastic waiting study using CASIM's usual experiment loop."""
 
+from pathlib import Path
+
 import hydra
 from omegaconf import DictConfig
 
@@ -26,6 +28,9 @@ def main(cfg: DictConfig):
             sim.step(events, snapshot.problem_class, solution, snapshot)
 
     print(f"Decisions: {decision_engine.decision_tracker.num_decisions}")
+    if cfg.viz.launch:
+        from casim.viz.app import launch
+        launch(Path(cfg.experiment.output_dir) / "viz", port=cfg.viz.port)
 
 
 if __name__ == "__main__":

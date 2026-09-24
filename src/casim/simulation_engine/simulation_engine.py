@@ -136,17 +136,20 @@ class SimulationEngine:
             considered = {(tour_id, order_id) for order_id in dynamic.active_candidate_ids}
             if not solution.routes:
                 self.state.considered_active_orders.update(considered)
-                return
-            version = self.state.commit_active_route(
-                solution.routes[0], tour_id,
-                dynamic.active_route_version, dynamic.current_picker.id,
-            )
-            self.state.considered_active_orders.update(considered)
-            self.add_event(TravelEvent(self.state.current_time, tour_id, version))
-            return
-        self.state.commit_solution(problem_class, solution)
-        if events_to_add:
-            for e in events_to_add:
-                if isinstance(e, WaitExpired):
-                    e.version = self.state.wait_version
-                self.add_event(e)
+            else:
+                version = self.state.commit_active_route(
+                    solution.routes[0], tour_id,
+                    dynamic.active_route_version, dynamic.current_picker.id,
+                )
+                self.state.considered_active_orders.update(considered)
+                self.add_event(TravelEvent(self.state.current_time, tour_id, version))
+        else:
+            self.state.commit_solution(problem_class, solution)
+            if events_to_add:
+                for e in events_to_add:
+                    if isinstance(e, WaitExpired):
+                        e.version = self.state.wait_version
+                    self.add_event(e)
+
+        for el in self.event_loggers:
+            el.on_decision(problem_class, solution, state_snapshot, self)

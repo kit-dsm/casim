@@ -22,3 +22,18 @@ compare adding an order with leaving it for the next batch using deterministic
 detour and order completion time. The four-order fixed stream is an integration
 example, not a stochastic experiment or evidence for the two-phase method.
 Do not use its metrics as a validation or publication result for that method.
+
+## Dash replay
+
+From the CASIM project root, run:
+
+```powershell
+.venv\Scripts\python.exe -m scenarios.scenario_stochastic_waiting.experiment_stochastic_waiting viz.launch=true
+```
+
+After the simulation finishes, open `http://127.0.0.1:8050/`. Use the slider
+to inspect the event stream. Decision frames follow the triggering event:
+`OBRSPW wait` at t=2, `OBRSPW release` at t≈11.085, and `OBRP admit` at t=12.
+The replay shows the picker, order status, and committed tour membership at
+each frame. It does not plot the analytical waiting calculation or evaluate
+the Phase 2 insertion choice.

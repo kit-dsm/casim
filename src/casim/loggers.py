@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from ware_ops_algos.domain_models import Resource
+from ware_ops_algos.algorithms import CombinedRoutingSolution, WaitingSolution
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 class EventLogger:
     def on_reset(self, sim: SimulationEngine, domain: SimWarehouseDomain) -> None: ...
     def on_event(self, event: Event, sim: SimulationEngine) -> None: ...
+    def on_decision(self, problem_class, solution, state_snapshot, sim: SimulationEngine) -> None: ...
     def on_done(self, sim: SimulationEngine) -> None: ...
 
 
@@ -44,13 +46,42 @@ class DashLogger(EventLogger):
         self.events_file = open(self.out_dir / "events.pkl", "wb")
 
     def on_event(self, event, sim):
+        snapshot = self._snapshot(sim)
+        snapshot.update(event_id=event.id, event_type=event.__class__.__name__)
+        pickle.dump(snapshot, self.events_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def on_decision(self, problem_class, solution, state_snapshot, sim):
+        if isinstance(solution, WaitingSolution):
+            if solution.action == "wait":
+                until = (f" until t={solution.reconsider_at:g}"
+                         if solution.reconsider_at is not None else " for next event")
+                label = f"{problem_class} wait{until}"
+            else:
+                released = sorted(oid for job in solution.jobs for oid in job.order_numbers)
+                label = f"{problem_class} release orders {released}"
+        elif (isinstance(solution, CombinedRoutingSolution) and state_snapshot is not None
+              and state_snapshot.dynamic_warehouse_info.active_tour_id is not None):
+            dynamic = state_snapshot.dynamic_warehouse_info
+            if solution.routes:
+                admitted = sorted(set(solution.routes[0].batch.order_numbers)
+                                  - set(dynamic.active_order_ids))
+                version = sim.state.tour_manager.get_tour(dynamic.active_tour_id).route_version
+                label = f"{problem_class} admit orders {admitted} to tour {dynamic.active_tour_id} v{version}"
+            else:
+                label = f"{problem_class} decline orders {sorted(dynamic.active_candidate_ids)}"
+        else:
+            label = f"{problem_class} commit"
+
+        snapshot = self._snapshot(sim)
+        snapshot.update(event_id=None, event_type="Decision", decision_summary=label)
+        pickle.dump(snapshot, self.events_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def _snapshot(self, sim):
         state = sim.state
         om = state.order_manager
         tm = state.tour_manager
 
-        snapshot = {
-            "event_id": event.id,
-            "event_type": event.__class__.__name__,
+        return {
             "time": state.current_time,
             "pickers": [
                 {
@@ -76,8 +107,6 @@ class DashLogger(EventLogger):
             },
             "active_picker_tour": dict(tm._active_picker_tour),
         }
-
-        pickle.dump(snapshot, self.events_file, protocol=pickle.HIGHEST_PROTOCOL)
 
     def on_done(self, state):
         if self.events_file is not None:
