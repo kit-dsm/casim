@@ -1,7 +1,7 @@
-from ware_ops_algos.algorithms import OrderNrFifoBatching, FifoBatching, RemainingRouteAdmission, DueDateBatching, LocalSearchBatching, \
+from ware_ops_algos.algorithms import OrderNrFifoBatching, FifoBatching, DueDateBatching, LocalSearchBatching, \
     NearestNeighbourhoodRouting, SShapeRouting, ClarkAndWrightBatching
 
-from casim.pipelines.problem_based_template import BatchingNode, load_pickle
+from casim.pipelines.problem_based_template import BatchingNode
 
 
 class OrderNrFiFo(BatchingNode):
@@ -16,24 +16,6 @@ class FiFo(BatchingNode):
         articles = self._get_articles()
         resources = self._get_resources()
         return FifoBatching(pick_cart=resources.resources[0].pick_cart, articles=articles)
-
-
-class RemainingRouteAdmissionNode(BatchingNode):
-    """Configured paper admission rule, using a detached residual-route projection."""
-
-    def _get_inited_batcher(self):
-        dynamic = load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
-        resources = self._get_resources()
-        if len(resources.resources) != 1 or dynamic.active_tour_id is None:
-            raise ValueError("Remaining-route admission needs one active picker")
-        return RemainingRouteAdmission(
-            pick_cart=resources.resources[0].pick_cart,
-            articles=self._get_articles(),
-            active_order_ids=dynamic.active_order_ids,
-            candidate_order_ids=dynamic.active_candidate_ids,
-            remaining_route=dynamic.remaining_route_positions,
-            occupied_bins=dynamic.occupied_bins,
-        )
 
 
 class DueDate(BatchingNode):

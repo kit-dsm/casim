@@ -6,9 +6,10 @@ import pytest
 from hydra import compose, initialize_config_dir
 
 from ware_ops_algos.algorithms import (
-    CombinedRoutingSolution, PickPosition, RemainingRouteAdmission, WarehouseOrder,
+    AdmissionInput, Batching, CombinedRoutingSolution, PickPosition,
+    RemainingRouteAdmission, WarehouseOrder,
 )
-from ware_ops_algos.domain_models import Articles, ArticleType, DimensionType, PickCart
+from ware_ops_algos.domain_models import DimensionType, PickCart
 
 from casim.events.operational_events import ActiveTourOpportunity, NodeArrival, TravelEvent
 from casim.domain_objects.tour_model import TourStates
@@ -155,14 +156,14 @@ def test_invalid_opportunity_ownership_and_fifo_admission_fail_at_load(tmp_path)
     cfg.engines.simulation_engine.problems.OBRP.triggers = ["ActiveTourOpportunity"]
     cfg.insertion_repo.components[3] = "casim.pipelines.subproblems.batching.FiFo"
     sim = setup_scenario(cfg)
-    with pytest.raises(ValueError, match="RemainingRouteAdmissionNode"):
+    with pytest.raises(ValueError, match="admission node"):
         sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
 
 
 def test_remaining_route_admission_respects_path_and_cart_capacity():
+    assert not isinstance(RemainingRouteAdmission(), Batching)
     cart = PickCart(n_dimension=1, capacities=[1], dimensions=[DimensionType.ORDERS],
                     n_boxes=4, box_can_mix_orders=False)
-    articles = Articles(ArticleType.STANDARD, [])
     candidate = WarehouseOrder(
         order_id=7, order_date=1.0,
         pick_positions=(PickPosition(order_number=7, article_id=7, amount=1,
@@ -170,12 +171,12 @@ def test_remaining_route_admission_respects_path_and_cart_capacity():
     )
 
     def solve(remaining_route, occupied_bins):
-        return RemainingRouteAdmission(
-            pick_cart=cart, articles=articles,
+        return RemainingRouteAdmission().solve(AdmissionInput(
+            orders=(candidate,), pick_cart=cart,
             active_order_ids=frozenset(), candidate_order_ids=frozenset({7}),
             remaining_route=remaining_route, occupied_bins=occupied_bins,
-        ).solve([candidate]).batches
+        )).accepted_order_ids
 
-    assert len(solve(((2, 1),), 3)) == 1
-    assert solve(((3, 1),), 3) == []
-    assert solve(((2, 1),), 4) == []
+    assert solve(((2, 1),), 3) == (7,)
+    assert solve(((3, 1),), 3) == ()
+    assert solve(((2, 1),), 4) == ()

@@ -72,10 +72,12 @@ class ActiveTourAdapter(StateAdapter):
                       if (tour.tour_id, order.order_id) not in state.considered_active_orders]
         picker = state.resource_manager.get_resource(tour.assigned_resource)
         orders = list(new_orders)
+        remaining_active_ids = set()
         for order_id in tour.order_numbers:
             picks = [pick for pick in tour.remaining_picks if pick.order_number == order_id]
             if not picks:
                 continue
+            remaining_active_ids.add(order_id)
             known = state.order_manager.get_order_from_history(order_id)
             orders.append(Order(
                 order_id=order_id,
@@ -107,7 +109,7 @@ class ActiveTourAdapter(StateAdapter):
             active_tour_id=tour.tour_id,
             active_route_version=tour.route_version,
             routing_origin=origin,
-            active_order_ids=frozenset(tour.order_numbers),
+            active_order_ids=frozenset(remaining_active_ids),
             active_candidate_ids=frozenset(order.order_id for order in new_orders),
             remaining_route_positions=tuple(
                 node.position for node in tour.annotated_route[

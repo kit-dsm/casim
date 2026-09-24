@@ -20,8 +20,9 @@ The mail's Phase 2 is **not implemented here**. `WaitingOpportunity` runs the
 Phase 1 waiting policy when a picker can take a new batch.
 `ActiveTourOpportunity` runs a separate rule from the original simulator:
 admit an arrived order only if a cart bin is free and all its picks still lie
-on the active route. That rule returns batch membership through the configured
-CoSy batching component. It does **not** compare deterministic detour and order
+on the active route. The domain algorithm returns accepted order IDs; its
+configured CoSy node converts them to the batch expected by routing. It does
+**not** compare deterministic detour and order
 completion time with the next batch. The four-order fixed stream is an
 integration example, not evidence for the two-phase method.
 

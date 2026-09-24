@@ -140,11 +140,12 @@ class StochasticWaitingDataLoader(DataLoader):
             raise ValueError("Waiting decisions must use WaitingOpportunity")
         if not any(c.get("_target_") == active_condition for c in problems.OBRP.conditions):
             raise ValueError("Active-tour decisions require ActiveTourReadyCondition")
-        admission = "casim.pipelines.subproblems.batching.RemainingRouteAdmissionNode"
-        configured_batchers = [name for name in self.cfg.insertion_repo.components
-                               if name.startswith("casim.pipelines.subproblems.batching.")]
-        if configured_batchers != [admission]:
-            raise ValueError("Active-tour admission requires only RemainingRouteAdmissionNode")
+        admission = "casim.pipelines.subproblems.admission.RemainingRouteAdmissionNode"
+        if admission not in self.cfg.insertion_repo.components or any(
+            name.startswith("casim.pipelines.subproblems.batching.")
+            for name in self.cfg.insertion_repo.components
+        ):
+            raise ValueError("Active-tour admission requires the admission node without a batching node")
         if "casim.pipelines.subproblems.picker_routing.SShape" not in self.cfg.insertion_repo.components:
             raise ValueError("Active-tour admission requires SShape routing")
         if not any(

@@ -62,11 +62,12 @@ class WalkOrWaitDataLoader(DataLoader):
         if wait_k == 0 and cfg.routing.name != "s_shape":
             raise ValueError("Empty aisle patrol is defined for S-Shape routing only")
         if intervention:
-            admission = "casim.pipelines.subproblems.batching.RemainingRouteAdmissionNode"
-            configured_batchers = [name for name in cfg.insertion_repo.components
-                                   if name.startswith("casim.pipelines.subproblems.batching.")]
-            if configured_batchers != [admission]:
-                raise ValueError("Paper intervention needs only RemainingRouteAdmissionNode in its configured CoSy repo")
+            admission = "casim.pipelines.subproblems.admission.RemainingRouteAdmissionNode"
+            if admission not in cfg.insertion_repo.components or any(
+                name.startswith("casim.pipelines.subproblems.batching.")
+                for name in cfg.insertion_repo.components
+            ):
+                raise ValueError("Paper intervention needs the admission node without a batching node")
         if sim.source != "explicit":
             raise ValueError("Only explicit demonstration orders are loadable; published paper layouts are not imported")
 

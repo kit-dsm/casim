@@ -52,9 +52,16 @@ duplicate trigger ownership fails during scenario setup.
 The active-tour condition checks for an unconsidered candidate and waits for
 an in-progress pick to finish. The adapter always projects a detached residual
 tour for a valid opportunity and never returns `None` as a decision. The
-configured `RemainingRouteAdmission` algorithm returns accepted batch
-membership or an empty result. CASIM alone marks a rejected order considered
+configured `RemainingRouteAdmission` algorithm returns accepted order IDs.
+Its CoSy node only packages those IDs with the residual orders as a batch for
+routing. CASIM alone marks a rejected order considered
 for this tour or commits a replacement route. A rejected order stays buffered.
+The earlier `RemainingRouteAdmission` class inherited `Batching` and combined
+the admission gate with batch construction. It now uses
+`AdmissionInput → AdmissionSolution` outside the batching algorithms; the CoSy
+node provides only the output shape required by the existing routing pipeline.
+The algorithm card declares `problem_type: admission`; OBRP allows that type
+while the existing routing task continues to consume a `BatchingSolution`.
 The waiting adapter projects pickers that are available, unoccupied, and not
 reserved by queued tours; the waiting condition decides whether one exists.
 

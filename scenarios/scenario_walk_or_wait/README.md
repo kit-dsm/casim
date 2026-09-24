@@ -21,9 +21,10 @@ are a readable integration example. They are not an OFAT or LHS instance.
 `RemainingRouteAdmission` is the intervention admission check, not the regular
 FIFO batcher. The regular `FiFo` component batches buffered orders for a free
 picker. Admission checks a newly arrived order against a *started* tour's
-unserved path and cart bins. It returns an accepted residual batch or an empty
-solution; CASIM then commits or leaves the order buffered. The name no longer
-suggests a second FIFO batching policy.
+unserved path and cart bins. It returns accepted order IDs through a dedicated
+admission interface. The configured CoSy node converts those IDs into the
+batch required by the existing router; it makes no admission choice. CASIM
+then commits or leaves the order buffered.
 
 The intervention configuration gives `WaitingOpportunity` to OBRSPW and
 `ActiveTourOpportunity` to OBRP. An arrival produces one of these based on
@@ -67,7 +68,7 @@ The Hydra root selects the data card, engine config, CoSy repos, waiting
 component, routing component, and explicit orders. The hooks only seed arrivals
 and picker availability. The experiment follows build → reset → run → decide →
 step → report. A newly arrived order can be rejected by the configured
-remaining-route batching algorithm; rejection is a real decision and leaves
+remaining-route admission algorithm; rejection is a real decision and leaves
 the order for a later batch. There is no insertion policy hidden in the
 experiment script.
 
