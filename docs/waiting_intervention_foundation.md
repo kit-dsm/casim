@@ -6,7 +6,8 @@ paper's wait-0 now starts an empty all-aisle tour through the same configured
 waiting and CASIM commit path; an explicit delayed-arrival example makes its
 active-tour admission visible. The
 `scenario_stochastic_waiting` path below is an exploratory analytical
-integration. Its active insertion is automatic and is **not** the explainer
+integration. Its active admission uses the original simulator's remaining-route
+rule and is **not** the explainer
 mail's Phase 2 completion-time admission decision; it is not evidence of
 end-to-end parity for that method.
 
@@ -38,21 +39,45 @@ The **stochastic mathematics** comes from a different source: `2_Stochastic_Wait
 
 Two more `ware_ops_algos` additions, `order_splitting` and `data_loaders`, restore imports expected by CASIM main against this main-based worktree. `order_splitting.py` matches the existing feature-branch file. These are compatibility additions, not playground behavior or waiting theory; review them before merge.
 
-## Boundary between release and active insertion
+## Decision boundary and audit findings
 
-In the configured single-picker scenario, an `OrderArrival` can trigger both
-problem classes. `OBRSPW` is eligible while an order is buffered and the picker
-is free; it can wait or release a scheduled job. Releasing creates a tour and
-removes its orders from the buffer. `OBRP` becomes eligible only after that tour
-has actually started and a new order is buffered. Its configured batching
-algorithm checks cart capacity and remaining-route membership; rejection leaves
-the order buffered. The interval between release and `TourStart` has
-no tour-revision policy; later orders stay buffered during it.
+An `OrderArrival` buffers the order, then emits one opportunity based on the
+operational state. A started tour yields `ActiveTourOpportunity` for OBRP;
+otherwise it yields `WaitingOpportunity` for OBRSPW. The opportunity runs after
+same-time operational events and carries a version so a superseded opportunity
+does nothing. Other operational events can reopen the appropriate opportunity.
+Each opportunity has exactly one owner in the Hydra engine configuration;
+duplicate trigger ownership fails during scenario setup.
 
-The simulation engine now rejects an event that makes both problems eligible,
-instead of silently using their order in the YAML file. The expected detour in
-the analytical waiting model does not select or constrain the actual FIFO and
-S-shape insertion route. Their behavioral and numerical alignment is unproven.
+The active-tour condition checks for an unconsidered candidate and waits for
+an in-progress pick to finish. The adapter always projects a detached residual
+tour for a valid opportunity and never returns `None` as a decision. The
+configured `RemainingRouteAdmission` algorithm returns accepted batch
+membership or an empty result. CASIM alone marks a rejected order considered
+for this tour or commits a replacement route. A rejected order stays buffered.
+The waiting adapter projects pickers that are available, unoccupied, and not
+reserved by queued tours; the waiting condition decides whether one exists.
+
+The boundary audit found three concrete violations: the active adapter
+suppressed decisions by returning `None`; the two intervention configurations
+subscribed both problems to `OrderArrival`; and the stochastic OBRP repo used
+plain FIFO, which did not implement the original admission rule. The generic
+waiting CoSy task also branched on `algo_name == "HennWaiting"`; that input
+calculation now lives in the configured Henn component. Henn's picker-arrival
+hook incorrectly marked its picker unavailable, which the old projection
+ignored; the hook now marks it available. Existing adapters outside the
+waiting/intervention path remain for separate review. In particular,
+`RLOSBPAdapter` sorts buffered orders and selects the first, and
+`RLORSPAdapter` selects the first buffered pick list; these are policy choices
+inside projections and were not changed for this study.
+
+The stochastic model's expected detour determines Phase 1 waiting. It does
+not govern the configured remaining-route admission. The original offline
+`order_optimizer_continuous.py` Phase 2 evaluates a fixed three-order window
+and future insertion positions. A live Phase 2 needs the current position and
+completed route prefix, the arrived order, deterministic detour, and an
+explicit comparison with leaving it for the next batch. This branch makes no
+end-to-end Phase 2 or numerical parity claim.
 
 ## Scope and evidence
 
@@ -61,6 +86,11 @@ from the analytical waiting modules and Henn migration. The configured paper
 scenario here is an additional, narrower strategy mapping; it does not make
 that whole branch a small change.
 
-`tests/test_waiting_intervention_contract.py` checks node and mid-edge insertion, arrival during a pick, preserved work, stale events, detached input, and same-time commitment through the configured path. Configured NoWaiting, analytical waiting, and Henn smoke runs and the existing CASIM tests passed during implementation. These checks establish an integration path. They do **not** establish numerical parity for Henn, equivalent stochastic results, or parity with all playground intervention behavior; those claims need separate evidence before a technical report makes them.
+`tests/test_waiting_intervention_contract.py` checks accepted and rejected
+admission, a deferred decision during picking, stale events, detached inputs,
+same-time arrivals, reserved pickers, and configuration rejection. Configured
+analytical waiting, wait-0, and Henn runs check the integration path. These
+checks do **not** establish numerical parity for Henn, equivalent stochastic
+results, or parity with all playground intervention behavior.
 
 Deferred: playground's compiler, general intervention request protocol, exact/general routing, multiple active pickers, atomic inventory and bin ledger, congestion, and broad configuration changes. The current supported case is one active picker inserting a visible new order into an S-shape residual route. Configuration still selects triggers, conditions, adapter, solver, and commitment policy; scenario code seeds events and reports results.

@@ -11,7 +11,10 @@ from ware_ops_algos.algorithms import WaitingSolution, CombinedRoutingSolution
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
-from casim.events.operational_events import OrderArrival, FlushRemainingOrders, TravelEvent, WaitExpired
+from casim.events.operational_events import (
+    OrderArrival, FlushRemainingOrders, TravelEvent, WaitExpired, BaseTourEvent,
+    WaitingOpportunity, ActiveTourOpportunity,
+)
 from casim.loggers import EventLogger
 from casim.state import State
 from casim.simulation_engine.conditions import Condition
@@ -80,7 +83,8 @@ class SimulationEngine:
             )
         while self.events:
             event = heapq.heappop(self.events)
-            if isinstance(event, WaitExpired) and event.is_stale(self.state):
+            if isinstance(event, (WaitExpired, BaseTourEvent, WaitingOpportunity,
+                                  ActiveTourOpportunity)) and event.is_stale(self.state):
                 continue
             # logger.info(f"Event {event} popped at state time: {self.state.current_time}, events start: {event.time}")
             self.state.current_time = event.time
@@ -91,32 +95,28 @@ class SimulationEngine:
                 self._pbar.set_postfix_str(f"{self.state.current_time:.0f}s")
 
             for e in events_to_add:
+                if isinstance(e, (WaitingOpportunity, ActiveTourOpportunity)) and type(e) not in self.triggers_map:
+                    continue
                 self.add_event(e)
 
             for el in self.event_loggers:
                 el.on_event(event, self)
 
-            problems = self.triggers_map.get(event.__class__, [])
-            selected = None
-            for problem in ([problems] if isinstance(problems, str) else problems):
-                state_transformer = self.state_adapters[problem]
-                projected = state_transformer.transform_state(self.state, problem)
+            problem = self.triggers_map.get(event.__class__)
+            if problem is not None:
+                projected = self.state_adapters[problem].transform_state(self.state, problem)
                 if projected is None:
-                    continue
-                projected.dynamic_warehouse_info.wait_expired = isinstance(event, WaitExpired)
+                    raise ValueError(f"{type(self.state_adapters[problem]).__name__} returned None")
+                projected.dynamic_warehouse_info.wait_expired = (
+                    isinstance(event, WaitExpired) or
+                    isinstance(event, WaitingOpportunity) and event.deadline_reached
+                )
                 state_snapshot = copy.deepcopy(projected)
                 state_snapshot.warehouse_info = copy.deepcopy(self.state.warehouse_info)
                 conditions = self.conditions_map.get(problem) or []
                 if (all(c.get_decision(state_snapshot) for c in conditions if c is not None) or
                         isinstance(event, FlushRemainingOrders)):
-                    if selected is not None:
-                        raise ValueError(
-                            f"{type(event).__name__} makes both {selected.problem_class} "
-                            f"and {problem} eligible; configure exclusive decisions"
-                        )
-                    selected = state_snapshot
-            if selected is not None:
-                return False, selected
+                    return False, state_snapshot
 
         logger.info("Simulation complete")
         if hasattr(self, "_pbar"):

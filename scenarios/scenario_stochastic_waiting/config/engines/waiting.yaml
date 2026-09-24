@@ -21,19 +21,16 @@ decision_engine:
 
 simulation_engine:
   problems:
-    # OrderArrival can trigger either problem. They must never be eligible together:
-    # OBRP needs a started tour; OBRSPW needs a free picker and buffered orders.
     OBRP:
       state_adapter:
         _target_: casim.simulation_engine.state_adapter.ActiveTourAdapter
-      triggers: [OrderArrival, PickComplete]
+      triggers: [ActiveTourOpportunity]
       conditions:
-        - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
-          threshold: 1
+        - _target_: casim.simulation_engine.conditions.ActiveTourReadyCondition
     OBRSPW:
       state_adapter:
         _target_: casim.simulation_engine.state_adapter.HennWaitingAdapter
-      triggers: [OrderArrival, OrderStreamClosed, PickerIdle, WaitExpired, FlushRemainingOrders]
+      triggers: [WaitingOpportunity]
       conditions:
         - _target_: casim.simulation_engine.conditions.NbrPickersCondition
           threshold: 1

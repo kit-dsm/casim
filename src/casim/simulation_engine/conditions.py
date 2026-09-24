@@ -41,7 +41,7 @@ class NbrPickersCondition(Condition):
         self.threshold = threshold
 
     def get_decision(self, state: SimWarehouseDomain) -> bool:
-        if len(state.resources.resources) >= 1 >= self.threshold:
+        if len(state.resources.resources) >= self.threshold:
             return True
         else:
             return False
@@ -60,6 +60,17 @@ class NbrOrdersCondition(Condition):
             return True
         else:
             return False
+
+
+class ActiveTourReadyCondition(Condition):
+    """A visible candidate can be considered once the current pick has ended."""
+
+    def get_decision(self, state: SimWarehouseDomain) -> bool:
+        dynamic = state.dynamic_warehouse_info
+        return (dynamic.active_tour_id is not None
+                and bool(dynamic.active_candidate_ids)
+                and len(dynamic.active_tours) == 1
+                and dynamic.active_tours[0].picking_until is None)
 
 class NbrBatchesCondition(Condition):
     def __init__(self, threshold: int):

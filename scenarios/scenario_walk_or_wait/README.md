@@ -25,6 +25,12 @@ unserved path and cart bins. It returns an accepted residual batch or an empty
 solution; CASIM then commits or leaves the order buffered. The name no longer
 suggests a second FIFO batching policy.
 
+The intervention configuration gives `WaitingOpportunity` to OBRSPW and
+`ActiveTourOpportunity` to OBRP. An arrival produces one of these based on
+whether a tour has started. The active-tour condition checks for a visible
+candidate and waits for an in-progress pick to finish. The adapter only
+projects the residual tour; admission remains in the configured algorithm.
+
 The `paper_metrics.json` file also reports `empty_tours_started` and
 `orders_admitted_after_empty_start`, so the wait-0 example can be checked
 without inferring it from completion-time averages.

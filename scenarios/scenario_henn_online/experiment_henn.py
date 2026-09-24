@@ -26,7 +26,8 @@ def picker_arrival_hook(sim: SimulationEngine,
             min_order_date = o.order_date
     for resource in domain.resources.resources:
         sim.add_event(PickerArrival(time=min_order_date,
-                                    picker_id=resource.id))
+                                    picker_id=resource.id,
+                                    picker_available=True))
 
 
 def add_orders_hook(sim: SimulationEngine,

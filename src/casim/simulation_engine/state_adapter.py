@@ -1,4 +1,4 @@
-import logging
+import copy
 
 from ware_ops_algos.algorithms import RoutingOrigin
 from ware_ops_algos.domain_models import Resources, WarehouseInfoType, ResourceType, OrdersDomain, OrderType, Order, \
@@ -7,9 +7,6 @@ from ware_ops_algos.domain_models import Resources, WarehouseInfoType, ResourceT
 from casim.domain_objects.sim_domain import SimWarehouseDomain, DynamicInfo
 from casim.domain_objects.tour_model import TourStates
 from casim.state import State
-
-
-logger = logging.getLogger(__name__)
 
 
 class StateAdapter:
@@ -41,7 +38,7 @@ class HennWaitingAdapter(StateAdapter):
         resources = state.resource_manager.get_resources()
         dynamic_resources_list = []
         for r in resources.resources:
-            if not r.occupied:
+            if state.available_for_planning(r.id):
                 dynamic_resources_list.append(r)
 
         dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
@@ -56,7 +53,7 @@ class HennWaitingAdapter(StateAdapter):
             storage=state.get_storage(),
             dynamic_warehouse_info=warehouse_info
         )
-        return dynamic_information
+        return copy.deepcopy(dynamic_information)
 
 
 class ActiveTourAdapter(StateAdapter):
@@ -64,24 +61,15 @@ class ActiveTourAdapter(StateAdapter):
 
     def transform_state(self, state: State, problem: str):
         new_orders = state.order_manager.get_order_buffer()
-        if not new_orders:
-            return None
         if len(state.resource_manager.get_resources().resources) != 1:
             raise ValueError("Active-tour admission currently requires exactly one picker")
         active = [tour for tour in state.tour_manager.all_tours.values()
-                  if tour.status == TourStates.STARTED and tour.picking_until is None]
+                  if tour.status == TourStates.STARTED]
         if len(active) != 1:
-            if new_orders and any(
-                tour.status == TourStates.STARTED and tour.picking_until is not None
-                for tour in state.tour_manager.all_tours.values()
-            ):
-                logger.warning("Active-tour admission deferred until the current pick completes")
-            return None
+            raise ValueError("Active-tour opportunity requires exactly one started tour")
         tour = active[0]
         new_orders = [order for order in new_orders
                       if (tour.tour_id, order.order_id) not in state.considered_active_orders]
-        if not new_orders:
-            return None
         picker = state.resource_manager.get_resource(tour.assigned_resource)
         orders = list(new_orders)
         for order_id in tour.order_numbers:
@@ -129,7 +117,7 @@ class ActiveTourAdapter(StateAdapter):
             occupied_bins=len(set(tour.cart_bins.values())),
             done=state.done_flag,
         )
-        return SimWarehouseDomain(
+        return copy.deepcopy(SimWarehouseDomain(
             problem_class=problem,
             objective=state.active_objective,
             layout=state.layout_manager.get_layout(),
@@ -138,7 +126,7 @@ class ActiveTourAdapter(StateAdapter):
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
             dynamic_warehouse_info=dynamic,
-        )
+        ))
 
 
 class OrderWindowAdapter(StateAdapter):

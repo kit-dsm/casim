@@ -399,6 +399,9 @@ class AbstractWaiting(BaseComponent):
     def _get_inited_waiter(self):
         raise NotImplementedError
 
+    def _single_order_service_times(self, scheduled, picker):
+        return None
+
     def run(self):
         domain = load_pickle(self.input()["instance"]["domain"].path)
         scheduled = load_pickle(self.input()["scheduling_sol"]["scheduling_sol"].path)
@@ -406,19 +409,6 @@ class AbstractWaiting(BaseComponent):
             raise ValueError("Waiting needs an available picker")
         picker = domain.resources.resources[0]
         waiter = self._get_inited_waiter()
-        single_services = None
-        if waiter.algo_name == "HennWaiting" and scheduled.jobs:
-            # Reuse the router selected upstream in this CoSy task graph.
-            routing_task = self.requires()["scheduling_sol"].requires()["routing_sol"]
-            router = routing_task._get_inited_router()
-            single_services = {}
-            for order in scheduled.jobs[0].job.route.batch.orders:
-                router.reset_parameters()
-                route = router.solve(order.pick_positions).route
-                single_services[order.order_id] = (
-                    picker.tour_setup_time + route.distance / picker.speed
-                    + sum(p.in_store for p in order.pick_positions) * picker.time_per_pick
-                )
         decision = waiter.solve(WaitingInput(
             candidates=tuple(scheduled.jobs),
             current_time=domain.dynamic_warehouse_info.time,
@@ -427,7 +417,7 @@ class AbstractWaiting(BaseComponent):
             picker=picker,
             layout=domain.layout,
             warehouse_info=domain.warehouse_info,
-            single_order_service_times=single_services,
+            single_order_service_times=self._single_order_service_times(scheduled, picker),
         ))
         dump_pickle(self.output()["waiting_sol"].path, decision)
 

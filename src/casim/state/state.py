@@ -60,7 +60,7 @@ class State:
     def available_for_planning(self, picker_id: int) -> bool:
         """Picker is usable by the planner only if not occupied and not reserved by queued tours."""
         res = self.resource_manager.get_resource(picker_id)
-        return (not res.occupied) and (not self.tour_manager.has_future_tours(picker_id))
+        return res.available and not res.occupied and not self.tour_manager.has_future_tours(picker_id)
 
     def add_statistic(self, picker_id: int,
                       time_value: float,

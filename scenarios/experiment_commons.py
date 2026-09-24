@@ -10,7 +10,7 @@ from casim.decision_engine.decision_engine import DecisionEngine
 from casim.events.base_events import Event
 from casim.loggers import DashLogger, KPILogger
 from casim.events.decision_events import RoutingDone, PickListDone
-from casim.events.operational_events import OrderArrival, OrderStreamClosed, PickerArrival, PickerTourQuery, PickerIdle, NodeArrival, TourEnd, PickComplete, \
+from casim.events.operational_events import OrderArrival, OrderStreamClosed, WaitingOpportunity, ActiveTourOpportunity, PickerArrival, PickerTourQuery, PickerIdle, NodeArrival, TourEnd, PickComplete, \
     ShiftStart, FlushRemainingOrders, WaitExpired, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion
 from casim.simulation_engine.simulation_engine import SimulationEngine
 
@@ -54,6 +54,8 @@ except ImportError:
 
 EVENT_REGISTRY: dict[str, Type[Event]]  = {
     "OrderArrival": OrderArrival,
+    "WaitingOpportunity": WaitingOpportunity,
+    "ActiveTourOpportunity": ActiveTourOpportunity,
     "OrderStreamClosed": OrderStreamClosed,
     "RoutingDone": RoutingDone,
     "PickerArrival": PickerArrival,
@@ -170,7 +172,11 @@ def build_simulation_problems(cfg: DictConfig):
         ]
         for event_name in (pcfg.get("triggers") or []):
             event_cls = EVENT_REGISTRY[event_name]
-            triggers_map.setdefault(event_cls, []).append(problem_key)
+            if event_cls in triggers_map:
+                raise ValueError(
+                    f"{event_name} is assigned to both {triggers_map[event_cls]} and {problem_key}"
+                )
+            triggers_map[event_cls] = problem_key
 
     return state_adapters, conditions_map, triggers_map
 

@@ -5,11 +5,14 @@ from pathlib import Path
 import pytest
 from hydra import compose, initialize_config_dir
 
-from ware_ops_algos.algorithms import CombinedRoutingSolution
+from ware_ops_algos.algorithms import (
+    CombinedRoutingSolution, PickPosition, RemainingRouteAdmission, WarehouseOrder,
+)
+from ware_ops_algos.domain_models import Articles, ArticleType, DimensionType, PickCart
 
-from casim.events.operational_events import NodeArrival, TravelEvent
+from casim.events.operational_events import ActiveTourOpportunity, NodeArrival, TravelEvent
 from casim.domain_objects.tour_model import TourStates
-from casim.simulation_engine.state_adapter import ReORSPAdapter
+from casim.simulation_engine.state_adapter import ActiveTourAdapter, HennWaitingAdapter, ReORSPAdapter
 from scenarios.experiment_commons import (
     load_and_flatten_data_card, setup_decision_engine, setup_scenario,
 )
@@ -22,15 +25,21 @@ CONFIG_DIR = Path(__file__).resolve().parents[1] / "scenarios" / "scenario_stoch
 
 
 @pytest.mark.parametrize(
-    ("arrivals", "pick_time"),
-    [([0.0, 1.0, 2.0, 12.0], 0.0), ([0.0, 2.5, 5.5, 12.0], 2.0)],
+    ("arrivals", "pick_time", "waiting_repo", "active_expected", "admission_expected"),
+    [
+        ([0.0, 1.0, 2.0, 12.0], 0.0, "no_waiting", False, False),
+        ([0.0, 2.5, 5.5, 12.0], 2.0, "no_waiting", True, False),
+        ([0.0, 1.0, 2.0, 12.0], 0.0, "analytic_waiting", True, True),
+        ([0.0, 1.0, 2.0, 5.0], 4.0, "no_waiting", True, False),
+    ],
 )
-def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time):
+def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
+                                         waiting_repo, active_expected, admission_expected):
     with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
         cfg = compose(
             config_name="stochastic_waiting_config",
             overrides=[
-                "cosy_repo=no_waiting",
+                f"cosy_repo={waiting_repo}",
                 f"simulation.arrival_times_s={arrivals}",
                 f"simulation.pick_time_s={pick_time}",
                 f"instances_base={tmp_path.as_posix()}",
@@ -45,6 +54,7 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time):
 
     insertion_origins = []
     insertion_times = []
+    admitted = 0
     checked_unstarted_projection = False
     while True:
         done, snapshot = sim.run()
@@ -65,20 +75,34 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time):
             insertion_origins.append(dynamic.routing_origin)
             insertion_times.append(now)
             tour = sim.state.tour_manager.get_tour(dynamic.active_tour_id)
+            live_before_projection = (tour.cursor, tuple(tour.remaining_picks), tour.route_version)
+            projected = ActiveTourAdapter().transform_state(sim.state, "OBRP")
+            assert projected.dynamic_warehouse_info.active_tours[0] is not tour
+            assert projected.dynamic_warehouse_info.active_candidate_ids == dynamic.active_candidate_ids
+            assert (tour.cursor, tuple(tour.remaining_picks), tour.route_version) == live_before_projection
             before = (tour.cursor, list(tour.remaining_picks), tour.route_version)
             sim.step(events, snapshot.problem_class, solution, snapshot)
-            assert tour.route_version == before[2] + 1
-            assert NodeArrival(now, tour.tour_id, before[2]).handle(sim.state) == []
-            assert (tour.cursor, tour.remaining_picks, tour.route_version) == (
-                0, list(solution.routes[0].batch.pick_positions), before[2] + 1,
-            )
-            assert any(isinstance(event, TravelEvent) and event.time == now
-                       and event.route_version == tour.route_version for event in sim.events)
+            if solution.routes:
+                admitted += 1
+                assert tour.route_version == before[2] + 1
+                assert NodeArrival(now, tour.tour_id, before[2]).handle(sim.state) == []
+                assert ActiveTourOpportunity(now, tour.tour_id, before[2]).is_stale(sim.state)
+                assert (tour.cursor, tour.remaining_picks, tour.route_version) == (
+                    0, list(solution.routes[0].batch.pick_positions), before[2] + 1,
+                )
+                assert any(isinstance(event, TravelEvent) and event.time == now
+                           and event.route_version == tour.route_version for event in sim.events)
+            else:
+                assert (tour.cursor, tour.remaining_picks, tour.route_version) == tuple(before)
+                assert all((tour.tour_id, order_id) in sim.state.considered_active_orders
+                           for order_id in dynamic.active_candidate_ids)
         else:
             sim.step(events, snapshot.problem_class, solution, snapshot)
             if not checked_unstarted_projection and sim.state.tour_manager.all_tours:
                 tour = next(iter(sim.state.tour_manager.all_tours.values()))
                 assert tour.status == TourStates.SCHEDULED
+                assert not sim.state.available_for_planning(0)
+                assert not HennWaitingAdapter().transform_state(sim.state, "OBRSPW").resources.resources
                 before_buffer = sim.state.order_manager.get_pick_list_buffer()
                 projected = ReORSPAdapter().transform_state(sim.state, "RORSP")
                 assert tour.status == TourStates.SCHEDULED
@@ -86,14 +110,72 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time):
                 assert tour.batch in projected.dynamic_warehouse_info.buffered_batches
                 checked_unstarted_projection = True
 
-    assert insertion_origins
+    assert bool(insertion_origins) == active_expected
+    assert bool(admitted) == admission_expected
     assert checked_unstarted_projection
     tours = list(sim.state.tour_manager.all_tours.values())
     picked = [pick.order_number for tour in tours for pick in tour.completed_picks]
     assert sorted(picked) == [0, 1, 2, 3]
     assert all(not tour.remaining_picks for tour in tours)
-    if pick_time:
-        assert 2.5 not in insertion_times
-        assert any(2.5 < time < 5.5 for time in insertion_times)
-    else:
-        assert {origin.edge_destination is None for origin in insertion_origins} == {True, False}
+    if arrivals[-1] == 5.0:
+        assert all(time > 5.0 for time in insertion_times)
+    if waiting_repo == "analytic_waiting":
+        assert any(origin.edge_destination is not None for origin in insertion_origins)
+
+
+def test_same_time_arrivals_are_visible_before_one_waiting_decision(tmp_path):
+    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
+        cfg = compose(config_name="stochastic_waiting_config", overrides=[
+            "cosy_repo=no_waiting",
+            "simulation.arrival_times_s=[0.0,0.0,0.0,12.0]",
+            f"instances_base={tmp_path.as_posix()}",
+            f"cache_base={(tmp_path / 'cache').as_posix()}",
+            f"experiment.output_dir={tmp_path.as_posix()}",
+        ])
+    sim = setup_scenario(cfg)
+    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    done, snapshot = sim.run()
+    assert not done
+    assert snapshot.problem_class == "OBRSPW"
+    assert snapshot.dynamic_warehouse_info.time == 0.0
+    assert {order.order_id for order in snapshot.orders.orders} == {0, 1, 2}
+
+
+def test_invalid_opportunity_ownership_and_fifo_admission_fail_at_load(tmp_path):
+    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
+        cfg = compose(config_name="stochastic_waiting_config", overrides=[
+            f"instances_base={tmp_path.as_posix()}",
+            f"cache_base={(tmp_path / 'cache').as_posix()}",
+            f"experiment.output_dir={tmp_path.as_posix()}",
+        ])
+    cfg.engines.simulation_engine.problems.OBRP.triggers = ["WaitingOpportunity"]
+    with pytest.raises(ValueError, match="assigned to both"):
+        setup_scenario(cfg)
+
+    cfg.engines.simulation_engine.problems.OBRP.triggers = ["ActiveTourOpportunity"]
+    cfg.insertion_repo.components[3] = "casim.pipelines.subproblems.batching.FiFo"
+    sim = setup_scenario(cfg)
+    with pytest.raises(ValueError, match="RemainingRouteAdmissionNode"):
+        sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+
+
+def test_remaining_route_admission_respects_path_and_cart_capacity():
+    cart = PickCart(n_dimension=1, capacities=[1], dimensions=[DimensionType.ORDERS],
+                    n_boxes=4, box_can_mix_orders=False)
+    articles = Articles(ArticleType.STANDARD, [])
+    candidate = WarehouseOrder(
+        order_id=7, order_date=1.0,
+        pick_positions=(PickPosition(order_number=7, article_id=7, amount=1,
+                                     pick_node=(2, 1), in_store=1),),
+    )
+
+    def solve(remaining_route, occupied_bins):
+        return RemainingRouteAdmission(
+            pick_cart=cart, articles=articles,
+            active_order_ids=frozenset(), candidate_order_ids=frozenset({7}),
+            remaining_route=remaining_route, occupied_bins=occupied_bins,
+        ).solve([candidate]).batches
+
+    assert len(solve(((2, 1),), 3)) == 1
+    assert solve(((3, 1),), 3) == []
+    assert solve(((2, 1),), 4) == []

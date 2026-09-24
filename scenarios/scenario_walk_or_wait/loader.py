@@ -46,14 +46,27 @@ class WalkOrWaitDataLoader(DataLoader):
         if set(cfg.engines.decision_engine.problems) != set(cfg.engines.simulation_engine.problems):
             raise ValueError("Decision and simulation engine problem configurations disagree")
         intervention = "OBRP" in cfg.engines.simulation_engine.problems
+        if intervention:
+            problems = cfg.engines.simulation_engine.problems
+            if list(problems.OBRP.triggers) != ["ActiveTourOpportunity"]:
+                raise ValueError("Paper admission must use ActiveTourOpportunity")
+            if list(problems.OBRSPW.triggers) != ["WaitingOpportunity"]:
+                raise ValueError("Paper waiting must use WaitingOpportunity")
+            if not any(c.get("_target_") == "casim.simulation_engine.conditions.ActiveTourReadyCondition"
+                       for c in problems.OBRP.conditions):
+                raise ValueError("Paper admission requires ActiveTourReadyCondition")
         if intervention and cfg.routing.name != "s_shape":
             raise ValueError("Active-route replacement supports S-Shape only; select paper_no_intervention for other routing")
         if wait_k == 0 and not intervention:
             raise ValueError("Paper wait-0 needs active-tour admission; select paper_intervention")
         if wait_k == 0 and cfg.routing.name != "s_shape":
             raise ValueError("Empty aisle patrol is defined for S-Shape routing only")
-        if intervention and "casim.pipelines.subproblems.batching.RemainingRouteAdmissionNode" not in cfg.insertion_repo.components:
-            raise ValueError("Paper intervention needs RemainingRouteAdmissionNode in its configured CoSy repo")
+        if intervention:
+            admission = "casim.pipelines.subproblems.batching.RemainingRouteAdmissionNode"
+            configured_batchers = [name for name in cfg.insertion_repo.components
+                                   if name.startswith("casim.pipelines.subproblems.batching.")]
+            if configured_batchers != [admission]:
+                raise ValueError("Paper intervention needs only RemainingRouteAdmissionNode in its configured CoSy repo")
         if sim.source != "explicit":
             raise ValueError("Only explicit demonstration orders are loadable; published paper layouts are not imported")
 

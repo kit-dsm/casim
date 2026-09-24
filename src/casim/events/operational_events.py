@@ -23,6 +23,45 @@ class OrderArrival(Event):
         super().handle(state)
         logger.info("Order %s arrived at t=%s", self.order.order_id, self.time)
         state.order_manager.add_order_to_buffer(self.order)
+        active = [tour for tour in state.tour_manager.all_tours.values()
+                  if tour.status == TourStates.STARTED]
+        if len(active) == 1:
+            tour = active[0]
+            return [ActiveTourOpportunity(self.time, tour.tour_id, tour.route_version)]
+        if active:
+            return []
+        return [WaitingOpportunity(self.time, state.wait_version)]
+
+
+class WaitingOpportunity(Event):
+    """A decision may be considered after an operational event; no state change."""
+
+    priority_score = 2
+
+    def __init__(self, time: float, wait_version: int, *, deadline_reached: bool = False):
+        super().__init__(time)
+        self.wait_version = wait_version
+        self.deadline_reached = deadline_reached
+
+    def is_stale(self, state: State) -> bool:
+        return self.wait_version != state.wait_version
+
+
+class ActiveTourOpportunity(Event):
+    """Consider the current unserved route after operational events at this time."""
+
+    priority_score = 2
+
+    def __init__(self, time: float, tour_id: int, route_version: int):
+        super().__init__(time)
+        self.tour_id = tour_id
+        self.route_version = route_version
+
+    def is_stale(self, state: State) -> bool:
+        tour = state.tour_manager.get_tour(self.tour_id)
+        return tour.status != TourStates.STARTED or tour.route_version != self.route_version
+
+    def handle(self, state: State) -> list[Event]:
         return []
 
 
@@ -31,7 +70,7 @@ class OrderStreamClosed(Event):
 
     def handle(self, state: State) -> list[Event]:
         state.done_flag = True
-        return []
+        return [WaitingOpportunity(self.time, state.wait_version)]
 
 
 class ShiftStart(Event):
@@ -55,7 +94,7 @@ class FlushRemainingOrders(Event):
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
-        return []
+        return [WaitingOpportunity(self.time, state.wait_version)]
 
 
 class WaitExpired(Event):
@@ -71,7 +110,7 @@ class WaitExpired(Event):
         return self.version is not None and self.version != state.wait_version
 
     def handle(self, state: 'State') -> list['Event']:
-        return []
+        return [WaitingOpportunity(self.time, state.wait_version, deadline_reached=True)]
 
 
 class PickerArrival(Event):
@@ -88,7 +127,7 @@ class PickerArrival(Event):
             state.resource_manager.set_picker_available(self.picker_id)
         elif not self.picker_available:
             state.resource_manager.set_picker_unavailable(self.picker_id)
-        return []
+        return [WaitingOpportunity(self.time, state.wait_version)]
 
 class VolumeShiftAcrossDay(Event):
     def __init__(self, time: float):
@@ -251,7 +290,7 @@ class PickerIdle(Event):
         super().handle(state)
         # print(f"Picker {self.picker_id} arrived at {self.time}")
         state.tracker.on_idle_start(self.picker_id, self.time)
-        return []
+        return [WaitingOpportunity(self.time, state.wait_version)]
 
 class BreakStart(Event):
     priority_score = 0
@@ -468,7 +507,8 @@ class PickComplete(BaseTourEvent):
         )
         if tour.at_end():
             return [TourEnd(self.time, tour.tour_id, tour.route_version)]
-        return [TravelEvent(self.time, tour.tour_id, tour.route_version)]
+        return [TravelEvent(self.time, tour.tour_id, tour.route_version),
+                ActiveTourOpportunity(self.time, tour.tour_id, tour.route_version)]
 
 
 class TourEnd(BaseTourEvent):

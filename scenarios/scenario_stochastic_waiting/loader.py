@@ -131,6 +131,22 @@ class StochasticWaitingDataLoader(DataLoader):
     ) -> SimWarehouseDomain:
         problems = self.cfg.engines.simulation_engine.problems
         order_condition = "casim.simulation_engine.conditions.NbrOrdersCondition"
+        active_condition = "casim.simulation_engine.conditions.ActiveTourReadyCondition"
+        if set(problems) != set(self.cfg.engines.decision_engine.problems):
+            raise ValueError("Decision and simulation engine problems disagree")
+        if list(problems.OBRP.triggers) != ["ActiveTourOpportunity"]:
+            raise ValueError("Active-tour decisions must use ActiveTourOpportunity")
+        if list(problems.OBRSPW.triggers) != ["WaitingOpportunity"]:
+            raise ValueError("Waiting decisions must use WaitingOpportunity")
+        if not any(c.get("_target_") == active_condition for c in problems.OBRP.conditions):
+            raise ValueError("Active-tour decisions require ActiveTourReadyCondition")
+        admission = "casim.pipelines.subproblems.batching.RemainingRouteAdmissionNode"
+        configured_batchers = [name for name in self.cfg.insertion_repo.components
+                               if name.startswith("casim.pipelines.subproblems.batching.")]
+        if configured_batchers != [admission]:
+            raise ValueError("Active-tour admission requires only RemainingRouteAdmissionNode")
+        if "casim.pipelines.subproblems.picker_routing.SShape" not in self.cfg.insertion_repo.components:
+            raise ValueError("Active-tour admission requires SShape routing")
         if not any(
             condition.get("_target_") == order_condition
             and int(condition.threshold) == 3
@@ -138,12 +154,6 @@ class StochasticWaitingDataLoader(DataLoader):
             for condition in problems.OBRSPW.conditions
         ):
             raise ValueError("Analytical waiting requires OBRSPW to start at q-1 = 3 orders and flush on stream closure")
-        if not any(
-            condition.get("_target_") == order_condition
-            and int(condition.threshold) == 1
-            for condition in problems.OBRP.conditions
-        ):
-            raise ValueError("Active insertion requires OBRP to consider each new order")
         arrival_times_s = self.cfg.simulation.arrival_times_s
         aisles = self.cfg.simulation.aisles
         arrivals = [float(value) for value in arrival_times_s]

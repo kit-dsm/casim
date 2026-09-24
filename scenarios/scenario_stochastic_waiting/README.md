@@ -12,15 +12,29 @@ other batch size while the stream is open; closure releases a final partial
 batch. The forecast in `WarehouseInfo` is separate from the
 realised event stream in `simulation/reference.yaml`.
 
-The loader checks the configured three-order waiting gate and one-order active
-insertion gate. Luigi logs task errors at `ERROR` level, so an invalid policy
-input is visible instead of appearing only as a generic CoSy failure.
+The loader checks the configured three-order waiting gate, the exclusive
+decision opportunities, and the remaining-route admission component. Luigi
+logs task errors at `ERROR` level, so invalid policy input is visible.
 
-The mail's Phase 2 is **not implemented here**. The configured OBRP path
-automatically routes eligible buffered orders into an active tour; it does not
-compare adding an order with leaving it for the next batch using deterministic
-detour and order completion time. The four-order fixed stream is an integration
-example, not a stochastic experiment or evidence for the two-phase method.
+The mail's Phase 2 is **not implemented here**. `WaitingOpportunity` runs the
+Phase 1 waiting policy when a picker can take a new batch.
+`ActiveTourOpportunity` runs a separate rule from the original simulator:
+admit an arrived order only if a cart bin is free and all its picks still lie
+on the active route. That rule returns batch membership through the configured
+CoSy batching component. It does **not** compare deterministic detour and order
+completion time with the next batch. The four-order fixed stream is an
+integration example, not evidence for the two-phase method.
+
+An order arrival emits one opportunity based on operational state: active tour
+or no active tour. Conditions check whether candidates and a usable picker are
+present; adapters only project the state. During a pick, active admission is
+deferred until `PickComplete`. CASIM alone commits an accepted residual route.
+The original offline Phase 2 calculation assumes a fixed three-order window,
+knows the fourth order when evaluating insertion, and searches future route
+positions. An online version needs a current route position and completed work,
+the now visible order, deterministic detour from that state, and a defined
+next-batch completion-time comparison. Those semantics are not supplied by the
+current retrospective calculator.
 Do not use its metrics as a validation or publication result for that method.
 
 ## Dash replay
