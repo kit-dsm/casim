@@ -29,7 +29,8 @@ from ware_ops_algos.domain_models import (
     WarehouseInfoType,
     WarehouseInfo,
     ShelfStorageGraphGenerator,
-    parse_planner_information,
+    ExponentialSingleLineUniformLocationOrderStream,
+    PlannerInformation,
 )
 
 from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
@@ -229,7 +230,16 @@ class StochasticWaitingDataLoader(DataLoader):
                 )
             ],
         )
-        information = parse_planner_information(self.cfg.data_card.get("information"))
+        processes = {}
+        for spec in self.cfg.data_card.information.processes:
+            if spec.type != ExponentialSingleLineUniformLocationOrderStream.representation:
+                raise ValueError(f"Unsupported process information: {spec.type}")
+            if spec.id in processes:
+                raise ValueError(f"Duplicate process information: {spec.id}")
+            processes[spec.id] = ExponentialSingleLineUniformLocationOrderStream(
+                spec.mean_interarrival_time_s
+            )
+        information = PlannerInformation(processes)
         warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE)
         return SimWarehouseDomain(
             problem_class="OBRSPW",

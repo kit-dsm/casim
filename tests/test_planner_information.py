@@ -1,4 +1,4 @@
-"""Planner information is typed, checked at load, and separate from events."""
+"""Planner information crosses the decision boundary without future events."""
 
 from dataclasses import dataclass
 from copy import copy
@@ -11,7 +11,7 @@ from hydra import compose, initialize_config_dir
 from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 from ware_ops_algos.domain_models import (
-    ExponentialSingleLineUniformLocationOrderStream, PlannerInformation, ProcessInformation,
+    ExponentialSingleLineUniformLocationOrderStream, PlannerInformation,
 )
 from ware_ops_algos.domain_models.datacards import load_and_flatten_data_card as load_card_path
 
@@ -67,16 +67,23 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
 
 
 @pytest.mark.parametrize("processes, message", [
-    ([{"id": "incoming_orders", "type": "unknown", "mean_interarrival_time_s": 28.8}], "Unknown"),
+    ([{"id": "incoming_orders", "type": "unknown", "mean_interarrival_time_s": 28.8}], "Unsupported"),
     ([{"id": "incoming_orders", "type": "exponential_single_line_uniform_location_order_stream",
        "mean_interarrival_time_s": 0}], "finite positive"),
-    ([{"id": "incoming_orders", "type": "exponential_single_line_uniform_location_order_stream",
-       "mean_interarrival_time_s": 28.8}] * 2, "Duplicate"),
 ])
-def test_bad_planner_information_fails_when_card_loads(tmp_path, processes, message):
+def test_scenario_loader_rejects_a_forecast_it_cannot_construct(tmp_path, processes, message):
     cfg = configured_study(tmp_path)
     cfg.data_card.information.processes = processes
+    load_and_flatten_data_card(cfg.data_card)
+    sim = setup_scenario(cfg)
     with pytest.raises(ValueError, match=message):
+        sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+
+
+def test_duplicate_process_ids_fail_when_card_loads(tmp_path):
+    cfg = configured_study(tmp_path)
+    cfg.data_card.information.processes = list(cfg.data_card.information.processes) * 2
+    with pytest.raises(ValueError, match="Duplicate"):
         load_and_flatten_data_card(cfg.data_card)
 
 
@@ -100,7 +107,7 @@ def test_mapper_excludes_missing_or_incompatible_information_before_simulation(t
 
 
 @dataclass(frozen=True)
-class ExampleAttendanceInformation(ProcessInformation):
+class ExampleAttendanceInformation:
     """Contract check only; no attendance policy or realization is introduced."""
 
     representation: ClassVar[str] = "example_attendance_probability"
@@ -112,10 +119,10 @@ def test_second_process_fits_same_snapshot_boundary(tmp_path):
     sim = setup_scenario(cfg)
     sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
     original = sim.state.information.require("incoming_orders", ExponentialSingleLineUniformLocationOrderStream)
-    sim.state.information = PlannerInformation((
-        ("incoming_orders", original),
-        ("picker_attendance", ExampleAttendanceInformation(probability=0.9)),
-    ))
+    sim.state.information = PlannerInformation({
+        "incoming_orders": original,
+        "picker_attendance": ExampleAttendanceInformation(probability=0.9),
+    })
     projection = HennWaitingAdapter().transform_state(sim.state, "OBRSPW")
     assert projection.information.require("picker_attendance", ExampleAttendanceInformation).probability == 0.9
     assert projection.information.get_features() == {
