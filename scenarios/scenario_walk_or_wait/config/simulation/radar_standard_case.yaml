@@ -1,0 +1,7 @@
+source: radar
+dataset_root: scenarios/scenario_walk_or_wait/data/radar/selected/Instances
+instance_path: ${simulation.dataset_root}/Orders/OFAT/Standard_case/instance_1.json
+shift_start_s: 0.0
+capacity_orders: 4
+walking_speed: 1.0
+pick_time_s: 1.0

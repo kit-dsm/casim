@@ -1,2 +1,1 @@
-wait_k: 3
 component: casim.pipelines.subproblems.waiting.WaitForThree

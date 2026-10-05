@@ -2,9 +2,10 @@
 
 This scenario implements the **wait-k experiments** described in Section 3 of
 *Walking vs. Waiting: Performance Impact of Waiting Strategies in Manual
-Warehouses*. It is a configured CASIM experiment, not a reproduction of the
-paper's numerical tables. The six explicit orders in `simulation/explicit_example.yaml`
-are a readable integration example. They are not an OFAT or LHS instance.
+Warehouses*. `simulation=explicit_example` is a small integration example;
+`simulation=radar_standard_case` loads the published standard-case orders,
+storage assignment and layout directly. The latter can be compared with the
+paper's results, subject to the intervention difference documented below.
 
 ## What maps to what
 
@@ -14,16 +15,16 @@ are a readable integration example. They are not an OFAT or LHS instance.
 | FCFS release and next available picker | `Algorithms/dispatching.py::GreedyDispatcher` and the batch-ready events | `FIFOScheduling` through `FIFOScheduler`; with one picker, assignment is unambiguous |
 | Wait until at least k orders, k = 1, 2, 3, 4 | `Algorithms/waiting.py::WaitingOrderCountPolicy` | `OrderCountWaiting` through `WaitForOne` ... `WaitForFour`; `policy=wait_1` ... `wait_4` |
 | Wait-0: leave immediately with an empty route, then take reachable arrivals | `StartImmediatelyPolicy`, `AllNodes`, and the dummy batch | `StartImmediatelyWaiting` creates an empty `ScheduledJob` with an all-aisle walking route; CASIM starts a normal tour with no order or pick. `policy=wait_0 simulation=explicit_wait0` shows an arrival while it walks. |
-| S-Shape, Return, Largest Gap, Nearest Neighbour | Four classes in `Algorithms/routing.py` | Existing `ware_ops_algos` routing algorithms, selected with `routing=...` |
+| S-Shape, Return, Largest Gap, Nearest Neighbour | Four classes in `Algorithms/routing.py` | Configured `ware_ops_algos` routing algorithms; `routing=s_shape` selects the original waiting simulator's S-Shape traversal |
 | Optional intervention on arrival: free bin and every new pick on remaining route; reroute after admission | `FIFOBatching.make_decision` and `Simulation/core.py::__create_event_on_routing_decision` | `RemainingRouteAdmission` in the configured OBRP CoSy repo; CASIM validates and commits only an accepted residual route |
 | Mean order completion time, distance per item, tardiness | The paper's simulation statistics | `experiment.py::report`, written to `paper_metrics.json` after the event stream ends |
 
 `RemainingRouteAdmission` is the intervention admission check, not the regular
 FIFO batcher. The regular `FiFo` component batches buffered orders for a free
 picker. Admission checks a newly arrived order against a *started* tour's
-unserved path and cart bins. It returns accepted order IDs through a dedicated
-admission interface. The configured CoSy node converts those IDs into the
-batch required by the existing router; it makes no admission choice. CASIM
+unserved path and cart bins. Its CoSy stage returns accepted order IDs as an
+`AdmissionSolution`. A separate `AdmittedTourBatch` component assembles the
+batch required by the existing router without making another decision. CASIM
 then commits or leaves the order buffered.
 
 The intervention configuration gives `WaitingOpportunity` to OBRSPW and
@@ -31,6 +32,8 @@ The intervention configuration gives `WaitingOpportunity` to OBRSPW and
 whether a tour has started. The active-tour condition checks for a visible
 candidate and waits for an in-progress pick to finish. The adapter only
 projects the residual tour; admission remains in the configured algorithm.
+For waiting, the engine checks picker readiness; the configured wait-k algorithm
+alone decides whether the visible batch should depart.
 
 The `paper_metrics.json` file also reports `empty_tours_started` and
 `orders_admitted_after_empty_start`, so the wait-0 example can be checked
@@ -50,6 +53,7 @@ From the CASIM checkout with its `uv` environment and the sibling
 
 ```powershell
 uv run python -m scenarios.scenario_walk_or_wait.experiment
+uv run python -m scenarios.scenario_walk_or_wait.experiment simulation=radar_standard_case policy=wait_1
 uv run python -m scenarios.scenario_walk_or_wait.experiment policy=wait_0 simulation=explicit_wait0
 uv run python -m scenarios.scenario_walk_or_wait.experiment policy=wait_3
 uv run python -m scenarios.scenario_walk_or_wait.experiment engines=paper_no_intervention policy=wait_4 routing=return
@@ -65,12 +69,19 @@ the tour also starts empty, but order 0 arrives at the same t=0 and is
 admitted immediately; aggregate metrics alone do not reveal the empty start.
 
 The Hydra root selects the data card, engine config, CoSy repos, waiting
-component, routing component, and explicit orders. The hooks only seed arrivals
+component, routing component, and simulation input. The hooks only seed arrivals
 and picker availability. The experiment follows build → reset → run → decide →
 step → report. A newly arrived order can be rejected by the configured
 remaining-route admission algorithm; rejection is a real decision and leaves
 the order for a later batch. There is no insertion policy hidden in the
 experiment script.
+
+The benchmark loader uses the published standard-case input. Its configured
+S-Shape is a separate, named `ware_ops_algos` algorithm following the traversal
+in `2_Stochastic_Waiting/Algorithms/routing.py`. The earlier numerical comparison
+used temporary switches for the same traversal; the named algorithm still needs
+a completed comparison before those numbers can be attributed to it. See
+[`data/README.md`](data/README.md) for the input and intervention parity limit.
 
 ## Supported boundary and explicit failures
 
@@ -89,25 +100,32 @@ experiment script.
   other routing components can start tours but cannot yet reroute their
   residual tour from an arbitrary position. Selecting one with
   `engines=paper_intervention` raises an explanatory error. Multi-picker
-  assignment also raises; a one-picker FIFO scheduler is not evidence of
-  parity for the paper's multi-picker cases.
-- **The demonstration uses explicit orders and a unit grid.** Direct import
-  of the published OFAT/LHS instance set requires an explicit converter for
-  its layout geometry and storage mapping. `simulation.source` other than
-  `explicit` raises. Nothing in this example is silently sampled or inferred
-  from a published instance's metadata.
+  assignment is not configured; a one-picker FIFO scheduler is not evidence
+  of parity for the paper's multi-picker cases.
+- **The benchmark configuration reads published input directly.** It loads
+  each order JSON, its relative article mapping and its NetworkX graph pickle.
+  The layout conversion assumes the selected 8-by-16 standard-case graph.
+  Missing files raise ordinary file errors; other graph families are not
+  supported by this conversion. See
+  [`data/README.md`](data/README.md) for the files and observed parity limit.
 - **Arrivals during a pick are considered after that pick completes.** CASIM
   keeps the pick in progress and projects a residual route at `PickComplete`.
-  The original simulator updates the batch at arrival. This timing difference
-  prevents numerical parity claims for intervention runs with positive pick
-  time. The same-time order of arrival and operational events also needs a
-  dedicated parity study; the intervention example rejects equal arrival
+  The original simulator updates the batch at arrival. It also traverses a
+  reversed tour when estimating the active picker's position, which can admit
+  an order whose pick location was already passed. CASIM retains the actual
+  forward position and reroutes only the unserved suffix. The original
+  routing action recomputes the whole batch from the depot after admission
+  and times its completion from the original tour start. That calculation
+  can agree when the newly planned route preserves the executed prefix; its
+  contribution to the measured gap has not been established. The confirmed
+  already-passed admission prevents exact parity claims. The intervention
+  example rejects equal arrival
   timestamps rather than assigning an arbitrary order.
 - **The paper's full experiment grid is not reproduced.** The paper varies
   arrivals, order-size distributions, layout, storage policy, due dates,
   workload, and picker count. The configured example fixes these inputs.
-  Its three reported metrics have the paper's definitions, but its values
-  must not be compared with the published numerical results.
+  The standard-case configuration uses the published orders and layout, but
+  other OFAT and LHS factor levels still need their own validated configs.
 
 The explainer mail's **optimal stochastic wait** is a later, separate method.
 It requires exactly q−1 known orders and a Phase 2 completion-time admission

@@ -1,12 +1,18 @@
-"""Explicit, small study input for the supported Walking vs. Waiting rules."""
+"""Configured Walking vs. Waiting orders and benchmark layouts."""
 
+import json
+import pickle
 from pathlib import Path
 
+import networkx as nx
+import pandas as pd
+from scipy.sparse.csgraph import floyd_warshall
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import (
     Article, Articles, ArticleType, DimensionType, Location, Order, OrderPosition,
     OrdersDomain, OrderType, PickCart, Resource, Resources, ResourceType,
     StorageLocations, StorageType, WarehouseInfo, WarehouseInfoType,
+    LayoutData, LayoutNetwork, LayoutParameters, LayoutType,
 )
 
 from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
@@ -14,107 +20,72 @@ from scenarios.scenario_stochastic_waiting.loader import StochasticWaitingDataLo
 
 
 class WalkOrWaitDataLoader(DataLoader):
-    """Load an explicit event stream; no random instance generation or hidden fallback."""
+    """Load explicit examples or the paper's published instance files."""
 
     def __init__(self, instances_dir: str | Path, cfg):
         super().__init__(Path(instances_dir).resolve())
         self.cfg = cfg
 
     def load(self, **kwargs) -> SimWarehouseDomain:
-        if kwargs:
-            raise ValueError("This scenario accepts explicit simulation orders only; published JSON needs its layout converter")
         cfg = self.cfg
         sim = cfg.simulation
         capacity = int(sim.capacity_orders)
-        wait_k = int(cfg.policy.wait_k)
-        if wait_k < 0 or wait_k > capacity or wait_k > 4:
-            raise ValueError("Supported paper wait thresholds are 0..min(capacity, 4)")
-        expected_policy = (
-            "casim.pipelines.subproblems.waiting.StartImmediatelyNode" if wait_k == 0 else
-            f"casim.pipelines.subproblems.waiting.WaitFor{('One', 'Two', 'Three', 'Four')[wait_k - 1]}"
-        )
-        if cfg.policy.component != expected_policy:
-            raise ValueError("wait_k and the configured waiting component disagree")
-        if capacity != 4:
-            raise ValueError("The configured paper example currently supports four cart bins only")
-        if int(sim.n_pickers) != 1:
-            raise ValueError("Paper scenario currently supports one picker; multi-picker assignment is not ported")
-        if cfg.policy.component not in cfg.cosy_repo.components:
-            raise ValueError("Waiting policy and CoSy repo disagree")
-        if cfg.routing.component not in cfg.cosy_repo.components:
-            raise ValueError("Routing policy and CoSy repo disagree")
-        if set(cfg.engines.decision_engine.problems) != set(cfg.engines.simulation_engine.problems):
-            raise ValueError("Decision and simulation engine problem configurations disagree")
-        intervention = "OBRP" in cfg.engines.simulation_engine.problems
-        if intervention:
-            problems = cfg.engines.simulation_engine.problems
-            if list(problems.OBRP.triggers) != ["ActiveTourOpportunity"]:
-                raise ValueError("Paper admission must use ActiveTourOpportunity")
-            if list(problems.OBRSPW.triggers) != ["WaitingOpportunity"]:
-                raise ValueError("Paper waiting must use WaitingOpportunity")
-            if not any(c.get("_target_") == "casim.simulation_engine.conditions.ActiveTourReadyCondition"
-                       for c in problems.OBRP.conditions):
-                raise ValueError("Paper admission requires ActiveTourReadyCondition")
-        if intervention and cfg.routing.name != "s_shape":
-            raise ValueError("Active-route replacement supports S-Shape only; select paper_no_intervention for other routing")
-        if wait_k == 0 and not intervention:
-            raise ValueError("Paper wait-0 needs active-tour admission; select paper_intervention")
-        if wait_k == 0 and cfg.routing.name != "s_shape":
-            raise ValueError("Empty aisle patrol is defined for S-Shape routing only")
-        if intervention:
-            admission = "casim.pipelines.subproblems.admission.RemainingRouteAdmissionNode"
-            if admission not in cfg.insertion_repo.components or any(
-                name.startswith("casim.pipelines.subproblems.batching.")
-                for name in cfg.insertion_repo.components
-            ):
-                raise ValueError("Paper intervention needs the admission node without a batching node")
-        if sim.source != "explicit":
-            raise ValueError("Only explicit demonstration orders are loadable; published paper layouts are not imported")
+        if sim.source == "explicit":
+            n_aisles = int(sim.n_aisles)
+            n_locations = int(sim.n_pick_locations)
+            depot_aisle = int(sim.depot_aisle)
+            layout = StochasticWaitingDataLoader._layout(
+                n_aisles=n_aisles,
+                n_pick_locations=n_locations,
+                start_connection_point=(depot_aisle, 0),
+                end_connection_point=(depot_aisle, 0),
+            )
+            specs = list(sim.orders)
+            article_by_position = {}
+            order_rows = []
+            for order_id, spec in enumerate(specs):
+                items = {}
+                for raw_position in spec.picks:
+                    aisle, location = map(int, raw_position)
+                    article_id = article_by_position.setdefault(
+                        (aisle, location), len(article_by_position)
+                    )
+                    items[article_id] = items.get(article_id, 0) + 1
+                order_rows.append((order_id, float(spec.arrival_s), float(spec.due_s), items))
+            article_locations = {article_id: point for point, article_id in article_by_position.items()}
+        elif sim.source == "radar":
+            instance_path = (Path(cfg.project_root) / sim.instance_path).resolve()
+            instance = json.loads(instance_path.read_text(encoding="utf-8"))
+            meta = instance["meta"]
+            layout_path = (instance_path.parent / meta["layout"]).resolve()
+            storage_path = (instance_path.parent / meta["storage_assignment"]).resolve()
+            layout = self._benchmark_layout(layout_path)
+            article_locations = {
+                int(article_id): tuple(point)
+                for article_id, point in json.loads(storage_path.read_text(encoding="utf-8")).items()
+            }
+            order_rows = [
+                (int(row["order_id"]), float(row["arrival_time"]),
+                 float(row["due_date"]),
+                 {int(article_id): int(amount) for article_id, amount in row["items"].items()})
+                for row in instance["orders"]
+            ]
+        else:
+            raise ValueError(f"Unknown walk-or-wait simulation source: {sim.source}")
 
-        n_aisles = int(sim.n_aisles)
-        n_locations = int(sim.n_pick_locations)
-        depot_aisle = int(sim.depot_aisle)
-        if n_aisles < 1 or n_locations < 1 or not 1 <= depot_aisle <= n_aisles:
-            raise ValueError("Invalid paper layout dimensions or depot aisle")
-        layout = StochasticWaitingDataLoader._layout(
-            n_aisles=n_aisles,
-            n_pick_locations=n_locations,
-            start_connection_point=(depot_aisle, 0),
-            end_connection_point=(depot_aisle, 0),
-        )
-
-        specs = list(sim.orders)
-        if not specs:
-            raise ValueError("Paper scenario requires at least one explicit order")
-        arrivals = [float(spec.arrival_s) for spec in specs]
-        if arrivals != sorted(arrivals) or any(time < 0 for time in arrivals):
-            raise ValueError("Order arrivals must be nonnegative and sorted")
-        if float(sim.shift_start_s) < 0 or float(sim.shift_start_s) > arrivals[0]:
-            raise ValueError("Shift start must be nonnegative and no later than the first order")
-        if intervention and len(set(arrivals)) != len(arrivals):
-            raise ValueError("Simultaneous arrivals lack a defined sequential intervention order")
-
-        article_by_position = {}
         demand_by_article = {}
         orders = []
-        for order_id, spec in enumerate(specs):
-            if not spec.picks:
-                raise ValueError(f"Order {order_id} has no picks")
+        for order_id, arrival, due, items in order_rows:
             positions = []
-            for raw_position in spec.picks:
-                aisle, location = map(int, raw_position)
-                if not (1 <= aisle <= n_aisles and 1 <= location <= n_locations):
-                    raise ValueError(f"Pick {(aisle, location)} is outside the configured layout")
-                point = (aisle, location)
-                article_id = article_by_position.setdefault(point, len(article_by_position))
-                demand_by_article[article_id] = demand_by_article.get(article_id, 0) + 1
+            for article_id, amount in items.items():
+                demand_by_article[article_id] = demand_by_article.get(article_id, 0) + amount
                 positions.append(OrderPosition(
-                    order_number=order_id, article_id=article_id, amount=1,
+                    order_number=order_id, article_id=article_id, amount=amount,
                 ))
             orders.append(Order(
                 order_id=order_id,
-                order_date=arrivals[order_id],
-                due_date=float(spec.due_s),
+                order_date=arrival,
+                due_date=due,
                 order_positions=positions,
             ))
 
@@ -125,9 +96,10 @@ class WalkOrWaitDataLoader(DataLoader):
         )
         storage = StorageLocations(
             tpe=StorageType.DEDICATED,
-            locations=[Location(x=point[0], y=point[1], article_id=article_id,
+            locations=[Location(x=article_locations[article_id][0],
+                                y=article_locations[article_id][1], article_id=article_id,
                                 amount=demand_by_article[article_id])
-                       for point, article_id in article_by_position.items()],
+                       for article_id in demand_by_article],
         )
         storage.build_article_location_mapping()
         cart = PickCart(
@@ -143,8 +115,6 @@ class WalkOrWaitDataLoader(DataLoader):
             pick_cart=cart, available=True, occupied=False,
             current_location=layout.graph_data.start_location,
         )
-        if picker.speed <= 0 or picker.time_per_pick < 0:
-            raise ValueError("Walking speed must be positive and pick time nonnegative")
         return SimWarehouseDomain(
             problem_class="OBRSPW",
             objective="mean_order_completion_time",
@@ -156,3 +126,43 @@ class WalkOrWaitDataLoader(DataLoader):
             dynamic_warehouse_info=DynamicInfo(tpe=WarehouseInfoType.ONLINE, time=0.0),
             warehouse_info=WarehouseInfo(tpe=WarehouseInfoType.ONLINE),
         )
+
+    @staticmethod
+    def _benchmark_layout(path: Path) -> LayoutData:
+        with path.open("rb") as stream:
+            graph = pickle.load(stream)
+        pick_nodes = [node for node, data in graph.nodes(data=True)
+                      if data.get("type") == "pick_node"]
+        starts = [node for node, data in graph.nodes(data=True)
+                  if data.get("type") == "start_node"]
+        ends = [node for node, data in graph.nodes(data=True)
+                if data.get("type") == "end_node"]
+        start, end = starts[0], ends[0]
+        start_connection = next(iter(graph.neighbors(start)))
+        end_connection = next(iter(graph.neighbors(end)))
+        nodes = list(graph.nodes)
+        adjacency = nx.to_scipy_sparse_array(graph, nodelist=nodes, weight="weight", dtype=float)
+        distances, predecessors = floyd_warshall(
+            adjacency, directed=False, return_predecessors=True
+        )
+        params = LayoutParameters(
+            n_aisles=8, n_pick_locations=16, n_blocks=1,
+            dist_top_to_pick_location=graph[(1, 16)][(1, 17)]["weight"],
+            dist_bottom_to_pick_location=graph[(1, 0)][(1, 1)]["weight"],
+            dist_pick_locations=graph[(1, 1)][(1, 2)]["weight"],
+            dist_aisle=graph[(1, 0)][(2, 0)]["weight"],
+            dist_start=graph[start][start_connection]["weight"],
+            dist_end=graph[end][end_connection]["weight"],
+            start_location=start, end_location=end,
+            start_connection_point=start_connection,
+            end_connection_point=end_connection,
+            depot_location="front_left",
+        )
+        network = LayoutNetwork(
+            graph=graph, distance_matrix=pd.DataFrame(distances, index=nodes, columns=nodes),
+            predecessor_matrix=predecessors, closest_node_to_start=start_connection,
+            min_aisle_position=0, max_aisle_position=17,
+            start_node=start, end_node=end, node_list=nodes,
+        )
+        return LayoutData(tpe=LayoutType.CONVENTIONAL, graph_data=params,
+                          layout_network=network)

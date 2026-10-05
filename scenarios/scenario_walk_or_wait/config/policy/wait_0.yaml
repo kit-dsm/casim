@@ -1,2 +1,1 @@
-wait_k: 0
 component: casim.pipelines.subproblems.waiting.StartImmediatelyNode

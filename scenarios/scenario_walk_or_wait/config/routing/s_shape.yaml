@@ -1,2 +1,2 @@
 name: s_shape
-component: casim.pipelines.subproblems.picker_routing.SShape
+component: casim.pipelines.subproblems.picker_routing.WalkOrWaitSShape
