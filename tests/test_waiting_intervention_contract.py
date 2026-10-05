@@ -9,10 +9,18 @@ from ware_ops_algos.algorithms import (
     AdmissionInput, Batching, CombinedRoutingSolution, PickPosition,
     RemainingRouteAdmission, WarehouseOrder,
 )
+from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
+from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 from ware_ops_algos.domain_models import DimensionType, PickCart
 
 from casim.events.operational_events import ActiveTourOpportunity, NodeArrival, TravelEvent
 from casim.domain_objects.tour_model import TourStates
+from casim.pipelines.problem_based_template import (
+    AbstractAdmission, AbstractBatching, AbstractBatchProvider,
+    AdmittedTourBatch, traverse_pipeline,
+)
+from casim.pipelines.subproblems.admission import RemainingRouteAdmissionNode
+from casim.pipelines.taxonomy import TAXONOMY
 from casim.simulation_engine.state_adapter import ActiveTourAdapter, HennWaitingAdapter, ReORSPAdapter
 from scenarios.experiment_commons import (
     load_and_flatten_data_card, setup_decision_engine, setup_scenario,
@@ -23,6 +31,17 @@ from scenarios.scenario_stochastic_waiting.scenario_specific_hooks import (
 
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "scenarios" / "scenario_stochastic_waiting" / "config"
+
+
+def test_admission_card_matches_the_active_tour_problem():
+    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
+        cfg = compose(config_name="stochastic_waiting_config")
+    card = load_and_flatten_data_card(cfg.data_card)
+    card.problem_class = "OBRP"
+    admission = next(card for card in load_packaged_algo_cards()
+                     if card.algo_name == "RemainingRouteAdmission")
+    assert admission.problem_type == "admission"
+    assert DomainAlgorithmMapper(TAXONOMY).filter([admission], card) == [admission]
 
 
 @pytest.mark.parametrize(
@@ -51,6 +70,13 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
     card = load_and_flatten_data_card(cfg.data_card)
     sim = setup_scenario(cfg)
     decision_engine = setup_decision_engine(cfg, card)
+    active_tasks = traverse_pipeline(decision_engine.get_solver("OBRP").pipelines)
+    assert any(isinstance(task, RemainingRouteAdmissionNode) for task in active_tasks)
+    assert any(isinstance(task, AdmittedTourBatch) for task in active_tasks)
+    assert issubclass(RemainingRouteAdmissionNode, AbstractAdmission)
+    assert not issubclass(RemainingRouteAdmissionNode, AbstractBatching)
+    assert issubclass(AdmittedTourBatch, AbstractBatchProvider)
+    assert not issubclass(AdmittedTourBatch, AbstractBatching)
     sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
 
     insertion_origins = []

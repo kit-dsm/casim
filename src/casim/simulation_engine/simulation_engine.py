@@ -61,6 +61,7 @@ class SimulationEngine:
             resources=domain.resources,
             active_objective = domain.objective,
             warehouse_info=domain.warehouse_info,
+            information=domain.information,
         )
 
         for hook in (hooks or []):

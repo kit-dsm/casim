@@ -3,7 +3,7 @@ from collections import Counter
 from copy import deepcopy
 
 from ware_ops_algos.algorithms import Route, RouteNode, NodeType, Job, WarehouseOrder, BatchObject, ScheduledJob, WaitingSolution, SchedulingSolution, BatchingSolution, CombinedRoutingSolution
-from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, Order, OrderPosition
+from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Order, OrderPosition
 
 from .order_manager import OrderManager
 from .resource_manager import ResourceManager
@@ -26,7 +26,8 @@ class State:
                  storage: StorageLocations,
                  resources: Resources,
                  active_objective,
-                 warehouse_info: WarehouseInfo | None = None):
+                 warehouse_info: WarehouseInfo | None = None,
+                 information: PlannerInformation | None = None):
         # time is a float (simulation time units)
         self.current_time: float = 0.0
         self.current_picker_id = None
@@ -52,6 +53,7 @@ class State:
         self.is_break: bool = False
         self.active_objective = active_objective
         self.warehouse_info = warehouse_info
+        self.information = information
 
 
     def get_storage(self) -> StorageLocations:

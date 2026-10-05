@@ -9,7 +9,7 @@ The analytical special case starts with exactly q−1 known orders. For the
 four-bin example the engine waits until three orders are visible before asking
 `AnalyticStochasticWaiting` for a departure time. The policy rejects any
 other batch size while the stream is open; closure releases a final partial
-batch. The forecast in `WarehouseInfo` is separate from the
+batch. The forecast in `PlannerInformation` is separate from the
 realised event stream in `simulation/reference.yaml`.
 
 The loader checks the configured three-order waiting gate, the exclusive
@@ -20,8 +20,7 @@ The mail's Phase 2 is **not implemented here**. `WaitingOpportunity` runs the
 Phase 1 waiting policy when a picker can take a new batch.
 `ActiveTourOpportunity` runs a separate rule from the original simulator:
 admit an arrived order only if a cart bin is free and all its picks still lie
-on the active route. The domain algorithm returns accepted order IDs; its
-configured CoSy node converts them to the batch expected by routing. It does
+on the active route. The domain algorithm returns accepted order IDs; the configured CoSy assembly component supplies the accepted tour batch to routing. It does
 **not** compare deterministic detour and order
 completion time with the next batch. The four-order fixed stream is an
 integration example, not evidence for the two-phase method.

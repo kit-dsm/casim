@@ -51,7 +51,8 @@ class HennWaitingAdapter(StateAdapter):
             resources=dynamic_resources,
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info
+            dynamic_warehouse_info=warehouse_info,
+            information=state.information,
         )
         return copy.deepcopy(dynamic_information)
 
@@ -128,6 +129,7 @@ class ActiveTourAdapter(StateAdapter):
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
             dynamic_warehouse_info=dynamic,
+            information=state.information,
         ))
 
 
@@ -165,7 +167,8 @@ class OrderWindowAdapter(StateAdapter):
             resources=dynamic_resources,
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info
+            dynamic_warehouse_info=warehouse_info,
+            information=state.information,
         )
         return dynamic_information
 
@@ -215,7 +218,8 @@ class ORSPAdapter(StateAdapter):
             resources=dynamic_resources,
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info
+            dynamic_warehouse_info=warehouse_info,
+            information=state.information,
         )
 
         return dynamic_information
@@ -269,7 +273,8 @@ class ReORSPAdapter(StateAdapter):
             resources=dynamic_resources,
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info
+            dynamic_warehouse_info=warehouse_info,
+            information=state.information,
         )
 
         return dynamic_information
@@ -311,7 +316,8 @@ class OBPAdapter(StateAdapter):
             resources=dynamic_resources,
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info
+            dynamic_warehouse_info=warehouse_info,
+            information=state.information,
         )
 
         return dynamic_information
@@ -353,7 +359,8 @@ class OSBPAdapter(StateAdapter):
             resources=dynamic_resources,
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info
+            dynamic_warehouse_info=warehouse_info,
+            information=state.information,
         )
 
         return dynamic_information
@@ -395,7 +402,8 @@ class ReOSBPAdapter(StateAdapter):
             resources=dynamic_resources,
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info
+            dynamic_warehouse_info=warehouse_info,
+            information=state.information,
         )
 
         return dynamic_information
@@ -448,7 +456,8 @@ class RLORSPAdapter(StateAdapter):
             resources=dynamic_resources,
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info
+            dynamic_warehouse_info=warehouse_info,
+            information=state.information,
         )
 
         return dynamic_information
@@ -491,7 +500,8 @@ class RLOSBPAdapter(StateAdapter):
             resources=dynamic_resources,
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info
+            dynamic_warehouse_info=warehouse_info,
+            information=state.information,
         )
 
         return dynamic_information

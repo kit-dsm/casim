@@ -4,7 +4,7 @@ from typing import Type
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 from ware_ops_algos.data_loaders import DataLoader
-from ware_ops_algos.domain_models import DataCard
+from ware_ops_algos.domain_models import DataCard, information_card_section
 
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.events.base_events import Event
@@ -108,6 +108,7 @@ def load_and_flatten_data_card(raw) -> DataCard:
         resources=section(raw.get("resources", {})),
         storage=section(raw.get("storage", {})),
         warehouse_info=section(raw.get("warehouse_info", {})),
+        information=information_card_section(raw.get("information")),
     )
 
 def build_data_loader(cfg: DictConfig) -> DataLoader:

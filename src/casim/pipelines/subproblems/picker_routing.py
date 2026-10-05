@@ -1,10 +1,12 @@
-from ware_ops_algos.algorithms import SShapeRouting, LargestGapRouting, MidpointRouting, ReturnRouting, \
+from ware_ops_algos.algorithms import SShapeRouting, WalkOrWaitSShapeRouting, LargestGapRouting, MidpointRouting, ReturnRouting, \
     NearestNeighbourhoodRouting, ExactTSPRoutingDistance, RatliffRosenthalRouting, UShapeRouting
 
 from casim.pipelines.problem_based_template import PickerRouting
 
 
 class SShape(PickerRouting):
+    router_class = SShapeRouting
+
     def _get_inited_router(self):
         resources = self._load_resources()
         layout = self._load_layout()
@@ -17,7 +19,7 @@ class SShape(PickerRouting):
             exits = ((position[0], layout_network.min_aisle_position),
                      (position[0], layout_network.max_aisle_position))
             closest = min(exits, key=lambda node: layout_network.distance_matrix.at[position, node])
-        return SShapeRouting(
+        return self.router_class(
             start_node=layout_network.start_node,
             end_node=layout_network.end_node,
             closest_node_to_start=closest,
@@ -33,6 +35,12 @@ class SShape(PickerRouting):
             idx_to_node={idx: node for idx, node in enumerate(list(layout_network.graph.nodes))},
             routing_origin=origin,
         )
+
+
+class WalkOrWaitSShape(SShape):
+    """Select the S-shape traversal used by the original waiting simulator."""
+
+    router_class = WalkOrWaitSShapeRouting
 
 
 class LargestGap(PickerRouting):

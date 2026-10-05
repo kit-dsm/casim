@@ -17,6 +17,8 @@ from cosy_luigi import CoSyLuigiTask, CoSyLuigiTaskParameter, CoSyLuigiRepo
 from ware_ops_algos.algorithms import (
     Routing,
     WarehouseOrder,
+    AdmissionSolution,
+    BatchObject,
     BatchingSolution,
     Batching,
     CombinedRoutingSolution,
@@ -24,7 +26,7 @@ from ware_ops_algos.algorithms import (
     RoutingSolution,
     ItemAssignment, Scheduler, Job, build_jobs)
 from ware_ops_algos.algorithms import WaitingInput, WaitingSolution
-from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import ConstraintEvaluator
+from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 from ware_ops_algos.algorithms.order_splitting.order_splitting import OrderSplitting
 from ware_ops_algos.domain_models import (
     Articles,
@@ -180,9 +182,20 @@ class AbstractItemAssignment(BaseComponent):
         ...
 
 
+# ─────────────────────────── Admission ──────────────────────────────────────
+
+class AbstractAdmission(BaseComponent):
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+
+    def output(self):
+        return {"admission_sol": self.get_luigi_local_target_with_task_id("admission_sol.pkl")}
+
+
 # ─────────────────────────── Batching ───────────────────────────────────────
 
-class AbstractBatching(BaseComponent):
+class AbstractBatchProvider(BaseComponent):
+    """Supply routeable batches, whether produced by batching or admission."""
+
     instance = CoSyLuigiTaskParameter(InstanceLoader)
 
     def output(self):
@@ -201,6 +214,28 @@ class AbstractBatching(BaseComponent):
     def _get_layout(self) -> LayoutData:
         layout = load_pickle(self.input()["instance"]["layout"].path)
         return layout
+
+
+class AbstractBatching(AbstractBatchProvider):
+    """The ordinary order-batching decision stage."""
+
+
+class AdmittedTourBatch(AbstractBatchProvider):
+    """Assemble route input from an admission decision; make no selection."""
+
+    admission_sol = CoSyLuigiTaskParameter(AbstractAdmission)
+    item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
+
+    def run(self):
+        decision: AdmissionSolution = load_pickle(self.input()["admission_sol"]["admission_sol"].path)
+        dynamic = load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
+        assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
+        orders = assigned.resolved_orders
+        by_id = {order.order_id: order for order in orders}
+        active = [order for order in orders if order.order_id in dynamic.active_order_ids]
+        accepted = [by_id[order_id] for order_id in decision.accepted_order_ids]
+        batches = [BatchObject(batch_id=0, orders=active + accepted)] if accepted else []
+        dump_pickle(self.output()["batching_sol"].path, BatchingSolution(batches=batches))
 
 
 class PickListProvider(AbstractBatching):
@@ -251,7 +286,7 @@ class BatchingNode(AbstractBatching):
 
 class AbstractPickerRouting(BaseComponent):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
-    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
+    batching_sol = CoSyLuigiTaskParameter(AbstractBatchProvider)
 
     def _get_inited_router(self) -> Routing:
         pass
@@ -276,7 +311,7 @@ class AbstractPickerRouting(BaseComponent):
 
 class PickerRouting(AbstractPickerRouting):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
-    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
+    batching_sol = CoSyLuigiTaskParameter(AbstractBatchProvider)
 
     def run(self):
         router: Routing = self._get_inited_router()
@@ -416,7 +451,7 @@ class AbstractWaiting(BaseComponent):
             deadline_reached=domain.dynamic_warehouse_info.wait_expired,
             picker=picker,
             layout=domain.layout,
-            warehouse_info=domain.warehouse_info,
+            information=domain.information,
             single_order_service_times=self._single_order_service_times(scheduled, picker),
         ))
         dump_pickle(self.output()["waiting_sol"].path, decision)
@@ -426,6 +461,7 @@ class AbstractWaiting(BaseComponent):
 _PARAM_TO_STAGE = {
     "waiting_sol":         "waiting",
     "routing_sol":         "routing",
+    "admission_sol":       "admission",
     "batching_sol":       "batching",
     "item_assignment_sol": "item_assignment",
     "scheduling_sol":      "scheduling",
@@ -445,6 +481,8 @@ def _collect_from_graph(task: CoSyLuigiTask) -> dict:
             return
         for param_name, child in req.items():
             stage = _PARAM_TO_STAGE.get(param_name)
+            if isinstance(child, AdmittedTourBatch):
+                stage = None
             if stage and stage not in collected:
                 output_key = param_name  # output key matches param name
                 sol = load_pickle(child.output()[output_key].path)
@@ -479,8 +517,7 @@ class ResultAggregation(BaseComponent):
     @classmethod
     def constraints(cls) -> Sequence[Callable[..., bool]]:
         return [
-            lambda vs: problem_type_constraint(vs, TAXONOMY, cls._data_card, cls._models),
-            lambda vs: feature_constraint(vs, cls._data_card, cls._models),
+            lambda vs: algorithm_applicability_constraint(vs, cls._data_card, cls._models),
             lambda vs: batching_loader_constraint(vs, TAXONOMY, cls._data_card, PickListProvider),
             lambda vs: orders_provider_constraint(vs, TAXONOMY, cls._data_card, OrdersProvider),
             lambda vs: check_unique(vs, [ResultAggregation]),
@@ -488,7 +525,7 @@ class ResultAggregation(BaseComponent):
 
     def _build_provenance(self, summary: dict, collected: dict) -> None:
         provenance_list = []
-        for stage in ["item_assignment", "batching", "routing", "sequencing", "scheduling", "waiting"]:
+        for stage in ["item_assignment", "batching", "admission", "routing", "sequencing", "scheduling", "waiting"]:
             if stage in collected:
                 entry = collected[stage]
                 provenance_list.append({
@@ -677,61 +714,15 @@ def orders_provider_constraint(vs, subproblems, data_card: DataCard, exclusive, 
     return True
 
 
-def problem_type_constraint(vs, subproblems, data_card: DataCard, models, get_classes=None) -> bool:
+def algorithm_applicability_constraint(vs, data_card: DataCard, models, get_classes=None) -> bool:
+    """Identify CoSy components; CASOP owns their applicability decision."""
     classes = get_classes(vs) if get_classes else [pc.__class__ for pc in traverse_pipeline(vs.values())]
-    problem = data_card.problem_class
-    problems = subproblems[problem]["variables"]
+    mapper = DomainAlgorithmMapper(TAXONOMY)
     for c in classes:
         for m in models:
-            # if m.implementation["class_name"] == c.__name__:
             if m.implementation.get("component_name", m.algo_name) == c.__name__:
-                if m.problem_type not in problems:
-                    print(f"{m.algo_name} not applicable {m.problem_type} not in {problems}")
+                if not mapper.filter([m], data_card):
                     return False
-    return True
-
-
-def feature_constraint(vs, data_card: DataCard, models, get_classes=None) -> bool:
-    classes = get_classes(vs) if get_classes else [pc.__class__ for pc in traverse_pipeline(vs.values())]
-    domain_sections = {
-        "layout": data_card.layout,
-        "articles": data_card.articles,
-        "orders": data_card.orders,
-        "resources": data_card.resources,
-        "storage": data_card.storage,
-        "warehouse_info": data_card.warehouse_info,
-    }
-    for c in classes:
-        for m in models:
-            if m.implementation.get("component_name", m.algo_name) == c.__name__:
-                for domain, reqs in m.requirements.items():
-                    section = domain_sections.get(domain)
-                    if section is None:
-                        continue
-                    required_tpe = reqs["type"]
-                    required_features = reqs.get("features", [])
-                    required_features = [] if required_features in (None, [None]) else required_features
-                    constraints = reqs.get("constraints", {})
-                    domain_type = section["type"]
-                    domain_features = [
-                        f for f in section["features"]
-                        if str(section["features"][f]) == "0" or section["features"][f]
-                    ]
-                    if "any" not in required_tpe and domain_type not in required_tpe:
-                        print(f"{m.algo_name} not applicable, {domain_type} not in {required_tpe}")
-                        return False
-                    missing_features = [f for f in required_features if f not in domain_features]
-                    if missing_features:
-                        print(f"{m.algo_name} not applicable, missing feature: {missing_features}")
-                        return False
-                    for feature_name, constraint in constraints.items():
-                        if feature_name not in domain_features:
-                            print(f"{m.algo_name} not applicable, {feature_name} not in {domain_features}")
-                            return False
-                        evaluator = ConstraintEvaluator()
-                        if not evaluator.evaluate(section["features"][feature_name], constraint):
-                            print(f"{m.algo_name} not applicable, {feature_name} not in {domain_features}")
-                            return False
     return True
 
 

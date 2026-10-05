@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from ware_ops_algos.algorithms import BatchObject, RoutingOrigin
 from ware_ops_algos.domain_models import Resources, StorageLocations, LayoutData, Articles, \
-    OrdersDomain, WarehouseInfo, Resource, BaseWarehouseDomain
+    OrdersDomain, WarehouseInfo, Resource, BaseWarehouseDomain, PlannerInformation
 
 from casim.domain_objects.tour_model import TourPlanningState
 
@@ -37,7 +37,8 @@ class SimWarehouseDomain(BaseWarehouseDomain):
                  resources: Resources,
                  storage: StorageLocations,
                  dynamic_warehouse_info: DynamicInfo,
-                 warehouse_info: WarehouseInfo | None = None):
+                 warehouse_info: WarehouseInfo | None = None,
+                 information: PlannerInformation | None = None):
         super().__init__(problem_class,
                          objective,
                          layout,
@@ -45,6 +46,7 @@ class SimWarehouseDomain(BaseWarehouseDomain):
                          orders,
                          resources,
                          storage,
-                         warehouse_info=warehouse_info)
+                         warehouse_info=warehouse_info,
+                         information=information)
         self.dynamic_warehouse_info = dynamic_warehouse_info
 

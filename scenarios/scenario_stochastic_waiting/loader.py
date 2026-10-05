@@ -29,6 +29,7 @@ from ware_ops_algos.domain_models import (
     WarehouseInfoType,
     WarehouseInfo,
     ShelfStorageGraphGenerator,
+    parse_planner_information,
 )
 
 from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
@@ -228,12 +229,8 @@ class StochasticWaitingDataLoader(DataLoader):
                 )
             ],
         )
-        forecast = {
-            feature.name: feature.get("value")
-            for obj in self.cfg.data_card.warehouse_info.objects
-            for feature in obj.features
-        }
-        warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE, **forecast)
+        information = parse_planner_information(self.cfg.data_card.get("information"))
+        warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE)
         return SimWarehouseDomain(
             problem_class="OBRSPW",
             objective="makespan",
@@ -244,4 +241,5 @@ class StochasticWaitingDataLoader(DataLoader):
             storage=storage,
             dynamic_warehouse_info=DynamicInfo(tpe=WarehouseInfoType.ONLINE, time=0.0),
             warehouse_info=warehouse_info,
+            information=information,
         )

@@ -44,10 +44,8 @@ storage:
       features: [{name: amount}, {name: article_id}]
 warehouse_info:
   type: online
-  objects:
-    - name: Forecast
-      features:
-        - {name: arrival_process, value: exponential}
-        - {name: mean_interarrival_time_s, value: 28.8}
-        - {name: order_lines_per_order, value: 1}
-        - {name: pick_location_distribution, value: uniform_iid}
+information:
+  processes:
+    - id: incoming_orders
+      type: exponential_single_line_uniform_location_order_stream
+      mean_interarrival_time_s: 28.8
