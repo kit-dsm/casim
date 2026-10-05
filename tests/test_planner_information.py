@@ -41,7 +41,8 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
     cfg = configured_study(tmp_path)
     card = load_and_flatten_data_card(cfg.data_card)
     assert card.information["features"] == {
-        "incoming_orders": ExponentialSingleLineUniformLocationOrderStream.representation,
+        "incoming_orders.type": ExponentialSingleLineUniformLocationOrderStream.representation,
+        "incoming_orders.mean_interarrival_time_s": 28.8,
     }
     assert load_card_path(CONFIG_DIR / "data_card" / "stochastic_waiting.yaml").information == card.information
     sim = setup_scenario(cfg)
@@ -69,14 +70,15 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
     assert mapper.filter([invalid_card], snapshot) == []
 
 
-@pytest.mark.parametrize("processes, message", [
-    ([{"id": "incoming_orders", "type": "unknown", "mean_interarrival_time_s": 28.8}], "Unsupported"),
-    ([{"id": "incoming_orders", "type": "exponential_single_line_uniform_location_order_stream",
-       "mean_interarrival_time_s": 0}], "finite positive"),
+@pytest.mark.parametrize("feature_name, value, message", [
+    ("type", "unknown", "Unsupported"),
+    ("mean_interarrival_time_s", 0, "finite positive"),
 ])
-def test_scenario_loader_rejects_a_forecast_it_cannot_construct(tmp_path, processes, message):
+def test_scenario_loader_rejects_a_forecast_it_cannot_construct(tmp_path, feature_name, value, message):
     cfg = configured_study(tmp_path)
-    cfg.data_card.information.processes = processes
+    feature = next(feature for feature in cfg.data_card.information.objects[0].features
+                   if feature.name == feature_name)
+    feature.value = value
     load_and_flatten_data_card(cfg.data_card)
     sim = setup_scenario(cfg)
     with pytest.raises(ValueError, match=message):
@@ -85,7 +87,7 @@ def test_scenario_loader_rejects_a_forecast_it_cannot_construct(tmp_path, proces
 
 def test_duplicate_process_ids_fail_when_card_loads(tmp_path):
     cfg = configured_study(tmp_path)
-    cfg.data_card.information.processes = list(cfg.data_card.information.processes) * 2
+    cfg.data_card.information.objects = list(cfg.data_card.information.objects) * 2
     with pytest.raises(ValueError, match="Duplicate"):
         load_and_flatten_data_card(cfg.data_card)
 
@@ -102,7 +104,7 @@ def test_mapper_excludes_missing_or_incompatible_information_before_simulation(t
         setup_decision_engine(cfg, card)
 
     card.information = {"type": "process_information", "features": {
-        "incoming_orders": "different_order_process",
+        "incoming_orders.type": "different_order_process",
     }}
     assert mapper.filter([algorithm], card) == []
     with pytest.raises(ValueError, match="No CoSy pipeline"):
@@ -129,6 +131,8 @@ def test_second_process_fits_same_snapshot_boundary(tmp_path):
     projection = HennWaitingAdapter().transform_state(sim.state, "OBRSPW")
     assert projection.information.require("picker_attendance", ExampleAttendanceInformation).probability == 0.9
     assert projection.information.get_features() == {
-        "incoming_orders": ExponentialSingleLineUniformLocationOrderStream.representation,
-        "picker_attendance": ExampleAttendanceInformation.representation,
+        "incoming_orders.type": ExponentialSingleLineUniformLocationOrderStream.representation,
+        "incoming_orders.mean_interarrival_time_s": 28.8,
+        "picker_attendance.type": ExampleAttendanceInformation.representation,
+        "picker_attendance.probability": 0.9,
     }

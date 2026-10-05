@@ -232,13 +232,14 @@ class StochasticWaitingDataLoader(DataLoader):
             ],
         )
         processes = {}
-        for spec in self.cfg.data_card.information.processes:
-            if spec.type != ExponentialSingleLineUniformLocationOrderStream.representation:
-                raise ValueError(f"Unsupported process information: {spec.type}")
-            if spec.id in processes:
-                raise ValueError(f"Duplicate process information: {spec.id}")
-            processes[spec.id] = ExponentialSingleLineUniformLocationOrderStream(
-                spec.mean_interarrival_time_s
+        for obj in self.cfg.data_card.information.objects:
+            features = {feature.name: feature.value for feature in obj.features}
+            if features["type"] != ExponentialSingleLineUniformLocationOrderStream.representation:
+                raise ValueError(f"Unsupported process information: {features['type']}")
+            if obj.name in processes:
+                raise ValueError(f"Duplicate process information: {obj.name}")
+            processes[obj.name] = ExponentialSingleLineUniformLocationOrderStream(
+                features["mean_interarrival_time_s"]
             )
         information = PlannerInformation(tpe=InformationType.PROCESS_INFORMATION, processes=processes)
         warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE)

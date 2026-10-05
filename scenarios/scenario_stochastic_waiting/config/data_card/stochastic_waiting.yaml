@@ -46,7 +46,8 @@ warehouse_info:
   type: online
 information:
   type: process_information
-  processes:
-    - id: incoming_orders
-      type: exponential_single_line_uniform_location_order_stream
-      mean_interarrival_time_s: 28.8
+  objects:
+    - name: incoming_orders
+      features:
+        - {name: type, value: exponential_single_line_uniform_location_order_stream}
+        - {name: mean_interarrival_time_s, value: 28.8}
