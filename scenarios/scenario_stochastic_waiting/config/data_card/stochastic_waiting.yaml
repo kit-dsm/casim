@@ -45,6 +45,7 @@ storage:
 warehouse_info:
   type: online
 information:
+  type: process_information
   processes:
     - id: incoming_orders
       type: exponential_single_line_uniform_location_order_stream

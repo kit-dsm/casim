@@ -11,7 +11,8 @@ from hydra import compose, initialize_config_dir
 from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 from ware_ops_algos.domain_models import (
-    ExponentialSingleLineUniformLocationOrderStream, PlannerInformation,
+    BaseDomainObject, ExponentialSingleLineUniformLocationOrderStream,
+    InformationType, PlannerInformation,
 )
 from ware_ops_algos.domain_models.datacards import load_and_flatten_data_card as load_card_path
 
@@ -48,6 +49,8 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
     done, snapshot = sim.run()
     assert not done
     assert snapshot.information is not sim.state.information
+    assert isinstance(snapshot.information, BaseDomainObject)
+    assert snapshot.information.get_type_value() == card.information["type"]
     assert snapshot.information.require(
         "incoming_orders", ExponentialSingleLineUniformLocationOrderStream
     ).mean_interarrival_time_s == 28.8
@@ -119,7 +122,7 @@ def test_second_process_fits_same_snapshot_boundary(tmp_path):
     sim = setup_scenario(cfg)
     sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
     original = sim.state.information.require("incoming_orders", ExponentialSingleLineUniformLocationOrderStream)
-    sim.state.information = PlannerInformation({
+    sim.state.information = PlannerInformation(InformationType.PROCESS_INFORMATION, {
         "incoming_orders": original,
         "picker_attendance": ExampleAttendanceInformation(probability=0.9),
     })

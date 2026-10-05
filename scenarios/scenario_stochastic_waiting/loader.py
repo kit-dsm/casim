@@ -30,6 +30,7 @@ from ware_ops_algos.domain_models import (
     WarehouseInfo,
     ShelfStorageGraphGenerator,
     ExponentialSingleLineUniformLocationOrderStream,
+    InformationType,
     PlannerInformation,
 )
 
@@ -239,7 +240,7 @@ class StochasticWaitingDataLoader(DataLoader):
             processes[spec.id] = ExponentialSingleLineUniformLocationOrderStream(
                 spec.mean_interarrival_time_s
             )
-        information = PlannerInformation(processes)
+        information = PlannerInformation(tpe=InformationType.PROCESS_INFORMATION, processes=processes)
         warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE)
         return SimWarehouseDomain(
             problem_class="OBRSPW",
