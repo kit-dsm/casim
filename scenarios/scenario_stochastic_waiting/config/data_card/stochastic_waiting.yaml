@@ -1,6 +1,6 @@
 name: StochasticWaiting
 problem_class: OBRSPW
-objective: makespan
+objective: mean_order_completion_time
 source:
   data_loader: StochasticWaitingDataLoader
 layout:
@@ -9,6 +9,15 @@ layout:
     - name: LayoutParams
       features:
         - {name: n_blocks, value: 1}
+        - {name: n_aisles, value: 8}
+        - {name: n_pick_locations, value: 16}
+        - {name: dist_aisle, value: 1.0}
+        - {name: dist_pick_locations, value: 1.0}
+        - {name: dist_bottom_to_pick_location, value: 1.0}
+        - {name: dist_top_to_pick_location, value: 1.0}
+        - {name: depot_location, value: front_left}
+        - {name: dist_start, value: 1.0}
+        - {name: dist_end, value: 1.0}
         - {name: start_node}
         - {name: end_node}
         - {name: closest_node_to_start}
@@ -25,10 +34,10 @@ orders:
   type: standard
   objects:
     - name: Order
-      features: [{name: order_date}, {name: order_id}]
+      features: [{name: order_date}, {name: order_id}, {name: order_lines_per_order, value: 1}]
       objects:
         - name: OrderPosition
-          features: [{name: amount}, {name: article_id}]
+          features: [{name: amount, value: 1}, {name: article_id}]
 resources:
   type: human
   objects:

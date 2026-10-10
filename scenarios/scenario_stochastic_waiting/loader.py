@@ -51,41 +51,39 @@ class StochasticWaitingDataLoader(DataLoader):
     @staticmethod
     def _layout(
         n_aisles: int = 8,
-        n_pick_locations: int = 17,
+        n_pick_locations: int = 16,
         *,
         start=(-1, -1),
         end=(-2, -1),
         start_connection_point=None,
         end_connection_point=None,
     ) -> LayoutData:
-        left_centre = n_aisles // 2
-        right_centre = left_centre + 1
-        start_connection_point = start_connection_point or (left_centre, 0)
-        end_connection_point = end_connection_point or (right_centre, 0)
+        start_connection_point = start_connection_point or (1, 0)
+        end_connection_point = end_connection_point or (1, 0)
         params = LayoutParameters(
             n_aisles=n_aisles,
             n_pick_locations=n_pick_locations,
             n_blocks=1,
-            dist_top_to_pick_location=0.0,
-            dist_bottom_to_pick_location=0.0,
+            dist_top_to_pick_location=1.0,
+            dist_bottom_to_pick_location=1.0,
             dist_pick_locations=1.0,
             dist_aisle=1.0,
-            dist_start=0.0,
-            dist_end=0.0,
+            dist_start=1.0,
+            dist_end=1.0,
             start_location=start,
             end_location=end,
             start_connection_point=start_connection_point,
             end_connection_point=end_connection_point,
-            depot_location="front_center",
+            depot_location="front_left",
         )
         generator = ShelfStorageGraphGenerator(
             n_aisles=n_aisles,
             n_pick_locations=n_pick_locations,
             dist_aisle=1.0,
             dist_pick_locations=1.0,
-            dist_aisle_location=0.0,
-            dist_start=0.0,
-            dist_end=0.0,
+            dist_aisle_location=1.0,
+            dist_start=1.0,
+            dist_end=1.0,
             start_location=start,
             end_location=end,
             start_connection_point=start_connection_point,
@@ -132,42 +130,13 @@ class StochasticWaitingDataLoader(DataLoader):
         self,
         **kwargs,
     ) -> SimWarehouseDomain:
-        problems = self.cfg.engines.simulation_engine.problems
-        order_condition = "casim.simulation_engine.conditions.NbrOrdersCondition"
-        active_condition = "casim.simulation_engine.conditions.ActiveTourReadyCondition"
-        if set(problems) != set(self.cfg.engines.decision_engine.problems):
-            raise ValueError("Decision and simulation engine problems disagree")
-        if list(problems.OBRP.triggers) != ["ActiveTourOpportunity"]:
-            raise ValueError("Active-tour decisions must use ActiveTourOpportunity")
-        if list(problems.OBRSPW.triggers) != ["WaitingOpportunity"]:
-            raise ValueError("Waiting decisions must use WaitingOpportunity")
-        if not any(c.get("_target_") == active_condition for c in problems.OBRP.conditions):
-            raise ValueError("Active-tour decisions require ActiveTourReadyCondition")
-        admission = "casim.pipelines.subproblems.admission.RemainingRouteAdmissionNode"
-        if admission not in self.cfg.insertion_repo.components or any(
-            name.startswith("casim.pipelines.subproblems.batching.")
-            for name in self.cfg.insertion_repo.components
-        ):
-            raise ValueError("Active-tour admission requires the admission node without a batching node")
-        if "casim.pipelines.subproblems.picker_routing.SShape" not in self.cfg.insertion_repo.components:
-            raise ValueError("Active-tour admission requires SShape routing")
-        if not any(
-            condition.get("_target_") == order_condition
-            and int(condition.threshold) == 3
-            and condition.get("allow_when_done", False)
-            for condition in problems.OBRSPW.conditions
-        ):
-            raise ValueError("Analytical waiting requires OBRSPW to start at q-1 = 3 orders and flush on stream closure")
-        arrival_times_s = self.cfg.simulation.arrival_times_s
-        aisles = self.cfg.simulation.aisles
-        arrivals = [float(value) for value in arrival_times_s]
-        aisle_values = [int(value) for value in aisles]
-        if len(arrivals) != len(aisle_values) or not arrivals:
-            raise ValueError("arrival_times_s and aisles must have equal length")
-        if arrivals != sorted(arrivals):
-            raise ValueError("arrival_times_s must be nondecreasing")
-        if any(not 1 <= aisle <= 8 for aisle in aisle_values):
-            raise ValueError("aisles must be between one and eight")
+        arrivals = [float(value) for value in self.cfg.simulation.arrival_times_s]
+        pick_nodes = ([tuple(int(value) for value in node)
+                       for node in self.cfg.simulation.pick_locations]
+                      if "pick_locations" in self.cfg.simulation else
+                      [(int(aisle), 1) for aisle in self.cfg.simulation.aisles])
+        if len(arrivals) != len(pick_nodes):
+            raise ValueError("Each realized order needs one pick location")
 
         layout = self._layout()
         articles = Articles(
@@ -181,12 +150,12 @@ class StochasticWaitingDataLoader(DataLoader):
             tpe=StorageType.DEDICATED,
             locations=[
                 Location(
-                    x=aisle,
-                    y=1,
+                    x=node[0],
+                    y=node[1],
                     article_id=index,
                     amount=1,
                 )
-                for index, aisle in enumerate(aisle_values)
+                for index, node in enumerate(pick_nodes)
             ],
         )
         storage.build_article_location_mapping()
@@ -222,7 +191,7 @@ class StochasticWaitingDataLoader(DataLoader):
                     id=0,
                     capacity=4,
                     speed=1.0,
-                    time_per_pick=float(self.cfg.simulation.get("pick_time_s", 0.0)),
+                    time_per_pick=float(self.cfg.simulation.pick_time_s),
                     tour_setup_time=0.0,
                     pick_cart=cart,
                     available=True,
@@ -236,8 +205,6 @@ class StochasticWaitingDataLoader(DataLoader):
             features = {feature.name: feature.value for feature in obj.features}
             if features["type"] != ExponentialSingleLineUniformLocationOrderStream.representation:
                 raise ValueError(f"Unsupported process information: {features['type']}")
-            if obj.name in processes:
-                raise ValueError(f"Duplicate process information: {obj.name}")
             processes[obj.name] = ExponentialSingleLineUniformLocationOrderStream(
                 features["mean_interarrival_time_s"]
             )
@@ -245,7 +212,7 @@ class StochasticWaitingDataLoader(DataLoader):
         warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE)
         return SimWarehouseDomain(
             problem_class="OBRSPW",
-            objective="makespan",
+            objective="mean_order_completion_time",
             layout=layout,
             articles=articles,
             orders=orders,

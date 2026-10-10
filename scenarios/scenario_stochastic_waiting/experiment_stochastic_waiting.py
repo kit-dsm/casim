@@ -1,4 +1,4 @@
-"""Configured stochastic waiting study using CASIM's usual experiment loop."""
+"""Run the four-order analytical waiting example in CASIM."""
 
 from pathlib import Path
 
@@ -20,12 +20,12 @@ def main(cfg: DictConfig):
     decision_engine = setup_decision_engine(cfg, data_card)
 
     sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
-    done = False
-    while not done:
+    while True:
         done, snapshot = sim.run()
-        if not done:
-            events, solution = decision_engine.on_trigger(snapshot)
-            sim.step(events, snapshot.problem_class, solution, snapshot)
+        if done:
+            break
+        events, solution = decision_engine.on_trigger(snapshot)
+        sim.step(events, snapshot.problem_class, solution, snapshot)
 
     print(f"Decisions: {decision_engine.decision_tracker.num_decisions}")
     if cfg.viz.launch:

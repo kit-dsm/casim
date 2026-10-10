@@ -3,7 +3,7 @@ components:
   - casim.pipelines.problem_based_template.OrdersProvider
   - casim.pipelines.subproblems.item_assingment.GreedyIA
   - casim.pipelines.subproblems.batching.FiFo
-  - casim.pipelines.subproblems.picker_routing.SShape
+  - casim.pipelines.subproblems.picker_routing.WalkOrWaitSShape
   - casim.pipelines.subproblems.scheduling.SPTScheduler
   - casim.pipelines.subproblems.waiting.AnalyticWaitingNode
   - casim.pipelines.problem_based_template.ResultAggregationWaiting

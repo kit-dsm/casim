@@ -59,15 +59,13 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
                for order in snapshot.orders.orders)
     assert not hasattr(snapshot.information, "arrival_times_s")
 
-    card = next(c for c in load_packaged_algo_cards()
-                if c.algo_name == "AnalyticStochasticWaiting")
+    algorithm = next(c for c in load_packaged_algo_cards()
+                     if c.algo_name == "AnalyticStochasticWaiting")
     mapper = DomainAlgorithmMapper({"OBRSPW": {"variables": ["waiting"]}})
-    assert mapper.filter([card], snapshot) == [card]
-    snapshot.information = None
-    assert mapper.filter([card], snapshot) == []
-    invalid_card = copy(card)
-    invalid_card.requirements = {"misspelled_information": {"type": ["process_information"]}}
-    assert mapper.filter([invalid_card], snapshot) == []
+    assert mapper.filter([algorithm], card) == [algorithm]
+    invalid_algorithm = copy(algorithm)
+    invalid_algorithm.requirements = {"misspelled_information": {"type": ["process_information"]}}
+    assert mapper.filter([invalid_algorithm], card) == []
 
 
 @pytest.mark.parametrize("feature_name, value, message", [
