@@ -8,9 +8,9 @@ import json
 from pathlib import Path
 
 from ware_ops_algos.domain_models import Resource
-from ware_ops_algos.algorithms import CombinedRoutingSolution, WaitingSolution
+from ware_ops_algos.algorithms import WaitingSolution
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain
+from casim.domain_objects.sim_domain import ActiveTourRoutingSolution, SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.state import State
 from casim.io_helpers import dump_pickle
@@ -59,14 +59,17 @@ class DashLogger(EventLogger):
             else:
                 released = sorted(oid for job in solution.jobs for oid in job.order_numbers)
                 label = f"{problem_class} release orders {released}"
-        elif (isinstance(solution, CombinedRoutingSolution) and state_snapshot is not None
-              and state_snapshot.dynamic_warehouse_info.active_tour_id is not None):
+        elif isinstance(solution, ActiveTourRoutingSolution):
             dynamic = state_snapshot.dynamic_warehouse_info
             if solution.routes:
-                admitted = sorted(set(solution.routes[0].batch.order_numbers)
-                                  - set(dynamic.active_order_ids))
-                version = sim.state.tour_manager.get_tour(dynamic.active_tour_id).route_version
-                label = f"{problem_class} admit orders {admitted} to tour {dynamic.active_tour_id} v{version}"
+                tours = {tour.tour_id: tour for tour in dynamic.admission_tours}
+                admissions = []
+                for route in solution.routes:
+                    tour_id = route.batch.tour_id
+                    admitted = sorted(set(route.batch.order_numbers)
+                                      - set(tours[tour_id].active_order_ids))
+                    admissions.append((tour_id, admitted))
+                label = f"{problem_class} admit {admissions}"
             else:
                 label = f"{problem_class} decline orders {sorted(dynamic.active_candidate_ids)}"
         else:
@@ -156,10 +159,19 @@ class KPILogger(EventLogger):
 
         total_orders = sum(len(oids) for _, _, _, oids, _, _, _, _  in t.completed_tours)
         total_lines = sum(lines for _, _, _, _, _, _, _, lines in t.completed_tours)
+        completion_delays = [
+            end - state.order_manager.get_order_from_history(order_id).order_date
+            for _, _, end, order_ids, _, _, _, _ in t.completed_tours
+            for order_id in order_ids
+        ]
 
 
         return {
-            "makespan": max(end for _, _, end, _, _, _, _, _ in t.completed_tours),
+            "makespan": max((end for _, _, end, _, _, _, _, _ in t.completed_tours), default=0.0),
+            "mean_order_completion_time": (
+                sum(completion_delays) / len(completion_delays)
+                if completion_delays else 0.0
+            ),
             "num_tours": len(t.completed_tours),
             "num_orders_completed": total_orders,
             "avg_tour_makespan": t.average_tour_makespan,
@@ -214,6 +226,7 @@ class KPILogger(EventLogger):
         print("KPI Summary")
         print("=" * 50)
         print(f"  makespan:            {s['makespan']:.0f}")
+        print(f"  mean order completion time: {s['mean_order_completion_time']:.3f}")
         print(f"  tours completed:     {s['num_tours']}")
         print(f"  orders completed:    {s['num_orders_completed']}")
         print(f"  avg tour makespan:   {s['avg_tour_makespan']:.1f}")

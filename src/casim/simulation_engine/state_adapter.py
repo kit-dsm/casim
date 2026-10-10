@@ -1,6 +1,6 @@
 import copy
 
-from ware_ops_algos.algorithms import RoutingOrigin
+from ware_ops_algos.algorithms import AdmissionTour, RoutingOrigin
 from ware_ops_algos.domain_models import Resources, WarehouseInfoType, ResourceType, OrdersDomain, OrderType, Order, \
     OrderPosition
 
@@ -58,66 +58,69 @@ class HennWaitingAdapter(StateAdapter):
 
 
 class ActiveTourAdapter(StateAdapter):
-    """Project visible new orders and the unpicked suffix of one active tour."""
+    """Project buffered orders and every started tour without selecting a tour."""
 
     def transform_state(self, state: State, problem: str):
         new_orders = state.order_manager.get_order_buffer()
-        if len(state.resource_manager.get_resources().resources) != 1:
-            raise ValueError("Active-tour admission currently requires exactly one picker")
         active = [tour for tour in state.tour_manager.all_tours.values()
                   if tour.status == TourStates.STARTED]
-        if len(active) != 1:
-            raise ValueError("Active-tour opportunity requires exactly one started tour")
-        tour = active[0]
-        new_orders = [order for order in new_orders
-                      if (tour.tour_id, order.order_id) not in state.considered_active_orders]
-        picker = state.resource_manager.get_resource(tour.assigned_resource)
         orders = list(new_orders)
-        remaining_active_ids = set()
-        for order_id in tour.order_numbers:
-            picks = [pick for pick in tour.remaining_picks if pick.order_number == order_id]
-            if not picks:
-                continue
-            remaining_active_ids.add(order_id)
-            known = state.order_manager.get_order_from_history(order_id)
-            orders.append(Order(
-                order_id=order_id,
-                order_date=known.order_date,
-                due_date=known.due_date,
-                order_positions=[OrderPosition(
-                    order_number=order_id,
-                    article_id=pick.article_id,
-                    amount=pick.amount,
-                ) for pick in picks],
-            ))
+        admission_tours = []
+        pickers = []
+        for tour in active:
+            picker = state.resource_manager.get_resource(tour.assigned_resource)
+            pickers.append(picker)
+            remaining_active_ids = set()
+            for order_id in tour.order_numbers:
+                picks = [pick for pick in tour.remaining_picks if pick.order_number == order_id]
+                if not picks:
+                    continue
+                remaining_active_ids.add(order_id)
+                known = state.order_manager.get_order_from_history(order_id)
+                orders.append(Order(
+                    order_id=order_id,
+                    order_date=known.order_date,
+                    due_date=known.due_date,
+                    order_positions=[OrderPosition(
+                        order_number=order_id,
+                        article_id=pick.article_id,
+                        amount=pick.amount,
+                    ) for pick in picks],
+                ))
 
-        position = tour.position_at(state.current_time)
-        if tour.edge_destination is not None and state.current_time < tour.edge_end_time:
-            duration = tour.edge_end_time - tour.edge_start_time
-            fraction = 1.0 if duration == 0 else (state.current_time - tour.edge_start_time) / duration
-            origin = RoutingOrigin(
-                position=position,
-                edge_destination=tour.edge_destination.position,
-                distance_to_destination=tour.edge_distance * (1.0 - fraction),
-            )
-        else:
-            origin = RoutingOrigin(position=position)
+            position = tour.position_at(state.current_time)
+            if tour.edge_destination is not None and state.current_time < tour.edge_end_time:
+                duration = tour.edge_end_time - tour.edge_start_time
+                fraction = 1.0 if duration == 0 else (state.current_time - tour.edge_start_time) / duration
+                origin = RoutingOrigin(
+                    position=position,
+                    edge_destination=tour.edge_destination.position,
+                    distance_to_destination=tour.edge_distance * (1.0 - fraction),
+                )
+            else:
+                origin = RoutingOrigin(position=position)
+            admission_tours.append(AdmissionTour(
+                tour_id=tour.tour_id,
+                picker_id=picker.id,
+                route_version=tour.route_version,
+                pick_cart=picker.pick_cart,
+                active_order_ids=frozenset(remaining_active_ids),
+                remaining_route=tuple(
+                    node.position for node in tour.annotated_route[
+                        tour.cursor + (1 if tour.edge_destination is not None else 0):
+                    ]
+                ),
+                occupied_bins=len(set(tour.cart_bins.values())),
+                routing_origin=origin,
+                picking_until=tour.picking_until,
+            ))
         dynamic = DynamicInfo(
             tpe=WarehouseInfoType.ONLINE,
             time=state.current_time,
-            current_picker=picker,
-            active_tours=[tour],
-            active_tour_id=tour.tour_id,
-            active_route_version=tour.route_version,
-            routing_origin=origin,
-            active_order_ids=frozenset(remaining_active_ids),
+            active_tours=active,
+            admission_tours=tuple(admission_tours),
+            considered_active_orders=frozenset(state.considered_active_orders),
             active_candidate_ids=frozenset(order.order_id for order in new_orders),
-            remaining_route_positions=tuple(
-                node.position for node in tour.annotated_route[
-                    tour.cursor + (1 if tour.edge_destination is not None else 0):
-                ]
-            ),
-            occupied_bins=len(set(tour.cart_bins.values())),
             done=state.done_flag,
         )
         return copy.deepcopy(SimWarehouseDomain(
@@ -125,7 +128,7 @@ class ActiveTourAdapter(StateAdapter):
             objective=state.active_objective,
             layout=state.layout_manager.get_layout(),
             orders=OrdersDomain(tpe=OrderType.STANDARD, orders=orders),
-            resources=Resources(ResourceType.HUMAN, [picker]),
+            resources=Resources(ResourceType.HUMAN, pickers),
             articles=state.storage_manager.get_articles(),
             storage=state.get_storage(),
             dynamic_warehouse_info=dynamic,

@@ -7,9 +7,7 @@ from tqdm import tqdm
 
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
-from ware_ops_algos.algorithms import WaitingSolution, CombinedRoutingSolution
-
-from casim.domain_objects.sim_domain import SimWarehouseDomain
+from casim.domain_objects.sim_domain import ActiveTourRoutingSolution, SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.events.operational_events import (
     OrderArrival, FlushRemainingOrders, TravelEvent, WaitExpired, BaseTourEvent,
@@ -128,22 +126,20 @@ class SimulationEngine:
         return True, None
 
     def step(self, events_to_add, problem_class, solution, state_snapshot=None):
-        if (state_snapshot is not None and
-                state_snapshot.dynamic_warehouse_info.active_tour_id is not None):
-            if not isinstance(solution, CombinedRoutingSolution) or len(solution.routes) > 1:
-                raise ValueError("Active intervention requires zero or one residual route")
+        if problem_class == "ATIP":
+            if not isinstance(solution, ActiveTourRoutingSolution):
+                raise ValueError("Active intervention requires routed tour assignments")
             dynamic = state_snapshot.dynamic_warehouse_info
-            tour_id = dynamic.active_tour_id
-            considered = {(tour_id, order_id) for order_id in dynamic.active_candidate_ids}
-            if not solution.routes:
-                self.state.considered_active_orders.update(considered)
-            else:
+            tours = {tour.tour_id: tour for tour in dynamic.admission_tours}
+            for route in solution.routes:
+                tour_id = route.batch.tour_id
+                tour = tours[tour_id]
                 version = self.state.commit_active_route(
-                    solution.routes[0], tour_id,
-                    dynamic.active_route_version, dynamic.current_picker.id,
+                    route, tour_id,
+                    tour.route_version, tour.picker_id,
                 )
-                self.state.considered_active_orders.update(considered)
                 self.add_event(TravelEvent(self.state.current_time, tour_id, version))
+            self.state.considered_active_orders.update(solution.considered_pairs)
         else:
             self.state.commit_solution(problem_class, solution)
             if events_to_add:

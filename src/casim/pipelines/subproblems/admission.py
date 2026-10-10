@@ -15,15 +15,12 @@ class RemainingRouteAdmissionNode(AbstractAdmission):
 
     def run(self):
         dynamic = load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
-        resources = load_pickle(self.input()["instance"]["resources"].path)
         assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
         orders = tuple(assigned.resolved_orders)
         decision = RemainingRouteAdmission().solve(AdmissionInput(
             orders=orders,
-            pick_cart=resources.resources[0].pick_cart,
-            active_order_ids=dynamic.active_order_ids,
+            tours=dynamic.admission_tours,
             candidate_order_ids=dynamic.active_candidate_ids,
-            remaining_route=dynamic.remaining_route_positions,
-            occupied_bins=dynamic.occupied_bins,
+            considered_pairs=dynamic.considered_active_orders,
         ))
         dump_pickle(self.output()["admission_sol"].path, decision)

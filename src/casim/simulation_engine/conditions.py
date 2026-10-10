@@ -67,10 +67,9 @@ class ActiveTourReadyCondition(Condition):
 
     def get_decision(self, state: SimWarehouseDomain) -> bool:
         dynamic = state.dynamic_warehouse_info
-        return (dynamic.active_tour_id is not None
-                and bool(dynamic.active_candidate_ids)
-                and len(dynamic.active_tours) == 1
-                and dynamic.active_tours[0].picking_until is None)
+        return (bool(dynamic.active_candidate_ids)
+                and any(tour.picking_until is None
+                        for tour in dynamic.admission_tours))
 
 class NbrBatchesCondition(Condition):
     def __init__(self, threshold: int):

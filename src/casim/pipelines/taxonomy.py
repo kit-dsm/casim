@@ -4,7 +4,11 @@ TAXONOMY = {
         "endpoint": "ResultAggregationWaiting",
     },
     "OBRP": {
-        "variables": ["item_assignment", "batching", "admission", "routing"],
+        "variables": ["item_assignment", "batching", "routing"],
+        "endpoint": "ResultAggregationRouting"
+    },
+    "ATIP": {
+        "variables": ["item_assignment", "admission", "active_tour_routing"],
         "endpoint": "ResultAggregationRouting"
     },
     "SPRP": {

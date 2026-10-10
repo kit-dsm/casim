@@ -4,5 +4,5 @@ components:
   - casim.pipelines.subproblems.item_assingment.GreedyIA
   - casim.pipelines.subproblems.admission.RemainingRouteAdmissionNode
   - casim.pipelines.problem_based_template.AdmittedTourBatch
-  - casim.pipelines.subproblems.picker_routing.WalkOrWaitSShape
+  - casim.pipelines.subproblems.picker_routing.ReroutableWalkOrWaitSShape
   - casim.pipelines.problem_based_template.ResultAggregationRouting

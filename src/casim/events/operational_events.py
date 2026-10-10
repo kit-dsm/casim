@@ -23,14 +23,8 @@ class OrderArrival(Event):
         super().handle(state)
         logger.info("Order %s arrived at t=%s", self.order.order_id, self.time)
         state.order_manager.add_order_to_buffer(self.order)
-        active = [tour for tour in state.tour_manager.all_tours.values()
-                  if tour.status == TourStates.STARTED]
-        if len(active) == 1:
-            tour = active[0]
-            return [ActiveTourOpportunity(self.time, tour.tour_id, tour.route_version)]
-        if active:
-            return []
-        return [WaitingOpportunity(self.time, state.wait_version)]
+        return [ActiveTourOpportunity(self.time),
+                WaitingOpportunity(self.time, state.wait_version)]
 
 
 class WaitingOpportunity(Event):
@@ -52,12 +46,15 @@ class ActiveTourOpportunity(Event):
 
     priority_score = 2
 
-    def __init__(self, time: float, tour_id: int, route_version: int):
+    def __init__(self, time: float, tour_id: int | None = None,
+                 route_version: int | None = None):
         super().__init__(time)
         self.tour_id = tour_id
         self.route_version = route_version
 
     def is_stale(self, state: State) -> bool:
+        if self.tour_id is None:
+            return False
         tour = state.tour_manager.get_tour(self.tour_id)
         return tour.status != TourStates.STARTED or tour.route_version != self.route_version
 
@@ -128,6 +125,7 @@ class PickerArrival(Event):
         elif not self.picker_available:
             state.resource_manager.set_picker_unavailable(self.picker_id)
         return [WaitingOpportunity(self.time, state.wait_version)]
+
 
 class VolumeShiftAcrossDay(Event):
     def __init__(self, time: float):

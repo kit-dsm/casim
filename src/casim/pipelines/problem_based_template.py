@@ -37,7 +37,9 @@ from ware_ops_algos.domain_models import (
 )
 from ware_ops_algos.algorithms.algorithm_cards import AlgorithmCard
 
-from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
+from casim.domain_objects.sim_domain import (
+    ActiveTourBatch, ActiveTourBatchingSolution, DynamicInfo, SimWarehouseDomain,
+)
 from casim.pipelines.taxonomy import TAXONOMY
 from casim.io_helpers import dump_json
 
@@ -232,10 +234,23 @@ class AdmittedTourBatch(AbstractBatchProvider):
         assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
         orders = assigned.resolved_orders
         by_id = {order.order_id: order for order in orders}
-        active = [order for order in orders if order.order_id in dynamic.active_order_ids]
-        accepted = [by_id[order_id] for order_id in decision.accepted_order_ids]
-        batches = [BatchObject(batch_id=0, orders=active + accepted)] if accepted else []
-        dump_pickle(self.output()["batching_sol"].path, BatchingSolution(batches=batches))
+        accepted_by_tour = {}
+        for tour_id, order_id in decision.assignments:
+            accepted_by_tour.setdefault(tour_id, []).append(order_id)
+        batches = []
+        for tour in dynamic.admission_tours:
+            accepted = accepted_by_tour.get(tour.tour_id, [])
+            if accepted:
+                active = [by_id[order_id] for order_id in sorted(tour.active_order_ids)]
+                batches.append(ActiveTourBatch(
+                    batch_id=tour.tour_id,
+                    orders=active + [by_id[order_id] for order_id in accepted],
+                    tour_id=tour.tour_id,
+                ))
+        dump_pickle(self.output()["batching_sol"].path, ActiveTourBatchingSolution(
+            batches=batches,
+            considered_pairs=decision.considered_pairs,
+        ))
 
 
 class PickListProvider(AbstractBatching):

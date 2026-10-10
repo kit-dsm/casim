@@ -34,3 +34,6 @@ simulation_engine:
       conditions:
         - _target_: casim.simulation_engine.conditions.NbrPickersCondition
           threshold: 1
+        - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+          threshold: 3
+          allow_when_done: true

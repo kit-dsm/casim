@@ -132,6 +132,7 @@ class CoSySolver:
             "OBP": "batching_sol.pkl",
             "OSBP": "batching_sol.pkl",
             "ORP": "routing_sol.pkl", "OBRP": "routing_sol.pkl",
+            "ATIP": "routing_sol.pkl",
             "BSRP": "routing_sol.pkl",
         }[problem_class]
         return {Path(p).stem: obj for p, obj in iter_store(f"*{suffix}")}

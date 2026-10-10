@@ -15,11 +15,9 @@ from scenarios.scenario_walk_or_wait.hooks import seed_orders, seed_pickers
 
 def validate_study_configuration(cfg: DictConfig, sim) -> None:
     """Reject study settings the active-tour experiment cannot represent."""
-    intervention = "OBRP" in cfg.engines.simulation_engine.problems
+    intervention = "ATIP" in cfg.engines.simulation_engine.problems
     if cfg.policy.component.endswith(".StartImmediatelyNode") and not intervention:
         raise ValueError("Paper wait-0 requires active-tour admission")
-    if intervention and cfg.routing.name != "s_shape":
-        raise ValueError("Active-tour replacement is supported with S-Shape routing only")
     if intervention:
         arrivals = [order.order_date for order in sim._initial_domain.orders.orders]
         if len(set(arrivals)) != len(arrivals):

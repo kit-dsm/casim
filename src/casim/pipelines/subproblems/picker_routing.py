@@ -1,39 +1,34 @@
-from ware_ops_algos.algorithms import SShapeRouting, WalkOrWaitSShapeRouting, LargestGapRouting, MidpointRouting, ReturnRouting, \
+from ware_ops_algos.algorithms import SShapeRouting, WalkOrWaitSShapeRouting, ReroutableSShapeRouting, \
+    ReroutableWalkOrWaitSShapeRouting, LargestGapRouting, MidpointRouting, ReturnRouting, \
     NearestNeighbourhoodRouting, ExactTSPRoutingDistance, RatliffRosenthalRouting, UShapeRouting
 
-from casim.pipelines.problem_based_template import PickerRouting
+from casim.domain_objects.sim_domain import ActiveTourRoutingSolution
+from casim.pipelines.problem_based_template import PickerRouting, dump_pickle, load_pickle
 
 
 class SShape(PickerRouting):
     router_class = SShapeRouting
+    uses_active_origin = False
 
-    def _get_inited_router(self):
+    def _get_inited_router(self, *, routing_origin=None, picker=None):
         resources = self._load_resources()
         layout = self._load_layout()
         layout_network = layout.layout_network
-        dynamic = self._load_dynamic_info()
-        origin = dynamic.routing_origin
-        closest = layout_network.closest_node_to_start
-        if origin is not None:
-            position = origin.edge_destination or origin.position
-            exits = ((position[0], layout_network.min_aisle_position),
-                     (position[0], layout_network.max_aisle_position))
-            closest = min(exits, key=lambda node: layout_network.distance_matrix.at[position, node])
         return self.router_class(
             start_node=layout_network.start_node,
             end_node=layout_network.end_node,
-            closest_node_to_start=closest,
+            closest_node_to_start=layout_network.closest_node_to_start,
             min_aisle_position=layout_network.min_aisle_position,
             max_aisle_position=layout_network.max_aisle_position,
             distance_matrix=layout_network.distance_matrix,
             predecessor_matrix=layout_network.predecessor_matrix,
-            picker=resources.resources,
+            picker=[picker] if picker is not None else resources.resources,
             gen_tour=True,
             gen_item_sequence=True,
             node_list=layout_network.node_list,
             node_to_idx={node: idx for idx, node in enumerate(list(layout_network.graph.nodes))},
             idx_to_node={idx: node for idx, node in enumerate(list(layout_network.graph.nodes))},
-            routing_origin=origin,
+            routing_origin=routing_origin if self.uses_active_origin else None,
         )
 
 
@@ -41,6 +36,51 @@ class WalkOrWaitSShape(SShape):
     """Select the S-shape traversal used by the original waiting simulator."""
 
     router_class = WalkOrWaitSShapeRouting
+
+
+class _ActiveTourRoutingNode:
+    """Route each admitted tour from its own projected origin."""
+
+    def run(self):
+        batching_sol = load_pickle(self.input()["batching_sol"]["batching_sol"].path)
+        dynamic = self._load_dynamic_info()
+        tours = {tour.tour_id: tour for tour in dynamic.admission_tours}
+        pickers = {picker.id: picker for picker in self._load_resources().resources}
+        routes = []
+        execution_time = 0.0
+        algo_name = ""
+        for batch in batching_sol.batches:
+            tour = tours[batch.tour_id]
+            router = self._get_inited_router(
+                routing_origin=tour.routing_origin,
+                picker=pickers[tour.picker_id],
+            )
+            routing_solution = router.solve(batch.pick_positions)
+            route = routing_solution.route
+            route.batch = batch
+            routes.append(route)
+            algo_name = routing_solution.algo_name
+            execution_time += routing_solution.execution_time
+        dump_pickle(self.output()["routing_sol"].path, ActiveTourRoutingSolution(
+            algo_name=algo_name,
+            execution_time=execution_time,
+            routes=routes,
+            considered_pairs=batching_sol.considered_pairs,
+        ))
+
+
+class ReroutableSShape(_ActiveTourRoutingNode, SShape):
+    """Use the S-shape variant that re-solves an active residual tour."""
+
+    router_class = ReroutableSShapeRouting
+    uses_active_origin = True
+
+
+class ReroutableWalkOrWaitSShape(_ActiveTourRoutingNode, SShape):
+    """Use paper-style S-shape traversal with active rerouting."""
+
+    router_class = ReroutableWalkOrWaitSShapeRouting
+    uses_active_origin = True
 
 
 class LargestGap(PickerRouting):

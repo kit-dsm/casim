@@ -22,7 +22,7 @@ class SolutionRanker:
                 raise ValueError("Configure one waiting policy per waiting decision")
             best_key, solution_object = next(iter(solutions.items()))
 
-        elif problem_class in ["ORP", "OBRP", "BSRP"]:
+        elif problem_class in ["ORP", "OBRP", "ATIP", "BSRP"]:
             best_kpi_value = float("inf")
             for k, sol in solutions.items():
                 # sol is either list[RoutingSolution] or CombinedRoutingSolution
