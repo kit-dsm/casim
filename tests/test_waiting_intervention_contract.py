@@ -49,6 +49,15 @@ def test_admission_card_matches_the_active_tour_problem():
     assert DomainAlgorithmMapper(TAXONOMY).filter(
         [admission, reroutable, ordinary, fifo], card
     ) == [admission, reroutable]
+    for feature, unsupported in (
+        ("capacities", [0]),
+        ("box_can_mix_orders", True),
+        ("n_boxes", 0),
+        ("dimensions_type", ["items"]),
+    ):
+        incompatible = copy.deepcopy(card)
+        incompatible.resources["features"][feature] = unsupported
+        assert DomainAlgorithmMapper(TAXONOMY).filter([admission], incompatible) == []
     card.problem_class = "OBRP"
     assert DomainAlgorithmMapper(TAXONOMY).filter(
         [admission, reroutable, ordinary, fifo], card

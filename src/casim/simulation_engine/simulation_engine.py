@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import Order
-from casim.domain_objects.sim_domain import ActiveTourRoutingSolution, SimWarehouseDomain
+from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.events.operational_events import (
     OrderArrival, FlushRemainingOrders, TravelEvent, WaitExpired, BaseTourEvent,
@@ -127,16 +127,13 @@ class SimulationEngine:
 
     def step(self, events_to_add, problem_class, solution, state_snapshot=None):
         if problem_class == "ATIP":
-            if not isinstance(solution, ActiveTourRoutingSolution):
-                raise ValueError("Active intervention requires routed tour assignments")
-            dynamic = state_snapshot.dynamic_warehouse_info
-            tours = {tour.tour_id: tour for tour in dynamic.admission_tours}
+            admitted = {}
+            for tour_id, order_id in solution.assignments:
+                admitted.setdefault(tour_id, []).append(order_id)
             for route in solution.routes:
                 tour_id = route.batch.tour_id
-                tour = tours[tour_id]
                 version = self.state.commit_active_route(
-                    route, tour_id,
-                    tour.route_version, tour.picker_id,
+                    route, tuple(admitted[tour_id]),
                 )
                 self.add_event(TravelEvent(self.state.current_time, tour_id, version))
             self.state.considered_active_orders.update(solution.considered_pairs)

@@ -65,6 +65,7 @@ class _ActiveTourRoutingNode:
             algo_name=algo_name,
             execution_time=execution_time,
             routes=routes,
+            assignments=batching_sol.assignments,
             considered_pairs=batching_sol.considered_pairs,
         ))
 

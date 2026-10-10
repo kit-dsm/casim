@@ -16,11 +16,13 @@ class ActiveTourBatch(BatchObject):
 
 @dataclass
 class ActiveTourBatchingSolution(BatchingSolution):
+    assignments: tuple[tuple[int, int], ...] = ()
     considered_pairs: tuple[tuple[int, int], ...] = ()
 
 
 @dataclass
 class ActiveTourRoutingSolution(CombinedRoutingSolution):
+    assignments: tuple[tuple[int, int], ...] = ()
     considered_pairs: tuple[tuple[int, int], ...] = ()
 
 

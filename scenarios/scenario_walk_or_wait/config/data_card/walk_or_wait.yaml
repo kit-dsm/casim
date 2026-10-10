@@ -37,7 +37,7 @@ resources:
       features: [{name: speed}, {name: time_per_pick}]
       objects:
         - name: PickCart
-          features: [{name: capacities}, {name: dimensions_type, value: [orders]}]
+          features: [{name: capacities, value: [1]}, {name: dimensions_type, value: [orders]}, {name: n_boxes, value: "${simulation.capacity_orders}"}, {name: box_can_mix_orders, value: false}]
 storage:
   type: dedicated
   objects:

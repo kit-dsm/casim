@@ -249,6 +249,7 @@ class AdmittedTourBatch(AbstractBatchProvider):
                 ))
         dump_pickle(self.output()["batching_sol"].path, ActiveTourBatchingSolution(
             batches=batches,
+            assignments=decision.assignments,
             considered_pairs=decision.considered_pairs,
         ))
 

@@ -13,17 +13,6 @@ from scenarios.experiment_commons import (
 from scenarios.scenario_walk_or_wait.hooks import seed_orders, seed_pickers
 
 
-def validate_study_configuration(cfg: DictConfig, sim) -> None:
-    """Reject study settings the active-tour experiment cannot represent."""
-    intervention = "ATIP" in cfg.engines.simulation_engine.problems
-    if cfg.policy.component.endswith(".StartImmediatelyNode") and not intervention:
-        raise ValueError("Paper wait-0 requires active-tour admission")
-    if intervention:
-        arrivals = [order.order_date for order in sim._initial_domain.orders.orders]
-        if len(set(arrivals)) != len(arrivals):
-            raise ValueError("Simultaneous arrivals lack a defined sequential intervention order")
-
-
 def report(sim, output_dir: Path, expected_orders: int) -> dict:
     state = sim.state
     completed = state.tracker.completed_tours
@@ -69,7 +58,6 @@ def main(cfg: DictConfig):
     data_card = load_and_flatten_data_card(cfg.data_card)
     sim = setup_scenario(cfg)
     sim.reset(hooks=[seed_pickers, seed_orders])
-    validate_study_configuration(cfg, sim)
     decision_engine = setup_decision_engine(cfg, data_card)
 
     done = False
