@@ -17,6 +17,7 @@ from casim.config.schema import DecisionConfig, DecisionDefinitions, PeriodicTri
 from casim.decision_engine.commitment_policies import CommitmentPolicy
 from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.pipelines.pipeline_runner import CoSySolver
+from casim.pipelines.card_components import card_matches_component
 from casim.pipelines.taxonomy import TAXONOMY, variant
 from casim.simulation_engine.conditions import Condition
 from casim.simulation_engine.state_adapter import StateAdapter
@@ -95,13 +96,12 @@ def resolve(cfg: DictConfig, data_card) -> dict[str, DecisionSetup]:
         card = deepcopy(data_card)
         card.problem_class = model.problem_class
         card.decision_features = {"type": "decision", "features": features}
-        configured = ({path.rsplit(".", 1)[-1]
-                       for path in raw.solver.repo.components}
-                      if solver is not None else set())
+        configured = (tuple(get_class(path) for path in raw.solver.repo.components)
+                      if solver is not None else ())
         exclusions = []
         for algorithm in solver.algorithm_cards if solver is not None else ():
-            component = algorithm.implementation.get("component_name", algorithm.algo_name)
-            if component not in configured:
+            if not any(card_matches_component(algorithm, component)
+                       for component in configured):
                 continue
             reasons = list(mapper.rejection_reasons(algorithm, card))
             if algorithm.problem_type not in stages:

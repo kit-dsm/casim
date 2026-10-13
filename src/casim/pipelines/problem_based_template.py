@@ -33,6 +33,7 @@ from ware_ops_algos.algorithms import (
     ActiveTourBatch, ActiveTourBatchingSolution,
 )
 from casim.pipelines.taxonomy import TAXONOMY
+from casim.pipelines.card_components import card_matches_component
 from casim.pipelines.admission_view import to_admission_tour
 from casim.domain_objects.sim_domain import ReconsiderReason
 from casim.domain_objects.sim_domain import DecisionContext, SimWarehouseDomain
@@ -666,7 +667,7 @@ def algorithm_applicability_constraint(vs, data_card: DataCard, models, get_clas
     mapper = DomainAlgorithmMapper(TAXONOMY)
     for c in classes:
         for m in models:
-            if m.implementation.get("component_name", m.algo_name) == c.__name__:
+            if card_matches_component(m, c):
                 if not mapper.filter([m], data_card):
                     return False
     return True

@@ -1,1 +1,1 @@
-waiting_node: casim.pipelines.subproblems.waiting.WaitForThree
+min_orders: 3

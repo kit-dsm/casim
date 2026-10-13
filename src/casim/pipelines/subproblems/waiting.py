@@ -13,24 +13,38 @@ class NoWaitingNode(AbstractWaiting):
         return NoWaiting()
 
 
-class WaitForOne(AbstractWaiting):
+class OrderCountWaitingNode(AbstractWaiting):
+    """CoSy component shared by the configured order-count policies."""
+
+    min_orders: int
+
     def _get_inited_waiter(self) -> Waiting:
-        return OrderCountWaiting(1)
+        return OrderCountWaiting(self.min_orders)
 
 
-class WaitForTwo(AbstractWaiting):
-    def _get_inited_waiter(self) -> Waiting:
-        return OrderCountWaiting(2)
+class WaitForOne(OrderCountWaitingNode):
+    min_orders = 1
 
 
-class WaitForThree(AbstractWaiting):
-    def _get_inited_waiter(self) -> Waiting:
-        return OrderCountWaiting(3)
+class WaitForTwo(OrderCountWaitingNode):
+    min_orders = 2
 
 
-class WaitForFour(AbstractWaiting):
-    def _get_inited_waiter(self) -> Waiting:
-        return OrderCountWaiting(4)
+class WaitForThree(OrderCountWaitingNode):
+    min_orders = 3
+
+
+class WaitForFour(OrderCountWaitingNode):
+    min_orders = 4
+
+
+# CoSy currently synthesizes task classes without Luigi value parameters.
+# These aliases let policy configuration state only the numeric threshold.
+WaitFor0 = NoWaitingNode
+WaitFor1 = WaitForOne
+WaitFor2 = WaitForTwo
+WaitFor3 = WaitForThree
+WaitFor4 = WaitForFour
 
 
 class HennWaitingNode(AbstractWaiting):

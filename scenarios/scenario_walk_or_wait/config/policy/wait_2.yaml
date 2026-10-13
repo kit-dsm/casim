@@ -1,1 +1,1 @@
-waiting_node: casim.pipelines.subproblems.waiting.WaitForTwo
+min_orders: 2

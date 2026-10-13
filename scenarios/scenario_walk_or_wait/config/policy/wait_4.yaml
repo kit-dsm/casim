@@ -1,1 +1,1 @@
-waiting_node: casim.pipelines.subproblems.waiting.WaitForFour
+min_orders: 4
