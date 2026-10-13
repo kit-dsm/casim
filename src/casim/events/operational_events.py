@@ -1,7 +1,8 @@
 import logging
 
 from ware_ops_algos.algorithms import NodeType, RouteNode
-from ware_ops_algos.domain_models import Order, TourPlanningState, TourStates
+from ware_ops_algos.domain_models import Order, TourStates
+from casim.domain_objects.tour_model import TourPlanningState
 
 from casim.events.base_events import Event
 from casim.state import State

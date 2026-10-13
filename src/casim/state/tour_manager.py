@@ -3,7 +3,9 @@ from collections import defaultdict
 
 from ware_ops_algos.algorithms import Route, NodeType, WarehouseOrder
 
-from ware_ops_algos.domain_models import TourPlanningState, TourStates, Node
+from ware_ops_algos.domain_models import TourStates, Node
+
+from casim.domain_objects.tour_model import TourPlanningState
 
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

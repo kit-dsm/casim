@@ -1,4 +1,4 @@
-from ware_ops_algos.domain_models import TourPlanningState
+from casim.domain_objects.tour_model import TourPlanningState
 from casim.state import State
 
 
