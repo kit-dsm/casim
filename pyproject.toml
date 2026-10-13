@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "casim"
 version = "0.1.0"
 description = "Discrete-event simulation framework for warehouse order fulfillment"
-requires-python = ">=3.11"
+requires-python = "==3.13.*"
 dependencies = [
     "ware_ops_algos",
     "cosy-luigi",
@@ -37,7 +37,7 @@ casim = "casim.cli:main"
 
 [tool.uv.sources]
 ware_ops_algos = { path = "../ware_ops_algos", editable = true }
-cosy-luigi = { url = "https://github.com/cls-python/cosy-luigi/releases/download/nightly/cosy_luigi-nightly.tar.gz" }
+cosy-luigi = { git = "https://github.com/cls-python/cosy-luigi.git", rev = "572209d699ce0c04ee0264f0e7b6036e7fa07e4f" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

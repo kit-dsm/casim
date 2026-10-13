@@ -10,8 +10,8 @@ This project depends on `ware_ops_algos`, which must be cloned adjacent:
 git clone https://github.com/kit-dsm/casim.git
 git clone https://github.com/kit-dsm/ware_ops_algos.git
 cd casim
-uv sync --extra dev
-uv run pytest
+uv sync --locked --extra dev
+uv run --locked pytest
 ```
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.13 (installed automatically by uv).
