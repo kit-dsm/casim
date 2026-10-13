@@ -333,15 +333,13 @@ class PickerTourQuery(Event):
                 #     print(f"Next tour in queue is {peek_next_tour_id} with start time {peek_next_tour.start_time}")
                 return [PickerTourQuery(self.time, self.picker_id)]
                 # return [PickerIdle(state.current_time, picker.id)]
-            start_time = state.current_time
-            if next_tour.start_time is not None:
-                start_time = max(next_tour.start_time, self.time)
-                # The tour is scheduled -> we use the start time of the tour
-                # Otherwise we greedily start the tour right away
+            if next_tour.start_time is not None and next_tour.start_time > self.time:
+                # Keep the scheduled tour reserved and inspect the plan again
+                # when setup can begin; another decision may revise it first.
+                return [PickerTourQuery(next_tour.start_time, self.picker_id)]
             state.tour_manager.advance(next_tour_id, TourStates.PENDING)
-            if picker.tour_setup_time:
-                start_time += picker.tour_setup_time
-            return [TourStart(start_time, next_tour_id)]
+            return [TourStart(self.time + (picker.tour_setup_time or 0),
+                              next_tour_id)]
         else:
             # Nothing to do right now, picker is idle
             picker.occupied = False

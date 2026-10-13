@@ -373,7 +373,7 @@ class AbstractScheduling(BaseComponent):
             "scheduling_sol": self.get_luigi_local_target_with_task_id("scheduling_sol.pkl")
         }
 
-    def _get_inited_scheduler(self) -> Scheduler:
+    def _get_inited_scheduler(self, available_from: dict[int, float]) -> Scheduler:
         ...
 
     def _load_resources(self) -> Resources:
@@ -400,8 +400,7 @@ class AbstractScheduling(BaseComponent):
 
         plan = self._load_plan()
         jobs = build_jobs(routes, resources, release_time=plan.time)
-        scheduler = self._get_inited_scheduler()
-        scheduler.available_from = plan.available_from
+        scheduler = self._get_inited_scheduler(dict(plan.available_from))
         scheduling_sol = scheduler.solve(jobs)
         dump_pickle(self.output()["scheduling_sol"].path, scheduling_sol)
 
