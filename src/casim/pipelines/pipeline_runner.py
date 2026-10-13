@@ -16,6 +16,7 @@ from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.pipelines.problem_based_template import (
     PlanCandidateEndpoint, BatchingPlanCandidate, RoutingPlanCandidate,
     SchedulingPlanCandidate, SequencingPlanCandidate, PositioningPlanCandidate,
+    WaitingPlanCandidate,
     clear_store, dump_pickle, load_pickle,
 )
 
@@ -23,6 +24,7 @@ PLAN_SOURCES = {
     "batching": BatchingPlanCandidate,
     "routing": RoutingPlanCandidate,
     "scheduling": SchedulingPlanCandidate,
+    "waiting": WaitingPlanCandidate,
     "positioning": PositioningPlanCandidate,
     "sequencing": SequencingPlanCandidate,
 }

@@ -15,6 +15,7 @@ from ware_ops_algos.algorithms import (
     CombinedRoutingSolution,
     ItemAssignmentSolution,
     PositioningInput,
+    Waiting, WaitingInput,
     RoutingSolution,
     ItemAssignment, Scheduler, build_jobs)
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
@@ -33,6 +34,7 @@ from ware_ops_algos.algorithms import (
 )
 from ware_ops_algos.taxonomy.taxonomy import TAXONOMY
 from casim.pipelines.admission_view import to_admission_tour
+from casim.domain_objects.sim_domain import ReconsiderReason
 
 
 class PipelineParams(luigi.Config):
@@ -435,6 +437,43 @@ class AbstractPositioning(BaseComponent):
         ))
         dump_pickle(self.output()["positioning_sol"].path, result)
 
+
+class AbstractWaiting(BaseComponent):
+    """Apply a configured waiting algorithm to a complete schedule."""
+
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+    scheduling_sol = CoSyLuigiTaskParameter(AbstractScheduling)
+
+    def output(self):
+        return {"waiting_sol":
+                self.get_luigi_local_target_with_task_id("waiting_sol.pkl")}
+
+    def _get_inited_waiter(self) -> Waiting:
+        raise NotImplementedError
+
+    def run(self):
+        inputs = self.input()
+        domain = load_pickle(inputs["instance"]["domain"].path)
+        schedule = load_pickle(inputs["scheduling_sol"]["scheduling_sol"].path)
+        dynamic = domain.dynamic_warehouse_info
+        pickers = {picker.id: picker for picker in domain.resources.resources}
+        if not schedule.jobs:
+            if not pickers:
+                raise ValueError("Waiting requires a picker")
+            picker = next(iter(pickers.values()))
+        else:
+            picker = pickers[schedule.jobs[0].picker_id]
+        result = self._get_inited_waiter().solve(WaitingInput(
+            candidates=tuple(schedule.jobs),
+            current_time=dynamic.plan.time,
+            input_closed=dynamic.context.input_closed,
+            picker=picker,
+            layout=domain.layout,
+            information=domain.information,
+            deadline_reached=ReconsiderReason.WAIT in dynamic.context.reconsider,
+        ))
+        dump_pickle(self.output()["waiting_sol"].path, result)
+
 # ─────────────────────────── Sequencing ─────────────────────────────────────
 
 
@@ -512,6 +551,14 @@ class SchedulingPlanCandidate(AbstractPlanCandidate):
     def run(self):
         dump_pickle(self.output()["plan_candidate"].path,
                     load_pickle(self.input()["source"]["scheduling_sol"].path))
+
+
+class WaitingPlanCandidate(AbstractPlanCandidate):
+    source = CoSyLuigiTaskParameter(AbstractWaiting)
+
+    def run(self):
+        dump_pickle(self.output()["plan_candidate"].path,
+                    load_pickle(self.input()["source"]["waiting_sol"].path))
 
 
 class PositioningPlanCandidate(AbstractPlanCandidate):
