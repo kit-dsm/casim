@@ -29,7 +29,7 @@ class _Planned:
 def _planned_after(commands: tuple[Command, ...],
                    snapshot: SimWarehouseDomain) -> tuple[_Planned, ...]:
     plan = snapshot.dynamic_warehouse_info.plan
-    visible_pickers = {resource.id for resource in plan.resources}
+    visible_pickers = {resource.id for resource in snapshot.resources.resources}
     planned: dict[int, _Planned] = {
         tour.tour_id: _Planned(tour.tour_id, None, tour.picker_id,
                               tour.start_time)

@@ -1,7 +1,7 @@
 import pytest
 
 from ware_ops_algos.algorithms import Job, ScheduledJob
-from ware_ops_algos.domain_models import Resource
+from ware_ops_algos.domain_models import Resource, ResourceType, Resources
 from ware_ops_algos.planning.commands import CreateTour, Reschedule
 from ware_ops_algos.planning.lifecycle import Accepts, TourStates
 from ware_ops_algos.planning.models import PlanView, TourView
@@ -16,13 +16,14 @@ from casim.domain_objects.sim_domain import (
 
 def _snapshot(plan, waiting=False):
     dynamic = DynamicInfo(
-        context=DecisionContext("decision", (), (), 0, False, True),
+        context=DecisionContext("decision", (), (), False, True),
         plan=plan,
         memory=DecisionMemory(waiting=waiting),
     )
     return SimWarehouseDomain(
         problem_class="OBRSP", objective="Distance", layout=None,
-        articles=None, orders=None, resources=None, storage=None,
+        articles=None, orders=None,
+        resources=Resources(ResourceType.HUMAN, [Resource(id=0)]), storage=None,
         dynamic_warehouse_info=dynamic,
     )
 
@@ -30,7 +31,6 @@ def _snapshot(plan, waiting=False):
 def _plan():
     return PlanView(
         time=10,
-        resources=(Resource(id=0),),
         tours=(
             TourView(1, 0, TourStates.PLANNED, Accepts.REBUILD,
                      start_time=20, end_time=30),

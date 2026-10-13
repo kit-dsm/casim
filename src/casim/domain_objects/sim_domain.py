@@ -18,7 +18,6 @@ class DecisionContext:
     decision: str
     cause: tuple[str, ...]
     reconsider: tuple[ReconsiderReason, ...]
-    version: int
     input_closed: bool
     solve: bool
 
@@ -49,7 +48,7 @@ def initial_dynamic_info(time: float = 0.0) -> DynamicInfo:
     """Initial empty decision data for a scenario loader."""
     return DynamicInfo(
         context=DecisionContext(
-            decision="", cause=(), reconsider=(), version=0,
+            decision="", cause=(), reconsider=(),
             input_closed=False, solve=True,
         ),
         plan=PlanView(time=time),
