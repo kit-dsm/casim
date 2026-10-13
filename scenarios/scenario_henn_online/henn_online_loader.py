@@ -4,7 +4,7 @@ from typing import Any
 import networkx as nx
 import pandas as pd
 from scipy.sparse.csgraph import floyd_warshall
-from ware_ops_algos.data_loaders import DataLoader
+from casim.data_loader import DataLoader
 from ware_ops_algos.domain_models import BaseWarehouseDomain, Order, Location, Article, PickCart, DimensionType, \
     ResourceType, Resource, Resources, OrdersDomain, OrderType, Articles, ArticleType, StorageLocations, StorageType, \
     LayoutData, LayoutType, LayoutNetwork, LayoutParameters, WarehouseInfoType, WarehouseInfo, OrderPosition

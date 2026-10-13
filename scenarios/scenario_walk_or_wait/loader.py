@@ -7,7 +7,7 @@ from pathlib import Path
 import networkx as nx
 import pandas as pd
 from scipy.sparse.csgraph import floyd_warshall
-from ware_ops_algos.data_loaders import DataLoader
+from casim.data_loader import DataLoader
 from ware_ops_algos.domain_models import (
     Article, Articles, ArticleType, DimensionType, Location, Order, OrderPosition,
     OrdersDomain, OrderType, PickCart, Resource, Resources, ResourceType,

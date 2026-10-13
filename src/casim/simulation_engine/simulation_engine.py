@@ -7,7 +7,7 @@ from typing import Callable, Type
 
 from tqdm import tqdm
 
-from ware_ops_algos.data_loaders import DataLoader
+from casim.data_loader import DataLoader
 from ware_ops_algos.domain_models import Order, SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.events.operational_events import (

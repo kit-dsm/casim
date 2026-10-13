@@ -8,7 +8,7 @@ import pandas as pd
 from scipy.sparse.csgraph import floyd_warshall
 
 from ware_ops_algos.algorithms import Job, BatchObject, ScheduledJob
-from ware_ops_algos.data_loaders import DataLoader
+from casim.data_loader import DataLoader
 from ware_ops_algos.domain_models import (
     Article, ArticleType, Articles,
     BoundingBox, DimensionType,
