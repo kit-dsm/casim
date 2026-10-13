@@ -15,6 +15,7 @@ from ware_ops_algos.algorithms import (
     CombinedRoutingSolution,
     ItemAssignmentSolution,
     PositioningInput,
+    Positioning,
     Waiting, WaitingInput,
     RoutingSolution,
     ItemAssignment, Scheduler, build_jobs)
@@ -418,7 +419,7 @@ class AbstractPositioning(BaseComponent):
         return {"positioning_sol":
                 self.get_luigi_local_target_with_task_id("positioning_sol.pkl")}
 
-    def _get_positioner(self):
+    def _get_positioner(self) -> Positioning:
         raise NotImplementedError
 
     def run(self):
