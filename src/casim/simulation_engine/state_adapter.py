@@ -13,11 +13,10 @@ from casim.state.views import DecisionMemory, OperationsView
 class StateAdapter:
     """Project one decision's selected state without changing live plan data."""
 
-    def __init__(self, selection=None, scope=None, extensions=()):
+    def __init__(self, selection=None, scope=None):
         self.selection = (SelectionConfig.model_validate(selection)
                           if selection is not None else None)
         self.scope = RevisionScope.model_validate(scope or {})
-        self.extensions = tuple(extensions)
 
     def transform_state(self, state: State, decision: str,
                         problem_class: str | None = None):
@@ -78,14 +77,10 @@ class StateAdapter:
             available_from=available_from,
             active_candidate_ids=frozenset(o.order_id for o in buffered),
         )
-        extras = {}
-        for extension in self.extensions:
-            extras.update(extension(state))
         operations = OperationsView(
             is_break=state.is_break,
             n_staged_pallets=(state.dock_manager.n_staged_pallets
                               if hasattr(state, "dock_manager") else 0),
-            extra=extras,
         )
         context = DecisionContext(
             time=now, cause=(), decision=decision,
