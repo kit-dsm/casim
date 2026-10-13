@@ -135,7 +135,10 @@ class State:
             self.tracker.on_travel(picker_id=picker_id, distance=tour.edge_distance * fraction)
         self.order_manager.clear_order_buffer_by_ids(admitted_order_ids)
         tour.order_numbers = sorted(set(tour.order_numbers) | set(admitted_order_ids))
-        tour.batch = route.batch
+        known = {order.order_id: order for order in tour.batch.orders}
+        known.update((order.order_id, order) for order in route.batch.orders)
+        tour.batch = BatchObject(batch_id=tour.batch.batch_id,
+                                 orders=[known[order_id] for order_id in tour.order_numbers])
         tour.route = route
         tour.annotated_route = list(route.annotated_route)
         tour.remaining_picks = list(route.batch.pick_positions)

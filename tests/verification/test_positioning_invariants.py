@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import pytest
 from hydra import compose, initialize_config_dir
 from ware_ops_algos.planning.commands import ReplaceSuffix
 from ware_ops_algos.planning.lifecycle import TourStates
@@ -83,3 +84,40 @@ def test_two_admissions_keep_cumulative_prefix_and_distance(tmp_path, invariant_
     assert len(admissions) == 2
     assert admissions[1][0][:len(admissions[0][0])] == admissions[0][0]
     assert first_tour_distance == distance_at_second + remaining_after_second
+
+
+@pytest.mark.parametrize(("policy", "makespan", "distance"), [
+    ("wait_2", 152, 144),
+    ("wait_3", 137, 128),
+])
+def test_partly_picked_tour_can_admit_order(tmp_path, invariant_logger,
+                                            policy, makespan, distance):
+    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
+        cfg = compose(config_name="walk_or_wait_config", overrides=[
+            f"policy={policy}", "simulation=explicit_example",
+            f"instances_base={CONFIG.parents[1].as_posix()}",
+            f"cache_base={(tmp_path / 'cache').as_posix()}",
+            f"experiment.output_dir={tmp_path.as_posix()}",
+        ])
+    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    sim.event_loggers.append(invariant_logger)
+    sim.reset(hooks=[seed_pickers, seed_orders])
+    admitted_after_pick = False
+    while True:
+        done, snapshot = sim.run()
+        if done:
+            break
+        result = engine.on_trigger(snapshot)
+        plan = snapshot.dynamic_warehouse_info.plan
+        if (snapshot.dynamic_warehouse_info.context.decision == "ATIP"
+                and any(isinstance(command, ReplaceSuffix) and command.added_order_ids
+                        for command in result.commands)):
+            old = next(tour for tour in plan.tours
+                       if tour.status is TourStates.STARTED)
+            admitted_after_pick |= bool(old.batch.order_numbers - old.active_order_ids)
+        apply_decision(sim, engine, result, snapshot)
+    assert admitted_after_pick
+    tracker = sim.state.tracker
+    assert sum(len(record[3]) for record in tracker.completed_tours) == 6
+    assert tracker.completed_tours[-1][2] == makespan
+    assert tracker.distance_by_picker[0] == distance
