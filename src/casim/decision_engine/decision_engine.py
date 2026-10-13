@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from copy import copy
 from dataclasses import dataclass, replace
+from functools import singledispatch
 from time import perf_counter
 
+from ware_ops_algos.algorithms.algorithm_interfaces import (
+    AlgorithmSolution, BatchingSolution, CombinedRoutingSolution,
+    SchedulingSolution, WaitingSolution,
+)
 from ware_ops_algos.planning.commands import Command
 from ware_ops_algos.planning.conversion import decision_effects, to_commands
 from ware_ops_algos.planning.validation import check as validate_commands
@@ -16,6 +21,35 @@ from casim.decision_engine.positioning import closure_commands, positioning_comm
 from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.trackers import DecisionTracker
+
+
+@singledispatch
+def _solution_order_ids(solution: AlgorithmSolution) -> frozenset[int]:
+    return frozenset()
+
+
+@_solution_order_ids.register
+def _(solution: BatchingSolution) -> frozenset[int]:
+    return frozenset(order_id for batch in solution.batches
+                     for order_id in batch.order_numbers)
+
+
+@_solution_order_ids.register
+def _(solution: SchedulingSolution) -> frozenset[int]:
+    return frozenset(order_id for job in solution.jobs
+                     for order_id in job.order_numbers)
+
+
+@_solution_order_ids.register
+def _(solution: WaitingSolution) -> frozenset[int]:
+    return frozenset(order_id for job in solution.jobs
+                     for order_id in job.order_numbers)
+
+
+@_solution_order_ids.register
+def _(solution: CombinedRoutingSolution) -> frozenset[int]:
+    return frozenset(order_id for route in solution.routes
+                     for order_id in route.batch.order_numbers)
 
 
 @dataclass(frozen=True)
@@ -40,7 +74,7 @@ class DecisionEngine:
         self.solution_rankers = solution_rankers
         self.commitment_policies = commitment_policies
         self.decision_tracker = DecisionTracker()
-        self._accepted_choices: dict[str, tuple[object, str]] = {}
+        self._accepted_choices: dict[str, tuple[AlgorithmSolution, str]] = {}
 
     def on_trigger(self, state_snapshot: SimWarehouseDomain, action=None) -> DecisionResult:
         dynamic = state_snapshot.dynamic_warehouse_info
@@ -122,15 +156,10 @@ class DecisionEngine:
         if choice is None:
             return
         solution, name = choice
-        ids = {order_id for job in getattr(solution, "jobs", ())
-               for order_id in job.order_numbers}
-        ids.update(order_id for batch in getattr(solution, "batches", ())
-                   for order_id in batch.order_numbers)
-        ids.update(order_id for route in getattr(solution, "routes", ())
-                   for order_id in route.batch.order_numbers)
+        ids = _solution_order_ids(solution)
         self.decision_tracker.on_decision(
             problem_class=decision, input_ids=len(ids), selected_pipeline=name,
             kpi_value=result.objective_value, kpi=snapshot.objective,
-            runtime=getattr(solution, "execution_time", 0.0),
+            runtime=solution.execution_time,
             elapsed=result.solve_seconds,
         )

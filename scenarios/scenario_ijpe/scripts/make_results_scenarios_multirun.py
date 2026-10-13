@@ -566,7 +566,6 @@ def plot_gantt_for_scenario(
             x_end_hour = 13.0
 
     color_on_time = "#8aa6c5"
-    color_affected = "#c8b27a"
     color_late = "#8c4a4a"
     sep_color = "#c7c7c7"
     grid_color = "#d9d9d9"
@@ -1028,7 +1027,6 @@ def plot_focused_gantt_for_scenario_day(
 
     LABEL_FS = 8
     TICK_FS = 8
-    TITLE_FS = 10
     LEGEND_FS = 7.5
 
     # ------------------------------------------------------------

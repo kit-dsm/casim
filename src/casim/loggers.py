@@ -3,15 +3,11 @@ from __future__ import annotations
 import pickle
 from typing import TYPE_CHECKING
 
-import copy
 import json
 from pathlib import Path
 
 from ware_ops_algos.domain_models import Resource
 from casim.domain_objects.sim_domain import SimWarehouseDomain
-from ware_ops_algos.algorithms import WaitingSolution
-
-from ware_ops_algos.algorithms import ActiveTourRoutingSolution
 from casim.events.base_events import Event
 from casim.state import State
 from casim.io_helpers import dump_pickle

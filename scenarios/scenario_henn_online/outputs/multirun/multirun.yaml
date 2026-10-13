@@ -263,7 +263,7 @@ scenario:
         solver:
           _target_: casim.pipelines.pipeline_runner.CoSySolver
           solution_ranker:
-            _target_: casim.pipelines.solution_ranker.SolutionRanker
+            _target_: casim.decision_engine.solution_ranker.SolutionRanker
             objective: ${data_card.objective}
           repo: ${cosy_repo}
         commitment_policy:

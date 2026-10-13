@@ -2,7 +2,48 @@
 
 from __future__ import annotations
 
+from functools import singledispatch
+
+from ware_ops_algos.algorithms.algorithm_interfaces import (
+    AlgorithmSolution, CombinedRoutingSolution, SchedulingSolution, WaitingSolution,
+)
 from ware_ops_algos.planning.commands import CancelTour, ReplaceSuffix, Reschedule
+
+
+def _jobs_objective(jobs, objective: str) -> float:
+    if objective == "distance":
+        return sum(job.job.distance for job in jobs)
+    if objective == "makespan":
+        return max((job.end_time for job in jobs), default=0.0)
+    if objective == "mean_order_completion_time":
+        count = sum(len(job.order_numbers) for job in jobs)
+        return (sum(job.end_time * len(job.order_numbers) for job in jobs)
+                / count if count else 0.0)
+    if objective == "tardiness":
+        return sum(job.tardiness for job in jobs)
+    raise ValueError(f"No {objective} objective for scheduled jobs")
+
+
+@singledispatch
+def _objective_value(solution: AlgorithmSolution, objective: str) -> float:
+    raise ValueError(f"No {objective} objective for {type(solution).__name__}")
+
+
+@_objective_value.register
+def _(solution: SchedulingSolution, objective: str) -> float:
+    return _jobs_objective(solution.jobs, objective)
+
+
+@_objective_value.register
+def _(solution: WaitingSolution, objective: str) -> float:
+    return _jobs_objective(solution.jobs, objective)
+
+
+@_objective_value.register
+def _(solution: CombinedRoutingSolution, objective: str) -> float:
+    if objective == "distance":
+        return sum(route.distance for route in solution.routes)
+    raise ValueError(f"No {objective} objective for {type(solution).__name__}")
 
 
 class SolutionRanker:
@@ -12,23 +53,8 @@ class SolutionRanker:
         self.objective = objective
         self.change_penalty = change_penalty
 
-    def objective_value(self, solution) -> float:
-        jobs = getattr(solution, "jobs", None)
-        if jobs is not None:
-            if self.objective == "distance":
-                return sum(job.job.distance for job in jobs)
-            if self.objective == "makespan":
-                return max((job.end_time for job in jobs), default=0.0)
-            if self.objective == "mean_order_completion_time":
-                count = sum(len(job.order_numbers) for job in jobs)
-                return (sum(job.end_time * len(job.order_numbers) for job in jobs)
-                        / count if count else 0.0)
-            if self.objective == "tardiness":
-                return sum(job.tardiness for job in jobs)
-        routes = getattr(solution, "routes", None)
-        if routes is not None and self.objective == "distance":
-            return sum(route.distance for route in routes)
-        raise ValueError(f"No {self.objective} objective for {type(solution).__name__}")
+    def objective_value(self, solution: AlgorithmSolution) -> float:
+        return _objective_value(solution, self.objective)
 
     @staticmethod
     def changed(commands) -> int:

@@ -57,6 +57,7 @@ class SimulationEngine:
         self._decision_time: float | None = None
         self._period_anchor = 0.0
         self._initial_domain: SimWarehouseDomain | None = None
+        self._pbar: tqdm | None = None
 
     def load_data(self) -> SimWarehouseDomain:
         return self.data_loader.load(**self.loader_kwargs)
@@ -107,7 +108,7 @@ class SimulationEngine:
             reconsider.add(reason)
 
     def run(self) -> tuple[bool, SimWarehouseDomain | None]:
-        if not hasattr(self, "_pbar"):
+        if self._pbar is None:
             self._pbar = tqdm(
                 desc="sim events", unit=" ev", unit_scale=True,
                 bar_format="{desc}: {n_fmt} [{elapsed}, {rate_fmt}] sim_t={postfix}",
@@ -164,9 +165,9 @@ class SimulationEngine:
                     self._due(decision, type(event).__name__)
 
         logger.info("Simulation complete")
-        if hasattr(self, "_pbar"):
+        if self._pbar is not None:
             self._pbar.close()
-            del self._pbar
+            self._pbar = None
         for event_logger in self.event_loggers:
             event_logger.on_done(self)
         return True, None

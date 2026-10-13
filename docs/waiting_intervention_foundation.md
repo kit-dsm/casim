@@ -1,5 +1,7 @@
 # What this branch actually changes
 
+Historical foundation note for `codex/waiting-intervention-foundation`. Its module paths and branch-specific claims describe that earlier implementation; the current revision-scopes architecture and status are documented in `revision_scopes_status.md`.
+
 For the published *Walking vs. Waiting* strategy mapping and configured
 wait-k examples, see `scenarios/scenario_walk_or_wait/README.md`. The
 paper's wait-0 now starts an empty all-aisle tour through the same configured

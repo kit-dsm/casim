@@ -1,9 +1,5 @@
-import copy
-from copy import deepcopy
-
-from ware_ops_algos.algorithms import Route, RouteNode, NodeType, Job, WarehouseOrder, BatchObject, ScheduledJob, WaitingSolution, SchedulingSolution, BatchingSolution, CombinedRoutingSolution
-from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Order, OrderPosition
-from ware_ops_algos.planning.lifecycle import TourStates
+from ware_ops_algos.algorithms import Route, RouteNode, NodeType, WarehouseOrder, BatchObject, ScheduledJob
+from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation
 
 from .order_manager import OrderManager
 from .resource_manager import ResourceManager
@@ -101,16 +97,10 @@ class State:
     # -> All of these functions fill the TourExecution Dataclass
     # which is maintained by the tour manager
     def add_route_to_planning_state(self, route: Route, picker_id: int | None = None) -> None:
-        # route: Route = deepcopy(route)
         tour_id = self.tour_manager.create_tour(route)
         assert picker_id >= 0
         if picker_id is not None:
             self.tour_manager.assign_tour(tour_id, picker_id)
-            # print(f"created tour {tour_id} for picker {picker_id}")
-            # print("check resource", self.tour_manager.get_tour(tour_id).assigned_resource)
-
-        # print("Tour created:", self.tour_manager.get_tour(tour_id))
-        # self.tour_manager.assign_tour(tour_id, sequencing.picker_id)
 
     def add_sequencing_to_planning_state(self, scheduled_job: ScheduledJob) -> int:
         picker = self.resource_manager.get_resource(scheduled_job.picker_id)
@@ -122,7 +112,6 @@ class State:
                 bins = {order_id: 0 for order_id in order_ids}
             else:
                 bins = {order_id: index for index, order_id in enumerate(order_ids)}
-        # tour_id = self.tour_manager.create_tour(deepcopy(scheduled_job.job.route))
         tour_id = self.tour_manager.create_tour(scheduled_job.job.route, scheduled_job.job.processing_time)
         self.tour_manager.assign_tour(tour_id, scheduled_job.picker_id)
         self.tour_manager.schedule_tour(tour_id,

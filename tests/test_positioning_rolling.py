@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import pytest
 from hydra import compose, initialize_config_dir
 from ware_ops_algos.algorithms import (
     AdmissionInput, AdmissionTour, Job, PickPosition, RoutingOrigin,

@@ -11,8 +11,8 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import FancyArrowPatch, Rectangle
 from omegaconf import OmegaConf
 
-from scenarios.experiment_commons import build_data_loader
 from scenarios.scenario_ijpe.grocery_retailer_loader_digraph import (
+    WarehousePickingLoaderDigraph,
     COL_ARTICLE_ID,
     COL_DATE,
     COL_END_SEC,
@@ -657,7 +657,7 @@ def plot_due_windows(df: pd.DataFrame) -> None:
     plt.close(fig)
 
 
-loader = build_data_loader(cfg)
+loader = WarehousePickingLoaderDigraph(instances_dir=Path("../data"), cfg=cfg)
 domain = loader.load(
     cfg.data_card.source.orders_path,
     cfg.data_card.source.layout_path,

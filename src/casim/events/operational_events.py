@@ -226,10 +226,6 @@ class TruckArrival(Event):
         self.wait_buffer = wait_buffer
 
     def handle(self, state: 'State') -> list['Event']:
-        n_pallets = 0
-        if hasattr(state, "dock_manager"):
-            n_pallets = state.dock_manager.n_staged_pallets
-        # return [TruckDeparture(self.time + 30 + self.wait_buffer, capacity=n_pallets)]
         return []
 
 class TruckDeparture(Event):
@@ -389,7 +385,7 @@ class TourStart(BaseTourEvent):
             print(f"{tour.tour_id} cancelled at {self.time}")
         state.tour_manager.start_tour(tour_id, self.time)
         state.resource_manager.mark_picker_occupied(tour.assigned_resource)
-        picker = state.resource_manager.get_resource(tour.assigned_resource)
+        state.resource_manager.get_resource(tour.assigned_resource)
         logger.info("resource %d started tour %d at t=%s", tour.assigned_resource, tour.tour_id, self.time)
         state.tracker.on_tour_start(self.time)
         if tour.at_end() and res.current_location == (0, -1):
