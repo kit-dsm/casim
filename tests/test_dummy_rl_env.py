@@ -10,8 +10,7 @@ from hydra.core.global_hydra import GlobalHydra
 from casim.envs.base_env import BaseEnv
 from scenarios.experiment_commons import (
     load_and_flatten_data_card,
-    setup_scenario,
-    setup_decision_engine,
+    setup_experiment,
 )
 
 TEST_DIR = Path(__file__).parent
@@ -49,8 +48,7 @@ class TestDummyRLEnv(unittest.TestCase):
 
         cfg = self._load_cfg()
         datacard = load_and_flatten_data_card(cfg.data_card)
-        sim = setup_scenario(cfg)
-        decision_engine = setup_decision_engine(cfg, datacard)
+        sim, decision_engine = setup_experiment(cfg, datacard)
 
         reset_hooks = [add_orders_hook]
         env = DummyRLEnv(sim, decision_engine, reset_hooks)

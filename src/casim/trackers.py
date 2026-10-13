@@ -138,6 +138,16 @@ class DecisionTracker:
     def __init__(self):
         self.decisions: list[tuple] = []
         self.pipeline_counts: dict[str, int] = defaultdict(int)
+        self.command_decisions: list[dict] = []
+
+    def on_commands(self, time, decision, commands, conversion_seconds, apply_seconds):
+        self.command_decisions.append({
+            "time": time,
+            "decision": decision,
+            "commands": [type(command).__name__ for command in commands],
+            "conversion_seconds": conversion_seconds,
+            "apply_seconds": apply_seconds,
+        })
 
     def on_decision(self, problem_class, input_ids, selected_pipeline,
                     kpi_value, kpi, runtime, elapsed):

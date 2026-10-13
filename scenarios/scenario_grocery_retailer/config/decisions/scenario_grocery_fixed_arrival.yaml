@@ -1,0 +1,50 @@
+ORSP:
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    output: scheduling
+    solution_ranker:
+      _target_: casim.pipelines.solution_ranker.SolutionRanker
+      objective: ${data_card.objective}
+    repo: ${cosy_repo}
+  selection:
+    pick_lists:
+    - buffered
+    tours:
+    - assigned
+    - scheduled
+    - started
+    resources:
+    - idle
+    - reserved
+  triggers:
+  - ShiftStart
+  - PickerArrival
+  - PickerIdle
+  conditions:
+  - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+    threshold: 1
+  - _target_: casim.simulation_engine.conditions.NbrBatchesCondition
+    threshold: 1
+  commitment:
+    rule: release_next_per_picker
+OBP:
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    output: batching
+    solution_ranker:
+      _target_: casim.pipelines.solution_ranker.SolutionRanker
+      objective: ${data_card.objective}
+    repo: ${cosy_repo}
+  selection:
+    orders:
+    - buffered
+    resources:
+    - off_shift
+    - idle
+    - reserved
+    - busy
+  triggers:
+  - WMSRun
+  conditions: []
+  commitment:
+    rule: release_all

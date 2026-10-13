@@ -1,1 +1,3 @@
-component: casim.pipelines.subproblems.waiting.StartImmediatelyNode
+output: positioning
+waiting:
+  policy: no_waiting

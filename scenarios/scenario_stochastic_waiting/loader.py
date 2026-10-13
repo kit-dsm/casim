@@ -31,10 +31,9 @@ from ware_ops_algos.domain_models import (
     ShelfStorageGraphGenerator,
     ExponentialSingleLineUniformLocationOrderStream,
     InformationType,
-    PlannerInformation,
+    PlannerInformation, DynamicInfo, SimWarehouseDomain,
 )
 
-from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
 
 
 class StochasticWaitingDataLoader(DataLoader):

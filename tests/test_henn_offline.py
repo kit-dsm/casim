@@ -7,13 +7,12 @@ import numpy as np
 from hydra import initialize, compose
 from hydra.core.global_hydra import GlobalHydra
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain
+from ware_ops_algos.domain_models import SimWarehouseDomain
 from casim.events.operational_events import PickerArrival
 from casim.simulation_engine.simulation_engine import SimulationEngine
 from scenarios.experiment_commons import (
     load_and_flatten_data_card,
-    setup_scenario,
-    setup_decision_engine,
+    setup_experiment,
 )
 
 TEST_DIR = Path(__file__).parent
@@ -56,8 +55,7 @@ class TestHennOffline(unittest.TestCase):
     def test_henn_offline(self):
         cfg = self._load_cfg()
         datacard = load_and_flatten_data_card(cfg.data_card)
-        sim = setup_scenario(cfg)
-        decision_engine = setup_decision_engine(cfg, datacard)
+        sim, decision_engine = setup_experiment(cfg, datacard)
 
         sim.reset(hooks=[add_orders_hook,
                          picker_arrival_hook])
@@ -67,8 +65,8 @@ class TestHennOffline(unittest.TestCase):
             done, state_snapshot = sim.run()
             if done:
                 break
-            events_to_add, solution = decision_engine.on_trigger(state_snapshot)
-            sim.step(events_to_add, state_snapshot.problem_class, solution)
+            result = decision_engine.on_trigger(state_snapshot)
+            sim.step(result, state_snapshot)
 
 
 if __name__ == "__main__":

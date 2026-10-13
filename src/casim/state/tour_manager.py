@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from ware_ops_algos.algorithms import Route, NodeType, WarehouseOrder
 
-from casim.domain_objects.tour_model import TourPlanningState, TourStates, Node
+from ware_ops_algos.domain_models import TourPlanningState, TourStates, Node
 
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -141,18 +141,21 @@ class TourManager:
 
     def get_next_tour_for_picker(self, picker_id: int):
         picker_tour_queue = self._picker_tour_queues[picker_id]
-        if picker_tour_queue:
-            return picker_tour_queue[0]
-        else:
-            return None
+        for tour_id in picker_tour_queue:
+            if self.get_tour(tour_id).status == TourStates.RELEASED:
+                return tour_id
+        return None
 
     def has_future_tours(self, picker_id: int) -> bool:
         """True if picker has any queued tour (including one that hasn't started yet)."""
-        future_tour = self.get_next_tour_for_picker(picker_id)
-        return bool(future_tour)
+        return bool(self._picker_tour_queues[picker_id])
 
     def get_tour(self, tour_id: int) -> TourPlanningState:
         return self.all_tours[tour_id]
+
+    def tour_status(self, tour_id: int) -> TourStates:
+        """Return the status owned by a tour's execution record."""
+        return TourStates(self.get_tour(tour_id).status)
 
     def advance_cursor(self, tour_id: int) -> None:
         tour = self.get_tour(tour_id)

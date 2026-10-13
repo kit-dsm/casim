@@ -5,6 +5,3 @@ components:
   - casim.pipelines.subproblems.picker_routing.SShape
   - casim.pipelines.subproblems.scheduling.EDDScheduler
   - casim.pipelines.problem_based_template.PickListProvider
-  - casim.pipelines.problem_based_template.ResultAggregationBatching
-  - casim.pipelines.problem_based_template.ResultAggregationRouting
-  - casim.pipelines.problem_based_template.ResultAggregationScheduling

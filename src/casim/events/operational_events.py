@@ -1,9 +1,8 @@
 import logging
 
 from ware_ops_algos.algorithms import NodeType, RouteNode
-from ware_ops_algos.domain_models import Order
+from ware_ops_algos.domain_models import Order, TourPlanningState, TourStates
 
-from casim.domain_objects.tour_model import TourPlanningState, TourStates
 from casim.events.base_events import Event
 from casim.state import State
 
@@ -23,22 +22,8 @@ class OrderArrival(Event):
         super().handle(state)
         logger.info("Order %s arrived at t=%s", self.order.order_id, self.time)
         state.order_manager.add_order_to_buffer(self.order)
-        return [ActiveTourOpportunity(self.time),
-                WaitingOpportunity(self.time, state.wait_version)]
-
-
-class WaitingOpportunity(Event):
-    """A decision may be considered after an operational event; no state change."""
-
-    priority_score = 2
-
-    def __init__(self, time: float, wait_version: int, *, deadline_reached: bool = False):
-        super().__init__(time)
-        self.wait_version = wait_version
-        self.deadline_reached = deadline_reached
-
-    def is_stale(self, state: State) -> bool:
-        return self.wait_version != state.wait_version
+        state.information_version += 1
+        return [ActiveTourOpportunity(self.time)]
 
 
 class ActiveTourOpportunity(Event):
@@ -67,7 +52,8 @@ class OrderStreamClosed(Event):
 
     def handle(self, state: State) -> list[Event]:
         state.done_flag = True
-        return [WaitingOpportunity(self.time, state.wait_version)]
+        state.information_version += 1
+        return [ActiveTourOpportunity(self.time)]
 
 
 class ShiftStart(Event):
@@ -91,23 +77,21 @@ class FlushRemainingOrders(Event):
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
-        return [WaitingOpportunity(self.time, state.wait_version)]
+        return []
 
 
-class WaitExpired(Event):
-    """Reconsider visible work when a waiting policy's deadline arrives."""
+class Reconsider(Event):
+    """Revisit one decision if its plan version is still current."""
 
-    priority_score = 1
-
-    def __init__(self, time: float, version: int | None = None):
+    def __init__(self, time: float, decision: str, version: int,
+                 reason: str = "wait"):
         super().__init__(time)
+        self.decision = decision
         self.version = version
+        self.reason = reason
 
     def is_stale(self, state: State) -> bool:
-        return self.version is not None and self.version != state.wait_version
-
-    def handle(self, state: 'State') -> list['Event']:
-        return [WaitingOpportunity(self.time, state.wait_version, deadline_reached=True)]
+        return self.version != state.decision_versions.get(self.decision, 0)
 
 
 class PickerArrival(Event):
@@ -124,7 +108,8 @@ class PickerArrival(Event):
             state.resource_manager.set_picker_available(self.picker_id)
         elif not self.picker_available:
             state.resource_manager.set_picker_unavailable(self.picker_id)
-        return [WaitingOpportunity(self.time, state.wait_version)]
+        state.information_version += 1
+        return []
 
 
 class VolumeShiftAcrossDay(Event):
@@ -288,7 +273,7 @@ class PickerIdle(Event):
         super().handle(state)
         # print(f"Picker {self.picker_id} arrived at {self.time}")
         state.tracker.on_idle_start(self.picker_id, self.time)
-        return [WaitingOpportunity(self.time, state.wait_version)]
+        return []
 
 class BreakStart(Event):
     priority_score = 0
@@ -458,6 +443,9 @@ class NodeArrival(BaseTourEvent):
         logger.info("Debug Picker %s arrives at %s", res.id, here)
         # Finish only if we are at end AND at depot (0,-1)
         if tour.at_end():
+            if tour.positioning_mode == "center_relocation" and not tour.order_numbers:
+                tour.positioning_hold = True
+                return []
             return [TourEnd(self.time, tour.tour_id, tour.route_version)]
 
         # If next planned pick is exactly here → start pick

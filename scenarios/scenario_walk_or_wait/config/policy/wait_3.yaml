@@ -1,1 +1,3 @@
-component: casim.pipelines.subproblems.waiting.WaitForThree
+waiting:
+  policy: order_count
+  k: 3

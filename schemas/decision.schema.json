@@ -1,0 +1,360 @@
+{
+  "$defs": {
+    "Accepts": {
+      "enum": [
+        "rebuild",
+        "revise",
+        "insert",
+        "none"
+      ],
+      "title": "Accepts",
+      "type": "string"
+    },
+    "CommitmentConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "default": "release_all",
+          "enum": [
+            "release_all",
+            "release_next_per_picker",
+            "release_within"
+          ],
+          "title": "Rule",
+          "type": "string"
+        },
+        "within_s": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Within S"
+        }
+      },
+      "title": "CommitmentConfig",
+      "type": "object"
+    },
+    "DecisionConfig": {
+      "additionalProperties": false,
+      "description": "One named decision owns projection, solve, and commitment settings.",
+      "properties": {
+        "solver": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Solver"
+        },
+        "commitment": {
+          "$ref": "#/$defs/CommitmentConfig"
+        },
+        "waiting": {
+          "$ref": "#/$defs/WaitingConfig"
+        },
+        "release_gates": {
+          "$ref": "#/$defs/ReleaseGates"
+        },
+        "selection": {
+          "$ref": "#/$defs/SelectionConfig"
+        },
+        "scope": {
+          "$ref": "#/$defs/RevisionScope"
+        },
+        "triggers": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/PeriodicTrigger"
+              }
+            ]
+          },
+          "title": "Triggers",
+          "type": "array"
+        },
+        "conditions": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Conditions",
+          "type": "array"
+        },
+        "precedence": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Precedence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "selection"
+      ],
+      "title": "DecisionConfig",
+      "type": "object"
+    },
+    "OrderStates": {
+      "enum": [
+        "buffered",
+        "batched",
+        "planned",
+        "in_progress",
+        "done"
+      ],
+      "title": "OrderStates",
+      "type": "string"
+    },
+    "PeriodicTrigger": {
+      "additionalProperties": false,
+      "properties": {
+        "every_s": {
+          "exclusiveMinimum": 0,
+          "title": "Every S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "every_s"
+      ],
+      "title": "PeriodicTrigger",
+      "type": "object"
+    },
+    "PickListStates": {
+      "enum": [
+        "buffered",
+        "planned",
+        "in_progress",
+        "done"
+      ],
+      "title": "PickListStates",
+      "type": "string"
+    },
+    "ReleaseGates": {
+      "additionalProperties": false,
+      "properties": {
+        "outside_break": {
+          "default": false,
+          "title": "Outside Break",
+          "type": "boolean"
+        },
+        "max_staged_pallets": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Staged Pallets"
+        }
+      },
+      "title": "ReleaseGates",
+      "type": "object"
+    },
+    "ResourceStates": {
+      "enum": [
+        "off_shift",
+        "idle",
+        "reserved",
+        "busy"
+      ],
+      "title": "ResourceStates",
+      "type": "string"
+    },
+    "RevisionScope": {
+      "additionalProperties": false,
+      "properties": {
+        "freeze_from": {
+          "$ref": "#/$defs/TourStates",
+          "default": "planned"
+        },
+        "frozen_accepts": {
+          "$ref": "#/$defs/Accepts",
+          "default": "none"
+        }
+      },
+      "title": "RevisionScope",
+      "type": "object"
+    },
+    "SelectionConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "orders": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/OrderStates"
+          },
+          "title": "Orders",
+          "type": "array"
+        },
+        "pick_lists": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PickListStates"
+          },
+          "title": "Pick Lists",
+          "type": "array"
+        },
+        "tours": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TourStates"
+          },
+          "title": "Tours",
+          "type": "array"
+        },
+        "resources": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ResourceStates"
+          },
+          "title": "Resources",
+          "type": "array"
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "SelectionConfig",
+      "type": "object"
+    },
+    "TimeAttribute": {
+      "enum": [
+        "due_date",
+        "start_time",
+        "order_date"
+      ],
+      "title": "TimeAttribute",
+      "type": "string"
+    },
+    "TourStates": {
+      "enum": [
+        "planned",
+        "assigned",
+        "scheduled",
+        "released",
+        "pending",
+        "started",
+        "done",
+        "cancelled"
+      ],
+      "title": "TourStates",
+      "type": "string"
+    },
+    "WaitingConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "policy": {
+          "default": "no_waiting",
+          "enum": [
+            "no_waiting",
+            "order_count",
+            "henn",
+            "analytic_stochastic"
+          ],
+          "title": "Policy",
+          "type": "string"
+        },
+        "k": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "K"
+        },
+        "target_batch_size_orders": {
+          "default": 4,
+          "minimum": 2,
+          "title": "Target Batch Size Orders",
+          "type": "integer"
+        },
+        "min_orders": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Min Orders",
+          "type": "integer"
+        }
+      },
+      "title": "WaitingConfig",
+      "type": "object"
+    },
+    "WindowConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "by": {
+          "$ref": "#/$defs/TimeAttribute"
+        },
+        "horizon_s": {
+          "exclusiveMinimum": 0,
+          "title": "Horizon S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "by",
+        "horizon_s"
+      ],
+      "title": "WindowConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The decisions section of a composed experiment configuration.",
+  "properties": {
+    "on_violation": {
+      "default": "reject",
+      "enum": [
+        "reject",
+        "drop",
+        "repair"
+      ],
+      "title": "On Violation",
+      "type": "string"
+    },
+    "decisions": {
+      "additionalProperties": {
+        "$ref": "#/$defs/DecisionConfig"
+      },
+      "title": "Decisions",
+      "type": "object"
+    }
+  },
+  "required": [
+    "decisions"
+  ],
+  "title": "DecisionDefinitions",
+  "type": "object"
+}

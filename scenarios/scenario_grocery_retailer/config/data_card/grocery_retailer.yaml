@@ -3,7 +3,7 @@ problem_type: ORSP
 
 objective: makespan
 source:
-  data_loader: GroceryRetailerLoader
+  data_loader: scenarios.scenario_grocery_retailer.grocery_retailer_loader.GroceryRetailerLoader
   orders_path: "orders.csv"
   layout_path: "layout.csv"
 

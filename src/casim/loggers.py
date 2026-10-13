@@ -7,10 +7,10 @@ import copy
 import json
 from pathlib import Path
 
-from ware_ops_algos.domain_models import Resource
+from ware_ops_algos.domain_models import Resource, SimWarehouseDomain
 from ware_ops_algos.algorithms import WaitingSolution
 
-from casim.domain_objects.sim_domain import ActiveTourRoutingSolution, SimWarehouseDomain
+from casim.domain_objects.sim_domain import ActiveTourRoutingSolution
 from casim.events.base_events import Event
 from casim.state import State
 from casim.io_helpers import dump_pickle
@@ -50,33 +50,12 @@ class DashLogger(EventLogger):
         snapshot.update(event_id=event.id, event_type=event.__class__.__name__)
         pickle.dump(snapshot, self.events_file, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def on_decision(self, problem_class, solution, state_snapshot, sim):
-        if isinstance(solution, WaitingSolution):
-            if solution.action == "wait":
-                until = (f" until t={solution.reconsider_at:g}"
-                         if solution.reconsider_at is not None else " for next event")
-                label = f"{problem_class} wait{until}"
-            else:
-                released = sorted(oid for job in solution.jobs for oid in job.order_numbers)
-                label = f"{problem_class} release orders {released}"
-        elif isinstance(solution, ActiveTourRoutingSolution):
-            dynamic = state_snapshot.dynamic_warehouse_info
-            if solution.routes:
-                tours = {tour.tour_id: tour for tour in dynamic.admission_tours}
-                admissions = []
-                for route in solution.routes:
-                    tour_id = route.batch.tour_id
-                    admitted = sorted(set(route.batch.order_numbers)
-                                      - set(tours[tour_id].active_order_ids))
-                    admissions.append((tour_id, admitted))
-                label = f"{problem_class} admit {admissions}"
-            else:
-                label = f"{problem_class} decline orders {sorted(dynamic.active_candidate_ids)}"
-        else:
-            label = f"{problem_class} commit"
-
+    def on_decision(self, problem_class, result, state_snapshot, sim):
+        command_names = [type(command).__name__ for command in result.commands]
+        label = f"{problem_class}: {', '.join(command_names) or 'no plan changes'}"
         snapshot = self._snapshot(sim)
-        snapshot.update(event_id=None, event_type="Decision", decision_summary=label)
+        snapshot.update(event_id=None, event_type="Decision",
+                        decision_summary=label, commands=command_names)
         pickle.dump(snapshot, self.events_file, protocol=pickle.HIGHEST_PROTOCOL)
 
     def _snapshot(self, sim):
@@ -150,6 +129,19 @@ class KPILogger(EventLogger):
 
         with open(self.out_dir / "tracker.json", "w") as f:
             json.dump(_jsonable(tracker_dict), f, indent=2)
+        decision_engine = getattr(sim, "decision_engine", None)
+        if decision_engine is not None:
+            tracker = decision_engine.decision_tracker
+            with open(self.out_dir / "decisions.json", "w") as f:
+                json.dump(_jsonable({
+                    "pipeline_counts": dict(tracker.pipeline_counts),
+                    "solve_seconds": sum(row[6] for row in tracker.decisions),
+                    "conversion_seconds": sum(row["conversion_seconds"]
+                                              for row in tracker.command_decisions),
+                    "apply_seconds": sum(row["apply_seconds"]
+                                         for row in tracker.command_decisions),
+                    "decisions": tracker.command_decisions,
+                }), f, indent=2)
 
     @staticmethod
     def _summary(state: State) -> dict:

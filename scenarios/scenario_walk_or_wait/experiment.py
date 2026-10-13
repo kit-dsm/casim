@@ -6,9 +6,9 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 
-from casim.domain_objects.tour_model import TourStates
+from ware_ops_algos.domain_models import TourStates
 from scenarios.experiment_commons import (
-    load_and_flatten_data_card, setup_decision_engine, setup_scenario,
+    load_and_flatten_data_card, setup_experiment,
 )
 from scenarios.scenario_walk_or_wait.hooks import seed_orders, seed_pickers
 
@@ -56,16 +56,15 @@ def report(sim, output_dir: Path, expected_orders: int) -> dict:
 @hydra.main(config_path="config", config_name="walk_or_wait_config", version_base="1.3")
 def main(cfg: DictConfig):
     data_card = load_and_flatten_data_card(cfg.data_card)
-    sim = setup_scenario(cfg)
+    sim, decision_engine = setup_experiment(cfg, data_card)
     sim.reset(hooks=[seed_pickers, seed_orders])
-    decision_engine = setup_decision_engine(cfg, data_card)
 
     done = False
     while not done:
         done, snapshot = sim.run()
         if not done:
-            events, solution = decision_engine.on_trigger(snapshot)
-            sim.step(events, snapshot.problem_class, solution, snapshot)
+            result = decision_engine.on_trigger(snapshot)
+            sim.step(result, snapshot)
 
     print(report(sim, Path(cfg.experiment.output_dir),
                  len(sim._initial_domain.orders.orders)))

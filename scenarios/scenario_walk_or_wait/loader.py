@@ -12,10 +12,9 @@ from ware_ops_algos.domain_models import (
     Article, Articles, ArticleType, DimensionType, Location, Order, OrderPosition,
     OrdersDomain, OrderType, PickCart, Resource, Resources, ResourceType,
     StorageLocations, StorageType, WarehouseInfo, WarehouseInfoType,
-    LayoutData, LayoutNetwork, LayoutParameters, LayoutType,
+    LayoutData, LayoutNetwork, LayoutParameters, LayoutType, DynamicInfo, SimWarehouseDomain,
 )
 
-from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
 from scenarios.scenario_stochastic_waiting.loader import StochasticWaitingDataLoader
 
 

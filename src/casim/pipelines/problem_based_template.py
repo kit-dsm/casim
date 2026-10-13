@@ -1,31 +1,22 @@
-import fnmatch
 import os
 import pickle
 from os.path import join as pjoin
-from pathlib import Path
 from typing import Sequence, Callable, Iterable, Mapping
 
-
-from cosy.maestro import Maestro
-
 import luigi
-from luigi.configuration import get_config
-
-
-from cosy_luigi import CoSyLuigiTask, CoSyLuigiTaskParameter, CoSyLuigiRepo
+from cosy_luigi import CoSyLuigiTask, CoSyLuigiTaskParameter
 
 from ware_ops_algos.algorithms import (
     Routing,
     WarehouseOrder,
     AdmissionSolution,
-    BatchObject,
     BatchingSolution,
     Batching,
     CombinedRoutingSolution,
     ItemAssignmentSolution,
+    PositioningInput,
     RoutingSolution,
-    ItemAssignment, Scheduler, Job, build_jobs)
-from ware_ops_algos.algorithms import WaitingInput, WaitingSolution
+    ItemAssignment, Scheduler, build_jobs)
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 from ware_ops_algos.algorithms.order_splitting.order_splitting import OrderSplitting
 from ware_ops_algos.domain_models import (
@@ -33,15 +24,14 @@ from ware_ops_algos.domain_models import (
     Resources,
     LayoutData,
     DataCard,
-    OrdersDomain,
+    OrdersDomain, SimWarehouseDomain, PlanView, DecisionContext,
 )
 from ware_ops_algos.algorithms.algorithm_cards import AlgorithmCard
 
 from casim.domain_objects.sim_domain import (
-    ActiveTourBatch, ActiveTourBatchingSolution, DynamicInfo, SimWarehouseDomain,
+    ActiveTourBatch, ActiveTourBatchingSolution,
 )
-from casim.pipelines.taxonomy import TAXONOMY
-from casim.io_helpers import dump_json
+from ware_ops_algos.taxonomy.taxonomy import TAXONOMY
 
 
 class PipelineParams(luigi.Config):
@@ -69,11 +59,6 @@ def load_pickle(path):
         return _STORE[path]
     with open(path, "rb") as f:
         return pickle.load(f)
-
-def iter_store(pattern: str):
-    for k, v in _STORE.items():
-        if fnmatch.fnmatch(k, pattern):
-            yield k, v
 
 def clear_store(prefix: str | None = None):
     if prefix is None:
@@ -109,7 +94,10 @@ class InstanceLoader(BaseComponent):
             "layout":         self.get_luigi_local_target_with_task_id("layout.pkl"),
             "articles":       self.get_luigi_local_target_with_task_id("articles.pkl"),
             "storage":        self.get_luigi_local_target_with_task_id("storage.pkl"),
-            "dynamic_warehouse_info": self.get_luigi_local_target_with_task_id("dynamic_warehouse_info.pkl"),
+            "plan": self.get_luigi_local_target_with_task_id("plan.pkl"),
+            "context": self.get_luigi_local_target_with_task_id("context.pkl"),
+            "memory": self.get_luigi_local_target_with_task_id("memory.pkl"),
+            "operations": self.get_luigi_local_target_with_task_id("operations.pkl"),
         }
 
     def run(self):
@@ -123,7 +111,26 @@ class InstanceLoader(BaseComponent):
         dump_pickle(self.output()["layout"].path, domain.layout)
         dump_pickle(self.output()["articles"].path, domain.articles)
         dump_pickle(self.output()["storage"].path, domain.storage)
-        dump_pickle(self.output()["dynamic_warehouse_info"].path, domain.dynamic_warehouse_info)
+        dump_pickle(self.output()["plan"].path, domain.plan)
+        dump_pickle(self.output()["context"].path, domain.context)
+        dump_pickle(self.output()["memory"].path, domain.memory)
+        dump_pickle(self.output()["operations"].path, domain.operations)
+
+
+class IncumbentProvider(BaseComponent):
+    """Expose selected draft tours to repair stages as one typed input."""
+
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+
+    def output(self):
+        return {"incumbent_tours":
+                self.get_luigi_local_target_with_task_id("incumbent_tours.pkl")}
+
+    def run(self):
+        domain: SimWarehouseDomain = load_pickle(self.input()["instance"]["domain"].path)
+        drafts = tuple(tour for tour in domain.plan.tours
+                       if tour.accepts.value == "rebuild")
+        dump_pickle(self.output()["incumbent_tours"].path, drafts)
 
 
 # ─────────────────────────── Order Splitting ────────────────────────────────
@@ -230,7 +237,7 @@ class AdmittedTourBatch(AbstractBatchProvider):
 
     def run(self):
         decision: AdmissionSolution = load_pickle(self.input()["admission_sol"]["admission_sol"].path)
-        dynamic = load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
+        plan: PlanView = load_pickle(self.input()["instance"]["plan"].path)
         assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
         orders = assigned.resolved_orders
         by_id = {order.order_id: order for order in orders}
@@ -238,7 +245,10 @@ class AdmittedTourBatch(AbstractBatchProvider):
         for tour_id, order_id in decision.assignments:
             accepted_by_tour.setdefault(tour_id, []).append(order_id)
         batches = []
-        for tour in dynamic.admission_tours:
+        for view in plan.tours:
+            if view.status.value != "started" or view.accepts.value not in ("insert", "revise"):
+                continue
+            tour = view.as_admission_tour()
             accepted = accepted_by_tour.get(tour.tour_id, [])
             if accepted:
                 active = [by_id[order_id] for order_id in sorted(tour.active_order_ids)]
@@ -257,12 +267,11 @@ class AdmittedTourBatch(AbstractBatchProvider):
 class PickListProvider(AbstractBatching):
     instance = CoSyLuigiTaskParameter(InstanceLoader)
 
-    def _load_warehouse_info(self) -> DynamicInfo:
-        return load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
-
     def run(self):
-        warehouse_info = self._load_warehouse_info()
-        batches = warehouse_info.buffered_batches
+        plan: PlanView = load_pickle(self.input()["instance"]["plan"].path)
+        batches = [*plan.pick_lists,
+                   *(view.batch for view in plan.tours
+                     if view.accepts.value == "rebuild")]
         batching_sol = BatchingSolution(batches=batches)
         dump_pickle(self.output()["batching_sol"].path, batching_sol)
 
@@ -310,8 +319,8 @@ class AbstractPickerRouting(BaseComponent):
     def _load_resources(self) -> Resources:
         return load_pickle(self.input()["instance"]["resources"].path)
 
-    def _load_dynamic_info(self) -> DynamicInfo:
-        return load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
+    def _load_plan(self) -> PlanView:
+        return load_pickle(self.input()["instance"]["plan"].path)
 
     def _load_layout(self) -> LayoutData:
         return load_pickle(self.input()["instance"]["layout"].path)
@@ -372,14 +381,16 @@ class AbstractScheduling(BaseComponent):
     def _load_orders(self) -> OrdersDomain:
         return load_pickle(self.input()["orders"]["orders"].path)
 
-    def _load_warehouse_info(self) -> DynamicInfo:
-        return load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
+    def _load_context(self) -> DecisionContext:
+        return load_pickle(self.input()["instance"]["context"].path)
+
+    def _load_plan(self) -> PlanView:
+        return load_pickle(self.input()["instance"]["plan"].path)
 
     def run(self):
         routing_sol = load_pickle(self.input()["routing_sol"]["routing_sol"].path)
-        orders = self._load_orders()
         resources = self._load_resources()
-        dynamic_info = self._load_warehouse_info()
+        context = self._load_context()
 
         routes = None
         if isinstance(routing_sol, CombinedRoutingSolution):
@@ -387,11 +398,41 @@ class AbstractScheduling(BaseComponent):
         else:
             routes = [r.route for r in routing_sol]
 
-        jobs = build_jobs(routes, resources, release_time=dynamic_info.time)
-        # scheduling_input = SchedulingInput(routes=routes, orders=orders, resources=resources)
+        jobs = build_jobs(routes, resources, release_time=context.time)
         scheduler = self._get_inited_scheduler()
+        plan: PlanView = self._load_plan()
+        scheduler.available_from = plan.available_from
         scheduling_sol = scheduler.solve(jobs)
         dump_pickle(self.output()["scheduling_sol"].path, scheduling_sol)
+
+
+class AbstractPositioning(BaseComponent):
+    """Optional stage that adds empty movement jobs to a complete schedule."""
+
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+    scheduling_sol = CoSyLuigiTaskParameter(AbstractScheduling)
+
+    def output(self):
+        return {"positioning_sol":
+                self.get_luigi_local_target_with_task_id("positioning_sol.pkl")}
+
+    def _get_positioner(self):
+        raise NotImplementedError
+
+    def run(self):
+        inputs = self.input()
+        plan: PlanView = load_pickle(inputs["instance"]["plan"].path)
+        context: DecisionContext = load_pickle(inputs["instance"]["context"].path)
+        schedule = load_pickle(inputs["scheduling_sol"]["scheduling_sol"].path)
+        layout = load_pickle(inputs["instance"]["layout"].path)
+        occupied = frozenset(view.picker_id for view in plan.tours
+                             if view.picker_id is not None)
+        result = self._get_positioner().solve(PositioningInput(
+            schedule=schedule, resources=plan.resources, layout=layout,
+            current_time=context.time, input_closed=context.input_closed,
+            occupied_picker_ids=occupied,
+        ))
+        dump_pickle(self.output()["positioning_sol"].path, result)
 
 # ─────────────────────────── Sequencing ─────────────────────────────────────
 
@@ -438,92 +479,66 @@ class AbstractSequencing(BaseComponent):
         )
 
 
-class AbstractWaiting(BaseComponent):
-    """Apply one configured waiting algorithm to scheduled candidates."""
+# ─────────────────────────── Plan candidate ────────────────────────────────
 
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    scheduling_sol = CoSyLuigiTaskParameter(AbstractScheduling)
+class AbstractPlanCandidate(BaseComponent):
+    """A typed bridge from one CoSy solution stage to the decision boundary."""
 
     def output(self):
-        return {"waiting_sol": self.get_luigi_local_target_with_task_id("waiting_sol.pkl")}
+        return {"plan_candidate":
+                self.get_luigi_local_target_with_task_id("plan_candidate.pkl")}
 
-    def _get_inited_waiter(self):
-        raise NotImplementedError
 
-    def _single_order_service_times(self, scheduled, picker):
-        return None
+class BatchingPlanCandidate(AbstractPlanCandidate):
+    source = CoSyLuigiTaskParameter(AbstractBatching)
 
     def run(self):
-        domain = load_pickle(self.input()["instance"]["domain"].path)
-        scheduled = load_pickle(self.input()["scheduling_sol"]["scheduling_sol"].path)
-        if not domain.resources.resources:
-            raise ValueError("Waiting needs an available picker")
-        picker = domain.resources.resources[0]
-        waiter = self._get_inited_waiter()
-        decision = waiter.solve(WaitingInput(
-            candidates=tuple(scheduled.jobs),
-            current_time=domain.dynamic_warehouse_info.time,
-            input_closed=domain.dynamic_warehouse_info.done,
-            deadline_reached=domain.dynamic_warehouse_info.wait_expired,
-            picker=picker,
-            layout=domain.layout,
-            information=domain.information,
-            single_order_service_times=self._single_order_service_times(scheduled, picker),
-        ))
-        dump_pickle(self.output()["waiting_sol"].path, decision)
-
-# ─────────────────────────── Result Aggregation ──────────────────────────────
-
-_PARAM_TO_STAGE = {
-    "waiting_sol":         "waiting",
-    "routing_sol":         "routing",
-    "admission_sol":       "admission",
-    "batching_sol":       "batching",
-    "item_assignment_sol": "item_assignment",
-    "scheduling_sol":      "scheduling",
-    "sequencing_sol":      "sequencing",
-}
-
-def _collect_from_graph(task: CoSyLuigiTask) -> dict:
-    collected = {}
-    visited = set()
-
-    def _walk(t):
-        if id(t) in visited:
-            return
-        visited.add(id(t))
-        req = t.requires()
-        if not isinstance(req, dict):
-            return
-        for param_name, child in req.items():
-            stage = _PARAM_TO_STAGE.get(param_name)
-            if isinstance(child, AdmittedTourBatch):
-                stage = None
-            if stage and stage not in collected:
-                output_key = param_name  # output key matches param name
-                sol = load_pickle(child.output()[output_key].path)
-                collected[stage] = {
-                    "task_class": type(child).__name__,
-                    "algo":       getattr(sol, "algo_name", type(child).__name__),
-                    "time":       getattr(sol, "execution_time", None),
-                    "solution":   sol,
-                }
-            _walk(child)
-
-    _walk(task)
-    return collected
+        dump_pickle(self.output()["plan_candidate"].path,
+                    load_pickle(self.input()["source"]["batching_sol"].path))
 
 
-class ResultAggregation(BaseComponent):
-    """
-    Terminal task replacing all Evaluation* classes.
-    Walks the task graph, loads solutions, computes KPIs, writes summary.json.
-    """
+class RoutingPlanCandidate(AbstractPlanCandidate):
+    source = CoSyLuigiTaskParameter(AbstractPickerRouting)
+
+    def run(self):
+        dump_pickle(self.output()["plan_candidate"].path,
+                    load_pickle(self.input()["source"]["routing_sol"].path))
+
+
+class SchedulingPlanCandidate(AbstractPlanCandidate):
+    source = CoSyLuigiTaskParameter(AbstractScheduling)
+
+    def run(self):
+        dump_pickle(self.output()["plan_candidate"].path,
+                    load_pickle(self.input()["source"]["scheduling_sol"].path))
+
+
+class PositioningPlanCandidate(AbstractPlanCandidate):
+    source = CoSyLuigiTaskParameter(AbstractPositioning)
+
+    def run(self):
+        dump_pickle(self.output()["plan_candidate"].path,
+                    load_pickle(self.input()["source"]["positioning_sol"].path))
+
+
+class SequencingPlanCandidate(AbstractPlanCandidate):
+    source = CoSyLuigiTaskParameter(AbstractSequencing)
+
+    def run(self):
+        dump_pickle(self.output()["plan_candidate"].path,
+                    load_pickle(self.input()["source"]["sequencing_sol"].path))
+
+
+class PlanCandidateEndpoint(BaseComponent):
+    """One endpoint for all solution families; the source remains typed."""
+
+    candidate = CoSyLuigiTaskParameter(AbstractPlanCandidate)
+    _data_card: DataCard
+    _models: list[AlgorithmCard]
 
     def output(self):
-        return {
-            "summary": self.get_luigi_local_target_with_task_id("summary.json")
-        }
+        return {"plan_candidate":
+                self.get_luigi_local_target_with_task_id("plan_candidate.pkl")}
 
     @classmethod
     def configure(cls, data_card: DataCard, models: list[AlgorithmCard]):
@@ -536,145 +551,14 @@ class ResultAggregation(BaseComponent):
             lambda vs: algorithm_applicability_constraint(vs, cls._data_card, cls._models),
             lambda vs: batching_loader_constraint(vs, TAXONOMY, cls._data_card, PickListProvider),
             lambda vs: orders_provider_constraint(vs, TAXONOMY, cls._data_card, OrdersProvider),
-            lambda vs: check_unique(vs, [ResultAggregation]),
+            lambda vs: check_unique(vs, [PlanCandidateEndpoint]),
         ]
 
-    def _build_provenance(self, summary: dict, collected: dict) -> None:
-        provenance_list = []
-        for stage in ["item_assignment", "batching", "admission", "routing", "sequencing", "scheduling", "waiting"]:
-            if stage in collected:
-                entry = collected[stage]
-                provenance_list.append({
-                    "stage": stage,
-                    "algo": entry["algo"],
-                    "time": entry["time"],
-                    "task_class": entry["task_class"],
-                })
-                summary[f"{stage}_algo"] = entry["algo"]
-                summary[f"{stage}_time"] = entry["time"]
-        summary["provenance"] = provenance_list
-
-    @staticmethod
-    def _compute_routing_summary(routing_sols) -> dict:
-        if isinstance(routing_sols, CombinedRoutingSolution):
-            total = sum(r.distance for r in routing_sols.routes)
-            per_tour = {f"tour_{i}_distance": r.distance for i, r in enumerate(routing_sols.routes)}
-        else:
-            total = sum(r.route.distance for r in routing_sols)
-            per_tour = {f"tour_{i}_distance": r.route.distance for i, r in enumerate(routing_sols)}
-        return {"total_distance": total, "tour_distances": per_tour}
-
-    @staticmethod
-    def _compute_scheduling_summary(scheduling_sol, orders: OrdersDomain) -> dict:
-        order_by_id = {o.order_id: o for o in orders.orders}
-        records = []
-        for job in scheduling_sol.jobs:
-            end_time = job.end_time
-            for on in job.job.route.batch.order_numbers:
-                o = order_by_id.get(on)
-                if o is None:
-                    continue
-                due_date = o.due_date if o.due_date is not None else float("inf")
-                lateness = end_time - due_date
-                records.append({
-                    "lateness": lateness,
-                    "tardiness": max(0, lateness),
-                    "on_time": end_time <= due_date,
-                    "completion_time": end_time,
-                })
-        if not records:
-            return {}
-        import pandas as pd
-        df = pd.DataFrame(records)
-        makespan = df["completion_time"].max()
-        return {
-            "makespan": float(makespan),
-            "on_time_rate": float(df["on_time"].mean() * 100),
-            "avg_lateness": float(df["lateness"].mean()),
-            "avg_tardiness": float(df["tardiness"].mean()),
-            "max_lateness": float(df["lateness"].max()),
-            "max_tardiness": float(df["tardiness"].max()),
-        }
-
-    def _run_impl(self):
-        raise NotImplementedError
-
-
-class ResultAggregationRouting(ResultAggregation):
-    routing_sol = CoSyLuigiTaskParameter(PickerRouting)
-
     def run(self):
-        collected = _collect_from_graph(self)
-        summary = {}
-        self._build_provenance(summary, collected)
-
-        routing_entry = collected.get("routing")
-        if routing_entry is None:
-            raise ValueError("No routing solution in graph.")
-        summary["routing_summary"] = self._compute_routing_summary(routing_entry["solution"])
-        dump_json(self.output()["summary"].path, summary)
+        dump_pickle(self.output()["plan_candidate"].path,
+                    load_pickle(self.input()["candidate"]["plan_candidate"].path))
 
 
-class ResultAggregationScheduling(ResultAggregation):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    scheduling_sol = CoSyLuigiTaskParameter(AbstractScheduling)
-
-    def run(self):
-        collected = _collect_from_graph(self)
-        summary = {}
-        self._build_provenance(summary, collected)
-        routing_entry = collected.get("routing")
-        if routing_entry is not None:
-            summary["routing_summary"] = self._compute_routing_summary(routing_entry["solution"])
-        scheduling_entry = collected.get("scheduling")
-        if scheduling_entry is None:
-            raise ValueError("No scheduling solution in graph.")
-        orders: OrdersDomain = load_pickle(self.input()["instance"]["orders"].path)
-        summary["scheduling_summary"] = self._compute_scheduling_summary(
-            scheduling_entry["solution"], orders
-        )
-        dump_json(self.output()["summary"].path, summary)
-
-
-class ResultAggregationBatching(ResultAggregation):
-    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
-
-    def run(self):
-        collected = _collect_from_graph(self)
-        summary = {}
-        self._build_provenance(summary, collected)
-        dump_json(self.output()["summary"].path, summary)
-
-
-class ResultAggregationSequencing(ResultAggregation):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    scheduling_sol = CoSyLuigiTaskParameter(AbstractSequencing)
-
-    def run(self):
-        collected = _collect_from_graph(self)
-        summary = {}
-        self._build_provenance(summary, collected)
-        routing_entry = collected.get("routing")
-        if routing_entry is not None:
-            summary["routing_summary"] = self._compute_routing_summary(routing_entry["solution"])
-        sequencing_entry = collected.get("sequencing")
-        if sequencing_entry is None:
-            raise ValueError("No scheduling solution in graph.")
-        orders: OrdersDomain = load_pickle(self.input()["instance"]["orders"].path)
-        summary["scheduling_summary"] = self._compute_scheduling_summary(
-            sequencing_entry["solution"], orders
-        )
-        dump_json(self.output()["summary"].path, summary)
-
-
-class ResultAggregationWaiting(ResultAggregation):
-    waiting_sol = CoSyLuigiTaskParameter(AbstractWaiting)
-
-    def run(self):
-        collected = _collect_from_graph(self)
-        summary = {}
-        self._build_provenance(summary, collected)
-        dump_json(self.output()["summary"].path, summary)
 # ─────────────────────────── Graph Utilities ─────────────────────────────────
 
 def traverse_pipeline(vs: Iterable[CoSyLuigiTask], visited=None) -> list[CoSyLuigiTask]:
@@ -740,76 +624,3 @@ def algorithm_applicability_constraint(vs, data_card: DataCard, models, get_clas
                 if not mapper.filter([m], data_card):
                     return False
     return True
-
-
-def main():
-    import yaml
-
-    import ware_ops_algos
-    from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
-    from ware_ops_algos.data_loaders import HesslerIrnichLoader
-    from scenarios.experiment_commons import load_and_flatten_data_card
-
-    from casim.pipelines.subproblems.item_assingment import GreedyIA
-    from casim.pipelines.subproblems.batching import FiFo, OrderNrFiFo, DueDate
-    from casim.pipelines.subproblems.picker_routing import SShape, RatliffRosenthal
-
-
-    PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-    DATA_DIR = PROJECT_ROOT / "data"
-
-    instances_base = DATA_DIR / "instances"
-    cache_base = DATA_DIR / "instances" / "caches"
-    instance_set = "BahceciOencan"
-    instance_name = "Pr_20_1_20_Store1_01.txt"
-    file_path = instances_base / instance_set / instance_name
-    output_folder = (
-        PROJECT_ROOT / "experiments" / "output" / "cosy"
-        / instance_set / instance_name
-    )
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    loader = HesslerIrnichLoader(str(instances_base / instance_set), str(cache_base / instance_set))
-    domain = loader.load(str(file_path))
-    print("Orders initial", len(domain.orders.orders))
-    card_path = DATA_DIR / "data_cards/bahceci_oencan.yaml"
-    with open(card_path, "r", encoding="utf-8") as f:
-        raw = yaml.safe_load(f)
-    datacard = load_and_flatten_data_card(raw)
-    pkg_dir = Path(ware_ops_algos.__file__).parent
-    model_cards_path = pkg_dir / "algorithms" / "algorithm_cards"
-    models = load_packaged_algo_cards()
-
-    ResultAggregation.configure(datacard, models)
-
-    config = get_config()
-    config.set("PipelineParams", "output_folder", str(output_folder))
-    config.set("PipelineParams", "domain_path", str(loader.cache_path))
-
-    repo = CoSyLuigiRepo(
-        InstanceLoader,
-        GreedyIA,
-        FiFo,
-        OrderNrFiFo,
-        DueDate,
-        PickListProvider,
-        SShape,
-        RatliffRosenthal,
-        ResultAggregationBatching,
-        ResultAggregationRouting,
-    )
-
-    maestro = Maestro(repo.cls_repo, repo.taxonomy)
-
-    results = maestro.query(ResultAggregationRouting.target())
-    luigi.build(results, local_scheduler=True)
-    # print("OBP Done")
-    #
-    # dc.problem_class = "SPRP"
-    # maestro = Maestro(repo.cls_repo, repo.taxonomy)
-    # results = maestro.query(ResultAggregationRouting.target())
-    # luigi.build(results, local_scheduler=True)
-
-
-if __name__ == "__main__":
-    main()

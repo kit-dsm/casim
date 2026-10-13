@@ -1,9 +1,9 @@
 from collections import defaultdict
 
 from ware_ops_algos.algorithms import RouteNode
-from ware_ops_algos.domain_models import Resources, Resource, CobotPicker
+from ware_ops_algos.domain_models import Resources, Resource, CobotPicker, Node
+from ware_ops_algos.domain_models.lifecycle import ResourceStates
 
-from casim.domain_objects.tour_model import Node
 
 class ResourceManager:
     def __init__(self, resources: Resources):
@@ -17,6 +17,17 @@ class ResourceManager:
 
     def get_resource(self, picker_id: int) -> Resource:
         return self._resources.resources[picker_id]
+
+    def resource_status(self, picker_id: int, tour_manager) -> ResourceStates:
+        """Derive availability from shift, occupancy and queued tours."""
+        resource = self._get_resource(picker_id)
+        if not resource.available:
+            return ResourceStates.OFF_SHIFT
+        if resource.occupied:
+            return ResourceStates.BUSY
+        if tour_manager.has_future_tours(picker_id):
+            return ResourceStates.RESERVED
+        return ResourceStates.IDLE
 
     def mark_picker_occupied(self, picker_id: int) -> None:
         res = self._get_resource(picker_id)

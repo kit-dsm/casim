@@ -17,7 +17,7 @@ from ware_ops_algos.algorithms.waiting.analytic_progress.optimal_waiting import 
 from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 
-from casim.pipelines.taxonomy import TAXONOMY
+from ware_ops_algos.taxonomy.taxonomy import TAXONOMY
 from scenarios.experiment_commons import load_and_flatten_data_card
 from scenarios.scenario_stochastic_waiting.loader import StochasticWaitingDataLoader
 
@@ -33,7 +33,7 @@ CONFIG_DIR = Path(__file__).resolve().parents[1] / "scenarios" / "scenario_stoch
     ("information", "incoming_orders.mean_interarrival_time_s", -1.0),
     ("layout", "n_blocks", 2),
 ])
-def test_analytical_waiting_card_filters_declared_assumptions(section, feature, value):
+def test_analytical_waiting_card_checks_declared_assumptions(section, feature, value):
     with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
         cfg = compose(config_name="stochastic_waiting_config")
     card = load_and_flatten_data_card(cfg.data_card)
@@ -41,13 +41,18 @@ def test_analytical_waiting_card_filters_declared_assumptions(section, feature, 
                      if model.algo_name == "AnalyticStochasticWaiting")
     mapper = DomainAlgorithmMapper(TAXONOMY)
 
-    assert mapper.filter([algorithm], card) == [algorithm]
+    def requirement_rejections(data_card):
+        # Waiting is a configured setting, outside OBRSP's synthesized variables.
+        return [reason for reason in mapper.rejection_reasons(algorithm, data_card)
+                if not reason.startswith("problem type ")]
+
+    assert requirement_rejections(card) == []
     incompatible = deepcopy(card)
     if value is None:
         getattr(incompatible, section)["features"].pop(feature)
     else:
         getattr(incompatible, section)["features"][feature] = value
-    assert mapper.filter([algorithm], incompatible) == []
+    assert requirement_rejections(incompatible)
 
 
 def test_reference_data_matches_its_card_and_uses_paper_router():

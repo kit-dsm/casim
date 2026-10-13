@@ -1,510 +1,182 @@
 import copy
 
 from ware_ops_algos.algorithms import AdmissionTour, RoutingOrigin
-from ware_ops_algos.domain_models import Resources, WarehouseInfoType, ResourceType, OrdersDomain, OrderType, Order, \
-    OrderPosition
+from ware_ops_algos.domain_models import Resources, ResourceType, OrdersDomain, OrderType, Order, \
+    OrderPosition, SimWarehouseDomain, TourStates, DecisionContext, PlanView, TourView
+from ware_ops_algos.domain_models.lifecycle import Accepts, ResourceStates, accepts_for
 
-from casim.domain_objects.sim_domain import SimWarehouseDomain, DynamicInfo
-from casim.domain_objects.tour_model import TourStates
+from casim.config.schema import RevisionScope, SelectionConfig
 from casim.state import State
+from casim.state.views import DecisionMemory, OperationsView
 
 
 class StateAdapter:
-    def __init__(self):
-        pass
+    """Project one decision's selected state without changing live plan data."""
 
-    def transform_state(self, state: State, problem: str):
-        pass
+    def __init__(self, selection=None, scope=None, extensions=()):
+        self.selection = (SelectionConfig.model_validate(selection)
+                          if selection is not None else None)
+        self.scope = RevisionScope.model_validate(scope or {})
+        self.extensions = tuple(extensions)
 
-class HennWaitingAdapter(StateAdapter):
-    def transform_state(self, state: State, problem: str):
-        buffered_orders = state.order_manager.get_order_buffer()
-        orders = OrdersDomain(tpe=OrderType.STANDARD, orders=buffered_orders)
-        for o in buffered_orders:
-            assert isinstance(o, Order)
+    def transform_state(self, state: State, decision: str,
+                        problem_class: str | None = None):
+        if self.selection is None:
+            raise NotImplementedError("StateAdapter needs a lifecycle selection")
 
-        layout = state.layout_manager.get_layout()
+        selection = self.selection
+        now = state.current_time
+        buffered = (state.order_manager.get_order_buffer()
+                    if selection.orders else [])
+        pick_lists = (state.order_manager.get_pick_list_buffer()
+                      if selection.pick_lists else [])
+        selected_tours = [
+            tour for tour in state.tour_manager.all_tours.values()
+            if TourStates(tour.status) in selection.tours
+        ]
+        if selection.window is not None:
+            end = now + selection.window.horizon_s
+            if selection.window.by.value == "due_date":
+                if not state.done_flag:
+                    buffered = [o for o in buffered
+                                if o.due_date is not None and o.due_date <= end]
+                    pick_lists = [b for b in pick_lists
+                                  if b.earliest_due_date <= end]
+            else:
+                selected_tours = [t for t in selected_tours
+                                  if t.start_time is None or now <= t.start_time <= end]
 
-        warehouse_info = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            congestion_rate=None,
-            current_picker=None,
-            buffered_batches=None,
-            active_tours=None,
-            done=state.done_flag,
-            n_staged_pallets=0
-        )
         resources = state.resource_manager.get_resources()
-        dynamic_resources_list = []
-        for r in resources.resources:
-            if state.available_for_planning(r.id):
-                dynamic_resources_list.append(r)
+        selected_resources = [
+            resource for resource in resources.resources
+            if state.resource_manager.resource_status(
+                resource.id, state.tour_manager) in selection.resources
+        ]
+        # Started tours bring their pickers even when the selection omits a
+        # resource status, as admission must know the cart and travel speed.
+        selected_ids = {resource.id for resource in selected_resources}
+        for tour in selected_tours:
+            if tour.status == TourStates.STARTED and tour.assigned_resource not in selected_ids:
+                selected_resources.append(
+                    state.resource_manager.get_resource(tour.assigned_resource))
+                selected_ids.add(tour.assigned_resource)
 
-        dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
-
-        dynamic_information = SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=layout,
-            orders=orders,
-            resources=dynamic_resources,
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info,
-            information=state.information,
+        tour_views = tuple(self._tour_view(state, tour) for tour in selected_tours)
+        residual_orders = self._residual_orders(state, selected_tours, tour_views)
+        available_from = {
+            resource.id: max(
+                now,
+                state.resource_manager.picker_busy_until(resource.id),
+                *(t.end_time_planned or now for t in selected_tours
+                  if t.assigned_resource == resource.id
+                  and t.status in (TourStates.RELEASED, TourStates.PENDING, TourStates.STARTED)),
+            ) for resource in selected_resources
+        }
+        plan = PlanView(
+            orders=tuple(buffered), pick_lists=tuple(pick_lists),
+            tours=tour_views, resources=tuple(selected_resources),
+            available_from=available_from,
+            active_candidate_ids=frozenset(o.order_id for o in buffered),
         )
-        return copy.deepcopy(dynamic_information)
+        extras = {}
+        for extension in self.extensions:
+            extras.update(extension(state))
+        operations = OperationsView(
+            is_break=state.is_break,
+            n_staged_pallets=(state.dock_manager.n_staged_pallets
+                              if hasattr(state, "dock_manager") else 0),
+            extra=extras,
+        )
+        context = DecisionContext(
+            time=now, cause=(), decision=decision,
+            version=getattr(state, "decision_versions", {}).get(decision, 0),
+            input_closed=state.done_flag,
+        )
+        memory = DecisionMemory(
+            considered_active_orders=frozenset(state.considered_active_orders),
+            last_information_version=state.last_solved_information_version.get(decision, -1),
+            current_information_version=state.information_version)
 
+        projected = SimWarehouseDomain(
+            problem_class=problem_class or decision, objective=state.active_objective,
+            layout=state.layout_manager.get_layout(),
+            orders=OrdersDomain(tpe=OrderType.STANDARD,
+                                orders=[*buffered, *residual_orders]),
+            resources=Resources(ResourceType.HUMAN, selected_resources),
+            articles=state.storage_manager.get_articles(),
+            storage=state.get_storage(), dynamic_warehouse_info=None,
+            warehouse_info=state.warehouse_info, information=state.information,
+            context=context, plan=plan, memory=memory, operations=operations,
+        )
+        return copy.deepcopy(projected)
 
-class ActiveTourAdapter(StateAdapter):
-    """Project buffered orders and every started tour without selecting a tour."""
+    def _tour_view(self, state: State, tour) -> TourView:
+        status = TourStates(tour.status)
+        picker_id = tour.assigned_resource
+        picker = (state.resource_manager.get_resource(picker_id)
+                  if picker_id is not None else None)
+        edge_in_progress = (tour.edge_destination is not None
+                            and tour.edge_end_time is not None
+                            and state.current_time < tour.edge_end_time)
+        if edge_in_progress:
+            duration = tour.edge_end_time - tour.edge_start_time
+            fraction = (1.0 if duration == 0 else
+                        (state.current_time - tour.edge_start_time) / duration)
+            origin = RoutingOrigin(
+                position=tour.position_at(state.current_time),
+                edge_destination=tour.edge_destination.position,
+                distance_to_destination=tour.edge_distance * (1.0 - fraction),
+            )
+        else:
+            position = (tour.position_at(state.current_time) if status == TourStates.STARTED
+                        else tour.annotated_route[0].position)
+            origin = RoutingOrigin(position=position)
+        residual_ids = frozenset(
+            pick.order_number for pick in tour.remaining_picks)
+        pinned_end = tour.cursor + int(edge_in_progress)
+        return TourView(
+            tour_id=tour.tour_id, picker_id=picker_id, status=status,
+            route_version=tour.route_version, cursor=tour.cursor,
+            pinned_prefix=tuple(tour.annotated_route[:pinned_end]),
+            accepts=accepts_for(status, self.scope.freeze_from,
+                                self.scope.frozen_accepts),
+            pick_cart=picker.pick_cart if picker else None,
+            active_order_ids=residual_ids,
+            remaining_route=tuple(node.position for node in
+                                  tour.annotated_route[pinned_end:]),
+            occupied_bins=len(set(tour.cart_bins.values())),
+            routing_origin=origin, picking_until=tour.picking_until,
+            route=tour.original_route, batch=tour.batch,
+            start_time=tour.start_time, end_time=tour.end_time_planned,
+            processing_time=tour.processing_time,
+            positioning_mode=tour.positioning_mode,
+            positioning_hold=tour.positioning_hold,
+        )
 
-    def transform_state(self, state: State, problem: str):
-        new_orders = state.order_manager.get_order_buffer()
-        active = [tour for tour in state.tour_manager.all_tours.values()
-                  if tour.status == TourStates.STARTED]
-        orders = list(new_orders)
-        admission_tours = []
-        pickers = []
-        for tour in active:
-            picker = state.resource_manager.get_resource(tour.assigned_resource)
-            pickers.append(picker)
-            remaining_active_ids = set()
+    @staticmethod
+    def _residual_orders(state: State, tours, views: tuple[TourView, ...]) -> list[Order]:
+        orders = []
+        for tour, view in zip(tours, views):
+            if view.accepts == Accepts.NONE:
+                continue
+            if tour.status in (TourStates.PLANNED, TourStates.ASSIGNED,
+                               TourStates.SCHEDULED):
+                orders.extend(state.order_manager.get_order_from_history(order_id)
+                              for order_id in tour.order_numbers)
+                continue
+            if tour.status != TourStates.STARTED:
+                continue
             for order_id in tour.order_numbers:
-                picks = [pick for pick in tour.remaining_picks if pick.order_number == order_id]
+                picks = [pick for pick in tour.remaining_picks
+                         if pick.order_number == order_id]
                 if not picks:
                     continue
-                remaining_active_ids.add(order_id)
                 known = state.order_manager.get_order_from_history(order_id)
                 orders.append(Order(
-                    order_id=order_id,
-                    order_date=known.order_date,
+                    order_id=order_id, order_date=known.order_date,
                     due_date=known.due_date,
                     order_positions=[OrderPosition(
-                        order_number=order_id,
-                        article_id=pick.article_id,
-                        amount=pick.amount,
-                    ) for pick in picks],
+                        order_number=order_id, article_id=pick.article_id,
+                        amount=pick.amount) for pick in picks],
                 ))
-
-            position = tour.position_at(state.current_time)
-            if tour.edge_destination is not None and state.current_time < tour.edge_end_time:
-                duration = tour.edge_end_time - tour.edge_start_time
-                fraction = 1.0 if duration == 0 else (state.current_time - tour.edge_start_time) / duration
-                origin = RoutingOrigin(
-                    position=position,
-                    edge_destination=tour.edge_destination.position,
-                    distance_to_destination=tour.edge_distance * (1.0 - fraction),
-                )
-            else:
-                origin = RoutingOrigin(position=position)
-            admission_tours.append(AdmissionTour(
-                tour_id=tour.tour_id,
-                picker_id=picker.id,
-                route_version=tour.route_version,
-                pick_cart=picker.pick_cart,
-                active_order_ids=frozenset(remaining_active_ids),
-                remaining_route=tuple(
-                    node.position for node in tour.annotated_route[
-                        tour.cursor + (1 if tour.edge_destination is not None else 0):
-                    ]
-                ),
-                occupied_bins=len(set(tour.cart_bins.values())),
-                routing_origin=origin,
-                picking_until=tour.picking_until,
-            ))
-        dynamic = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            active_tours=active,
-            admission_tours=tuple(admission_tours),
-            considered_active_orders=frozenset(state.considered_active_orders),
-            active_candidate_ids=frozenset(order.order_id for order in new_orders),
-            done=state.done_flag,
-        )
-        return copy.deepcopy(SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=state.layout_manager.get_layout(),
-            orders=OrdersDomain(tpe=OrderType.STANDARD, orders=orders),
-            resources=Resources(ResourceType.HUMAN, pickers),
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=dynamic,
-            information=state.information,
-        ))
-
-
-class OrderWindowAdapter(StateAdapter):
-    def transform_state(self, state: State, problem: str):
-        buffered_orders = state.order_manager.get_order_buffer()
-
-        orders = OrdersDomain(tpe=OrderType.STANDARD, orders=buffered_orders)
-
-        layout = state.layout_manager.get_layout()
-
-        warehouse_info = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            congestion_rate=None,
-            current_picker=None,
-            buffered_batches=None,
-            active_tours=None,
-            done=state.done_flag,
-            n_staged_pallets=0
-        )
-        resources = state.resource_manager.get_resources()
-        dynamic_resources_list = []
-        for r in resources.resources:
-            if not r.occupied:
-                dynamic_resources_list.append(r)
-
-        dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
-
-        dynamic_information = SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=layout,
-            orders=orders,
-            resources=dynamic_resources,
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info,
-            information=state.information,
-        )
-        return dynamic_information
-
-class ORSPAdapter(StateAdapter):
-    def __init__(self):
-        super().__init__()
-        self.orders = None
-        self.selected_picker = None
-
-    def transform_state(self, state: State, problem: str):
-        layout = state.layout_manager.get_layout()
-        buffered_pls = state.order_manager.get_pick_list_buffer()
-        active_or_scheduled_tours = []
-        all_tours = state.tour_manager.all_tours
-        for tour_id, tour in all_tours.items():
-            if tour.status in [TourStates.STARTED,
-                               TourStates.SCHEDULED,
-                               TourStates.ASSIGNED]:
-                active_or_scheduled_tours.append(tour)
-        n_staged_pallets = 0
-        if hasattr(state, "dock_manager"):
-            n_staged_pallets = state.dock_manager.n_staged_pallets
-        warehouse_info = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            congestion_rate=None,
-            current_picker=None,
-            buffered_batches=buffered_pls,
-            active_tours=active_or_scheduled_tours,
-            done=state.done_flag,
-            n_staged_pallets=n_staged_pallets,
-            is_break=state.is_break
-        )
-        resources = state.resource_manager.get_resources()
-        dynamic_resources_list = []
-        for r in resources.resources:
-            if not r.occupied and r.available:
-                dynamic_resources_list.append(r)
-
-        dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
-
-        dynamic_information = SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=layout,
-            orders=OrdersDomain(tpe=OrderType.STANDARD, orders=[]),
-            resources=dynamic_resources,
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info,
-            information=state.information,
-        )
-
-        return dynamic_information
-
-class ReORSPAdapter(StateAdapter):
-    def __init__(self):
-        super().__init__()
-        self.orders = None
-        self.selected_picker = None
-
-    def transform_state(self, state: State, problem: str):
-        layout = state.layout_manager.get_layout()
-        buffered_pls = state.order_manager.get_pick_list_buffer()
-        scheduled_tours = []
-        all_tours = state.tour_manager.all_tours
-        for tour_id, tour in all_tours.items():  # collect all unstarted unfinished tours, STARTED and PENDING are executed as planned
-            if tour.status not in [TourStates.STARTED,
-                                   TourStates.DONE,
-                                   TourStates.CANCELLED,
-                                   TourStates.PENDING]:
-                scheduled_tours.append(tour)
-                buffered_pls.append(tour.batch)
-
-        n_staged_pallets = 0
-        if hasattr(state, "dock_manager"):
-            n_staged_pallets = state.dock_manager.n_staged_pallets
-        warehouse_info = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            congestion_rate=None,
-            current_picker=None,
-            buffered_batches=buffered_pls,
-            active_tours=scheduled_tours,
-            done=state.done_flag,
-            n_staged_pallets=n_staged_pallets,
-            is_break=state.is_break
-        )
-        resources = state.resource_manager.get_resources()
-        dynamic_resources_list = []
-        for r in resources.resources:
-            if r.available:
-                dynamic_resources_list.append(r)
-
-        dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
-
-        dynamic_information = SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=layout,
-            orders=OrdersDomain(tpe=OrderType.STANDARD, orders=[]),
-            resources=dynamic_resources,
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info,
-            information=state.information,
-        )
-
-        return dynamic_information
-
-class OBPAdapter(StateAdapter):
-    def __init__(self):
-        super().__init__()
-        self.orders = None
-        self.selected_picker = None
-
-    def transform_state(self, state: State, problem: str):
-        buffered_orders = state.order_manager.get_order_buffer()
-        orders = OrdersDomain(tpe=OrderType.STANDARD, orders=buffered_orders)
-
-        layout = state.layout_manager.get_layout()
-        warehouse_info = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            congestion_rate=None,
-            current_picker=None,
-            buffered_batches=None,
-            active_tours=None,
-            done=state.done_flag,
-            n_staged_pallets=0
-        )
-        resources = state.resource_manager.get_resources()
-        dynamic_resources_list = []
-        for r in resources.resources:
-            # if not r.occupied:
-            dynamic_resources_list.append(r)
-
-        dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
-
-        dynamic_information = SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=layout,
-            orders=orders,
-            resources=dynamic_resources,
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info,
-            information=state.information,
-        )
-
-        return dynamic_information
-
-class OSBPAdapter(StateAdapter):
-    def __init__(self):
-        super().__init__()
-        self.orders = None
-        self.selected_picker = None
-
-    def transform_state(self, state: State, problem: str):
-        buffered_orders = state.order_manager.get_order_buffer()
-        orders = OrdersDomain(tpe=OrderType.STANDARD, orders=buffered_orders)
-
-        layout = state.layout_manager.get_layout()
-        warehouse_info = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            congestion_rate=None,
-            current_picker=None,
-            buffered_batches=None,
-            active_tours=None,
-            done=state.done_flag,
-            n_staged_pallets=0
-        )
-        resources = state.resource_manager.get_resources()
-        dynamic_resources_list = []
-        for r in resources.resources:
-            # if not r.occupied:
-            dynamic_resources_list.append(r)
-
-        dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
-
-        dynamic_information = SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=layout,
-            orders=orders,
-            resources=dynamic_resources,
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info,
-            information=state.information,
-        )
-
-        return dynamic_information
-
-class ReOSBPAdapter(StateAdapter):
-    def __init__(self):
-        super().__init__()
-        self.orders = None
-
-    def transform_state(self, state: State, problem: str):
-        buffered_orders = state.order_manager.get_order_buffer()
-        orders = OrdersDomain(tpe=OrderType.STANDARD, orders=buffered_orders)
-
-        layout = state.layout_manager.get_layout()
-        warehouse_info = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            congestion_rate=None,
-            current_picker=None,
-            buffered_batches=None,
-            active_tours=None,
-            done=state.done_flag,
-            n_staged_pallets=0
-        )
-        resources = state.resource_manager.get_resources()
-        dynamic_resources_list = []
-        for r in resources.resources:
-            # if not r.occupied:
-            if r.available:
-                dynamic_resources_list.append(r)
-
-        dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
-
-        dynamic_information = SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=layout,
-            orders=orders,
-            resources=dynamic_resources,
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info,
-            information=state.information,
-        )
-
-        return dynamic_information
-
-class RLORSPAdapter(StateAdapter):
-    def __init__(self):
-        super().__init__()
-        self.orders = None
-        self.selected_picker = None
-
-    def transform_state(self, state: State, problem: str):
-        layout = state.layout_manager.get_layout()
-        buffered_pls = state.order_manager.get_pick_list_buffer()[:1]
-        # sorted_pls = sorted(buffered_pls, key=lambda o: o.due_date)
-
-        active_or_scheduled_tours = []
-        all_tours = state.tour_manager.all_tours
-        for tour_id, tour in all_tours.items():
-            if tour.status in [TourStates.STARTED,
-                               TourStates.SCHEDULED,
-                               TourStates.ASSIGNED]:
-                active_or_scheduled_tours.append(tour)
-        n_staged_pallets = 0
-        if hasattr(state, "dock_manager"):
-            n_staged_pallets = state.dock_manager.n_staged_pallets
-        warehouse_info = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            congestion_rate=None,
-            current_picker=None,
-            buffered_batches=buffered_pls,
-            active_tours=active_or_scheduled_tours,
-            done=state.done_flag,
-            n_staged_pallets=n_staged_pallets,
-            is_break=state.is_break
-        )
-        resources = state.resource_manager.get_resources()
-        dynamic_resources_list = []
-        for r in resources.resources:
-            if not r.occupied:
-                dynamic_resources_list.append(r)
-
-        dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
-
-        dynamic_information = SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=layout,
-            orders=OrdersDomain(tpe=OrderType.STANDARD, orders=[]),
-            resources=dynamic_resources,
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info,
-            information=state.information,
-        )
-
-        return dynamic_information
-
-class RLOSBPAdapter(StateAdapter):
-    def __init__(self):
-        super().__init__()
-        self.orders = None
-        self.selected_picker = None
-
-    def transform_state(self, state: State, problem: str):
-        buffered_orders = state.order_manager.get_order_buffer()
-        sorted_orders = sorted(buffered_orders, key=lambda o: o.due_date)
-        orders = OrdersDomain(tpe=OrderType.STANDARD, orders=sorted_orders[:1])
-
-        layout = state.layout_manager.get_layout()
-        warehouse_info = DynamicInfo(
-            tpe=WarehouseInfoType.ONLINE,
-            time=state.current_time,
-            congestion_rate=None,
-            current_picker=None,
-            buffered_batches=None,
-            active_tours=None,
-            done=state.done_flag,
-            n_staged_pallets=0
-        )
-        resources = state.resource_manager.get_resources()
-        dynamic_resources_list = []
-        for r in resources.resources:
-            if not r.occupied:
-                dynamic_resources_list.append(r)
-
-        dynamic_resources = Resources(ResourceType.HUMAN, dynamic_resources_list)
-
-        dynamic_information = SimWarehouseDomain(
-            problem_class=problem,
-            objective=state.active_objective,
-            layout=layout,
-            orders=orders,
-            resources=dynamic_resources,
-            articles=state.storage_manager.get_articles(),
-            storage=state.get_storage(),
-            dynamic_warehouse_info=warehouse_info,
-            information=state.information,
-        )
-
-        return dynamic_information
+        return orders

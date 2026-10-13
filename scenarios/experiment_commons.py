@@ -1,81 +1,15 @@
-from pathlib import Path
-from typing import Type
+"""Small scenario setup helpers: compose, resolve, reset, run, report."""
 
-from hydra.utils import instantiate
+from pathlib import Path
+
+from hydra.utils import get_class
 from omegaconf import DictConfig
-from ware_ops_algos.data_loaders import DataLoader
 from ware_ops_algos.domain_models import DataCard, information_card_section
 
 from casim.decision_engine.decision_engine import DecisionEngine
-from casim.events.base_events import Event
 from casim.loggers import DashLogger, KPILogger
-from casim.events.decision_events import RoutingDone, PickListDone
-from casim.events.operational_events import OrderArrival, OrderStreamClosed, WaitingOpportunity, ActiveTourOpportunity, PickerArrival, PickerTourQuery, PickerIdle, NodeArrival, TourEnd, PickComplete, \
-    ShiftStart, FlushRemainingOrders, WaitExpired, TruckDeparture, WMSRun, TruckDisruption, VolumeShiftAcrossDay, OrderIngestion
+from casim.setup import resolve
 from casim.simulation_engine.simulation_engine import SimulationEngine
-
-LOADER_REGISTRY: dict[str, Type[DataLoader]] = {}
-
-try:
-    from scenarios.scenario_henn_online.henn_online_loader import HennOnlineLoader
-    LOADER_REGISTRY["HennOnlineLoader"] = HennOnlineLoader
-except ImportError:
-    pass
-
-try:
-    from scenarios.scenario_stochastic_waiting.loader import StochasticWaitingDataLoader
-    LOADER_REGISTRY["StochasticWaitingDataLoader"] = StochasticWaitingDataLoader
-except ImportError:
-    pass
-
-try:
-    from scenarios.scenario_walk_or_wait.loader import WalkOrWaitDataLoader
-    LOADER_REGISTRY["WalkOrWaitDataLoader"] = WalkOrWaitDataLoader
-except ImportError:
-    pass
-
-try:
-    from DEPRECATED.grocery_retailer_loader import WarehousePickingLoader
-    LOADER_REGISTRY["WarehousePickingLoader"] = WarehousePickingLoader
-except ImportError:
-    pass
-
-try:
-    from scenarios.scenario_grocery_retailer.grocery_retailer_loader import GroceryRetailerLoader
-    LOADER_REGISTRY["GroceryRetailerLoader"] = GroceryRetailerLoader
-except ImportError:
-    pass
-
-try:
-    from scenarios.scenario_ijpe.grocery_retailer_loader_digraph import WarehousePickingLoaderDigraph
-    LOADER_REGISTRY["WarehousePickingLoaderDigraph"] = WarehousePickingLoaderDigraph
-except ImportError:
-    pass
-
-EVENT_REGISTRY: dict[str, Type[Event]]  = {
-    "OrderArrival": OrderArrival,
-    "WaitingOpportunity": WaitingOpportunity,
-    "ActiveTourOpportunity": ActiveTourOpportunity,
-    "OrderStreamClosed": OrderStreamClosed,
-    "RoutingDone": RoutingDone,
-    "PickerArrival": PickerArrival,
-    "PickerTourQuery": PickerTourQuery,
-    "PickerIdle": PickerIdle,
-    "NodeArrival": NodeArrival,
-    "TourEnd": TourEnd,
-    "PickComplete": PickComplete,
-    # "PickListSelectionDone": PickListSelectionDone,
-    "ShiftStart": ShiftStart,
-    "FlushRemainingOrders": FlushRemainingOrders,
-    "WaitExpired": WaitExpired,
-    "PickListDone": PickListDone,
-    "TruckDeparture": TruckDeparture,
-    "WMSRun": WMSRun,
-    "TruckDisruption": TruckDisruption,
-    "VolumeShiftAcrossDay": VolumeShiftAcrossDay,
-    "OrderIngestion": OrderIngestion
-}
-
 
 def load_and_flatten_data_card(raw) -> DataCard:
     # with open(card_path, "r", encoding="utf-8") as f:
@@ -111,99 +45,45 @@ def load_and_flatten_data_card(raw) -> DataCard:
         information=information_card_section(raw.get("information")),
     )
 
-def build_data_loader(cfg: DictConfig) -> DataLoader:
-    data_loader_cls = cfg.data_card.source.data_loader
-    data_loader = LOADER_REGISTRY[data_loader_cls](
-        instances_dir=Path(cfg.instances_base) /
-                      cfg.data_card.name,
-                      cfg=cfg)
-    return data_loader
 
-def build_solvers(cfg):
-    solver_map = {}
-
-    for problem_key, problem_cfg in cfg.engines.decision_engine.problems.items():
-        solver_map[problem_key] = instantiate(
-            problem_cfg.solver,
-            problem_class=problem_key,
-            instances_dir=Path(cfg.instances_base),
-            cache_dir=Path(cfg.cache_base) / cfg.data_card.name,
-            output_dir=cfg.experiment.output_dir,
-            instance_name=cfg.experiment.instance_name,
-            verbose=True,
-            luigi_cfg=cfg.luigi
-        )
-
-    return solver_map
-
-def build_commitment_policies(cfg):
-    return {
-        problem_key: instantiate(problem_cfg.commitment_policy)
-        for problem_key, problem_cfg in cfg.engines.decision_engine.problems.items()
-    }
-
-def build_state_adapters(cfg: DictConfig) -> dict:
-    return {
-        problem_key: instantiate(st_cfg)
-        for problem_key, st_cfg in cfg.decision_engine.state_snapshot.items()
-    }
-
-def setup_decision_engine(cfg: DictConfig, dc) -> DecisionEngine:
-    solver_map = build_solvers(cfg)
-    commitment_policies = build_commitment_policies(cfg)
-
-    for problem_key, solver in solver_map.items():
-        dc.problem_class = problem_key
-        solver.build_pipelines(dc)
-
-    return DecisionEngine(
-        solver_map=solver_map,
-        commitment_policies=commitment_policies,
+def setup_experiment(cfg: DictConfig, data_card: DataCard):
+    """Build each named decision once and share it with both engines."""
+    setups = resolve(cfg, data_card)
+    loader_type = get_class(cfg.data_card.source.data_loader)
+    loader = loader_type(
+        instances_dir=Path(cfg.instances_base) / cfg.data_card.name, cfg=cfg,
     )
-
-def build_simulation_problems(cfg: DictConfig):
-    state_adapters = {}
-    conditions_map = {}
-    triggers_map = {}
-
-    for problem_key, pcfg in cfg.simulation_engine.problems.items():
-        state_adapters[problem_key] = instantiate(pcfg.state_adapter)
-        conditions_map[problem_key] = [
-            instantiate(c) for c in (pcfg.get("conditions") or [])
-        ]
-        for event_name in (pcfg.get("triggers") or []):
-            event_cls = EVENT_REGISTRY[event_name]
-            if event_cls in triggers_map:
-                raise ValueError(
-                    f"{event_name} is assigned to both {triggers_map[event_cls]} and {problem_key}"
-                )
-            triggers_map[event_cls] = problem_key
-
-    return state_adapters, conditions_map, triggers_map
-
-def setup_scenario(cfg: DictConfig) -> SimulationEngine:
-    instances_dir = Path(cfg.instances_base)
-    cache_path = Path(cfg.cache_base) / "dynamic_info.pkl"
-
-    state_adapters, conditions_map, triggers_map = build_simulation_problems(cfg.engines)
-
-    loader = build_data_loader(cfg)
     loader_kwargs = {
-        k: instances_dir / v
-        for k, v in cfg.data_card.source.items()
-        if k.endswith("path")
+        key: Path(cfg.instances_base) / value
+        for key, value in cfg.data_card.source.items() if key.endswith("path")
     }
-
-    event_loggers = [KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
+    loggers = [KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
     if cfg.viz.launch:
-        event_loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
-
-    return SimulationEngine(
-        state_adapters=state_adapters,
+        loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
+    trigger_map = {trigger: name for name, setup in setups.items()
+                   for trigger in setup.trigger_types}
+    simulation = SimulationEngine(
+        state_adapters={name: setup.adapter for name, setup in setups.items()},
+        problem_classes={name: setup.problem_class for name, setup in setups.items()},
         data_loader=loader,
-        domain_cache_path=str(cache_path),
+        domain_cache_path=str(Path(cfg.cache_base) / "dynamic_info.pkl"),
         loader_kwargs=loader_kwargs,
-        triggers_map=triggers_map,
-        conditions_map=conditions_map,
-        event_loggers=event_loggers,
+        triggers_map=trigger_map,
+        conditions_map={name: setup.conditions for name, setup in setups.items()},
+        event_loggers=loggers,
     )
+    simulation.on_violation = cfg.get("on_violation", "reject")
+    simulation.precedence = {name: setup.config.precedence
+                             for name, setup in setups.items()}
+    simulation.periods = {name: setup.period_s for name, setup in setups.items()
+                          if setup.period_s is not None}
+    decision = DecisionEngine(
+        solver_map={name: setup.solver for name, setup in setups.items()
+                    if setup.solver is not None},
+        commitment={name: setup.commitment for name, setup in setups.items()},
+        waiting={name: setup.waiting for name, setup in setups.items()},
+        release_gates={name: setup.config.release_gates
+                       for name, setup in setups.items()},
+    )
+    simulation.decision_engine = decision
+    return simulation, decision

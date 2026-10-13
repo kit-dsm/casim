@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - data_card: grocery_retailer
-  - engines: scenario_obp #scenario_grocery_fixed_arrival #scenario_obp
+  - decisions: scenario_obp #scenario_grocery_fixed_arrival #scenario_obp
   - cosy_repo: ushape
   - simulation: scenario3
   - optional sweep: scenario_sweep #scenario_sweep # cosy_repo_sweep

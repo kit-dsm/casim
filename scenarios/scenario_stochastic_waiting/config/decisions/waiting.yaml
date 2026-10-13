@@ -1,0 +1,34 @@
+OBRSPW:
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    output: scheduling
+    solution_ranker:
+      _target_: casim.pipelines.solution_ranker.SolutionRanker
+      objective: ${data_card.objective}
+    repo: ${cosy_repo}
+  selection:
+    orders:
+    - buffered
+    resources:
+    - idle
+    - reserved
+    tours:
+    - planned
+    - assigned
+    - scheduled
+  triggers:
+  - OrderArrival
+  - OrderStreamClosed
+  - PickerArrival
+  - PickerIdle
+  - FlushRemainingOrders
+  conditions:
+  - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+    threshold: 1
+  - _target_: casim.simulation_engine.conditions.NewInformationCondition
+  precedence: 10
+  scope:
+    freeze_from: pending
+  commitment:
+    rule: release_all
+  waiting: ${cosy_repo.waiting}

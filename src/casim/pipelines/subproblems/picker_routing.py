@@ -43,8 +43,10 @@ class _ActiveTourRoutingNode:
 
     def run(self):
         batching_sol = load_pickle(self.input()["batching_sol"]["batching_sol"].path)
-        dynamic = self._load_dynamic_info()
-        tours = {tour.tour_id: tour for tour in dynamic.admission_tours}
+        plan = self._load_plan()
+        tours = {view.tour_id: view.as_admission_tour()
+                 for view in plan.tours if view.status.value == "started"
+                 and view.accepts.value in ("insert", "revise")}
         pickers = {picker.id: picker for picker in self._load_resources().resources}
         routes = []
         execution_time = 0.0

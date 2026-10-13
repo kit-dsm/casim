@@ -27,6 +27,7 @@ class HennOnlineLoader(DataLoader):
         super().__init__(instances_dir)
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.mirror_top_depot = mirror_top_depot
+        self.due_offset_s = cfg.data_card.source.get("due_offset_s")
 
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -43,11 +44,11 @@ class HennOnlineLoader(DataLoader):
             BaseWarehouseDomain object
         """
         filepath = Path(filepath)
-        filepath_arrival_times = f"Arrival_Time_abc1_{filepath.stem}.csv"
         if not filepath.is_absolute():
             filepath = self.data_dir / filepath
+        filepath_arrival_times = self.data_dir / f"Arrival_Time_abc1_{filepath.stem}.csv"
         if use_cache and self.cache_dir:
-            cache_path = self.cache_dir / f"{filepath.stem}_domain.pkl"
+            cache_path = self.cache_dir / f"{filepath.stem}_{self.due_offset_s}_domain.pkl"
             self.cache_path = cache_path
             if cache_path.exists():
                 from ware_ops_algos.utils.io_helpers import load_pickle
@@ -60,7 +61,7 @@ class HennOnlineLoader(DataLoader):
         # Save cache
         if use_cache and self.cache_dir:
             from ware_ops_algos.utils.io_helpers import dump_pickle
-            cache_path = self.cache_dir / f"{filepath.stem}_domain.pkl"
+            cache_path = self.cache_dir / f"{filepath.stem}_{self.due_offset_s}_domain.pkl"
             dump_pickle(str(cache_path), domain)
 
         return domain
@@ -327,6 +328,8 @@ class HennOnlineLoader(DataLoader):
             Order(
                 order_id=i,
                 order_date=order_arrival_times[i],
+                due_date=(order_arrival_times[i] + self.due_offset_s
+                          if self.due_offset_s is not None else None),
                 order_positions=[
                     OrderPosition(
                         order_number=i,

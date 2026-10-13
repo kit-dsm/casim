@@ -1,0 +1,81 @@
+ORSP:
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    output: scheduling
+    solution_ranker:
+      _target_: casim.pipelines.solution_ranker.SolutionRanker
+      objective: ${data_card.objective}
+    repo: ${cosy_repo}
+  selection:
+    pick_lists:
+    - buffered
+    tours:
+    - assigned
+    - scheduled
+    - started
+    resources:
+    - idle
+    - reserved
+  triggers:
+  - ShiftStart
+  - BreakEnd
+  precedence: 10
+  conditions:
+  - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+    threshold: 1
+  - _target_: casim.simulation_engine.conditions.NbrBatchesCondition
+    threshold: 1
+  release_gates:
+    outside_break: true
+  commitment:
+    rule: release_all
+OBP:
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    output: batching
+    solution_ranker:
+      _target_: casim.pipelines.solution_ranker.SolutionRanker
+      objective: ${data_card.objective}
+    repo: ${cosy_repo}
+  selection:
+    orders:
+    - buffered
+    resources:
+    - off_shift
+    - idle
+    - reserved
+    - busy
+  triggers:
+  - WMSRun
+  conditions: []
+  commitment:
+    rule: release_all
+RORSP:
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    output: scheduling
+    solution_ranker:
+      _target_: casim.pipelines.solution_ranker.SolutionRanker
+      objective: ${data_card.objective}
+    repo: ${cosy_repo}
+  selection:
+    pick_lists:
+    - buffered
+    tours:
+    - planned
+    - assigned
+    - scheduled
+    resources:
+    - idle
+    - reserved
+    - busy
+  scope:
+    freeze_from: pending
+  triggers:
+  - TruckDisruption
+  - VolumeShiftAcrossDay
+  - OrderIngestion
+  precedence: 20
+  conditions: []
+  commitment:
+    rule: release_all

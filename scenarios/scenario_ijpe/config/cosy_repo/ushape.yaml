@@ -8,6 +8,3 @@ components:
   - casim.pipelines.subproblems.scheduling.SPTScheduler
   - casim.pipelines.subproblems.scheduling.LPTScheduler
   - casim.pipelines.problem_based_template.PickListProvider
-  - casim.pipelines.problem_based_template.ResultAggregationBatching
-  - casim.pipelines.problem_based_template.ResultAggregationRouting
-  - casim.pipelines.problem_based_template.ResultAggregationScheduling

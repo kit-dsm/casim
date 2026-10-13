@@ -1,0 +1,9 @@
+components:
+  - casim.pipelines.problem_based_template.InstanceLoader
+  - casim.pipelines.problem_based_template.IncumbentProvider
+  - casim.pipelines.problem_based_template.OrdersProvider
+  - casim.pipelines.subproblems.item_assingment.GreedyIA
+  - casim.pipelines.subproblems.batching.FiFo
+  - casim.pipelines.subproblems.batching.IncumbentBatchingNode
+  - casim.pipelines.subproblems.picker_routing.SShape
+  - casim.pipelines.subproblems.scheduling.SPTScheduler

@@ -2,7 +2,7 @@ name: WalkOrWait
 problem_class: OBRSPW
 objective: mean_order_completion_time
 source:
-  data_loader: WalkOrWaitDataLoader
+  data_loader: scenarios.scenario_walk_or_wait.loader.WalkOrWaitDataLoader
 layout:
   type: conventional
   objects:
@@ -10,6 +10,7 @@ layout:
       features:
         - {name: n_blocks, value: 1}
         - {name: n_aisles}
+        - {name: graph}
         - {name: start_node}
         - {name: end_node}
         - {name: closest_node_to_start}

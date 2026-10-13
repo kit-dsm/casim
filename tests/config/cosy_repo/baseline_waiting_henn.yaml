@@ -1,9 +1,10 @@
 components:
-  - casim.pipelines.problem_based_template.InstanceLoader
-  - casim.pipelines.problem_based_template.OrdersProvider
-  - casim.pipelines.subproblems.item_assingment.GreedyIA
-  - casim.pipelines.subproblems.batching.FiFo
-  - casim.pipelines.subproblems.picker_routing.SShape
-  - casim.pipelines.subproblems.scheduling.SPTScheduler
-  - casim.pipelines.subproblems.waiting.HennWaitingNode
-  - casim.pipelines.problem_based_template.ResultAggregationWaiting
+- casim.pipelines.problem_based_template.InstanceLoader
+- casim.pipelines.problem_based_template.OrdersProvider
+- casim.pipelines.subproblems.item_assingment.GreedyIA
+- casim.pipelines.subproblems.batching.FiFo
+- casim.pipelines.subproblems.picker_routing.SShape
+- casim.pipelines.subproblems.scheduling.SPTScheduler
+waiting:
+  policy: henn
+  min_orders: 100

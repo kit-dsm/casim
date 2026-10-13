@@ -16,9 +16,8 @@ from ware_ops_algos.domain_models import (
 )
 from ware_ops_algos.domain_models.datacards import load_and_flatten_data_card as load_card_path
 
-from casim.simulation_engine.state_adapter import HennWaitingAdapter
 from scenarios.experiment_commons import (
-    load_and_flatten_data_card, setup_decision_engine, setup_scenario,
+    load_and_flatten_data_card, setup_experiment,
 )
 from scenarios.scenario_stochastic_waiting.scenario_specific_hooks import (
     add_orders_hook, picker_arrival_hook,
@@ -45,7 +44,7 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
         "incoming_orders.mean_interarrival_time_s": 28.8,
     }
     assert load_card_path(CONFIG_DIR / "data_card" / "stochastic_waiting.yaml").information == card.information
-    sim = setup_scenario(cfg)
+    sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
     sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
     done, snapshot = sim.run()
     assert not done
@@ -55,7 +54,7 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
     assert snapshot.information.require(
         "incoming_orders", ExponentialSingleLineUniformLocationOrderStream
     ).mean_interarrival_time_s == 28.8
-    assert all(order.order_date <= snapshot.dynamic_warehouse_info.time
+    assert all(order.order_date <= snapshot.context.time
                for order in snapshot.orders.orders)
     assert not hasattr(snapshot.information, "arrival_times_s")
 
@@ -72,15 +71,14 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
     ("type", "unknown", "Unsupported"),
     ("mean_interarrival_time_s", 0, "finite positive"),
 ])
-def test_scenario_loader_rejects_a_forecast_it_cannot_construct(tmp_path, feature_name, value, message):
+def test_invalid_forecast_rejected_during_resolution(tmp_path, feature_name, value, message):
     cfg = configured_study(tmp_path)
     feature = next(feature for feature in cfg.data_card.information.objects[0].features
                    if feature.name == feature_name)
     feature.value = value
     load_and_flatten_data_card(cfg.data_card)
-    sim = setup_scenario(cfg)
-    with pytest.raises(ValueError, match=message):
-        sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    with pytest.raises(ValueError, match="Waiting policy .* incompatible"):
+        setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
 
 
 def test_duplicate_process_ids_fail_when_card_loads(tmp_path):
@@ -98,15 +96,15 @@ def test_mapper_excludes_missing_or_incompatible_information_before_simulation(t
     mapper = DomainAlgorithmMapper({"OBRSPW": {"variables": ["waiting"]}})
     card.information = {"type": None, "features": {}}
     assert mapper.filter([algorithm], card) == []
-    with pytest.raises(ValueError, match="No CoSy pipeline"):
-        setup_decision_engine(cfg, card)
+    with pytest.raises(ValueError, match="Waiting policy .* incompatible"):
+        setup_experiment(cfg, card)
 
     card.information = {"type": "process_information", "features": {
         "incoming_orders.type": "different_order_process",
     }}
     assert mapper.filter([algorithm], card) == []
-    with pytest.raises(ValueError, match="No CoSy pipeline"):
-        setup_decision_engine(cfg, card)
+    with pytest.raises(ValueError, match="Waiting policy .* incompatible"):
+        setup_experiment(cfg, card)
 
 
 @dataclass(frozen=True)
@@ -119,14 +117,14 @@ class ExampleAttendanceInformation:
 
 def test_second_process_fits_same_snapshot_boundary(tmp_path):
     cfg = configured_study(tmp_path)
-    sim = setup_scenario(cfg)
+    sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
     sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
     original = sim.state.information.require("incoming_orders", ExponentialSingleLineUniformLocationOrderStream)
     sim.state.information = PlannerInformation(InformationType.PROCESS_INFORMATION, {
         "incoming_orders": original,
         "picker_attendance": ExampleAttendanceInformation(probability=0.9),
     })
-    projection = HennWaitingAdapter().transform_state(sim.state, "OBRSPW")
+    projection = sim.state_adapters["OBRSPW"].transform_state(sim.state, "OBRSPW")
     assert projection.information.require("picker_attendance", ExampleAttendanceInformation).probability == 0.9
     assert projection.information.get_features() == {
         "incoming_orders.type": ExponentialSingleLineUniformLocationOrderStream.representation,

@@ -1,5 +1,5 @@
 """Snapshot-derived KPIs. Pure functions of a single snapshot + static data."""
-from casim.domain_objects.tour_model import TourStates
+from ware_ops_algos.domain_models import TourStates
 
 
 def outstanding_count(snap) -> int:

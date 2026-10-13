@@ -2,6 +2,7 @@ import copy
 
 from ware_ops_algos.algorithms import BatchObject
 from ware_ops_algos.domain_models import Order
+from ware_ops_algos.domain_models.lifecycle import OrderStates, PickListStates, TourStates
 
 
 class OrderManager:
@@ -32,6 +33,46 @@ class OrderManager:
             return self._order_history[o_id]
         except KeyError:
             raise ValueError(f"Order {o_id} not found in history")
+
+    def order_status(self, order_id: int, tour_manager) -> OrderStates:
+        """Derive an order's one lifecycle status from the live collections."""
+        statuses: set[OrderStates] = set()
+        if order_id in self._order_buffer:
+            statuses.add(OrderStates.BUFFERED)
+        if any(order_id in batch.order_numbers for batch in self._pick_list_buffer):
+            statuses.add(OrderStates.BATCHED)
+        if any(batch is not None and order_id in batch.order_numbers
+               for batch in self._pick_list_assignments.values()):
+            statuses.add(OrderStates.BATCHED)
+        for tour in tour_manager.all_tours.values():
+            if order_id not in tour.order_numbers or tour.status == TourStates.CANCELLED:
+                continue
+            if tour.status == TourStates.DONE:
+                statuses.add(OrderStates.DONE)
+            elif tour.status == TourStates.STARTED:
+                statuses.add(OrderStates.IN_PROGRESS)
+            else:
+                statuses.add(OrderStates.PLANNED)
+        if any(order.order_id == order_id for order in self.completed_orders):
+            statuses.add(OrderStates.DONE)
+        if len(statuses) != 1:
+            raise ValueError(f"Order {order_id} has ambiguous lifecycle status: {statuses}")
+        return next(iter(statuses))
+
+    def pick_list_status(self, pick_list: BatchObject, tour_manager) -> PickListStates:
+        """Derive a pick list's status without storing a second status flag."""
+        if pick_list in self._pick_list_buffer:
+            return PickListStates.BUFFERED
+        for tour in tour_manager.all_tours.values():
+            if tour.batch is not pick_list and tour.batch != pick_list:
+                continue
+            if tour.status == TourStates.DONE:
+                return PickListStates.DONE
+            if tour.status == TourStates.STARTED:
+                return PickListStates.IN_PROGRESS
+            if tour.status != TourStates.CANCELLED:
+                return PickListStates.PLANNED
+        raise ValueError("Pick list has no lifecycle status")
 
     def get_order_buffer(self) -> list[Order]:
         return list(self._order_buffer.values())

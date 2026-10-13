@@ -6,7 +6,7 @@ from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 
-from scenarios.experiment_commons import load_and_flatten_data_card, setup_scenario, setup_decision_engine
+from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
 from casim.io_helpers import dump_pickle
 from casim.viz.gantt_chart import gantt_chart
 from scenarios.scenario_ijpe.scenario_specific_hooks import build_sim_hooks
@@ -24,11 +24,7 @@ def main(cfg: DictConfig):
 
     out_dir = Path("./data")
 
-    sim = setup_scenario(cfg)
-    decision_engine = setup_decision_engine(cfg, datacard)
-
-    event_map = {cls_name: instantiate(cls) for cls_name, cls in cfg.engines.decision_engine.event_map.items()}
-    decision_engine.event_map = event_map
+    sim, decision_engine = setup_experiment(cfg, datacard)
 
     # picks = pd.read_csv("data/picks_anonym.csv")
     # master = pd.read_csv("data/master_anonym.csv")
@@ -58,8 +54,8 @@ def main(cfg: DictConfig):
                 pct = 100 * count / dt.num_decisions
                 print(f"{pipeline} {count:} {pct}%")
             break
-        events_to_add, solution = decision_engine.on_trigger(state_snapshot)
-        sim.step(events_to_add, state_snapshot.problem_class, solution)
+        result = decision_engine.on_trigger(state_snapshot)
+        sim.step(result, state_snapshot)
 
     # print(sim.state.tracker.delayed_expected_finish)
     for shifted_order in sim.state.tracker.shifted_orders:

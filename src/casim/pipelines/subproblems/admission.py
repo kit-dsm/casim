@@ -1,7 +1,7 @@
 """Configured active-tour admission algorithm."""
 
 from ware_ops_algos.algorithms import (
-    AdmissionInput, RemainingRouteAdmission,
+    AdmissionInput, RemainingRouteAdmission, CenterPositionAdmission,
 )
 from cosy_luigi import CoSyLuigiTaskParameter
 
@@ -14,13 +14,36 @@ class RemainingRouteAdmissionNode(AbstractAdmission):
     item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
 
     def run(self):
-        dynamic = load_pickle(self.input()["instance"]["dynamic_warehouse_info"].path)
+        plan = load_pickle(self.input()["instance"]["plan"].path)
+        memory = load_pickle(self.input()["instance"]["memory"].path)
         assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
         orders = tuple(assigned.resolved_orders)
         decision = RemainingRouteAdmission().solve(AdmissionInput(
             orders=orders,
-            tours=dynamic.admission_tours,
-            candidate_order_ids=dynamic.active_candidate_ids,
-            considered_pairs=dynamic.considered_active_orders,
+            tours=tuple(view.as_admission_tour() for view in plan.tours
+                        if view.status.value == "started"
+                        and view.accepts.value in ("insert", "revise")),
+            candidate_order_ids=plan.active_candidate_ids,
+            considered_pairs=memory.considered_active_orders,
+        ))
+        dump_pickle(self.output()["admission_sol"].path, decision)
+
+
+class CenterPositionAdmissionNode(AbstractAdmission):
+    item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
+
+    def run(self):
+        plan = load_pickle(self.input()["instance"]["plan"].path)
+        memory = load_pickle(self.input()["instance"]["memory"].path)
+        articles = load_pickle(self.input()["instance"]["articles"].path)
+        assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
+        decision = CenterPositionAdmission(articles).solve(AdmissionInput(
+            orders=tuple(assigned.resolved_orders),
+            tours=tuple(view.as_admission_tour() for view in plan.tours
+                        if view.status.value == "started"
+                        and view.positioning_mode == "center_relocation"
+                        and not view.active_order_ids),
+            candidate_order_ids=plan.active_candidate_ids,
+            considered_pairs=memory.considered_active_orders,
         ))
         dump_pickle(self.output()["admission_sol"].path, decision)

@@ -3,7 +3,7 @@ problem_type: ORSP
 
 objective: tardiness
 source:
-  data_loader: WarehousePickingLoaderDigraph
+  data_loader: scenarios.scenario_ijpe.grocery_retailer_loader_digraph.WarehousePickingLoaderDigraph
   orders_path: "order_stream_historic.csv"
   layout_path: "layout.csv"
 

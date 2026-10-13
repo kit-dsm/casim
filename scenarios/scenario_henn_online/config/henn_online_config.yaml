@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - data_card: henn
-  - engines: henn_waiting
+  - decisions: henn_waiting
   - cosy_repo: baseline_waiting_henn
   - optional sweep: None # waiting_strategy_sweep
 
@@ -31,7 +31,7 @@ luigi:
   logging_conf_file: null
 
 project_root: ${hydra:runtime.cwd}
-data_dir: ${project_root}/data
+data_dir: ${project_root}/scenarios/scenario_henn_online/data
 instances_base: ${data_dir}/
 cache_base: ${instances_base}/caches
 verbose: True

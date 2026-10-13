@@ -2,7 +2,7 @@ name: StochasticWaiting
 problem_class: OBRSPW
 objective: mean_order_completion_time
 source:
-  data_loader: StochasticWaitingDataLoader
+  data_loader: scenarios.scenario_stochastic_waiting.loader.StochasticWaitingDataLoader
 layout:
   type: conventional
   objects:

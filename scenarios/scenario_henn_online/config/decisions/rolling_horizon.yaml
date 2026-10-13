@@ -1,0 +1,28 @@
+rolling:
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    output: scheduling
+    solution_ranker:
+      _target_: casim.pipelines.solution_ranker.SolutionRanker
+      objective: ${data_card.objective}
+      change_penalty: 10
+    repo: ${cosy_repo}
+  selection:
+    orders: [buffered]
+    tours: [scheduled, released, pending, started]
+    resources: [idle, reserved, busy]
+    window: {by: due_date, horizon_s: 3600}
+  scope:
+    freeze_from: released
+  triggers:
+    - OrderArrival
+    - TourEnd
+    - PickerArrival
+    - PickerIdle
+    - OrderStreamClosed
+    - {every_s: 600}
+  conditions:
+    - _target_: casim.simulation_engine.conditions.VisiblePlanningWorkCondition
+  precedence: 10
+  commitment: {rule: release_within, within_s: 300}
+  waiting: {policy: no_waiting}

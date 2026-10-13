@@ -5,5 +5,3 @@ components:
   - casim.pipelines.subproblems.batching.FiFo
   - ${routing.component}
   - casim.pipelines.subproblems.scheduling.FIFOScheduler
-  - ${policy.component}
-  - casim.pipelines.problem_based_template.ResultAggregationWaiting

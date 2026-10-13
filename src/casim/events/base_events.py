@@ -1,4 +1,4 @@
-from casim.domain_objects.tour_model import TourPlanningState
+from ware_ops_algos.domain_models import TourPlanningState
 from casim.state import State
 
 
@@ -36,6 +36,9 @@ class Event:
         # assert self.time >= state.current_time, f"{self.time}, {state.current_time}, {self}"
         #     state.current_time = self.time
         return []
+
+    def is_stale(self, state: 'State') -> bool:
+        return False
 
 
 class ProcessEvent(Event):

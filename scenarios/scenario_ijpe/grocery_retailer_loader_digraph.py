@@ -17,10 +17,9 @@ from ware_ops_algos.domain_models import (
     OrdersDomain, OrderType, Order, OrderPosition,
     PickCart, ResourceType, Resources,
     StorageLocation, StorageLocations, StorageSlot, StorageType,
-    WarehouseInfoType,
+    WarehouseInfoType, DynamicInfo, SimWarehouseDomain,
 )
 
-from casim.domain_objects.sim_domain import DynamicInfo, SimWarehouseDomain
 from casim.io_helpers import dump_pickle, load_pickle
 
 

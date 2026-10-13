@@ -5,4 +5,3 @@ components:
   - casim.pipelines.subproblems.admission.RemainingRouteAdmissionNode
   - casim.pipelines.problem_based_template.AdmittedTourBatch
   - casim.pipelines.subproblems.picker_routing.ReroutableSShape
-  - casim.pipelines.problem_based_template.ResultAggregationRouting

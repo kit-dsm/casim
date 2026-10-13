@@ -4,7 +4,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 
-from scenarios.experiment_commons import load_and_flatten_data_card, setup_scenario, setup_decision_engine
+from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
 from casim.io_helpers import dump_pickle
 from casim.viz.app import launch
 from casim.viz.gantt_chart import gantt_chart
@@ -22,8 +22,7 @@ logging.basicConfig(
 def main(cfg: DictConfig):
     datacard = load_and_flatten_data_card(cfg.data_card)
 
-    sim = setup_scenario(cfg)
-    decision_engine = setup_decision_engine(cfg, datacard)
+    sim, decision_engine = setup_experiment(cfg, datacard)
 
     sim.reset(hooks=[add_orders_hook,
                      picker_arrival_hook,
@@ -50,8 +49,8 @@ def main(cfg: DictConfig):
                 pct = 100 * count / dt.num_decisions
                 print(f"{pipeline} {count:} {pct}%")
             break
-        events_to_add, solution = decision_engine.on_trigger(state_snapshot)
-        sim.step(events_to_add, state_snapshot.problem_class, solution)
+        result = decision_engine.on_trigger(state_snapshot)
+        sim.step(result, state_snapshot)
 
     if cfg.viz.launch:
         fig = gantt_chart(sim.state.tracker)

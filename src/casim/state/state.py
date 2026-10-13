@@ -2,14 +2,13 @@ import copy
 from copy import deepcopy
 
 from ware_ops_algos.algorithms import Route, RouteNode, NodeType, Job, WarehouseOrder, BatchObject, ScheduledJob, WaitingSolution, SchedulingSolution, BatchingSolution, CombinedRoutingSolution
-from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Order, OrderPosition
+from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Order, OrderPosition, TourStates
 
 from .order_manager import OrderManager
 from .resource_manager import ResourceManager
 from .tour_manager import TourManager
 from .layout_manager import LayoutManager
 from .storage_manager import StorageManager
-from casim.domain_objects.tour_model import TourStates
 from ..trackers import ExperimentTracker
 
 
@@ -47,12 +46,19 @@ class State:
             )
         self.statistics = []
         self.done_flag = False
-        self.wait_version = 0
+        self.decision_versions: dict[str, int] = {}
+        self.information_version = 0
+        self.last_solved_information_version: dict[str, int] = {}
         self.considered_active_orders: set[tuple[int, int]] = set()
         self.is_break: bool = False
         self.active_objective = active_objective
         self.warehouse_info = warehouse_info
         self.information = information
+
+    def apply_all(self, decision, commands, selection, scope):
+        """Commit one decision through the sole validated plan-change path."""
+        from .apply import apply_all
+        return apply_all(self, decision, tuple(commands), selection, scope)
 
 
     def get_storage(self) -> StorageLocations:
@@ -100,7 +106,7 @@ class State:
         # print("Tour created:", self.tour_manager.get_tour(tour_id))
         # self.tour_manager.assign_tour(tour_id, sequencing.picker_id)
 
-    def add_sequencing_to_planning_state(self, scheduled_job: ScheduledJob) -> None:
+    def add_sequencing_to_planning_state(self, scheduled_job: ScheduledJob) -> int:
         picker = self.resource_manager.get_resource(scheduled_job.picker_id)
         cart = picker.pick_cart
         order_ids = sorted(scheduled_job.order_numbers)
@@ -117,77 +123,7 @@ class State:
                                         scheduled_job.start_time,
                                         scheduled_job.end_time)
         self.tour_manager.get_tour(tour_id).cart_bins = bins
-
-    def commit_waiting(self, solution: WaitingSolution) -> None:
-        """Apply the waiting policy's release decision."""
-        self.wait_version += 1
-        if solution.action != "release":
-            return
-        for job in solution.jobs:
-            self.add_sequencing_to_planning_state(job)
-        self.order_manager.clear_order_buffer_by_ids(
-            {oid for job in solution.jobs for oid in job.order_numbers}
-        )
-
-    def commit_solution(self, problem_class: str, solution) -> None:
-        """Apply an ordinary CoSy solution; adapters never mutate live state."""
-        if isinstance(solution, WaitingSolution):
-            self.commit_waiting(solution)
-            return
-        if isinstance(solution, SchedulingSolution):
-            if problem_class == "RORSP":
-                for tour in self.tour_manager.all_tours.values():
-                    if tour.status not in {TourStates.STARTED, TourStates.DONE,
-                                           TourStates.CANCELLED, TourStates.PENDING}:
-                        tour.status = TourStates.CANCELLED
-                        if tour.assigned_resource is not None:
-                            self.tour_manager.remove_canceled_tour_for_picker(
-                                tour.assigned_resource, tour.tour_id)
-            for job in solution.jobs:
-                self.add_sequencing_to_planning_state(job)
-            if problem_class in {"ORSP", "RORSP", "RLORSP"}:
-                self.order_manager.clear_pick_list_buffer(
-                    [job.job.route.batch for job in solution.jobs]
-                )
-            else:
-                self.order_manager.clear_order_buffer_by_ids(
-                    {oid for job in solution.jobs for oid in job.order_numbers}
-                )
-            return
-        if isinstance(solution, BatchingSolution):
-            split = problem_class in {"OSBP", "ReOSBP", "RLOSBP"}
-            if split:
-                ids = {order.parent_order_id or order.order_id
-                       for batch in solution.batches for order in batch.orders}
-            else:
-                ids = {order.order_id for batch in solution.batches
-                       for order in batch.orders}
-            self.order_manager.clear_order_buffer_by_ids(ids)
-            for batch in solution.batches:
-                self.add_pick_list_to_planning_state(batch)
-            if split:
-                for batch in solution.batches:
-                    for order in batch.orders:
-                        for pick in order.pick_positions:
-                            child = Order(
-                                order_id=order.order_id,
-                                parent_order_id=order.parent_order_id,
-                                order_date=order.order_date,
-                                due_date=order.due_date,
-                                order_positions=[OrderPosition(
-                                    order_number=order.order_id,
-                                    article_id=pick.article_id,
-                                    article_name=pick.article_id,
-                                    amount=pick.amount,
-                                )],
-                            )
-                            self.order_manager.add_order_to_buffer(child)
-                            self.order_manager.clear_order_buffer([child])
-            return
-        if isinstance(solution, CombinedRoutingSolution):
-            return
-        if solution is not None:
-            raise TypeError(f"No commit operation for {type(solution)}")
+        return tour_id
 
     def commit_active_route(self, route: Route, admitted_order_ids: tuple[int, ...]) -> int:
         """Apply a routed admission decision to the running tour."""
@@ -208,13 +144,17 @@ class State:
         occupied_bins = set(tour.cart_bins.values())
         free_bins = (index for index in range(picker.pick_cart.n_boxes)
                      if index not in occupied_bins)
-        tour.cart_bins.update({order_id: next(free_bins)
+        tour.cart_bins.update({order_id: (0 if picker.pick_cart.box_can_mix_orders
+                                           else next(free_bins))
                                for order_id in sorted(admitted_order_ids)})
         tour.cursor = 0
         tour.routing_origin = route.routing_origin
         tour.edge_origin = tour.edge_destination = None
         tour.edge_start_time = tour.edge_end_time = tour.edge_distance = None
         tour.route_version += 1
+        tour.positioning_hold = False
+        if admitted_order_ids:
+            tour.positioning_mode = None
         tour.end_time_planned = (self.current_time + route.distance / picker.speed
                                  + len(tour.remaining_picks) * picker.time_per_pick)
         self.resource_manager.update_resource_location(

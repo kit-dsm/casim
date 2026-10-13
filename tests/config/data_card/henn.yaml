@@ -3,7 +3,7 @@ problem_type: OBRSPW
 
 objective: makespan
 source:
-  data_loader: HennOnlineLoader
+  data_loader: scenarios.scenario_henn_online.henn_online_loader.HennOnlineLoader
   filepath: "72s-100-75-0.txt"
 
 

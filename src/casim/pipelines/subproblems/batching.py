@@ -1,7 +1,48 @@
 from ware_ops_algos.algorithms import OrderNrFifoBatching, FifoBatching, DueDateBatching, LocalSearchBatching, \
     NearestNeighbourhoodRouting, SShapeRouting, ClarkAndWrightBatching
+from ware_ops_algos.algorithms.batching import IncumbentStartBatching
 
-from casim.pipelines.problem_based_template import BatchingNode
+from cosy_luigi import CoSyLuigiTaskParameter
+
+from casim.pipelines.problem_based_template import (
+    BatchingNode, IncumbentProvider, load_pickle,
+)
+
+
+class IncumbentBatchingNode(BatchingNode):
+    """Repair candidate: keep selected drafts and insert newly buffered orders."""
+
+    incumbent = CoSyLuigiTaskParameter(IncumbentProvider)
+
+    def _get_inited_batcher(self):
+        resources = self._get_resources()
+        layout = self._get_layout().layout_network
+        router = SShapeRouting(
+            start_node=layout.start_node, end_node=layout.end_node,
+            closest_node_to_start=layout.closest_node_to_start,
+            min_aisle_position=layout.min_aisle_position,
+            max_aisle_position=layout.max_aisle_position,
+            distance_matrix=layout.distance_matrix,
+            predecessor_matrix=layout.predecessor_matrix,
+            picker=resources.resources, gen_tour=True,
+            gen_item_sequence=True, node_list=layout.node_list,
+            node_to_idx={node: index for index, node in
+                         enumerate(layout.graph.nodes)},
+            idx_to_node={index: node for index, node in
+                         enumerate(layout.graph.nodes)},
+        )
+
+        def route_cost(batch):
+            router.reset_parameters()
+            return router.solve(batch.pick_positions).route.distance
+
+        views = load_pickle(self.input()["incumbent"]["incumbent_tours"].path)
+        drafts = tuple(view.batch for view in views)
+        return IncumbentStartBatching(
+            pick_cart=resources.resources[0].pick_cart,
+            articles=self._get_articles(), incumbent_batches=drafts,
+            route_cost=route_cost,
+        )
 
 
 class OrderNrFiFo(BatchingNode):
