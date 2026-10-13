@@ -18,7 +18,7 @@ from casim.loggers import EventLogger
 from casim.state import State
 from casim.simulation_engine.conditions import Condition
 from casim.decision_engine.decision_engine import DecisionResult
-from casim.interfaces import StateProjector
+from casim.decision_engine.interfaces import StateProjector
 
 logger = logging.getLogger(__name__)
 

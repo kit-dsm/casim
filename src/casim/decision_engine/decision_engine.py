@@ -13,7 +13,7 @@ from casim.trackers import DecisionTracker
 from casim.decision_engine.commands import Command, Wait, RecallPositioning
 from casim.decision_engine.conversion import to_commands
 from casim.decision_engine.waiting import release_decision
-from casim.interfaces import DecisionSolver
+from casim.decision_engine.interfaces import DecisionSolver
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from ware_ops_algos.domain_models import BaseWarehouseDomain, DataCard
 from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 
 from casim.pipelines.in_memory_dag import InMemoryDagExecutor
-from casim.pipelines.solution_ranker import SolutionRanker
+from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.pipelines.problem_based_template import (
     PlanCandidateEndpoint, BatchingPlanCandidate, RoutingPlanCandidate,
     SchedulingPlanCandidate, SequencingPlanCandidate, PositioningPlanCandidate,
