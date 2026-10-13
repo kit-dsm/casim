@@ -10,6 +10,7 @@ def test_tour_state_works_after_package_import():
         tour_id=1,
         order_numbers=[],
         original_route=route,
+        route=route,
         batch=batch,
         annotated_route=[],
     )

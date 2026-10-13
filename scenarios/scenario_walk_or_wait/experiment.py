@@ -6,7 +6,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 
-from ware_ops_algos.domain_models import TourStates
+from ware_ops_algos.planning.lifecycle import TourStates
 from casim.runner import apply_decision
 from scenarios.experiment_commons import (
     load_and_flatten_data_card, setup_experiment,

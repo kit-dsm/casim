@@ -445,11 +445,12 @@ class NodeArrival(BaseTourEvent):
             tour.edge_distance = None
         here = res.current_location
         logger.info("Debug Picker %s arrives at %s", res.id, here)
-        # Finish only if we are at end AND at depot (0,-1)
+        # A route ending away from the depot holds for a later suffix replacement.
         if tour.at_end():
-            if tour.positioning_mode == "center_relocation" and not tour.order_numbers:
-                tour.positioning_hold = True
-                return []
+            depot = state.layout_manager.get_layout().layout_network.end_node
+            if here.position != depot:
+                return [ActiveTourOpportunity(self.time, tour.tour_id,
+                                              tour.route_version)]
             return [TourEnd(self.time, tour.tour_id, tour.route_version)]
 
         # If next planned pick is exactly here → start pick

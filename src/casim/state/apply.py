@@ -4,11 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import networkx as nx
-
-from ware_ops_algos.algorithms import (
-    ActiveTourBatch, NodeType, Route, RouteNode, RoutingOrigin,
-)
 from ware_ops_algos.planning.commands import (
     CancelTour, Command, CommitTour, CreatePickList, CreateTour,
     ReplaceSuffix, Reschedule, ViolationCode,
@@ -17,7 +12,6 @@ from ware_ops_algos.planning.lifecycle import TourStates
 
 from casim.events.decision_events import PickListDone, SequencingDone
 from casim.events.operational_events import TravelEvent
-from casim.decision_engine.positioning import MarkPositioning, RecallPositioning
 
 if TYPE_CHECKING:
     from casim.state.state import State
@@ -95,19 +89,6 @@ def check(state: State, commands: tuple[Command, ...]) -> None:
                 _fail(f"Tour {command.tour_id} no longer exists")
             elif state.tour_manager.get_tour(command.tour_id).status is not TourStates.PLANNED:
                 _fail(f"Tour {command.tour_id} is not planned", ViolationCode.PHYSICAL)
-        elif isinstance(command, MarkPositioning):
-            if not 0 <= command.creation_index < new_count:
-                _fail("Positioning mode references an absent new tour",
-                      ViolationCode.MEMBERSHIP)
-        elif isinstance(command, RecallPositioning):
-            if not state.tour_manager.has_tour(command.tour_id):
-                _fail(f"Tour {command.tour_id} no longer exists")
-            tour = state.tour_manager.get_tour(command.tour_id)
-            if (not state.done_flag or tour.status is not TourStates.STARTED
-                    or tour.positioning_mode != "center_relocation"
-                    or tour.order_numbers):
-                _fail("Only an empty center tour may return at closure",
-                      ViolationCode.PHYSICAL)
         else:
             _fail(f"Unknown command {type(command).__name__}", ViolationCode.MEMBERSHIP)
 
@@ -164,37 +145,4 @@ def apply(state: State, commands: tuple[Command, ...]):
             state.tour_manager.advance(tour_id, TourStates.SCHEDULED)
             events.append(SequencingDone(state.current_time,
                                          tour.assigned_resource))
-        elif isinstance(command, MarkPositioning):
-            state.tour_manager.get_tour(
-                created_ids[command.creation_index]).positioning_mode = command.mode
-        elif isinstance(command, RecallPositioning):
-            tour = state.tour_manager.get_tour(command.tour_id)
-            network = state.layout_manager.get_layout().layout_network
-            origin = tour.position_at(state.current_time)
-            if (tour.edge_destination is not None
-                    and state.current_time < tour.edge_end_time):
-                first = tour.edge_destination.position
-                remaining = (tour.edge_distance *
-                             (tour.edge_end_time - state.current_time) /
-                             (tour.edge_end_time - tour.edge_start_time))
-                nodes = [origin, first, *nx.shortest_path(
-                    network.graph, first, network.end_node, weight="weight")[1:]]
-                distance = remaining + nx.path_weight(
-                    network.graph, nodes[1:], weight="weight")
-                route_origin = RoutingOrigin(origin, first, remaining)
-            else:
-                nodes = nx.shortest_path(network.graph, origin,
-                                         network.end_node, weight="weight")
-                distance = nx.path_weight(network.graph, nodes, weight="weight")
-                route_origin = RoutingOrigin(origin)
-            route = Route(
-                distance=float(distance), routing_origin=route_origin,
-                route=nodes, item_sequence=[],
-                annotated_route=[RouteNode(node, NodeType.ROUTE) for node in nodes],
-                batch=ActiveTourBatch(batch_id=0, orders=[], tour_id=tour.tour_id),
-            )
-            version = state.commit_active_route(route, ())
-            tour.positioning_mode = None
-            tour.positioning_hold = False
-            events.append(TravelEvent(state.current_time, tour.tour_id, version))
     return events

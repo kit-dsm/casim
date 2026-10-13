@@ -124,6 +124,7 @@ class StateAdapter:
         traveling = (tour.edge_destination is not None
                      and tour.edge_end_time is not None
                      and state.current_time < tour.edge_end_time)
+        edge_in_progress = tour.edge_destination is not None
         if traveling:
             duration = tour.edge_end_time - tour.edge_start_time
             fraction = (1.0 if duration == 0 else
@@ -138,26 +139,26 @@ class StateAdapter:
                         if status is TourStates.STARTED
                         else tour.annotated_route[0].position)
             origin = RoutingOrigin(position=position)
-        pinned_end = tour.cursor + int(traveling)
+        pinned_end = tour.cursor + int(edge_in_progress)
         return TourView(
             tour_id=tour.tour_id, picker_id=picker_id, status=status,
             accepts=self.scope.accepts(status),
-            batch=tour.batch, route=tour.original_route,
+            batch=tour.batch, route=tour.route,
             start_time=tour.start_time, end_time=tour.end_time_planned,
             processing_time=tour.processing_time,
             pick_cart=picker.pick_cart if picker else None,
             active_order_ids=frozenset(pick.order_number
                                        for pick in tour.remaining_picks),
             cursor=tour.cursor,
-            pinned_prefix=tuple(tour.annotated_route[:pinned_end]),
+            pinned_prefix=tour.pinned_prefix(edge_in_progress),
             remaining_route=tuple(node.position for node in
                                   tour.annotated_route[pinned_end:]),
             routing_origin=origin,
             occupied_bins=len(set(tour.cart_bins.values())),
             picking_until=tour.picking_until,
-            holding=tour.positioning_hold,
-            positioning_mode=tour.positioning_mode,
-            positioning_hold=tour.positioning_hold,
+            holding=(status is TourStates.STARTED and tour.at_end()
+                     and tour.annotated_route[-1].position !=
+                     state.layout_manager.get_layout().layout_network.end_node),
         )
 
     @staticmethod

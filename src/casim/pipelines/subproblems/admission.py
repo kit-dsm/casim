@@ -43,7 +43,7 @@ class CenterPositionAdmissionNode(AbstractAdmission):
             orders=tuple(assigned.resolved_orders),
             tours=tuple(to_admission_tour(view) for view in plan.tours
                         if view.status.value == "started"
-                        and view.positioning_mode == "center_relocation"
+                        and not view.batch.order_numbers
                         and not view.active_order_ids),
             candidate_order_ids=frozenset(order.order_id
                                           for order in plan.order_buffer),

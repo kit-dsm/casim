@@ -65,19 +65,18 @@ class VisiblePlanningWorkCondition(Condition):
 
 
 class ActiveTourReadyCondition(Condition):
-    """A visible order or center return can use a ready active tour."""
+    """A visible order or closure return can use a ready active tour."""
 
     def get_decision(self, state_snapshot, operations):
         dynamic = state_snapshot.dynamic_warehouse_info
         plan = dynamic.plan
-        center_return = (dynamic.context.input_closed and any(
-            tour.positioning_mode == "center_relocation"
-            and tour.status is TourStates.STARTED
+        closure_return = (dynamic.context.input_closed and any(
+            tour.holding and tour.status is TourStates.STARTED
             and not tour.batch.order_numbers for tour in plan.tours))
         ready = any(tour.status is TourStates.STARTED
                     and tour.accepts is Accepts.INSERT
                     and tour.picking_until is None for tour in plan.tours)
-        return bool(plan.order_buffer or center_return) and ready
+        return bool(plan.order_buffer or closure_return) and ready
 
 
 class NbrBatchesCondition(Condition):

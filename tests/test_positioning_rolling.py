@@ -11,11 +11,10 @@ from ware_ops_algos.algorithms.admission.center_position import CenterPositionAd
 from ware_ops_algos.algorithms.routing.patrol import all_aisles_patrol_route
 from ware_ops_algos.planning.lifecycle import Accepts, ResourceStates, TimeAttribute, TourStates
 from ware_ops_algos.planning.scope import RevisionScope, StateInformation, Window
-from ware_ops_algos.planning.commands import CancelTour, CommitTour, ViolationCode
+from ware_ops_algos.planning.commands import CancelTour, CommitTour, ReplaceSuffix, ViolationCode
 from ware_ops_algos.planning.validation import check as validate_commands
 
 from casim.decision_engine.commitment_policies import WindowCommitmentPolicy
-from casim.decision_engine.positioning import RecallPositioning
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.domain_objects.sim_domain import ReconsiderReason
 from casim.events.operational_events import OrderStreamClosed, PickerArrival
@@ -48,17 +47,20 @@ def test_center_holds_and_returns_unused_cart_at_closure(tmp_path):
         sim.add_event(PickerArrival(0, 0, True)),
         sim.add_event(OrderStreamClosed(20)),
     )])
-    saw_recall = False
+    saw_closure_route = False
     while True:
         done, snapshot = sim.run()
         if done:
             break
         result = engine.on_trigger(snapshot)
-        saw_recall |= any(isinstance(command, RecallPositioning)
-                          for command in result.commands)
+        if (snapshot.dynamic_warehouse_info.context.decision == "ATIP"
+                and "OrderStreamClosed" in snapshot.dynamic_warehouse_info.context.cause):
+            saw_closure_route |= any(isinstance(command, ReplaceSuffix)
+                                     and not command.added_order_ids
+                                     for command in result.commands)
         sim.step(result, snapshot)
     tours = list(sim.state.tour_manager.all_tours.values())
-    assert saw_recall
+    assert saw_closure_route
     assert len(tours) == 1
     assert tours[0].status == TourStates.DONE
     assert tours[0].completed_picks == []

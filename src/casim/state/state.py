@@ -125,6 +125,8 @@ class State:
         tour = self.tour_manager.get_tour(route.batch.tour_id)
         picker_id = tour.assigned_resource
         origin = tour.position_at(self.current_time)
+        tour.executed_prefix = list(tour.pinned_prefix(
+            tour.edge_destination is not None))
         picker = self.resource_manager.get_resource(picker_id)
         if tour.edge_destination is not None:
             duration = tour.edge_end_time - tour.edge_start_time
@@ -134,6 +136,7 @@ class State:
         self.order_manager.clear_order_buffer_by_ids(admitted_order_ids)
         tour.order_numbers = sorted(set(tour.order_numbers) | set(admitted_order_ids))
         tour.batch = route.batch
+        tour.route = route
         tour.annotated_route = list(route.annotated_route)
         tour.remaining_picks = list(route.batch.pick_positions)
         occupied_bins = set(tour.cart_bins.values())
@@ -147,9 +150,6 @@ class State:
         tour.edge_origin = tour.edge_destination = None
         tour.edge_start_time = tour.edge_end_time = tour.edge_distance = None
         tour.route_version += 1
-        tour.positioning_hold = False
-        if admitted_order_ids:
-            tour.positioning_mode = None
         tour.end_time_planned = (self.current_time + route.distance / picker.speed
                                  + len(tour.remaining_picks) * picker.time_per_pick)
         self.resource_manager.update_resource_location(

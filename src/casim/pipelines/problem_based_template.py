@@ -242,6 +242,7 @@ class AdmittedTourBatch(AbstractBatchProvider):
     def run(self):
         decision: AdmissionSolution = load_pickle(self.input()["admission_sol"]["admission_sol"].path)
         plan: PlanView = load_pickle(self.input()["instance"]["plan"].path)
+        context: DecisionContext = load_pickle(self.input()["instance"]["context"].path)
         assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
         orders = assigned.resolved_orders
         by_id = {order.order_id: order for order in orders}
@@ -254,7 +255,8 @@ class AdmittedTourBatch(AbstractBatchProvider):
                 continue
             tour = to_admission_tour(view)
             accepted = accepted_by_tour.get(tour.tour_id, [])
-            if accepted:
+            if accepted or (context.input_closed and view.holding
+                            and not view.batch.order_numbers):
                 active = [by_id[order_id] for order_id in sorted(tour.active_order_ids)]
                 batches.append(ActiveTourBatch(
                     batch_id=tour.tour_id,

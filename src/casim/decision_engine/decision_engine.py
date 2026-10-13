@@ -17,7 +17,6 @@ from ware_ops_algos.planning.validation import check as validate_commands
 
 from casim.decision_engine.commitment_policies import CommitmentPolicy
 from casim.decision_engine.interfaces import DecisionSolver
-from casim.decision_engine.positioning import closure_commands, positioning_commands
 from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.trackers import DecisionTracker
@@ -80,9 +79,6 @@ class DecisionEngine:
         dynamic = state_snapshot.dynamic_warehouse_info
         decision = dynamic.context.decision
         plan = dynamic.plan
-        recalls = closure_commands(state_snapshot)
-        if recalls:
-            return DecisionResult(commands=recalls)
         commands: tuple[Command, ...] = ()
         waiting = dynamic.memory.waiting
         reconsider_at = dynamic.memory.reconsider_at
@@ -130,7 +126,6 @@ class DecisionEngine:
                     objective_value = None
             waiting, reconsider_at, selected_considered = decision_effects(solution)
             considered = considered | selected_considered
-            commands = (*commands, *positioning_commands(solution, commands))
             self._accepted_choices[decision] = solution, chosen_name
 
         if not waiting and decision in self.commitment_policies:

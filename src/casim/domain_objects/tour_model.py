@@ -26,8 +26,10 @@ class TourPlanningState:
     # original plan (copied from Route)
     order_numbers: list[int]
     original_route: Route
+    route: Route
     batch: BatchObject
     annotated_route: list[RouteNode]
+    executed_prefix: list[RouteNode] = field(default_factory=list)
 
     assigned_resource: Optional[int] = None
     start_time: Optional[float] = None
@@ -49,8 +51,6 @@ class TourPlanningState:
     picking_until: float | None = None
     cart_bins: dict[int, int] = field(default_factory=dict)
     routing_origin: RoutingOrigin | None = None
-    positioning_mode: str | None = None
-    positioning_hold: bool = False
 
     def position_at(self, time: float) -> tuple[float, float]:
         if self.edge_origin is None:
@@ -70,6 +70,14 @@ class TourPlanningState:
 
     def next_node(self) -> RouteNode:
         return self.annotated_route[self.cursor + 1]
+
+    def pinned_prefix(self, edge_in_progress: bool) -> tuple[RouteNode, ...]:
+        """Return all walked nodes across segment-relative route replacements."""
+        segment = self.annotated_route[:self.cursor + int(edge_in_progress)]
+        if (self.executed_prefix and segment
+                and self.executed_prefix[-1] == segment[0]):
+            segment = segment[1:]
+        return (*self.executed_prefix, *segment)
 
 
 Node = tuple[float, float]

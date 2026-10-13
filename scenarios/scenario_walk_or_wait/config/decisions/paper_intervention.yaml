@@ -15,6 +15,7 @@ ATIP:
   precedence: 0
   triggers:
   - ActiveTourOpportunity
+  - OrderStreamClosed
   conditions:
   - _target_: casim.simulation_engine.conditions.ActiveTourReadyCondition
 OBRSPW:

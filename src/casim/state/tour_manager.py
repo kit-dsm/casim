@@ -45,6 +45,7 @@ class TourManager:
             tour_id=tour_id,
             order_numbers=list(route_plan.batch.order_numbers),
             original_route=route_plan,
+            route=route_plan,
             batch=route_plan.batch,
             status=TourStates.PLANNED,
             annotated_route=route_plan.annotated_route,
@@ -134,8 +135,6 @@ class TourManager:
         active_tour_id = self._active_picker_tour[picker_id]
         self.advance(tour_id, TourStates.DONE)
         tour.end_time = time
-        tour.annotated_route = None
-        # tour.original_route = None
 
         assert active_tour_id == tour_id, (f"Missmatch in active tour on tour finish: "
                                            f"active tour id should be {tour_id} but is {active_tour_id}")
@@ -174,7 +173,7 @@ class TourManager:
         tour = self.get_tour(tour_id)
         if tour.status not in (TourStates.PLANNED, TourStates.SCHEDULED):
             raise ValueError(f"Tour {tour_id} cannot replace a planned route")
-        tour.original_route = route
+        tour.route = route
         tour.batch = route.batch
         tour.annotated_route = list(route.annotated_route)
         tour.remaining_picks = list(route.batch.pick_positions)
