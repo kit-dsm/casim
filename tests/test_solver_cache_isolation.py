@@ -39,8 +39,12 @@ def test_two_solvers_keep_distinct_cache_paths(tmp_path):
             simulation, decision_engine = setup_experiment(cfg, card)
             solver = decision_engine.solver_map["OBRSPW"]
             simulation.reset(hooks=[add_orders_hook, picker_arrival_hook])
-            done, snapshot = simulation.run()
-            assert not done
+            while True:
+                done, snapshot = simulation.run()
+                assert not done
+                if snapshot.dynamic_warehouse_info.context.solve:
+                    break
+                simulation.step(decision_engine.on_trigger(snapshot), snapshot)
             runs.append((solver, snapshot))
 
     assert runs[0][0].cache_path != runs[1][0].cache_path
