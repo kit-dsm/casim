@@ -5,7 +5,7 @@ import networkx as nx
 import pandas as pd
 from scipy.sparse.csgraph import floyd_warshall
 from casim.data_loader import DataLoader
-from ware_ops_algos.domain_models import BaseWarehouseDomain, Order, Location, Article, PickCart, DimensionType, \
+from ware_ops_algos.domain_models import SimWarehouseDomain, Order, Location, Article, PickCart, DimensionType, \
     ResourceType, Resource, Resources, OrdersDomain, OrderType, Articles, ArticleType, StorageLocations, StorageType, \
     LayoutData, LayoutType, LayoutNetwork, LayoutParameters, WarehouseInfoType, WarehouseInfo, OrderPosition
 
@@ -32,7 +32,7 @@ class HennOnlineLoader(DataLoader):
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def load(self, filepath: str, use_cache: bool = True) -> BaseWarehouseDomain:
+    def load(self, filepath: str, use_cache: bool = True) -> SimWarehouseDomain:
         """
         Load a single Heßler-Irnich instance file.
 
@@ -41,7 +41,7 @@ class HennOnlineLoader(DataLoader):
             use_cache: Whether to use/create cached version
 
         Returns:
-            BaseWarehouseDomain object
+            SimWarehouseDomain object
         """
         filepath = Path(filepath)
         if not filepath.is_absolute():
@@ -52,7 +52,9 @@ class HennOnlineLoader(DataLoader):
             self.cache_path = cache_path
             if cache_path.exists():
                 from ware_ops_algos.utils.io_helpers import load_pickle
-                return load_pickle(str(cache_path))
+                cached_domain = load_pickle(str(cache_path))
+                if isinstance(cached_domain, SimWarehouseDomain):
+                    return cached_domain
 
         # Parse and build
         parsed = self._parse(str(filepath), filepath_arrival_times)
@@ -162,15 +164,15 @@ class HennOnlineLoader(DataLoader):
             "order_arrival_times": order_arrival_times
         }
 
-    def _build(self, parsed: dict[str, Any]) -> BaseWarehouseDomain:
+    def _build(self, parsed: dict[str, Any]) -> SimWarehouseDomain:
         """
-        Build BaseWarehouseDomain from parsed data, with optional mirroring for top depot.
+        Build SimWarehouseDomain from parsed data, with optional mirroring for top depot.
 
         Args:
             parsed: Dictionary from _parse() containing header, articles, skus, orders
 
         Returns:
-            BaseWarehouseDomain instance
+            SimWarehouseDomain instance
         """
         from ware_ops_algos.domain_models import ShelfStorageGraphGenerator
 
@@ -373,7 +375,7 @@ class HennOnlineLoader(DataLoader):
 
         warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE)
 
-        return BaseWarehouseDomain(
+        return SimWarehouseDomain(
             problem_class=problem_class,
             objective="Distance",
             layout=layout,

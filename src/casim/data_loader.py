@@ -2,9 +2,9 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
+from ware_ops_algos.domain_models import SimWarehouseDomain
 
 
 class DataLoader(ABC):
@@ -15,7 +15,7 @@ class DataLoader(ABC):
         self.cache_path: Path | None = None
 
     @abstractmethod
-    def load(self, *args, **kwargs) -> Any:
+    def load(self, *args, **kwargs) -> SimWarehouseDomain:
         pass
 
     def _load_text(self, filename: str, encoding: str = "utf-8") -> list[str]:
