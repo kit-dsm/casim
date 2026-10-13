@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from ware_ops_algos.algorithms import Route, NodeType, WarehouseOrder
 
-from ware_ops_algos.domain_models import TourStates, Node
+from ware_ops_algos.domain_models import TourStates
 
 from casim.domain_objects.tour_model import TourPlanningState
 
