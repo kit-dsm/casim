@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import pandas as pd
-from ware_ops_algos.domain_models import SimWarehouseDomain
+from casim.domain_objects.sim_domain import SimWarehouseDomain
 
 
 class DataLoader(ABC):

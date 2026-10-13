@@ -9,6 +9,7 @@ from scipy.sparse.csgraph import floyd_warshall
 
 from ware_ops_algos.algorithms import Job, BatchObject, ScheduledJob
 from casim.data_loader import DataLoader
+from casim.domain_objects.sim_domain import SimWarehouseDomain, initial_dynamic_info
 from ware_ops_algos.domain_models import (
     Article, ArticleType, Articles,
     BoundingBox, DimensionType,
@@ -17,7 +18,7 @@ from ware_ops_algos.domain_models import (
     OrdersDomain, OrderType, Order, OrderPosition,
     PickCart, ResourceType, Resources,
     StorageLocation, StorageLocations, StorageSlot, StorageType,
-    WarehouseInfoType, DynamicInfo, SimWarehouseDomain,
+    WarehouseInfoType,
 )
 
 from casim.io_helpers import dump_pickle, load_pickle
@@ -144,16 +145,7 @@ class WarehousePickingLoaderDigraph(DataLoader):
         resources = self._build_resources()
         orders = self._build_orders(orders_df)
 
-        dynamic_info = DynamicInfo(
-            tpe=WarehouseInfoType.OFFLINE,
-            time=0.0,
-            congestion_rate={},
-            active_tours=[],
-            current_picker=None,
-            buffered_batches=None,
-            done=False,
-            n_staged_pallets=0,
-        )
+        dynamic_info = initial_dynamic_info()
 
         return SimWarehouseDomain(
             problem_class=self.cfg.data_card.problem_type,

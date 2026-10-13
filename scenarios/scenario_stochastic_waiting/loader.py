@@ -6,6 +6,7 @@ import networkx as nx
 import pandas as pd
 from scipy.sparse.csgraph import floyd_warshall
 from casim.data_loader import DataLoader
+from casim.domain_objects.sim_domain import SimWarehouseDomain, initial_dynamic_info
 from ware_ops_algos.domain_models import (
     Article,
     Articles,
@@ -31,7 +32,7 @@ from ware_ops_algos.domain_models import (
     ShelfStorageGraphGenerator,
     ExponentialSingleLineUniformLocationOrderStream,
     InformationType,
-    PlannerInformation, DynamicInfo, SimWarehouseDomain,
+    PlannerInformation,
 )
 
 
@@ -217,7 +218,7 @@ class StochasticWaitingDataLoader(DataLoader):
             orders=orders,
             resources=resources,
             storage=storage,
-            dynamic_warehouse_info=DynamicInfo(tpe=WarehouseInfoType.ONLINE, time=0.0),
+            dynamic_warehouse_info=initial_dynamic_info(),
             warehouse_info=warehouse_info,
             information=information,
         )

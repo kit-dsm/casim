@@ -8,11 +8,12 @@ import networkx as nx
 import pandas as pd
 from scipy.sparse.csgraph import floyd_warshall
 from casim.data_loader import DataLoader
+from casim.domain_objects.sim_domain import SimWarehouseDomain, initial_dynamic_info
 from ware_ops_algos.domain_models import (
     Article, Articles, ArticleType, DimensionType, Location, Order, OrderPosition,
     OrdersDomain, OrderType, PickCart, Resource, Resources, ResourceType,
     StorageLocations, StorageType, WarehouseInfo, WarehouseInfoType,
-    LayoutData, LayoutNetwork, LayoutParameters, LayoutType, DynamicInfo, SimWarehouseDomain,
+    LayoutData, LayoutNetwork, LayoutParameters, LayoutType,
 )
 
 from scenarios.scenario_stochastic_waiting.loader import StochasticWaitingDataLoader
@@ -122,7 +123,7 @@ class WalkOrWaitDataLoader(DataLoader):
             orders=OrdersDomain(OrderType.STANDARD, orders),
             resources=Resources(ResourceType.HUMAN, [picker]),
             storage=storage,
-            dynamic_warehouse_info=DynamicInfo(tpe=WarehouseInfoType.ONLINE, time=0.0),
+            dynamic_warehouse_info=initial_dynamic_info(),
             warehouse_info=WarehouseInfo(tpe=WarehouseInfoType.ONLINE),
         )
 

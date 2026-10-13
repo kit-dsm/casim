@@ -5,7 +5,8 @@ import networkx as nx
 import pandas as pd
 from scipy.sparse.csgraph import floyd_warshall
 from casim.data_loader import DataLoader
-from ware_ops_algos.domain_models import SimWarehouseDomain, Order, Location, Article, PickCart, DimensionType, \
+from casim.domain_objects.sim_domain import SimWarehouseDomain, initial_dynamic_info
+from ware_ops_algos.domain_models import Order, Location, Article, PickCart, DimensionType, \
     ResourceType, Resource, Resources, OrdersDomain, OrderType, Articles, ArticleType, StorageLocations, StorageType, \
     LayoutData, LayoutType, LayoutNetwork, LayoutParameters, WarehouseInfoType, WarehouseInfo, OrderPosition
 
@@ -383,6 +384,7 @@ class HennOnlineLoader(DataLoader):
             orders=orders,
             resources=resources,
             storage=storage,
+            dynamic_warehouse_info=initial_dynamic_info(),
             warehouse_info=warehouse_info
         )
 
