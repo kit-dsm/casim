@@ -8,6 +8,7 @@ from cosy_luigi import CoSyLuigiTaskParameter
 from casim.pipelines.problem_based_template import (
     AbstractAdmission, AbstractItemAssignment, dump_pickle, load_pickle,
 )
+from casim.pipelines.admission_view import to_admission_tour
 
 
 class RemainingRouteAdmissionNode(AbstractAdmission):
@@ -20,7 +21,7 @@ class RemainingRouteAdmissionNode(AbstractAdmission):
         orders = tuple(assigned.resolved_orders)
         decision = RemainingRouteAdmission().solve(AdmissionInput(
             orders=orders,
-            tours=tuple(view.as_admission_tour() for view in plan.tours
+            tours=tuple(to_admission_tour(view) for view in plan.tours
                         if view.status.value == "started"
                         and view.accepts.value in ("insert", "revise")),
             candidate_order_ids=plan.active_candidate_ids,
@@ -39,7 +40,7 @@ class CenterPositionAdmissionNode(AbstractAdmission):
         assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
         decision = CenterPositionAdmission(articles).solve(AdmissionInput(
             orders=tuple(assigned.resolved_orders),
-            tours=tuple(view.as_admission_tour() for view in plan.tours
+            tours=tuple(to_admission_tour(view) for view in plan.tours
                         if view.status.value == "started"
                         and view.positioning_mode == "center_relocation"
                         and not view.active_order_ids),

@@ -32,6 +32,7 @@ from ware_ops_algos.algorithms import (
     ActiveTourBatch, ActiveTourBatchingSolution,
 )
 from ware_ops_algos.taxonomy.taxonomy import TAXONOMY
+from casim.pipelines.admission_view import to_admission_tour
 
 
 class PipelineParams(luigi.Config):
@@ -248,7 +249,7 @@ class AdmittedTourBatch(AbstractBatchProvider):
         for view in plan.tours:
             if view.status.value != "started" or view.accepts.value not in ("insert", "revise"):
                 continue
-            tour = view.as_admission_tour()
+            tour = to_admission_tour(view)
             accepted = accepted_by_tour.get(tour.tour_id, [])
             if accepted:
                 active = [by_id[order_id] for order_id in sorted(tour.active_order_ids)]

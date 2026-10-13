@@ -77,7 +77,7 @@ def test_center_admission_respects_cart_capacity(tmp_path):
                                       order_number=index, article_id=0,
                                       amount=1, pick_node=(2, 3), in_store=1),))
                    for index in (1, 2))
-    tour = AdmissionTour(tour_id=1, picker_id=0, route_version=0,
+    tour = AdmissionTour(tour_id=1, picker_id=0,
                          pick_cart=cart, active_order_ids=frozenset(),
                          remaining_route=(), occupied_bins=0,
                          routing_origin=RoutingOrigin((4, 8)))

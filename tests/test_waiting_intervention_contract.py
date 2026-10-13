@@ -15,6 +15,7 @@ from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithm
 from ware_ops_algos.domain_models import DimensionType, PickCart, TourStates
 
 from casim.events.operational_events import ActiveTourOpportunity, NodeArrival, TravelEvent
+from casim.pipelines.admission_view import to_admission_tour
 from casim.pipelines.problem_based_template import (
     AbstractAdmission, AbstractBatching, AbstractBatchProvider,
     AdmittedTourBatch, traverse_pipeline,
@@ -117,7 +118,7 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
         solution = result.solution
         if snapshot.problem_class == "ATIP":
             assert isinstance(solution, CombinedRoutingSolution)
-            admission_tour = snapshot.plan.tours[0].as_admission_tour()
+            admission_tour = to_admission_tour(snapshot.plan.tours[0])
             insertion_origins.append(admission_tour.routing_origin)
             insertion_times.append(now)
             tour = sim.state.tour_manager.get_tour(admission_tour.tour_id)
@@ -219,7 +220,7 @@ def test_remaining_route_admission_respects_path_and_cart_capacity():
         return RemainingRouteAdmission().solve(AdmissionInput(
             orders=(candidate,),
             tours=(AdmissionTour(
-                tour_id=1, picker_id=0, route_version=0,
+                tour_id=1, picker_id=0,
                 pick_cart=cart, active_order_ids=frozenset(),
                 remaining_route=remaining_route, occupied_bins=occupied_bins,
                 routing_origin=RoutingOrigin(position=(0, 0)),
@@ -241,7 +242,7 @@ def test_admission_greedily_assigns_orders_across_tours():
                                      amount=1, pick_node=(2, 1), in_store=1),),
     ) for order_id in (7, 8))
     tours = tuple(AdmissionTour(
-        tour_id=tour_id, picker_id=tour_id, route_version=0,
+        tour_id=tour_id, picker_id=tour_id,
         pick_cart=cart, active_order_ids=frozenset(),
         remaining_route=((2, 1),), occupied_bins=1,
         routing_origin=RoutingOrigin(position=(0, 0)),

@@ -3,6 +3,7 @@ from ware_ops_algos.algorithms import SShapeRouting, WalkOrWaitSShapeRouting, Re
     NearestNeighbourhoodRouting, ExactTSPRoutingDistance, RatliffRosenthalRouting, UShapeRouting
 
 from ware_ops_algos.algorithms import ActiveTourRoutingSolution
+from casim.pipelines.admission_view import to_admission_tour
 from casim.pipelines.problem_based_template import PickerRouting, dump_pickle, load_pickle
 
 
@@ -44,7 +45,7 @@ class _ActiveTourRoutingNode:
     def run(self):
         batching_sol = load_pickle(self.input()["batching_sol"]["batching_sol"].path)
         plan = self._load_plan()
-        tours = {view.tour_id: view.as_admission_tour()
+        tours = {view.tour_id: to_admission_tour(view)
                  for view in plan.tours if view.status.value == "started"
                  and view.accepts.value in ("insert", "revise")}
         pickers = {picker.id: picker for picker in self._load_resources().resources}
