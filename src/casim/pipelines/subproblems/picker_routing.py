@@ -2,7 +2,7 @@ from ware_ops_algos.algorithms import SShapeRouting, WalkOrWaitSShapeRouting, Re
     ReroutableWalkOrWaitSShapeRouting, LargestGapRouting, MidpointRouting, ReturnRouting, \
     NearestNeighbourhoodRouting, ExactTSPRoutingDistance, RatliffRosenthalRouting, UShapeRouting
 
-from casim.domain_objects.sim_domain import ActiveTourRoutingSolution
+from ware_ops_algos.algorithms import ActiveTourRoutingSolution
 from casim.pipelines.problem_based_template import PickerRouting, dump_pickle, load_pickle
 
 

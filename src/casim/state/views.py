@@ -2,12 +2,7 @@
 
 from dataclasses import dataclass
 
-
-@dataclass(frozen=True)
-class DecisionMemory:
-    considered_active_orders: frozenset[tuple[int, int]] = frozenset()
-    last_information_version: int = 0
-    current_information_version: int = 0
+from casim.domain_objects.sim_domain import DecisionMemory
 
 
 @dataclass(frozen=True)

@@ -28,7 +28,7 @@ from ware_ops_algos.domain_models import (
 )
 from ware_ops_algos.algorithms.algorithm_cards import AlgorithmCard
 
-from casim.domain_objects.sim_domain import (
+from ware_ops_algos.algorithms import (
     ActiveTourBatch, ActiveTourBatchingSolution,
 )
 from ware_ops_algos.taxonomy.taxonomy import TAXONOMY
