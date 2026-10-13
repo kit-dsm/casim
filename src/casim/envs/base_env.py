@@ -3,11 +3,11 @@ import logging
 import gymnasium as gym
 import numpy as np
 
-from ware_ops_algos.algorithms import AlgorithmSolution, CombinedRoutingSolution
+from ware_ops_algos.algorithms import AlgorithmSolution
 
-from casim.decision_engine.decision_engine import DecisionEngine, DecisionResult
-from casim.decision_engine.conversion import to_commands
-from ware_ops_algos.domain_models import SimWarehouseDomain
+from casim.runner import apply_decision
+from casim.decision_engine.decision_engine import DecisionEngine
+from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.simulation_engine.simulation_engine import SimulationEngine
 
@@ -47,12 +47,9 @@ class BaseEnv(gym.Env):
         return self._get_obs(domain), {}
 
     def step(self, action: int):
-        solution = self._action_to_solution(action)
         snapshot = self.dynamic_warehouse_state_prev
-        events = (tuple(self._solution_to_events(solution))
-                  if isinstance(solution, CombinedRoutingSolution) else ())
-        result = DecisionResult(to_commands(solution, snapshot), events, solution)
-        self.sim.step(result, snapshot)
+        result = self.decision_engine.on_trigger(snapshot, action=action)
+        apply_decision(self.sim, self.decision_engine, result, snapshot)
 
         # run forward, solving non-learnable problems internally
         done, domain = self._run_until_learnable_or_done()
@@ -74,7 +71,7 @@ class BaseEnv(gym.Env):
                 return False, domain
             # Non-learnable: solve with decision engine and keep going
             result = self.decision_engine.on_trigger(domain)
-            self.sim.step(result, domain)
+            apply_decision(self.sim, self.decision_engine, result, domain)
 
     def _action_to_solution(self, action: int | AlgorithmSolution):
         ...

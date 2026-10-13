@@ -4,6 +4,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 
+from casim.runner import apply_decision
 from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
 from casim.io_helpers import dump_pickle
 from casim.viz.app import launch
@@ -50,7 +51,7 @@ def main(cfg: DictConfig):
                 print(f"{pipeline} {count:} {pct}%")
             break
         result = decision_engine.on_trigger(state_snapshot)
-        sim.step(result, state_snapshot)
+        apply_decision(sim, decision_engine, result, state_snapshot)
 
     if cfg.viz.launch:
         fig = gantt_chart(sim.state.tracker)

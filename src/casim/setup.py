@@ -1,4 +1,4 @@
-"""Resolve named decisions once for both the solver and simulation engine."""
+"""Resolve named decisions for the simulation and decision engines."""
 
 from __future__ import annotations
 
@@ -9,14 +9,15 @@ from pathlib import Path
 from hydra.utils import get_class, instantiate
 from omegaconf import DictConfig, OmegaConf
 
-from casim.config.schema import (
-    CommitmentConfig, DecisionConfig, DecisionDefinitions, PeriodicTrigger,
-    WaitingConfig,
-)
-from ware_ops_algos.domain_models.lifecycle import Accepts, accepts_for
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
-from ware_ops_algos.taxonomy.taxonomy import TAXONOMY
+from ware_ops_algos.planning.decision_features import decision_features
+from ware_ops_algos.planning.lifecycle import Accepts
+
+from casim.config.schema import DecisionConfig, DecisionDefinitions, PeriodicTrigger
+from casim.decision_engine.commitment_policies import CommitmentPolicy
+from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.pipelines.pipeline_runner import CoSySolver
+from casim.pipelines.taxonomy import TAXONOMY, variant
 from casim.simulation_engine.conditions import Condition
 from casim.simulation_engine.state_adapter import StateAdapter
 
@@ -24,19 +25,23 @@ from casim.simulation_engine.state_adapter import StateAdapter
 @dataclass(frozen=True)
 class DecisionSetup:
     name: str
-    problem_class: str
     config: DecisionConfig
     solver: CoSySolver | None
-    commitment: CommitmentConfig
-    waiting: WaitingConfig
+    ranker: SolutionRanker | None
+    commitment_policy: CommitmentPolicy | None
     adapter: StateAdapter
     conditions: tuple[Condition, ...]
     trigger_types: tuple[type, ...]
     pipeline_count: int
     decision_features: dict
+    subproblems: tuple[str, ...]
     exclusions: tuple[dict, ...]
     write_set: tuple[str, ...]
     period_s: float | None = None
+
+    @property
+    def problem_class(self) -> str:
+        return self.config.problem_class
 
 
 def _event_type(name: str) -> type:
@@ -51,159 +56,99 @@ def _event_type(name: str) -> type:
 
 
 def _write_set(config: DecisionConfig) -> set[str]:
+    info = config.state_information
     writes = set()
-    if config.selection.orders:
-        writes.add("orders[buffered]")
-    if config.selection.pick_lists:
-        writes.add("pick_lists[buffered]")
-    writes.update(
-        f"tours[{status.value}]" for status in config.selection.tours
-        if accepts_for(status, config.scope.freeze_from,
-                       config.scope.frozen_accepts) != Accepts.NONE
-    )
+    if info.orders:
+        writes.add("orders")
+    if info.pick_lists:
+        writes.add("pick_lists")
+    writes.update(f"tours[{status.value}]" for status in info.tours
+                  if config.scope.accepts(status) is not Accepts.NONE)
     return writes
 
 
-def _derive_problem_class(config: DecisionConfig, raw) -> str:
-    """Infer the CoSy family from selected work and the declared output stage."""
-    if config.solver is None:
-        return "release_only"
-    components = tuple(path.rsplit(".", 1)[-1]
-                       for path in raw.solver.repo.components)
-    output = raw.solver.get("output")
-    if output not in {"batching", "routing", "sequencing", "scheduling", "positioning"}:
-        raise ValueError("solver.output must be batching, routing, sequencing, scheduling, or positioning")
-    if output == "batching":
-        return "OSBP" if "OrderSplitter" in components else "OBP"
-    if output == "routing":
-        if any(status.value == "started" for status in config.selection.tours):
-            return "ATIP"
-        return "OBRP" if config.selection.orders else "ORP"
-    if output == "sequencing":
-        return "OBRSP"
-    if output in {"scheduling", "positioning"}:
-        if config.selection.pick_lists:
-            return "RORSP" if any(
-                accepts_for(status, config.scope.freeze_from,
-                            config.scope.frozen_accepts) == Accepts.REBUILD
-                for status in config.selection.tours
-            ) else "ORSP"
-        return "OBRSP"
-    raise ValueError(f"Unsupported decision output {output}")
-
-
 def resolve(cfg: DictConfig, data_card) -> dict[str, DecisionSetup]:
-    """Validate and build every named decision exactly once."""
     if "decisions" not in cfg:
         raise ValueError("Configuration has no decisions group")
     definitions = DecisionDefinitions.model_validate({
-        "on_violation": cfg.get("on_violation", "reject"),
         "decisions": OmegaConf.to_container(cfg.decisions, resolve=True),
     })
-    setups: dict[str, DecisionSetup] = {}
-    trigger_owner: dict[type, str] = {}
+    setups = {}
+    mapper = DomainAlgorithmMapper(TAXONOMY)
     for name, raw in cfg.decisions.items():
         model = definitions.decisions[name]
-        problem_class = _derive_problem_class(model, raw)
-        for condition in model.conditions:
-            target = condition.get("_target_", "")
-            if target.rsplit(".", 1)[-1] in {"NbrOrdersCondition", "NbrBatchesCondition"}:
-                if condition.get("threshold", 1) > 1:
-                    raise ValueError(
-                        f"{name}: {target.rsplit('.', 1)[-1]} with threshold > 1 "
-                        "is a waiting rule; configure decision.waiting instead"
-                    )
+        features = decision_features(model.state_information, model.scope)
+        stages = variant(model.problem_class, features)
+        if (model.solver is not None and not (
+                model.state_information.orders or model.state_information.pick_lists
+                or any(model.scope.accepts(status) is not Accepts.NONE
+                       for status in model.state_information.tours))):
+            raise ValueError(f"{name}: solver has no exposed work to solve")
         solver = (instantiate(
-            raw.solver, problem_class=problem_class,
+            raw.solver, problem_class=model.problem_class,
             instances_dir=Path(cfg.instances_base),
             cache_dir=Path(cfg.cache_base) / cfg.data_card.name,
             output_dir=cfg.experiment.output_dir,
             instance_name=cfg.experiment.instance_name,
             verbose=True, luigi_cfg=cfg.luigi,
         ) if model.solver is not None else None)
-        decision_card = deepcopy(data_card)
-        decision_card.problem_class = problem_class
-        decision_card.decision_features = {
-            "type": "decision",
-            "features": {
-                "incumbent": any(
-                    accepts_for(status, model.scope.freeze_from,
-                                model.scope.frozen_accepts) == Accepts.REBUILD
-                    for status in model.selection.tours
-                ),
-                "membership_ops": ["append"] if model.selection.orders else [],
-                "routing_origin": ("live" if any(status.value == "started"
-                                                  for status in model.selection.tours)
-                                   else "depot"),
-            },
-        }
-        mapper = DomainAlgorithmMapper(TAXONOMY)
-        configured_components = ({path.rsplit(".", 1)[-1]
-                                  for path in raw.solver.repo.components}
-                                 if solver is not None else set())
-        exclusions = tuple(
-            {"algorithm": card.algo_name, "reasons": reasons}
-            for card in (solver.algorithm_cards if solver is not None else ())
-            if card.implementation.get("component_name", card.algo_name)
-            in configured_components
-            if (reasons := mapper.rejection_reasons(card, decision_card))
-        )
-        if solver is not None and problem_class == "OBRSP":
-            policy_names = {
-                "no_waiting": "NoWaiting",
-                "henn": "HennWaiting",
-                "analytic_stochastic": "AnalyticStochasticWaiting",
-            }
-            if model.waiting.policy == "order_count":
-                labels = ("One", "Two", "Three", "Four")
-                if model.waiting.k > len(labels):
-                    raise ValueError("Order-count waiting supports k=1 through 4")
-                policy_name = f"WaitFor{labels[model.waiting.k - 1]}"
-            else:
-                policy_name = policy_names[model.waiting.policy]
-            card = next((card for card in solver.algorithm_cards
-                         if card.algo_name == policy_name), None)
-            if card is None:
-                raise ValueError(f"No algorithm card for waiting policy {policy_name}")
-            reasons = [reason for reason in mapper.rejection_reasons(card, decision_card)
-                       if not reason.startswith("problem type ")]
+        card = deepcopy(data_card)
+        card.problem_class = model.problem_class
+        card.decision_features = {"type": "decision", "features": features}
+        configured = ({path.rsplit(".", 1)[-1]
+                       for path in raw.solver.repo.components}
+                      if solver is not None else set())
+        exclusions = []
+        for algorithm in solver.algorithm_cards if solver is not None else ():
+            component = algorithm.implementation.get("component_name", algorithm.algo_name)
+            if component not in configured:
+                continue
+            reasons = list(mapper.rejection_reasons(algorithm, card))
+            if algorithm.problem_type not in stages:
+                reasons.append(f"problem type {algorithm.problem_type!r} not in variant {stages}")
             if reasons:
-                raise ValueError(f"Waiting policy {policy_name} is incompatible: "
-                                 + "; ".join(reasons))
+                exclusions.append({"algorithm": algorithm.algo_name,
+                                   "reasons": tuple(dict.fromkeys(reasons))})
         if solver is not None:
-            solver.build_pipelines(decision_card)
+            try:
+                solver.build_pipelines(card)
+            except ValueError as error:
+                if exclusions:
+                    details = "; ".join(
+                        f"{entry['algorithm']}: {', '.join(entry['reasons'])}"
+                        for entry in exclusions)
+                    raise ValueError(f"{name}: configured cards excluded: {details}") from error
+                raise
+            if solver.output == "routing" and features["routing_origin"] != "live":
+                raise ValueError(f"{name}: routing-only decisions create no executable tours")
+            if solver.output == "batching" and len(solver.pipelines) > 1:
+                raise ValueError(f"{name}: multiple batching candidates have no objective")
         trigger_types = tuple(_event_type(event) for event in model.triggers
                               if isinstance(event, str))
         periods = [event.every_s for event in model.triggers
                    if isinstance(event, PeriodicTrigger)]
         if len(periods) > 1:
             raise ValueError(f"{name}: only one every_s trigger is allowed")
-        for event_type in trigger_types:
-            if event_type in trigger_owner:
-                raise ValueError(
-                    f"{event_type.__name__} triggers both {trigger_owner[event_type]} and {name}"
-                )
-            trigger_owner[event_type] = name
         setups[name] = DecisionSetup(
-            name=name, problem_class=problem_class,
-            config=model, solver=solver,
-            commitment=model.commitment,
-            waiting=model.waiting,
-            adapter=StateAdapter(selection=model.selection, scope=model.scope),
+            name=name, config=model, solver=solver,
+            ranker=(SolutionRanker(data_card.objective, model.change_penalty)
+                    if solver is not None else None),
+            commitment_policy=model.commitment_policy,
+            adapter=StateAdapter(model.state_information, model.scope),
             conditions=tuple(instantiate(condition) for condition in raw.get("conditions", ())),
             trigger_types=trigger_types,
             pipeline_count=len(solver.pipelines) if solver is not None else 0,
-            decision_features=decision_card.decision_features["features"],
-            exclusions=exclusions,
-            write_set=tuple(sorted(_write_set(model))),
+            decision_features=features, subproblems=stages,
+            exclusions=tuple(exclusions), write_set=tuple(sorted(_write_set(model))),
             period_s=periods[0] if periods else None,
         )
-    for left_index, (left_name, left) in enumerate(setups.items()):
-        for right_name, right in list(setups.items())[left_index + 1:]:
-            shared = _write_set(left.config) & _write_set(right.config)
+    names = list(setups)
+    for index, left_name in enumerate(names):
+        left = setups[left_name]
+        for right_name in names[index + 1:]:
+            right = setups[right_name]
+            shared = set(left.write_set) & set(right.write_set)
             if shared and left.config.precedence == right.config.precedence:
-                raise ValueError(
-                    f"{left_name} and {right_name} both write {sorted(shared)}; "
-                    "give them different precedence values"
-                )
+                raise ValueError(f"{left_name} and {right_name} both write {sorted(shared)}; "
+                                 "give them distinct precedence values")
     return setups

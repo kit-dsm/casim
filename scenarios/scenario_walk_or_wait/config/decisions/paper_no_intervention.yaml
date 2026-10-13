@@ -1,21 +1,21 @@
 OBRSPW:
-  solver:
-    _target_: casim.pipelines.pipeline_runner.CoSySolver
-    output: ${oc.select:policy.output,scheduling}
-    solution_ranker:
-      _target_: casim.pipelines.solution_ranker.SolutionRanker
-      objective: ${data_card.objective}
-    repo: ${cosy_repo}
-  selection:
-    orders:
-    - buffered
+  problem_class: OBRSP
+  state_information:
+    orders: true
+    pick_lists: false
+    tours:
+    - planned
     resources:
     - idle
     - reserved
-    tours:
-    - planned
-    - assigned
-    - scheduled
+  scope:
+    freeze_from: pending
+    frozen_accepts: none
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    repo: ${cosy_repo}
+  commitment_policy:
+    _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
   triggers:
   - OrderArrival
   - OrderStreamClosed
@@ -25,8 +25,3 @@ OBRSPW:
   - _target_: casim.simulation_engine.conditions.NbrPickersCondition
     threshold: 1
   - _target_: casim.simulation_engine.conditions.NewInformationCondition
-  scope:
-    freeze_from: pending
-  commitment:
-    rule: release_all
-  waiting: ${policy.waiting}

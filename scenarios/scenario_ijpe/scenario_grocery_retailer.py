@@ -6,6 +6,7 @@ from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 
+from casim.runner import apply_decision
 from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
 from casim.io_helpers import dump_pickle
 from casim.viz.gantt_chart import gantt_chart
@@ -55,7 +56,7 @@ def main(cfg: DictConfig):
                 print(f"{pipeline} {count:} {pct}%")
             break
         result = decision_engine.on_trigger(state_snapshot)
-        sim.step(result, state_snapshot)
+        apply_decision(sim, decision_engine, result, state_snapshot)
 
     # print(sim.state.tracker.delayed_expected_finish)
     for shifted_order in sim.state.tracker.shifted_orders:

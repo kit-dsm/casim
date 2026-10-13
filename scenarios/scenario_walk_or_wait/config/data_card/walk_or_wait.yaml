@@ -1,5 +1,5 @@
 name: WalkOrWait
-problem_class: OBRSPW
+problem_class: OBRSP
 objective: mean_order_completion_time
 source:
   data_loader: scenarios.scenario_walk_or_wait.loader.WalkOrWaitDataLoader

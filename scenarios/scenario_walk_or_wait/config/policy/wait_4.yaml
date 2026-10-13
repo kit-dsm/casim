@@ -1,3 +1,1 @@
-waiting:
-  policy: order_count
-  k: 4
+waiting_node: casim.pipelines.subproblems.waiting.WaitForFour

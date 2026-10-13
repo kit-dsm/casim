@@ -7,7 +7,7 @@ import numpy as np
 from hydra import initialize, compose
 from hydra.core.global_hydra import GlobalHydra
 
-from ware_ops_algos.domain_models import SimWarehouseDomain
+from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.operational_events import PickerArrival
 from casim.simulation_engine.simulation_engine import SimulationEngine
 from scenarios.experiment_commons import (

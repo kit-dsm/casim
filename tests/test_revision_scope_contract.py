@@ -1,4 +1,4 @@
-"""Integration checks for the new decision transaction and draft lifecycle."""
+"""Integration checks for named decisions and strict live application."""
 
 from copy import deepcopy
 import json
@@ -7,18 +7,17 @@ from pathlib import Path
 import pytest
 from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
-from ware_ops_algos.algorithms import SchedulingSolution, WaitingSolution
-from ware_ops_algos.domain_models import TourStates
 
-from casim.decision_engine.commands import (
-    CommandViolation, CreateTour, ReleaseTour, Wait,
-)
-from casim.decision_engine.conversion import to_commands
-from casim.decision_engine.decision_engine import DecisionResult
-from casim.events.operational_events import PickerTourQuery, Reconsider
-from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
+from ware_ops_algos.planning.commands import CommitTour
+from ware_ops_algos.planning.lifecycle import TourStates
+
 from casim.config.schema import DecisionDefinitions
+from casim.decision_engine.decision_engine import DecisionResult
+from casim.domain_objects.sim_domain import ReconsiderReason
+from casim.events.operational_events import PickerTourQuery, Reconsider
 from casim.setup import resolve
+from casim.state.apply import CommandViolation
+from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
 from scenarios.scenario_stochastic_waiting.scenario_specific_hooks import (
     add_orders_hook, picker_arrival_hook,
 )
@@ -28,6 +27,29 @@ CONFIG_DIR = (Path(__file__).resolve().parents[1] / "scenarios"
               / "scenario_stochastic_waiting" / "config")
 
 
+def _config(tmp_path):
+    with initialize_config_dir(config_dir=str(CONFIG_DIR), version_base="1.3"):
+        return compose(config_name="stochastic_waiting_config", overrides=[
+            f"instances_base={tmp_path.as_posix()}",
+            f"cache_base={(tmp_path / 'cache').as_posix()}",
+            f"experiment.output_dir={tmp_path.as_posix()}",
+        ])
+
+
+def _first_wait(tmp_path):
+    cfg = _config(tmp_path)
+    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    for _ in range(100):
+        done, snapshot = sim.run()
+        assert not done
+        result = engine.on_trigger(snapshot)
+        if result.waiting and result.reconsider_at is not None:
+            return sim, engine, snapshot, result
+        sim.step(result, snapshot)
+    raise AssertionError("Waiting decision was never reached")
+
+
 def test_committed_schema_matches_config_model():
     root = Path(__file__).resolve().parents[1]
     expected = DecisionDefinitions.model_json_schema()
@@ -35,13 +57,8 @@ def test_committed_schema_matches_config_model():
     assert actual == expected
 
 
-def test_problem_class_is_derived_from_named_decision(tmp_path):
-    with initialize_config_dir(config_dir=str(CONFIG_DIR), version_base="1.3"):
-        cfg = compose(config_name="stochastic_waiting_config", overrides=[
-            f"instances_base={tmp_path.as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
+def test_problem_class_is_declared_independently_of_decision_name(tmp_path):
+    cfg = _config(tmp_path)
     OmegaConf.set_struct(cfg.decisions, False)
     config = cfg.decisions.pop("OBRSPW")
     cfg.decisions["planning"] = config
@@ -60,129 +77,80 @@ def test_overlapping_decisions_require_distinct_precedence(tmp_path):
             f"experiment.output_dir={tmp_path.as_posix()}",
         ])
     cfg.decisions.OBRSPW.precedence = cfg.decisions.ATIP.precedence
-    with pytest.raises(ValueError, match="both write.*orders\\[buffered\\]"):
+    with pytest.raises(ValueError, match="both write.*orders"):
         resolve(cfg, load_and_flatten_data_card(cfg.data_card))
 
 
 def test_periodic_reconsider_uses_current_decision_version(tmp_path):
-    with initialize_config_dir(config_dir=str(CONFIG_DIR), version_base="1.3"):
-        cfg = compose(config_name="stochastic_waiting_config", overrides=[
-            f"instances_base={tmp_path.as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
+    cfg = _config(tmp_path)
     cfg.decisions.OBRSPW.triggers.append({"every_s": 5})
     sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
     sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
     original = next(event for event in sim.events
-                    if isinstance(event, Reconsider) and event.reason == "periodic")
+                    if isinstance(event, Reconsider)
+                    and event.reason is ReconsiderReason.PERIODIC)
     done, snapshot = sim.run()
     assert not done
     sim.step(engine.on_trigger(snapshot), snapshot)
     assert original.is_stale(sim.state)
     assert any(isinstance(event, Reconsider)
                and event.version == sim.state.decision_versions["OBRSPW"]
-               and event.time == snapshot.context.time + 5
+               and event.time == snapshot.dynamic_warehouse_info.plan.time + 5
                for event in sim.events)
 
 
-def _first_wait(tmp_path):
-    with initialize_config_dir(config_dir=str(CONFIG_DIR), version_base="1.3"):
-        cfg = compose(config_name="stochastic_waiting_config", overrides=[
-            f"instances_base={tmp_path.as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    sim, decision_engine = setup_experiment(
-        cfg, load_and_flatten_data_card(cfg.data_card))
-    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
-    while True:
-        done, snapshot = sim.run()
-        assert not done
-        result = decision_engine.on_trigger(snapshot)
-        if any(isinstance(command, Wait) and command.reconsider_at is not None
-               for command in result.commands):
-            return sim, decision_engine, snapshot, result
-        sim.step(result, snapshot)
-
-
-def test_rejected_decision_leaves_state_and_events_untouched(tmp_path):
+def test_invalid_live_reference_leaves_state_and_events_untouched(tmp_path):
     sim, _, snapshot, result = _first_wait(tmp_path)
-    before = deepcopy(sim.state)
+    before = deepcopy(sim.state.tour_manager.all_tours)
     events_before = tuple(sim.events)
-    bad = ReleaseTour(expected_decision_version=snapshot.context.version,
-                      tour_id=999)
+    version = sim.state.decision_versions.get("OBRSPW", 0)
     with pytest.raises(CommandViolation):
-        sim.step(DecisionResult((*result.commands, bad)), snapshot)
-    assert sim.state.decision_versions == before.decision_versions
-    assert sim.state.tour_manager.all_tours == before.tour_manager.all_tours
+        sim.step(DecisionResult((*result.commands, CommitTour(tour_id=999))), snapshot)
+    assert sim.state.decision_versions.get("OBRSPW", 0) == version
+    assert sim.state.tour_manager.all_tours == before
     assert tuple(sim.events) == events_before
 
 
-def test_drop_policy_skips_the_whole_invalid_decision(tmp_path):
-    sim, _, snapshot, result = _first_wait(tmp_path)
-    sim.on_violation = "drop"
-    version = sim.state.decision_versions.get("OBRSPW", 0)
-    events = tuple(sim.events)
-    accepted = sim.decision_engine.decision_tracker.num_decisions
-    bad = ReleaseTour(expected_decision_version=version, tour_id=999)
-    sim.step(DecisionResult((*result.commands, bad)), snapshot)
-    assert sim.state.decision_versions.get("OBRSPW", 0) == version
-    assert tuple(sim.events) == events
-    assert sim.decision_engine.decision_tracker.num_decisions == accepted
-
-
-def test_repair_policy_reprojects_a_stale_decision_once(tmp_path):
-    sim, _, snapshot, result = _first_wait(tmp_path)
-    sim.on_violation = "repair"
-    sim.state.decision_versions["OBRSPW"] = snapshot.context.version + 1
-    sim.step(result, snapshot)
-    assert sim.state.decision_versions["OBRSPW"] == snapshot.context.version + 2
-
-
 def test_wait_keeps_draft_and_old_reconsider_becomes_stale(tmp_path):
-    sim, decision_engine, snapshot, result = _first_wait(tmp_path)
+    sim, _, snapshot, result = _first_wait(tmp_path)
     sim.step(result, snapshot)
     draft = next(iter(sim.state.tour_manager.all_tours.values()))
-    assert draft.status == TourStates.SCHEDULED
+    assert draft.status is TourStates.PLANNED
+    assert sim.state.decision_waiting["OBRSPW"]
     assert not any(isinstance(event, PickerTourQuery) for event in sim.events)
-
-    plan_snapshot = sim.state_adapters["OBRSPW"].transform_state(
-        sim.state, "OBRSPW")
-    job = decision_engine._draft_solution(plan_snapshot).jobs[0]
-    unchanged = to_commands(
-        WaitingSolution(action="wait"), plan_snapshot,
-        candidate_plan=SchedulingSolution(jobs=[job]),
-    )
-    assert [type(command) for command in unchanged] == [Wait]
-
-    old = next(event for event in sim.events if isinstance(event, Reconsider))
-    adapter = sim.state_adapters["OBRSPW"]
-    sim.state.apply_all("OBRSPW", (
-        Wait(expected_decision_version=sim.state.decision_versions["OBRSPW"],
-             reconsider_at=old.time + 1),
-    ), adapter.selection, adapter.scope)
+    old = next(event for event in sim.events
+               if isinstance(event, Reconsider)
+               and event.reason is ReconsiderReason.WAIT)
+    sim.state.apply_all("OBRSPW", ())
     assert old.is_stale(sim.state)
 
 
 def test_waiting_release_starts_no_earlier_than_reconsideration(tmp_path):
-    sim, decision_engine, snapshot, result = _first_wait(tmp_path)
+    sim, engine, snapshot, result = _first_wait(tmp_path)
     sim.step(result, snapshot)
     deadline = next(event.time for event in sim.events
-                    if isinstance(event, Reconsider))
-    done, release_snapshot = sim.run()
-    assert not done
-    assert release_snapshot.context.time == deadline
-    release = decision_engine.on_trigger(release_snapshot)
-    assert any(isinstance(command, ReleaseTour) for command in release.commands)
-    sim.step(release, release_snapshot)
-    assert all(tour.status != TourStates.STARTED
-               for tour in sim.state.tour_manager.all_tours.values())
+                    if isinstance(event, Reconsider)
+                    and event.reason is ReconsiderReason.WAIT)
+    for _ in range(100):
+        done, next_snapshot = sim.run()
+        assert not done
+        if next_snapshot.dynamic_warehouse_info.plan.time == deadline:
+            assert ReconsiderReason.WAIT in next_snapshot.dynamic_warehouse_info.context.reconsider
+            release = engine.on_trigger(next_snapshot)
+            assert any(isinstance(command, CommitTour) for command in release.commands), (
+                release.waiting, release.reconsider_at,
+                [type(command).__name__ for command in release.commands],
+                next_snapshot.dynamic_warehouse_info.context.solve)
+            sim.step(release, next_snapshot)
+            break
+        sim.step(engine.on_trigger(next_snapshot), next_snapshot)
+    else:
+        raise AssertionError("Wait deadline was never reached")
     while True:
         done, next_snapshot = sim.run()
         if done:
             break
-        sim.step(decision_engine.on_trigger(next_snapshot), next_snapshot)
+        sim.step(engine.on_trigger(next_snapshot), next_snapshot)
     assert all(tour.start_time >= deadline
                for tour in sim.state.tour_manager.all_tours.values()
-               if tour.status == TourStates.DONE)
+               if tour.status is TourStates.DONE)

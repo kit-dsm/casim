@@ -1,7 +1,5 @@
 from pathlib import Path
 from types import SimpleNamespace
-from time import perf_counter
-from typing import Callable
 
 from cosy.maestro import Maestro
 from cosy_luigi import CoSyLuigiRepo
@@ -12,13 +10,15 @@ from ware_ops_algos.domain_models import BaseWarehouseDomain, DataCard
 from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 
 from casim.pipelines.in_memory_dag import InMemoryDagExecutor
-from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.pipelines.problem_based_template import (
     PlanCandidateEndpoint, BatchingPlanCandidate, RoutingPlanCandidate,
     SchedulingPlanCandidate, SequencingPlanCandidate, PositioningPlanCandidate,
     WaitingPlanCandidate,
-    clear_store, dump_pickle, load_pickle,
+    AbstractBatching, AbstractPickerRouting, AbstractScheduling,
+    AbstractSequencing, AbstractWaiting, AbstractPositioning,
+    clear_store, dump_pickle, load_pickle, traverse_pipeline,
 )
+from casim.pipelines.taxonomy import variant
 
 PLAN_SOURCES = {
     "batching": BatchingPlanCandidate,
@@ -37,8 +37,6 @@ class CoSySolver:
         cache_dir: Path,
         output_dir: Path,
         instance_name: str,
-        solution_ranker: SolutionRanker,
-        output: str | None = None,
         endpoint=None,
         problem_class=None,
         verbose: bool = False,
@@ -52,10 +50,9 @@ class CoSySolver:
         self.cache_path: Path = self.cache_dir / "dynamic_info.pkl"
         self.verbose = verbose
         self.endpoint = endpoint
-        self.output = output
+        self.output = None
         self.problem_class = problem_class
         self.pipelines = None
-        self.solution_ranker = solution_ranker
         self.luigi_cfg = luigi_cfg
         self.repo_cfg = repo
         self.luigi_logging_opts =  SimpleNamespace(
@@ -79,18 +76,38 @@ class CoSySolver:
         config.set('PipelineParams', 'output_folder', str(self.output_folder))
         config.set('PipelineParams', 'domain_path', str(self.cache_path))
         problem = data_card.problem_class
-        if self.output not in PLAN_SOURCES:
-            raise ValueError(f"Unknown plan output stage {self.output!r}")
+        repo_classes = [get_class(path) for path in self.repo_cfg.components]
+        stage_classes = {
+            "batching": AbstractBatching,
+            "routing": AbstractPickerRouting,
+            "active_tour_routing": AbstractPickerRouting,
+            "scheduling": AbstractScheduling,
+            "sequencing": AbstractSequencing,
+            "waiting": AbstractWaiting,
+            "positioning": AbstractPositioning,
+        }
+        features = data_card.decision_features["features"]
+        available = [stage for stage in variant(problem, features)
+                     if stage in stage_classes and any(
+                         issubclass(component, stage_classes[stage])
+                         for component in repo_classes)]
+        if not available:
+            raise ValueError(f"No configured terminal subproblem for {problem}")
+        self.output = available[-1]
+        terminal = "routing" if self.output == "active_tour_routing" else self.output
         PlanCandidateEndpoint.configure(data_card, self.algorithm_cards)
 
         if not self.pipelines:
             if self.verbose:
                 print("Building pipelines")
-            repo_classes = [get_class(path) for path in self.repo_cfg.components]
-            repo_classes.extend((PLAN_SOURCES[self.output], PlanCandidateEndpoint))
+            repo_classes.extend((PLAN_SOURCES[terminal], PlanCandidateEndpoint))
             repo = CoSyLuigiRepo(*repo_classes)
             maestro = Maestro(repo.cls_repo, repo.taxonomy)
-            self.pipelines = list(maestro.query(PlanCandidateEndpoint.target()))
+            configured_classes = set(repo_classes)
+            self.pipelines = [pipeline for pipeline in
+                              maestro.query(PlanCandidateEndpoint.target())
+                              if all(type(task) in configured_classes
+                                     for task in traverse_pipeline([pipeline]))]
             if not self.pipelines:
                 raise ValueError(
                     f"No CoSy pipeline for {problem}: check the configured components "
@@ -102,42 +119,21 @@ class CoSySolver:
             if self.verbose:
                 print("Using cached pipelines")
 
-    def solve(self, dynamic_domain: BaseWarehouseDomain, action=None,
-              evaluate: Callable[[AlgorithmSolution], tuple[AlgorithmSolution, tuple]] | None = None
-              ) -> tuple[AlgorithmSolution, str, float, tuple | None]:
+    def solve(self, dynamic_domain: BaseWarehouseDomain) -> dict[str, AlgorithmSolution]:
         self.dump_domain(dynamic_domain)
         if not self.pipelines:
             raise RuntimeError(f"No configured CoSy pipeline for {dynamic_domain.problem_class}")
 
-        selected = (list(enumerate(self.pipelines)) if action is None else
-                    [(action, self.pipelines[action])])
         solutions = {}
-        candidate_commands = {}
-        self.last_conversion_seconds = 0.0
-        for index, pipeline in selected:
+        for index, pipeline in enumerate(self.pipelines):
             self.dump_domain(dynamic_domain)
             InMemoryDagExecutor().execute_many([pipeline])
             output_path = pipeline.output()["plan_candidate"].path
             key = f"{index}:{Path(output_path).stem}"
             solution = load_pickle(output_path)
-            if evaluate is not None:
-                started = perf_counter()
-                solution, commands = evaluate(solution)
-                self.last_conversion_seconds += perf_counter() - started
-                candidate_commands[key] = commands
             solutions[key] = solution
             self._cleanup_after_solution(self.output_folder)
-        best_solution, best_key, best_kpi_value = self.select_strategy(
-            solutions, dynamic_domain.problem_class, dynamic_domain,
-            candidate_commands)
-        return (best_solution, best_key, best_kpi_value,
-                candidate_commands.get(best_key))
-
-    def select_strategy(self, solutions, problem, domain=None,
-                        candidate_commands=None):
-        best_solution, best_key, best_kpi_value = self.solution_ranker.select_best(
-            solutions, problem, domain, candidate_commands)
-        return best_solution, best_key, best_kpi_value
+        return solutions
 
     @staticmethod
     def _cleanup_after_solution(output_folder: Path):

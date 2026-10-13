@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from ware_ops_algos.algorithms import Route, NodeType, WarehouseOrder
 
-from ware_ops_algos.domain_models import TourStates
+from ware_ops_algos.planning.lifecycle import TOUR_TRANSITIONS, TourStates
 
 from casim.domain_objects.tour_model import TourPlanningState
 
@@ -23,6 +23,14 @@ class TourManager:
         # self._scheduled_tours: dict[int, deque[int]] = defaultdict(deque)  # FUTURE WORK: Picker ID -> Queue of Tour IDs
 
         self._picker_history: dict[int, list[int]] = defaultdict(list)
+
+    def advance(self, tour_id: int, to: TourStates) -> None:
+        """Make one legal lifecycle transition."""
+        tour = self.get_tour(tour_id)
+        source = TourStates(tour.status)
+        if to not in TOUR_TRANSITIONS[source]:
+            raise ValueError(f"Tour {tour_id}: {source.value} cannot become {to.value}")
+        tour.status = to
 
     def create_tour(self, route_plan: Route, processing_time: float) -> int:
         """
@@ -63,7 +71,6 @@ class TourManager:
         self._unassigned_tour_ids.remove(tour_id)
 
         tour.assigned_resource = picker_id
-        tour.status = TourStates.ASSIGNED
 
         self._picker_tour_queues[picker_id].append(tour_id)
 
@@ -73,7 +80,6 @@ class TourManager:
         tour = self.get_tour(tour_id)
         tour.start_time = start_time
         tour.end_time_planned = end_time
-        tour.status = TourStates.SCHEDULED
         queues = self._picker_tour_queues
         picker_id = tour.assigned_resource
         assert tour_id in queues[tour.assigned_resource]
@@ -99,9 +105,8 @@ class TourManager:
         tour.end_time_planned = time + tour.processing_time
         # clean up queues based on planning state
         # Tour needs to be at least assigned -> Not picker neutral
-        assert status in [TourStates.ASSIGNED, TourStates.SCHEDULED, TourStates.PENDING], (
-            ValueError(f"Tour should be {TourStates.ASSIGNED} or"
-                       f" {TourStates.SCHEDULED} not {status}"))
+        if status is not TourStates.PENDING:
+            raise ValueError(f"Tour {tour_id} must be pending to start, got {status}")
         assert tour_id not in self._unassigned_tour_ids
 
 
@@ -120,14 +125,14 @@ class TourManager:
             assert self._active_picker_tour[picker_id] is None, ValueError(f"Picker {picker_id} has active tour,"
                                                                    f" {self._active_picker_tour[picker_id]}")
             self._active_picker_tour[picker_id] = tour_id
-        tour.status = TourStates.STARTED
+        self.advance(tour_id, TourStates.STARTED)
 
     def finish_tour(self, tour_id: int, time: float):
         tour = self.get_tour(tour_id)
         picker_id = tour.assigned_resource
         assert tour.status == TourStates.STARTED
         active_tour_id = self._active_picker_tour[picker_id]
-        tour.status = TourStates.DONE
+        self.advance(tour_id, TourStates.DONE)
         tour.end_time = time
         tour.annotated_route = None
         # tour.original_route = None
@@ -144,7 +149,7 @@ class TourManager:
     def get_next_tour_for_picker(self, picker_id: int):
         picker_tour_queue = self._picker_tour_queues[picker_id]
         for tour_id in picker_tour_queue:
-            if self.get_tour(tour_id).status == TourStates.RELEASED:
+            if self.get_tour(tour_id).status == TourStates.SCHEDULED:
                 return tour_id
         return None
 
@@ -154,6 +159,42 @@ class TourManager:
 
     def get_tour(self, tour_id: int) -> TourPlanningState:
         return self.all_tours[tour_id]
+
+    def has_tour(self, tour_id: int) -> bool:
+        return tour_id in self.all_tours
+
+    def cancel_tour(self, tour_id: int) -> TourPlanningState:
+        tour = self.get_tour(tour_id)
+        self.advance(tour_id, TourStates.CANCELLED)
+        if tour.assigned_resource is not None:
+            self.remove_canceled_tour_for_picker(tour.assigned_resource, tour_id)
+        return tour
+
+    def replace_planned_route(self, tour_id: int, route, added_order_ids=()) -> None:
+        tour = self.get_tour(tour_id)
+        if tour.status not in (TourStates.PLANNED, TourStates.SCHEDULED):
+            raise ValueError(f"Tour {tour_id} cannot replace a planned route")
+        tour.original_route = route
+        tour.batch = route.batch
+        tour.annotated_route = list(route.annotated_route)
+        tour.remaining_picks = list(route.batch.pick_positions)
+        tour.order_numbers = sorted(set(tour.order_numbers) | set(added_order_ids))
+        tour.route_version += 1
+
+    def reschedule(self, tour_id: int, picker_id: int,
+                   start_time: float, end_time: float) -> None:
+        tour = self.get_tour(tour_id)
+        if tour.assigned_resource != picker_id:
+            old_picker = tour.assigned_resource
+            if old_picker is not None:
+                self.remove_canceled_tour_for_picker(old_picker, tour_id)
+            tour.assigned_resource = picker_id
+            self._picker_tour_queues[picker_id].append(tour_id)
+        self.schedule_tour(tour_id, start_time, end_time)
+
+    def get_all_tours(self) -> tuple[TourPlanningState, ...]:
+        """Return tours in stable creation order for projection."""
+        return tuple(self.all_tours[tour_id] for tour_id in sorted(self.all_tours))
 
     def tour_status(self, tour_id: int) -> TourStates:
         """Return the status owned by a tour's execution record."""

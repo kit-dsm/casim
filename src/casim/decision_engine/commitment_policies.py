@@ -64,7 +64,10 @@ class CommitmentPolicy(ABC):
         """Return commitments and an optional time to reconsider."""
 
 
+@dataclass(frozen=True)
 class CommitAllPolicy(CommitmentPolicy):
+    __pydantic_config__ = {"extra": "forbid"}
+
     def apply(self, commands, state_snapshot):
         if state_snapshot.dynamic_warehouse_info.memory.waiting:
             return (), None
@@ -72,11 +75,14 @@ class CommitAllPolicy(CommitmentPolicy):
                      _planned_after(commands, state_snapshot)), None
 
 
+@dataclass(frozen=True)
 class SchedulingCommitmentPolicy(CommitmentPolicy):
-    def __init__(self, n_jobs: int = 1):
-        if n_jobs < 1:
+    n_jobs: int = 1
+    __pydantic_config__ = {"extra": "forbid"}
+
+    def __post_init__(self):
+        if self.n_jobs < 1:
             raise ValueError("n_jobs must be at least 1")
-        self.n_jobs = n_jobs
 
     def apply(self, commands, state_snapshot):
         if state_snapshot.dynamic_warehouse_info.memory.waiting:
@@ -85,11 +91,14 @@ class SchedulingCommitmentPolicy(CommitmentPolicy):
                      _planned_after(commands, state_snapshot)[:self.n_jobs]), None
 
 
+@dataclass(frozen=True)
 class WindowCommitmentPolicy(CommitmentPolicy):
-    def __init__(self, within_s: float):
-        if not isfinite(within_s) or within_s < 0:
+    within_s: float
+    __pydantic_config__ = {"extra": "forbid"}
+
+    def __post_init__(self):
+        if not isfinite(self.within_s) or self.within_s < 0:
             raise ValueError("within_s must be finite and nonnegative")
-        self.within_s = within_s
 
     def apply(self, commands, state_snapshot):
         if state_snapshot.dynamic_warehouse_info.memory.waiting:

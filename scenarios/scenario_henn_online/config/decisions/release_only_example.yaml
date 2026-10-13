@@ -1,35 +1,60 @@
-# Optional two-decision example: planning creates drafts; the second decision
-# releases existing drafts without constructing any CoSy pipeline.
+# Planning creates drafts; release_due commits existing drafts.
 planning:
+  problem_class: OBRSP
+  state_information:
+    orders: true
+    pick_lists: false
+    tours:
+    - planned
+    - scheduled
+    - pending
+    - started
+    resources:
+    - idle
+    - reserved
+    - busy
+    window:
+      by: due_date
+      horizon_s: 3600
+  scope:
+    freeze_from: scheduled
+    frozen_accepts: none
   solver:
     _target_: casim.pipelines.pipeline_runner.CoSySolver
-    output: scheduling
-    solution_ranker:
-      _target_: casim.pipelines.solution_ranker.SolutionRanker
-      objective: ${data_card.objective}
-      change_penalty: 10
     repo: ${cosy_repo}
-  selection:
-    orders: [buffered]
-    tours: [scheduled, released, pending, started]
-    resources: [idle, reserved, busy]
-    window: {by: due_date, horizon_s: 3600}
-  scope: {freeze_from: released}
-  triggers: [OrderArrival, TourEnd, PickerArrival, PickerIdle, OrderStreamClosed, {every_s: 600}]
-  conditions:
-    - _target_: casim.simulation_engine.conditions.VisiblePlanningWorkCondition
+  change_penalty: 10
+  commitment_policy:
+    _target_: casim.decision_engine.commitment_policies.WindowCommitmentPolicy
+    within_s: 0
   precedence: 10
-  commitment: {rule: release_within, within_s: 0}
-  waiting: {policy: no_waiting}
-
-release_due:
-  selection:
-    tours: [scheduled]
-    resources: [idle, reserved, busy]
-  scope: {freeze_from: released}
-  triggers: [{every_s: 300}]
+  triggers:
+  - OrderArrival
+  - TourEnd
+  - PickerArrival
+  - PickerIdle
+  - OrderStreamClosed
+  - every_s: 600
   conditions:
-    - _target_: casim.simulation_engine.conditions.VisiblePlanningWorkCondition
+  - _target_: casim.simulation_engine.conditions.VisiblePlanningWorkCondition
+release_due:
+  problem_class: OBRSP
+  state_information:
+    orders: false
+    pick_lists: false
+    tours:
+    - planned
+    resources:
+    - idle
+    - reserved
+    - busy
+  scope:
+    freeze_from: scheduled
+    frozen_accepts: none
+  commitment_policy:
+    _target_: casim.decision_engine.commitment_policies.WindowCommitmentPolicy
+    within_s: 300
   precedence: 20
-  commitment: {rule: release_within, within_s: 300}
-  waiting: {policy: no_waiting}
+  triggers:
+  - every_s: 300
+  conditions:
+  - _target_: casim.simulation_engine.conditions.VisiblePlanningWorkCondition

@@ -1,131 +1,98 @@
-"""The user-facing lifecycle selection and revision-scope vocabulary."""
+"""Strict user configuration for named warehouse decisions."""
 
-from typing import Literal
+from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing import Any
 
-from ware_ops_algos.domain_models.lifecycle import (
-    Accepts, OrderStates, PickListStates, ResourceStates, TimeAttribute,
-    TourStates, PHYSICAL, accepts_for,
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from ware_ops_algos.planning.lifecycle import PHYSICAL, TourStates
+from ware_ops_algos.planning.scope import RevisionScope, StateInformation
+from ware_ops_algos.planning.validation import check_scope
+
+from casim.decision_engine.commitment_policies import (
+    CommitAllPolicy, SchedulingCommitmentPolicy, WindowCommitmentPolicy,
 )
+from casim.pipelines.taxonomy import TAXONOMY
 
 
 class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-
-class WindowConfig(StrictModel):
-    by: TimeAttribute
-    horizon_s: float = Field(gt=0)
-
-    @model_validator(mode="after")
-    def supported_attribute(self) -> "WindowConfig":
-        if self.by not in (TimeAttribute.DUE_DATE, TimeAttribute.START_TIME):
-            raise ValueError("window.by must be due_date or start_time")
-        return self
-
-
-class SelectionConfig(StrictModel):
-    orders: tuple[OrderStates, ...] = ()
-    pick_lists: tuple[PickListStates, ...] = ()
-    tours: tuple[TourStates, ...] = ()
-    resources: tuple[ResourceStates, ...] = ()
-    window: WindowConfig | None = None
-
-    @model_validator(mode="after")
-    def one_form_per_object(self) -> "SelectionConfig":
-        if set(self.orders) - {OrderStates.BUFFERED}:
-            raise ValueError("selection.orders selects buffered orders only")
-        if set(self.pick_lists) - {PickListStates.BUFFERED}:
-            raise ValueError("selection.pick_lists selects buffered pick lists only")
-        if TourStates.CANCELLED in self.tours:
-            raise ValueError("cancelled tours cannot be selected")
-        if len(set(self.tours)) != len(self.tours):
-            raise ValueError("selection.tours contains a duplicate status")
-        return self
-
-
-class RevisionScope(StrictModel):
-    freeze_from: TourStates = TourStates.PLANNED
-    frozen_accepts: Accepts = Accepts.NONE
-
-    @model_validator(mode="after")
-    def valid_cut(self) -> "RevisionScope":
-        if self.freeze_from not in (
-            TourStates.PLANNED, TourStates.ASSIGNED, TourStates.SCHEDULED,
-            TourStates.RELEASED, TourStates.PENDING,
-        ):
-            raise ValueError("scope.freeze_from must be planned through pending")
-        if self.frozen_accepts == Accepts.REBUILD:
-            raise ValueError("scope.frozen_accepts cannot be rebuild")
-        return self
+    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
 
 class PeriodicTrigger(StrictModel):
     every_s: float = Field(gt=0)
 
 
+_POLICIES = {
+    f"{policy.__module__}.{policy.__name__}": policy
+    for policy in (CommitAllPolicy, SchedulingCommitmentPolicy, WindowCommitmentPolicy)
+}
+Policy = CommitAllPolicy | SchedulingCommitmentPolicy | WindowCommitmentPolicy
+
+
 class DecisionConfig(StrictModel):
-    """One named decision owns projection, solve, and commitment settings."""
-
-    solver: dict | None = None
-    commitment: "CommitmentConfig" = Field(default_factory=lambda: CommitmentConfig())
-    waiting: "WaitingConfig" = Field(default_factory=lambda: WaitingConfig())
-    release_gates: "ReleaseGates" = Field(default_factory=lambda: ReleaseGates())
-    selection: SelectionConfig
-    scope: RevisionScope = Field(default_factory=RevisionScope)
+    problem_class: str
+    state_information: StateInformation
+    scope: RevisionScope
+    commitment_policy: Policy | None = None
+    change_penalty: float = Field(default=0.0, ge=0)
+    precedence: int | None = Field(default=None, ge=0)
+    solver: dict[str, Any] | None = None
     triggers: tuple[str | PeriodicTrigger, ...] = ()
-    conditions: tuple[dict, ...] = ()
-    precedence: int = Field(default=0, ge=0)
+    conditions: tuple[dict[str, Any], ...] = ()
+
+    @field_validator("problem_class")
+    @classmethod
+    def known_problem_class(cls, value: str) -> str:
+        if value not in TAXONOMY:
+            raise ValueError(f"problem_class {value!r} must be one of {sorted(TAXONOMY)}")
+        return value
+
+    @field_validator("commitment_policy", mode="before")
+    @classmethod
+    def parse_policy(cls, value):
+        if value is None or isinstance(value, tuple(_POLICIES.values())):
+            return value
+        if not isinstance(value, dict):
+            raise ValueError("commitment_policy must have a _target_ and its parameters")
+        target = value.get("_target_")
+        if target not in _POLICIES:
+            raise ValueError(f"commitment_policy._target_ {target!r} must be one of {sorted(_POLICIES)}")
+        policy = _POLICIES[target]
+        try:
+            return policy(**{key: parameter for key, parameter in value.items()
+                             if key != "_target_"})
+        except TypeError as error:
+            raise ValueError(f"Invalid commitment_policy parameters: {error}") from error
 
     @model_validator(mode="after")
-    def scope_within_physics(self) -> "DecisionConfig":
-        if self.solver is None and (self.selection.orders or self.selection.pick_lists
-                                    or TourStates.SCHEDULED not in self.selection.tours):
-            raise ValueError("A decision without a solver selects scheduled tours only for release")
-        for status in self.selection.tours:
-            allowed = accepts_for(status, self.scope.freeze_from,
-                                  self.scope.frozen_accepts)
-            if allowed not in PHYSICAL[status]:
-                raise ValueError(
-                    f"scope gives {status.value} tours {allowed.value}, "
-                    "which the physical matrix disallows"
-                )
+    def valid_scope_and_solver(self):
+        violations = check_scope(self.state_information, self.scope)
+        if violations:
+            status = violations[0]
+            raise ValueError(
+                f"state_information.tours {status.value}: scope gives "
+                f"{self.scope.accepts(status).value}, PHYSICAL allows "
+                f"{PHYSICAL[status].value}"
+            )
+        if self.solver is None and TourStates.PLANNED not in self.state_information.tours:
+            raise ValueError("A solver-free decision must expose planned tours")
+        if self.solver is not None:
+            if "output" in self.solver or "solution_ranker" in self.solver:
+                raise ValueError("solver.output and solver.solution_ranker are removed")
+            live_only = (self.state_information.orders
+                         and TourStates.STARTED in self.state_information.tours
+                         and TourStates.PLANNED not in self.state_information.tours
+                         and TourStates.SCHEDULED not in self.state_information.tours)
+            if (self.problem_class in {"ORSP", "OBRSP"} and not live_only
+                    and self.commitment_policy is None):
+                raise ValueError("commitment_policy is required for a scheduling decision")
+        if (TourStates.PLANNED in self.state_information.tours
+                and self.commitment_policy is None):
+            raise ValueError("commitment_policy is required when planned tours are exposed")
         return self
-
-
-class CommitmentConfig(StrictModel):
-    rule: Literal["release_all", "release_next_per_picker", "release_within"] = "release_all"
-    within_s: float | None = Field(default=None, ge=0)
-
-    @model_validator(mode="after")
-    def check_window(self):
-        if (self.rule == "release_within") != (self.within_s is not None):
-            raise ValueError("within_s is used exactly with release_within")
-        return self
-
-
-class WaitingConfig(StrictModel):
-    policy: Literal["no_waiting", "order_count",
-                    "henn", "analytic_stochastic"] = "no_waiting"
-    k: int | None = Field(default=None, ge=1)
-    target_batch_size_orders: int = Field(default=4, ge=2)
-    min_orders: int = Field(default=1, ge=1)
-
-    @model_validator(mode="after")
-    def check_count(self):
-        if (self.policy == "order_count") != (self.k is not None):
-            raise ValueError("k is used exactly with order_count")
-        return self
-
-
-class ReleaseGates(StrictModel):
-    outside_break: bool = False
-    max_staged_pallets: int | None = Field(default=None, ge=0)
 
 
 class DecisionDefinitions(StrictModel):
-    """The decisions section of a composed experiment configuration."""
-
-    on_violation: Literal["reject", "drop", "repair"] = "reject"
     decisions: dict[str, DecisionConfig]

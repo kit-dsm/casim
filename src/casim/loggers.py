@@ -7,7 +7,8 @@ import copy
 import json
 from pathlib import Path
 
-from ware_ops_algos.domain_models import Resource, SimWarehouseDomain
+from ware_ops_algos.domain_models import Resource
+from casim.domain_objects.sim_domain import SimWarehouseDomain
 from ware_ops_algos.algorithms import WaitingSolution
 
 from ware_ops_algos.algorithms import ActiveTourRoutingSolution
@@ -102,10 +103,12 @@ class DashLogger(EventLogger):
 
 
 class KPILogger(EventLogger):
-    def __init__(self, out_dir: Path, print_every: int | None = 5000):
+    def __init__(self, out_dir: Path, print_every: int | None = 5000,
+                 decision_tracker=None):
         self.out_dir = Path(out_dir)
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self.print_every = print_every
+        self.decision_tracker = decision_tracker
         self._event_count = 0
 
     def on_reset(self, sim, domain):
@@ -129,9 +132,8 @@ class KPILogger(EventLogger):
 
         with open(self.out_dir / "tracker.json", "w") as f:
             json.dump(_jsonable(tracker_dict), f, indent=2)
-        decision_engine = getattr(sim, "decision_engine", None)
-        if decision_engine is not None:
-            tracker = decision_engine.decision_tracker
+        if self.decision_tracker is not None:
+            tracker = self.decision_tracker
             with open(self.out_dir / "decisions.json", "w") as f:
                 json.dump(_jsonable({
                     "pipeline_counts": dict(tracker.pipeline_counts),

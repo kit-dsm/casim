@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from ware_ops_algos.algorithms import RouteNode
 from ware_ops_algos.domain_models import Resources, Resource, CobotPicker
-from ware_ops_algos.domain_models.lifecycle import ResourceStates
+from ware_ops_algos.planning.lifecycle import ResourceStates
 
 Node = tuple[float, float]
 

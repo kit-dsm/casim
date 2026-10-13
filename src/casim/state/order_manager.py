@@ -2,7 +2,7 @@ import copy
 
 from ware_ops_algos.algorithms import BatchObject
 from ware_ops_algos.domain_models import Order
-from ware_ops_algos.domain_models.lifecycle import OrderStates, PickListStates, TourStates
+from ware_ops_algos.planning.lifecycle import OrderStates, TourStates
 
 
 class OrderManager:
@@ -59,26 +59,17 @@ class OrderManager:
             raise ValueError(f"Order {order_id} has ambiguous lifecycle status: {statuses}")
         return next(iter(statuses))
 
-    def pick_list_status(self, pick_list: BatchObject, tour_manager) -> PickListStates:
-        """Derive a pick list's status without storing a second status flag."""
-        if pick_list in self._pick_list_buffer:
-            return PickListStates.BUFFERED
-        for tour in tour_manager.all_tours.values():
-            if tour.batch is not pick_list and tour.batch != pick_list:
-                continue
-            if tour.status == TourStates.DONE:
-                return PickListStates.DONE
-            if tour.status == TourStates.STARTED:
-                return PickListStates.IN_PROGRESS
-            if tour.status != TourStates.CANCELLED:
-                return PickListStates.PLANNED
-        raise ValueError("Pick list has no lifecycle status")
-
     def get_order_buffer(self) -> list[Order]:
         return list(self._order_buffer.values())
 
     def get_pick_list_buffer(self) -> list[BatchObject]:
         return list(self._pick_list_buffer)
+
+    def has_buffered_order(self, order_id: int) -> bool:
+        return order_id in self._order_buffer
+
+    def has_pick_list(self, batch: BatchObject) -> bool:
+        return batch in self._pick_list_buffer
 
     def get_selected_pick_list(self, picker_id: int) -> BatchObject:
         pl = self._pick_list_assignments[picker_id]

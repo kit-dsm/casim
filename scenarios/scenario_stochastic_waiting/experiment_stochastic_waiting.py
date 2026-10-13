@@ -5,6 +5,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 
+from casim.runner import apply_decision
 from scenarios.experiment_commons import (
     load_and_flatten_data_card, setup_experiment,
 )
@@ -24,8 +25,7 @@ def main(cfg: DictConfig):
         if done:
             break
         result = decision_engine.on_trigger(snapshot)
-        solution = result.solution
-        sim.step(result, snapshot)
+        apply_decision(sim, decision_engine, result, snapshot)
 
     print(f"Decisions: {decision_engine.decision_tracker.num_decisions}")
     if cfg.viz.launch:

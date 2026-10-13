@@ -7,5 +7,4 @@ components:
 - casim.pipelines.subproblems.batching.IncumbentBatchingNode
 - casim.pipelines.subproblems.picker_routing.SShape
 - casim.pipelines.subproblems.scheduling.SPTScheduler
-waiting:
-  policy: henn
+- casim.pipelines.subproblems.waiting.HennWaitingNode

@@ -7,6 +7,7 @@ import hydra
 from omegaconf import DictConfig
 
 from ware_ops_algos.domain_models import TourStates
+from casim.runner import apply_decision
 from scenarios.experiment_commons import (
     load_and_flatten_data_card, setup_experiment,
 )
@@ -64,7 +65,7 @@ def main(cfg: DictConfig):
         done, snapshot = sim.run()
         if not done:
             result = decision_engine.on_trigger(snapshot)
-            sim.step(result, snapshot)
+            apply_decision(sim, decision_engine, result, snapshot)
 
     print(report(sim, Path(cfg.experiment.output_dir),
                  len(sim._initial_domain.orders.orders)))

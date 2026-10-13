@@ -5,10 +5,11 @@ import hydra
 import numpy as np
 from omegaconf import DictConfig
 
-from ware_ops_algos.domain_models import SimWarehouseDomain
+from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.operational_events import OrderStreamClosed, PickerArrival
 from casim.simulation_engine.simulation_engine import SimulationEngine
 from casim.viz.app import launch
+from casim.runner import apply_decision
 from scenarios.experiment_commons import setup_experiment, load_and_flatten_data_card
 from casim.io_helpers import dump_pickle
 
@@ -64,7 +65,7 @@ def main(cfg: DictConfig):
                 print(f"{pipeline} {count:} {pct}%")
             break
         result = decision_engine.on_trigger(state_snapshot)
-        sim.step(result, state_snapshot)
+        apply_decision(sim, decision_engine, result, state_snapshot)
     if cfg.viz.launch:
         from casim.viz.gantt_chart import gantt_chart
         fig = gantt_chart(sim.state.tracker)

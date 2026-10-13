@@ -1,5 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from casim.domain_objects.tour_model import TourPlanningState
-from casim.state import State
+
+if TYPE_CHECKING:
+    from casim.state import State
 
 
 class Event:

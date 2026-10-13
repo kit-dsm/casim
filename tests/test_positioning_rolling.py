@@ -10,14 +10,16 @@ from ware_ops_algos.algorithms import (
 )
 from ware_ops_algos.algorithms.admission.center_position import CenterPositionAdmission
 from ware_ops_algos.algorithms.routing.patrol import all_aisles_patrol_route
-from ware_ops_algos.domain_models import TourStates
+from ware_ops_algos.planning.lifecycle import Accepts, ResourceStates, TimeAttribute, TourStates
+from ware_ops_algos.planning.scope import RevisionScope, StateInformation, Window
+from ware_ops_algos.planning.commands import CancelTour, CommitTour, ViolationCode
+from ware_ops_algos.planning.validation import check as validate_commands
 
-from casim.config.schema import CommitmentConfig, WaitingConfig
-from casim.decision_engine.commands import (
-    CancelTour, CommandViolation, RecallPositioning, ReleaseTour, Wait,
-)
+from casim.decision_engine.commitment_policies import WindowCommitmentPolicy
+from casim.decision_engine.positioning import RecallPositioning
 from casim.decision_engine.decision_engine import DecisionEngine
-from casim.events.operational_events import OrderStreamClosed, PickerArrival, Reconsider
+from casim.domain_objects.sim_domain import ReconsiderReason
+from casim.events.operational_events import OrderStreamClosed, PickerArrival
 from casim.simulation_engine.conditions import VisiblePlanningWorkCondition
 from casim.simulation_engine.state_adapter import StateAdapter
 from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
@@ -92,17 +94,17 @@ def test_due_window_keeps_overdue_and_opens_without_arrival(tmp_path):
     order = sim._initial_domain.orders.orders[0]
     order.due_date = 5400
     sim.state.order_manager.add_order_to_buffer(order)
-    adapter = StateAdapter(selection={
-        "orders": ["buffered"], "window": {"by": "due_date", "horizon_s": 3600}
-    })
-    assert adapter.transform_state(sim.state, "rolling").plan.orders == ()
+    adapter = StateAdapter(
+        StateInformation(orders=True, window=Window(TimeAttribute.DUE_DATE, 3600)),
+        RevisionScope(TourStates.SCHEDULED, Accepts.NONE))
+    assert adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.order_buffer == ()
     sim.state.current_time = 1800
-    assert len(adapter.transform_state(sim.state, "rolling").plan.orders) == 1
+    assert len(adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.order_buffer) == 1
     sim.state.current_time = 6000
-    assert len(adapter.transform_state(sim.state, "rolling").plan.orders) == 1
+    assert len(adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.order_buffer) == 1
     order.due_date = 100000
     sim.state.done_flag = True
-    assert len(adapter.transform_state(sim.state, "rolling").plan.orders) == 1
+    assert len(adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.order_buffer) == 1
 
 
 def test_solver_free_decision_releases_existing_draft(tmp_path):
@@ -114,35 +116,32 @@ def test_solver_free_decision_releases_existing_draft(tmp_path):
               due_date=float("inf"), n_picks=0, route=route, batch=route.batch)
     tour_id = sim.state.add_sequencing_to_planning_state(ScheduledJob(
         job=job, picker_id=0, start_time=500, end_time=500 + route.distance))
-    adapter = StateAdapter(selection={"tours": ["scheduled"],
-                                      "resources": ["idle", "reserved"]},
-                           scope={"freeze_from": "released"})
-    decision = DecisionEngine(solver_map={},
-                              commitment={"release_only": CommitmentConfig(
-                                  rule="release_within", within_s=300)},
-                              waiting={"release_only": WaitingConfig()})
+    adapter = StateAdapter(
+        StateInformation(tours=frozenset({TourStates.PLANNED}),
+                         resources=frozenset({ResourceStates.IDLE, ResourceStates.RESERVED})),
+        RevisionScope(TourStates.SCHEDULED, Accepts.NONE))
+    decision = DecisionEngine({}, {}, {"release_only": WindowCommitmentPolicy(300)})
     sim.state_adapters["release_only"] = adapter
     sim.precedence["release_only"] = 0
-    early = adapter.transform_state(sim.state, "release_only")
+    early = adapter.transform_state(sim.state, "release_only", "OBRSP")
     result = decision.on_trigger(early)
-    assert not any(isinstance(c, ReleaseTour) for c in result.commands)
-    assert any(isinstance(c, Wait) and c.reason == "release_window"
-               and c.reconsider_at == 200 for c in result.commands)
+    assert not result.commands
+    assert result.reconsider_at == 200
     sim.step(result, early)
     sim.state.current_time = 200
-    due = adapter.transform_state(sim.state, "release_only")
+    due = adapter.transform_state(sim.state, "release_only", "OBRSP")
     released = decision.on_trigger(due)
-    assert [type(c) for c in released.commands] == [ReleaseTour]
+    assert [type(c) for c in released.commands] == [CommitTour]
     sim.step(released, due)
-    assert sim.state.tour_manager.get_tour(tour_id).status == TourStates.RELEASED
+    assert sim.state.tour_manager.get_tour(tour_id).status == TourStates.SCHEDULED
 
 
 def test_periodic_grid_opens_horizon_without_another_arrival(tmp_path):
-    sim, _ = _walk_sim(tmp_path)
+    sim, engine = _walk_sim(tmp_path)
     sim.periods = {"OBRSPW": 600}
-    sim.state_adapters["OBRSPW"] = StateAdapter(selection={
-        "orders": ["buffered"], "window": {"by": "due_date", "horizon_s": 3600}
-    })
+    sim.state_adapters["OBRSPW"] = StateAdapter(
+        StateInformation(orders=True, window=Window(TimeAttribute.DUE_DATE, 3600)),
+        RevisionScope(TourStates.SCHEDULED, Accepts.NONE))
     sim.conditions_map["OBRSPW"] = (VisiblePlanningWorkCondition(),)
 
     def seed(sim, domain):
@@ -152,11 +151,16 @@ def test_periodic_grid_opens_horizon_without_another_arrival(tmp_path):
         sim.add_event(OrderStreamClosed(1900))
 
     sim.reset(hooks=[seed])
-    done, snapshot = sim.run()
-    assert not done
-    assert snapshot.context.time == 1800
-    assert len(snapshot.plan.orders) == 1
-    assert "Reconsider:periodic" in snapshot.context.cause
+    while True:
+        done, snapshot = sim.run()
+        assert not done
+        plan = snapshot.dynamic_warehouse_info.plan
+        context = snapshot.dynamic_warehouse_info.context
+        if plan.time == 1800:
+            assert len(plan.order_buffer) == 1
+            assert ReconsiderReason.PERIODIC in context.reconsider
+            break
+        sim.step(engine.on_trigger(snapshot), snapshot)
 
 
 def test_fixed_tour_availability_changes_with_actual_completion(tmp_path):
@@ -169,22 +173,31 @@ def test_fixed_tour_availability_changes_with_actual_completion(tmp_path):
     tour_id = sim.state.add_sequencing_to_planning_state(ScheduledJob(
         job=job, picker_id=0, start_time=0, end_time=500))
     tour = sim.state.tour_manager.get_tour(tour_id)
-    tour.status = TourStates.RELEASED
-    adapter = StateAdapter(selection={"tours": ["released", "started"],
-                                      "resources": ["idle", "reserved", "busy"]},
-                           scope={"freeze_from": "released"})
+    sim.state.tour_manager.advance(tour_id, TourStates.SCHEDULED)
+    adapter = StateAdapter(
+        StateInformation(tours=frozenset({TourStates.SCHEDULED, TourStates.STARTED}),
+                         resources=frozenset({ResourceStates.IDLE, ResourceStates.RESERVED,
+                                              ResourceStates.BUSY})),
+        RevisionScope(TourStates.SCHEDULED, Accepts.NONE))
     sim.state.current_time = 100
-    at_100 = adapter.transform_state(sim.state, "rolling")
-    assert at_100.plan.available_from[0] == 500
-    assert at_100.plan.tours[0].accepts.value == "none"
-    with pytest.raises(CommandViolation):
-        sim.state.apply_all("rolling", (CancelTour(
-            expected_decision_version=0, tour_id=tour_id,
-            expected_route_version=0),), adapter.selection, adapter.scope)
-    assert tour.status == TourStates.RELEASED
-    tour.status = TourStates.DONE
+    at_100 = adapter.transform_state(sim.state, "rolling", "OBRSP")
+    plan = at_100.dynamic_warehouse_info.plan
+    assert plan.available_from[0] == 500
+    assert plan.tours[0].accepts is Accepts.NONE
+    assert validate_commands((CancelTour(tour_id),), plan)[0].code is ViolationCode.ACCEPTS
+    assert tour.status == TourStates.SCHEDULED
+    sim.state.tour_manager.advance(tour_id, TourStates.PENDING)
+    sim.state.tour_manager.advance(tour_id, TourStates.STARTED)
+    sim.state.tour_manager.advance(tour_id, TourStates.DONE)
     sim.state.current_time = 300
-    assert adapter.transform_state(sim.state, "rolling").plan.available_from[0] == 300
-    tour.status = TourStates.STARTED
+    assert adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.available_from[0] == 300
+    # A running tour keeps its picker unavailable until its planned end.
+    sim.state.tour_manager.create_tour(route, 500)
+    running_id = sim.state.tour_manager.get_all_tours()[-1].tour_id
+    sim.state.tour_manager.assign_tour(running_id, 0)
+    sim.state.tour_manager.schedule_tour(running_id, 0, 500)
+    sim.state.tour_manager.advance(running_id, TourStates.SCHEDULED)
+    sim.state.tour_manager.advance(running_id, TourStates.PENDING)
+    sim.state.tour_manager.advance(running_id, TourStates.STARTED)
     sim.state.current_time = 700
-    assert adapter.transform_state(sim.state, "rolling").plan.available_from[0] == 700
+    assert adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.available_from[0] == 700

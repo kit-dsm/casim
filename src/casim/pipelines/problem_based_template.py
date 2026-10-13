@@ -24,17 +24,18 @@ from ware_ops_algos.domain_models import (
     Articles,
     Resources,
     LayoutData,
-    DataCard,
-    OrdersDomain, SimWarehouseDomain, PlanView, DecisionContext,
+    DataCard, OrdersDomain,
 )
 from ware_ops_algos.algorithms.algorithm_cards import AlgorithmCard
 
 from ware_ops_algos.algorithms import (
     ActiveTourBatch, ActiveTourBatchingSolution,
 )
-from ware_ops_algos.taxonomy.taxonomy import TAXONOMY
+from casim.pipelines.taxonomy import TAXONOMY
 from casim.pipelines.admission_view import to_admission_tour
 from casim.domain_objects.sim_domain import ReconsiderReason
+from casim.domain_objects.sim_domain import DecisionContext, SimWarehouseDomain
+from ware_ops_algos.planning.models import PlanView
 
 
 class PipelineParams(luigi.Config):
@@ -100,7 +101,6 @@ class InstanceLoader(BaseComponent):
             "plan": self.get_luigi_local_target_with_task_id("plan.pkl"),
             "context": self.get_luigi_local_target_with_task_id("context.pkl"),
             "memory": self.get_luigi_local_target_with_task_id("memory.pkl"),
-            "operations": self.get_luigi_local_target_with_task_id("operations.pkl"),
         }
 
     def run(self):
@@ -114,10 +114,10 @@ class InstanceLoader(BaseComponent):
         dump_pickle(self.output()["layout"].path, domain.layout)
         dump_pickle(self.output()["articles"].path, domain.articles)
         dump_pickle(self.output()["storage"].path, domain.storage)
-        dump_pickle(self.output()["plan"].path, domain.plan)
-        dump_pickle(self.output()["context"].path, domain.context)
-        dump_pickle(self.output()["memory"].path, domain.memory)
-        dump_pickle(self.output()["operations"].path, domain.operations)
+        dynamic = domain.dynamic_warehouse_info
+        dump_pickle(self.output()["plan"].path, dynamic.plan)
+        dump_pickle(self.output()["context"].path, dynamic.context)
+        dump_pickle(self.output()["memory"].path, dynamic.memory)
 
 
 class IncumbentProvider(BaseComponent):
@@ -131,7 +131,7 @@ class IncumbentProvider(BaseComponent):
 
     def run(self):
         domain: SimWarehouseDomain = load_pickle(self.input()["instance"]["domain"].path)
-        drafts = tuple(tour for tour in domain.plan.tours
+        drafts = tuple(tour for tour in domain.dynamic_warehouse_info.plan.tours
                        if tour.accepts.value == "rebuild")
         dump_pickle(self.output()["incumbent_tours"].path, drafts)
 
@@ -272,7 +272,7 @@ class PickListProvider(AbstractBatching):
 
     def run(self):
         plan: PlanView = load_pickle(self.input()["instance"]["plan"].path)
-        batches = [*plan.pick_lists,
+        batches = [*plan.pick_list_buffer,
                    *(view.batch for view in plan.tours
                      if view.accepts.value == "rebuild")]
         batching_sol = BatchingSolution(batches=batches)
@@ -393,7 +393,6 @@ class AbstractScheduling(BaseComponent):
     def run(self):
         routing_sol = load_pickle(self.input()["routing_sol"]["routing_sol"].path)
         resources = self._load_resources()
-        context = self._load_context()
 
         routes = None
         if isinstance(routing_sol, CombinedRoutingSolution):
@@ -401,9 +400,9 @@ class AbstractScheduling(BaseComponent):
         else:
             routes = [r.route for r in routing_sol]
 
-        jobs = build_jobs(routes, resources, release_time=context.time)
+        plan = self._load_plan()
+        jobs = build_jobs(routes, resources, release_time=plan.time)
         scheduler = self._get_inited_scheduler()
-        plan: PlanView = self._load_plan()
         scheduler.available_from = plan.available_from
         scheduling_sol = scheduler.solve(jobs)
         dump_pickle(self.output()["scheduling_sol"].path, scheduling_sol)
@@ -431,8 +430,10 @@ class AbstractPositioning(BaseComponent):
         occupied = frozenset(view.picker_id for view in plan.tours
                              if view.picker_id is not None)
         result = self._get_positioner().solve(PositioningInput(
-            schedule=schedule, resources=plan.resources, layout=layout,
-            current_time=context.time, input_closed=context.input_closed,
+            schedule=schedule,
+            resources=tuple(load_pickle(inputs["instance"]["resources"].path).resources),
+            layout=layout,
+            current_time=plan.time, input_closed=context.input_closed,
             occupied_picker_ids=occupied,
         ))
         dump_pickle(self.output()["positioning_sol"].path, result)

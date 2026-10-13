@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from ware_ops_algos.algorithms import NodeType, RouteNode
-from ware_ops_algos.domain_models import Order, TourStates
+from ware_ops_algos.domain_models import Order
+from ware_ops_algos.planning.lifecycle import TourStates
 from casim.domain_objects.tour_model import TourPlanningState
+from casim.domain_objects.sim_domain import ReconsiderReason
 
 from casim.events.base_events import Event
-from casim.state import State
+
+if TYPE_CHECKING:
+    from casim.state import State
 
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -85,11 +92,11 @@ class Reconsider(Event):
     """Revisit one decision if its plan version is still current."""
 
     def __init__(self, time: float, decision: str, version: int,
-                 reason: str = "wait"):
+                 reason: ReconsiderReason):
         super().__init__(time)
         self.decision = decision
         self.version = version
-        self.reason = reason
+        self.reason = ReconsiderReason(reason)
 
     def is_stale(self, state: State) -> bool:
         return self.version != state.decision_versions.get(self.decision, 0)
@@ -164,7 +171,7 @@ class TruckDisruption(Event):
                     for o in tour.batch.orders:
                         orders_pulled.append(o)
                     batches_pulled.append(tour.batch)
-                    tour.status = TourStates.CANCELLED
+                    state.tour_manager.advance(tour_id, TourStates.CANCELLED)
                     tours_to_cancel.append(tour_id)
                 if len(orders_pulled) * self.palett_te_factor >= self.te_volume:
                     volume_satisfied = True
@@ -335,7 +342,7 @@ class PickerTourQuery(Event):
                 start_time = max(next_tour.start_time, self.time)
                 # The tour is scheduled -> we use the start time of the tour
                 # Otherwise we greedily start the tour right away
-            next_tour.status = TourStates.PENDING
+            state.tour_manager.advance(next_tour_id, TourStates.PENDING)
             if picker.tour_setup_time:
                 start_time += picker.tour_setup_time
             return [TourStart(start_time, next_tour_id)]

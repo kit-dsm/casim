@@ -2,7 +2,8 @@ import copy
 from copy import deepcopy
 
 from ware_ops_algos.algorithms import Route, RouteNode, NodeType, Job, WarehouseOrder, BatchObject, ScheduledJob, WaitingSolution, SchedulingSolution, BatchingSolution, CombinedRoutingSolution
-from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Order, OrderPosition, TourStates
+from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Order, OrderPosition
+from ware_ops_algos.planning.lifecycle import TourStates
 
 from .order_manager import OrderManager
 from .resource_manager import ResourceManager
@@ -50,15 +51,20 @@ class State:
         self.information_version = 0
         self.last_solved_information_version: dict[str, int] = {}
         self.considered_active_orders: set[tuple[int, int]] = set()
+        self.decision_considered_active_orders: dict[str, set[tuple[int, int]]] = {}
+        self.decision_waiting: dict[str, bool] = {}
+        self.decision_reconsider_at: dict[str, float | None] = {}
+        self.tour_source: dict[int, str] = {}
         self.is_break: bool = False
         self.active_objective = active_objective
         self.warehouse_info = warehouse_info
         self.information = information
 
-    def apply_all(self, decision, commands, selection, scope):
-        """Commit one decision through the sole validated plan-change path."""
-        from .apply import apply_all
-        return apply_all(self, decision, tuple(commands), selection, scope)
+    def apply_all(self, decision, commands):
+        """Apply one decision's prevalidated commands and advance its version."""
+        events = apply(self, tuple(commands))
+        self.decision_versions[decision] = self.decision_versions.get(decision, 0) + 1
+        return events
 
 
     def get_storage(self) -> StorageLocations:
@@ -161,4 +167,7 @@ class State:
             picker_id, RouteNode(origin, NodeType.ROUTE)
         )
         return tour.route_version
+
+
+from .apply import apply
 

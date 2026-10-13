@@ -1,5 +1,5 @@
 name: StochasticWaiting
-problem_class: OBRSPW
+problem_class: OBRSP
 objective: mean_order_completion_time
 source:
   data_loader: scenarios.scenario_stochastic_waiting.loader.StochasticWaitingDataLoader

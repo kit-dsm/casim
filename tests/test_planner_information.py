@@ -54,13 +54,13 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
     assert snapshot.information.require(
         "incoming_orders", ExponentialSingleLineUniformLocationOrderStream
     ).mean_interarrival_time_s == 28.8
-    assert all(order.order_date <= snapshot.context.time
+    assert all(order.order_date <= snapshot.dynamic_warehouse_info.plan.time
                for order in snapshot.orders.orders)
     assert not hasattr(snapshot.information, "arrival_times_s")
 
     algorithm = next(c for c in load_packaged_algo_cards()
                      if c.algo_name == "AnalyticStochasticWaiting")
-    mapper = DomainAlgorithmMapper({"OBRSPW": {"variables": ["waiting"]}})
+    mapper = DomainAlgorithmMapper({"OBRSP": {"variables": ["waiting"]}})
     assert mapper.filter([algorithm], card) == [algorithm]
     invalid_algorithm = copy(algorithm)
     invalid_algorithm.requirements = {"misspelled_information": {"type": ["process_information"]}}
@@ -77,7 +77,7 @@ def test_invalid_forecast_rejected_during_resolution(tmp_path, feature_name, val
                    if feature.name == feature_name)
     feature.value = value
     load_and_flatten_data_card(cfg.data_card)
-    with pytest.raises(ValueError, match="Waiting policy .* incompatible"):
+    with pytest.raises(ValueError, match="configured cards excluded"):
         setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
 
 
@@ -93,17 +93,17 @@ def test_mapper_excludes_missing_or_incompatible_information_before_simulation(t
     card = load_and_flatten_data_card(cfg.data_card)
     algorithm = next(c for c in load_packaged_algo_cards()
                      if c.algo_name == "AnalyticStochasticWaiting")
-    mapper = DomainAlgorithmMapper({"OBRSPW": {"variables": ["waiting"]}})
+    mapper = DomainAlgorithmMapper({"OBRSP": {"variables": ["waiting"]}})
     card.information = {"type": None, "features": {}}
     assert mapper.filter([algorithm], card) == []
-    with pytest.raises(ValueError, match="Waiting policy .* incompatible"):
+    with pytest.raises(ValueError, match="configured cards excluded"):
         setup_experiment(cfg, card)
 
     card.information = {"type": "process_information", "features": {
         "incoming_orders.type": "different_order_process",
     }}
     assert mapper.filter([algorithm], card) == []
-    with pytest.raises(ValueError, match="Waiting policy .* incompatible"):
+    with pytest.raises(ValueError, match="configured cards excluded"):
         setup_experiment(cfg, card)
 
 
@@ -124,7 +124,7 @@ def test_second_process_fits_same_snapshot_boundary(tmp_path):
         "incoming_orders": original,
         "picker_attendance": ExampleAttendanceInformation(probability=0.9),
     })
-    projection = sim.state_adapters["OBRSPW"].transform_state(sim.state, "OBRSPW")
+    projection = sim.state_adapters["OBRSPW"].transform_state(sim.state, "OBRSPW", "OBRSP")
     assert projection.information.require("picker_attendance", ExampleAttendanceInformation).probability == 0.9
     assert projection.information.get_features() == {
         "incoming_orders.type": ExponentialSingleLineUniformLocationOrderStream.representation,

@@ -50,5 +50,6 @@ def test_two_solvers_keep_distinct_cache_paths(tmp_path):
         assert loaders
         assert all(loader.pipeline_params.domain_path == str(solver.cache_path)
                    for loader in loaders)
-        solution, _, _, _ = solver.solve(snapshot)
-        assert solution is not None
+        candidates = solver.solve(snapshot)
+        assert candidates
+        assert all(candidate is not None for candidate in candidates.values())

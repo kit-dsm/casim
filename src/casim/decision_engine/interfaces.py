@@ -1,26 +1,11 @@
-"""Small contracts between simulation, projection and solving."""
+"""Contracts between decision solving and state projection."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
 from ware_ops_algos.algorithms import AlgorithmSolution
-from ware_ops_algos.domain_models import SimWarehouseDomain
-
-if TYPE_CHECKING:
-    from casim.config.schema import RevisionScope, SelectionConfig
-    from casim.state import State
-
+from casim.domain_objects.sim_domain import SimWarehouseDomain
 
 class DecisionSolver(Protocol):
-    def solve(self, snapshot: SimWarehouseDomain, action=None, evaluate=None
-              ) -> tuple[AlgorithmSolution, str, float, tuple | None]: ...
-
-
-class StateProjector(Protocol):
-    selection: SelectionConfig
-    scope: RevisionScope
-
-    def transform_state(self, state: State, decision: str,
-                        problem_class: str | None = None
-                        ) -> SimWarehouseDomain: ...
+    def solve(self, state_snapshot: SimWarehouseDomain) -> dict[str, AlgorithmSolution]: ...

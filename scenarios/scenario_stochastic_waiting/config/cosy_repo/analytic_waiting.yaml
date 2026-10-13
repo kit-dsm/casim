@@ -5,6 +5,4 @@ components:
 - casim.pipelines.subproblems.batching.FiFo
 - casim.pipelines.subproblems.picker_routing.WalkOrWaitSShape
 - casim.pipelines.subproblems.scheduling.SPTScheduler
-waiting:
-  policy: analytic_stochastic
-  min_orders: 3
+- casim.pipelines.subproblems.waiting.AnalyticWaitingNode

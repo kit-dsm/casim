@@ -2,48 +2,69 @@
   "$defs": {
     "Accepts": {
       "enum": [
-        "rebuild",
-        "revise",
+        "none",
         "insert",
-        "none"
+        "rebuild"
       ],
       "title": "Accepts",
       "type": "string"
     },
-    "CommitmentConfig": {
+    "CommitAllPolicy": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "CommitAllPolicy",
+      "type": "object"
+    },
+    "DecisionConfig": {
       "additionalProperties": false,
       "properties": {
-        "rule": {
-          "default": "release_all",
-          "enum": [
-            "release_all",
-            "release_next_per_picker",
-            "release_within"
-          ],
-          "title": "Rule",
+        "problem_class": {
+          "title": "Problem Class",
           "type": "string"
         },
-        "within_s": {
+        "state_information": {
+          "$ref": "#/$defs/StateInformation"
+        },
+        "scope": {
+          "$ref": "#/$defs/RevisionScope"
+        },
+        "commitment_policy": {
           "anyOf": [
             {
-              "minimum": 0,
-              "type": "number"
+              "$ref": "#/$defs/CommitAllPolicy"
+            },
+            {
+              "$ref": "#/$defs/SchedulingCommitmentPolicy"
+            },
+            {
+              "$ref": "#/$defs/WindowCommitmentPolicy"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "title": "Within S"
-        }
-      },
-      "title": "CommitmentConfig",
-      "type": "object"
-    },
-    "DecisionConfig": {
-      "additionalProperties": false,
-      "description": "One named decision owns projection, solve, and commitment settings.",
-      "properties": {
+          "title": "Commitment Policy"
+        },
+        "change_penalty": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Change Penalty",
+          "type": "number"
+        },
+        "precedence": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precedence"
+        },
         "solver": {
           "anyOf": [
             {
@@ -56,21 +77,6 @@
           ],
           "default": null,
           "title": "Solver"
-        },
-        "commitment": {
-          "$ref": "#/$defs/CommitmentConfig"
-        },
-        "waiting": {
-          "$ref": "#/$defs/WaitingConfig"
-        },
-        "release_gates": {
-          "$ref": "#/$defs/ReleaseGates"
-        },
-        "selection": {
-          "$ref": "#/$defs/SelectionConfig"
-        },
-        "scope": {
-          "$ref": "#/$defs/RevisionScope"
         },
         "triggers": {
           "default": [],
@@ -95,30 +101,15 @@
           },
           "title": "Conditions",
           "type": "array"
-        },
-        "precedence": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Precedence",
-          "type": "integer"
         }
       },
       "required": [
-        "selection"
+        "problem_class",
+        "state_information",
+        "scope"
       ],
       "title": "DecisionConfig",
       "type": "object"
-    },
-    "OrderStates": {
-      "enum": [
-        "buffered",
-        "batched",
-        "planned",
-        "in_progress",
-        "done"
-      ],
-      "title": "OrderStates",
-      "type": "string"
     },
     "PeriodicTrigger": {
       "additionalProperties": false,
@@ -135,41 +126,6 @@
       "title": "PeriodicTrigger",
       "type": "object"
     },
-    "PickListStates": {
-      "enum": [
-        "buffered",
-        "planned",
-        "in_progress",
-        "done"
-      ],
-      "title": "PickListStates",
-      "type": "string"
-    },
-    "ReleaseGates": {
-      "additionalProperties": false,
-      "properties": {
-        "outside_break": {
-          "default": false,
-          "title": "Outside Break",
-          "type": "boolean"
-        },
-        "max_staged_pallets": {
-          "anyOf": [
-            {
-              "minimum": 0,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Max Staged Pallets"
-        }
-      },
-      "title": "ReleaseGates",
-      "type": "object"
-    },
     "ResourceStates": {
       "enum": [
         "off_shift",
@@ -184,35 +140,43 @@
       "additionalProperties": false,
       "properties": {
         "freeze_from": {
-          "$ref": "#/$defs/TourStates",
-          "default": "planned"
+          "$ref": "#/$defs/TourStates"
         },
         "frozen_accepts": {
-          "$ref": "#/$defs/Accepts",
-          "default": "none"
+          "$ref": "#/$defs/Accepts"
         }
       },
+      "required": [
+        "freeze_from",
+        "frozen_accepts"
+      ],
       "title": "RevisionScope",
       "type": "object"
     },
-    "SelectionConfig": {
+    "SchedulingCommitmentPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "n_jobs": {
+          "default": 1,
+          "title": "N Jobs",
+          "type": "integer"
+        }
+      },
+      "title": "SchedulingCommitmentPolicy",
+      "type": "object"
+    },
+    "StateInformation": {
       "additionalProperties": false,
       "properties": {
         "orders": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/OrderStates"
-          },
+          "default": false,
           "title": "Orders",
-          "type": "array"
+          "type": "boolean"
         },
         "pick_lists": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/PickListStates"
-          },
+          "default": false,
           "title": "Pick Lists",
-          "type": "array"
+          "type": "boolean"
         },
         "tours": {
           "default": [],
@@ -220,7 +184,8 @@
             "$ref": "#/$defs/TourStates"
           },
           "title": "Tours",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "resources": {
           "default": [],
@@ -228,12 +193,13 @@
             "$ref": "#/$defs/ResourceStates"
           },
           "title": "Resources",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "window": {
           "anyOf": [
             {
-              "$ref": "#/$defs/WindowConfig"
+              "$ref": "#/$defs/Window"
             },
             {
               "type": "null"
@@ -242,14 +208,13 @@
           "default": null
         }
       },
-      "title": "SelectionConfig",
+      "title": "StateInformation",
       "type": "object"
     },
     "TimeAttribute": {
       "enum": [
         "due_date",
-        "start_time",
-        "order_date"
+        "start_time"
       ],
       "title": "TimeAttribute",
       "type": "string"
@@ -257,9 +222,7 @@
     "TourStates": {
       "enum": [
         "planned",
-        "assigned",
         "scheduled",
-        "released",
         "pending",
         "started",
         "done",
@@ -268,57 +231,13 @@
       "title": "TourStates",
       "type": "string"
     },
-    "WaitingConfig": {
-      "additionalProperties": false,
-      "properties": {
-        "policy": {
-          "default": "no_waiting",
-          "enum": [
-            "no_waiting",
-            "order_count",
-            "henn",
-            "analytic_stochastic"
-          ],
-          "title": "Policy",
-          "type": "string"
-        },
-        "k": {
-          "anyOf": [
-            {
-              "minimum": 1,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "K"
-        },
-        "target_batch_size_orders": {
-          "default": 4,
-          "minimum": 2,
-          "title": "Target Batch Size Orders",
-          "type": "integer"
-        },
-        "min_orders": {
-          "default": 1,
-          "minimum": 1,
-          "title": "Min Orders",
-          "type": "integer"
-        }
-      },
-      "title": "WaitingConfig",
-      "type": "object"
-    },
-    "WindowConfig": {
+    "Window": {
       "additionalProperties": false,
       "properties": {
         "by": {
           "$ref": "#/$defs/TimeAttribute"
         },
         "horizon_s": {
-          "exclusiveMinimum": 0,
           "title": "Horizon S",
           "type": "number"
         }
@@ -327,23 +246,26 @@
         "by",
         "horizon_s"
       ],
-      "title": "WindowConfig",
+      "title": "Window",
+      "type": "object"
+    },
+    "WindowCommitmentPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "within_s": {
+          "title": "Within S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "within_s"
+      ],
+      "title": "WindowCommitmentPolicy",
       "type": "object"
     }
   },
   "additionalProperties": false,
-  "description": "The decisions section of a composed experiment configuration.",
   "properties": {
-    "on_violation": {
-      "default": "reject",
-      "enum": [
-        "reject",
-        "drop",
-        "repair"
-      ],
-      "title": "On Violation",
-      "type": "string"
-    },
     "decisions": {
       "additionalProperties": {
         "$ref": "#/$defs/DecisionConfig"

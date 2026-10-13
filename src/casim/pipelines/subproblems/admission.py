@@ -24,7 +24,8 @@ class RemainingRouteAdmissionNode(AbstractAdmission):
             tours=tuple(to_admission_tour(view) for view in plan.tours
                         if view.status.value == "started"
                         and view.accepts.value in ("insert", "revise")),
-            candidate_order_ids=plan.active_candidate_ids,
+            candidate_order_ids=frozenset(order.order_id
+                                          for order in plan.order_buffer),
             considered_pairs=memory.considered_active_orders,
         ))
         dump_pickle(self.output()["admission_sol"].path, decision)
@@ -44,7 +45,8 @@ class CenterPositionAdmissionNode(AbstractAdmission):
                         if view.status.value == "started"
                         and view.positioning_mode == "center_relocation"
                         and not view.active_order_ids),
-            candidate_order_ids=plan.active_candidate_ids,
+            candidate_order_ids=frozenset(order.order_id
+                                          for order in plan.order_buffer),
             considered_pairs=memory.considered_active_orders,
         ))
         dump_pickle(self.output()["admission_sol"].path, decision)

@@ -1,27 +1,12 @@
-# @package _global_
 decisions:
-  OBRSP:
-    solver:
-      _target_: casim.pipelines.pipeline_runner.CoSySolver
-      solution_ranker:
-        _target_: casim.pipelines.solution_ranker.SolutionRanker
-        objective: ${data_card.objective}
-      repo: ${cosy_repo}
-    selection:
-      orders:
-      - buffered
-      resources:
-      - idle
-      - reserved
-    triggers:
-    - OrderArrival
-    - PickerIdle
-    - FlushRemainingOrders
-    conditions:
-    - _target_: casim.simulation_engine.conditions.NbrPickersCondition
-      threshold: 1
-    commitment:
-      rule: release_next_per_picker
-    waiting:
-      policy: order_count
-      k: 5
+  problem_class: decisions
+  state_information:
+    orders: false
+    pick_lists: false
+    tours: []
+    resources: []
+  scope:
+    freeze_from: planned
+    frozen_accepts: none
+  triggers: []
+  conditions: []
