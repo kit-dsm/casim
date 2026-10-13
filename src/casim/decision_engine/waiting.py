@@ -20,9 +20,9 @@ class ReleaseDecision:
     reconsiderations: tuple[tuple[float, str], ...] = ()
 
 
-def _single_order_service_times(snapshot, job, picker) -> dict[int, float]:
+def _single_order_router(snapshot, picker):
     layout = snapshot.layout.layout_network
-    router = SShapeRouting(
+    return SShapeRouting(
         start_node=layout.start_node, end_node=layout.end_node,
         closest_node_to_start=layout.closest_node_to_start,
         min_aisle_position=layout.min_aisle_position,
@@ -36,16 +36,6 @@ def _single_order_service_times(snapshot, job, picker) -> dict[int, float]:
         idx_to_node={index: node for index, node in
                      enumerate(layout.graph.nodes)},
     )
-    service = {}
-    for order in job.job.route.batch.orders:
-        router.reset_parameters()
-        route = router.solve(order.pick_positions).route
-        service[order.order_id] = (
-            picker.tour_setup_time + route.distance / picker.speed
-            + sum(pick.in_store for pick in order.pick_positions)
-            * picker.time_per_pick
-        )
-    return service
 
 
 def release_decision(jobs, snapshot, waiting: WaitingConfig,
@@ -83,7 +73,7 @@ def release_decision(jobs, snapshot, waiting: WaitingConfig,
         elif policy == "order_count":
             waiter = OrderCountWaiting(waiting.k)
         elif policy == "henn":
-            waiter = HennWaiting()
+            waiter = HennWaiting(_single_order_router(snapshot, picker))
         elif policy == "analytic_stochastic":
             waiter = AnalyticStochasticWaiting(
                 target_batch_size_orders=waiting.target_batch_size_orders)
@@ -99,9 +89,6 @@ def release_decision(jobs, snapshot, waiting: WaitingConfig,
             picker=picker, layout=snapshot.layout,
             information=snapshot.information,
             deadline_reached="Reconsider:wait" in snapshot.context.cause,
-            single_order_service_times=(
-                _single_order_service_times(snapshot, job, picker)
-                if policy == "henn" else None),
         ))
         if decision.action == "release":
             planned.append(job)
