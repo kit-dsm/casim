@@ -305,11 +305,6 @@ class BatchingNode(AbstractBatching):
         # pick_lists = [self._build_pick_lists(batch.orders) for batch in batching_sol.batches]
         # batching_sol.pick_lists = pick_lists
 
-        if batcher.__class__.__name__ in ["SeedBatching", "ClarkAndWrightBatching", "LocalSearchBatching"]:
-            batching_sol.algo_name = batcher.algo_name
-        else:
-            batching_sol.algo_name = batcher.__class__.__name__
-
         dump_pickle(self.output()["batching_sol"].path, batching_sol)
 
 
