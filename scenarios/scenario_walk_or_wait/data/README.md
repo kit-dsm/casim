@@ -2,6 +2,7 @@
 
 `radar/selected/Instances` preserves the directory structure of the local
 [RADAR instance bundle](https://radar.kit.edu/radar/en/dataset/mwsv59v8sk9sqaan).
+`python scripts/fetch_data.py radar` restores it; see [`radar/SOURCE.md`](radar/SOURCE.md).
 The 100 `Orders/OFAT/Standard_case/instance_*.json` files contain 100,597
 orders in total, the same count as `Results/OFAT/Standard_Case/Results_Standard_Case.csv`.
 Each order file names its NetworkX layout pickle and article-to-pick-node JSON

@@ -1,7 +1,0 @@
-# Preserve the official archive bytes across Windows checkouts.
-README.txt -text
-description.pdf -text
-abc1/* -text
-abc2/* -text
-ran1/* -text
-ran2/* -text
