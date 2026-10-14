@@ -33,7 +33,7 @@ RESULTS = Path(__file__).resolve().parent / "data" / "casop-results-v0.1.0.parqu
 INSTANCES = ROOT / "scenarios" / "scenario_static_benchmarks" / "data" / "instances"
 OUTPUT = Path(__file__).resolve().parent / "outputs"
 REL_TOL = 1e-9
-NOT_EXECUTABLE = {"RatliffRosenthal": "RatliffRosenthalRouting builds no node sequence"}
+NOT_EXECUTABLE = {}
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,14 @@ def evaluate(row: pd.Series, results: pd.DataFrame, smoke: bool = False) -> dict
         if not out["second_times_distance_equal"]:
             raise RuntimeError(f"Distance changed with time parameters: {row.instance_set} "
                                f"{row.instance_name} {row.pipeline}")
-    if pipeline.routing == "NearestNeighbourhood":
+    if pipeline.routing in ("NearestNeighbourhood", "RatliffRosenthal"):
+        if pipeline.routing == "RatliffRosenthal" and any(
+                route.walked_distance is None
+                or not equal(route.reported_distance, route.walked_distance)
+                for route in direct.routes):
+            raise RuntimeError(f"RatliffRosenthalRouting defect: a route's walked node sequence "
+                               f"does not equal its reported distance on {row.instance_set} "
+                               f"{row.instance_name}")
         changed = [route for route in direct.routes if route.walked_distance is not None
                    and not equal(route.reported_distance, route.walked_distance)]
         walked_value = (direct_value + (direct.walked_distance - direct.distance)

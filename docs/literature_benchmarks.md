@@ -294,3 +294,36 @@ The sole direct result below a marked optimum is `instances_207_1_small`:
 128,700 against 132,420, while CASIM gives 133,020. This is the same F64
 question the user asked to leave outstanding. RR pipelines are compared
 directly with CASOP here; Task B.4a makes them executable in CASIM.
+
+### B.4a: RatliffRosenthalRouting executes its tours
+
+Finding 1 is closed. `RatliffRosenthalRouting._run` now reconstructs its node
+sequence when asked for a tour (`gen_tour=True`): it expands the Euler tour of
+the dynamic program's multigraph (`_construct_picker_tour`) into network nodes
+with the same shortest-path machinery as the other routers, then inserts a
+`PICK` node at every visited pick position, in Euler order; the reconstruction
+raises if a pick position is never visited. Without `gen_tour`, the returned
+`Route` keeps `annotated_route=None`, so CASOP's behaviour is untouched by
+construction: with `gen_tour=False` the reported distance is computed before
+the reconstruction, and the applicable card-name sets of the seven CASOP data
+cards (ware_ops_pipes `data/data_cards`) are identical to `main` (8, 13, 19,
+19, 19, 15, 24 on sprp, sprp-ss, bahceci-oencan, henn-waescher, muter-oencan,
+foodmart and kris).
+
+The router used by comparison 1 now builds the RR router exactly as casim's
+`RatliffRosenthal` component does (`start_node=network.start_node`,
+`gen_tour=True`, `gen_item_sequence=True`). On all 15 RR smoke rows and all 50
+full RR rows of the run list, every route's walked node sequence, its
+underlying graph-edge sum and the router's reported distance are equal, so RR
+has no F64-like gap. Comparison 1: CASIM equals the direct calls on all 50 RR
+rows (as on the 260 equal non-RR rows); comparison 2: direct still equals
+CASOP v0.1.0 on all 50 RR rows; no RR row lies below its proven optimum (49
+rows at the optimum, `100_48_9` at its best-known reference).
+
+The 14 RR rows on BahceciOencan and MuterOencanWG report `check_plan`
+`overlap` violations, the same epsilon overlaps documented as finding 3 (the
+planned end recomputed at `TourStart`); they also occur on 37 non-RR rows of
+the same sets and belong to Task 4.14. ware_ops_algos commit `8b91419`
+reconstructs the route with a test on the paper's synthetic instance; casim
+wires the component and removes the RR entry from the runner's not-executable
+list.

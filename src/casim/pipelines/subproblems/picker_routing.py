@@ -204,8 +204,9 @@ class RatliffRosenthal(PickerRouting):
         layout = self._load_layout()
         graph_params = layout.graph_data
         layout_network = layout.layout_network
+        nodes = list(layout_network.graph.nodes)
         return RatliffRosenthalRouting(
-            start_node=layout.graph_data.start_connection_point,
+            start_node=layout_network.start_node,
             end_node=layout_network.end_node,
             closest_node_to_start=layout_network.closest_node_to_start,
             min_aisle_position=layout_network.min_aisle_position,
@@ -213,6 +214,10 @@ class RatliffRosenthal(PickerRouting):
             distance_matrix=layout_network.distance_matrix,
             predecessor_matrix=layout_network.predecessor_matrix,
             picker=resources.resources,
+            gen_tour=True,
+            gen_item_sequence=True,
+            node_to_idx={node: index for index, node in enumerate(nodes)},
+            idx_to_node=dict(enumerate(nodes)),
             n_aisles=graph_params.n_aisles,
             n_pick_locations=graph_params.n_pick_locations,
             dist_aisle=graph_params.dist_aisle,

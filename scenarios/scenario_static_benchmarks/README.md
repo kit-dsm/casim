@@ -48,8 +48,8 @@ card; every SPRP and SPRP-SS instance has one order, which the loader gives one
 box, so `FiFo` returns the same single batch. The FIFO scheduler and no waiting
 only let the picker execute the tours; they change no distance.
 `RatliffRosenthalNF` and `CombinedBatchingRoutingAssigning` need integrated
-stages that CASIM does not have. `RatliffRosenthalRouting` has no node
-sequence yet, so its pipelines are solved directly but not executed in CASIM.
+stages that CASIM does not have. `RatliffRosenthalRouting` reconstructs its
+node sequence since B.4a and is executed in CASIM.
 
 ## Running
 

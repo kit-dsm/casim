@@ -123,19 +123,11 @@ def make_batcher(pipeline: Pipeline, domain: BaseWarehouseDomain):
 
 def make_router(name: str, domain: BaseWarehouseDomain):
     """Routers as casim's routing components build them."""
+    kwargs = _network_kwargs(domain, gen_tour=True)
     if name == "RatliffRosenthal":
-        network = domain.layout.layout_network
-        return RatliffRosenthalRouting(
-            start_node=domain.layout.graph_data.start_connection_point,
-            end_node=network.end_node,
-            closest_node_to_start=network.closest_node_to_start,
-            min_aisle_position=network.min_aisle_position,
-            max_aisle_position=network.max_aisle_position,
-            distance_matrix=network.distance_matrix,
-            predecessor_matrix=network.predecessor_matrix,
-            picker=domain.resources.resources,
-            **_rr_kwargs(domain))
-    return ROUTERS[name](**_network_kwargs(domain, gen_tour=True))
+        kwargs.update(_rr_kwargs(domain))
+        kwargs["start_node"] = domain.layout.layout_network.start_node
+    return ROUTERS[name](**kwargs)
 
 
 def _walked(route, domain: BaseWarehouseDomain) -> float | None:
