@@ -117,6 +117,16 @@ class StateAdapter:
         )
         return deepcopy(snapshot)
 
+    def full_plan_view(self, state: State) -> PlanView:
+        """Project the complete plan for optional independent auditing."""
+        return PlanView(
+            time=state.current_time,
+            order_buffer=tuple(state.order_manager.get_order_buffer()),
+            pick_list_buffer=tuple(state.order_manager.get_pick_list_buffer()),
+            tours=tuple(self._tour_view(state, tour)
+                        for tour in state.tour_manager.get_all_tours()),
+        )
+
     def _tour_view(self, state: State, tour) -> TourView:
         status = TourStates(tour.status)
         picker_id = tour.assigned_resource

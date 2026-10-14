@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from hydra.utils import get_class
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from ware_ops_algos.domain_models import DataCard
 
 from casim.config.data_card import load_and_flatten_data_card
@@ -24,6 +24,10 @@ def setup_experiment(cfg: DictConfig, data_card: DataCard):
         for key, value in cfg.data_card.source.items() if key.endswith("path")
     }
     loggers = [KPILogger(Path(cfg.experiment.output_dir) / "kpis")]
+    if OmegaConf.select(cfg, "experiment.audit", default=False):
+        from casim.baseline_capture import BaselineCapture
+        loggers.append(BaselineCapture(
+            Path(cfg.experiment.output_dir) / "audit.json"))
     if cfg.viz.launch:
         loggers.append(DashLogger(Path(cfg.experiment.output_dir) / "viz"))
     trigger_map = {trigger: tuple(name for name, setup in setups.items()
