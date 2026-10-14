@@ -1,0 +1,42 @@
+defaults:
+  - _self_
+  - data_card: henn_waescher
+  - decisions: static
+
+# Instances are read where ware_ops_pipes' README places them (Section 3.1: not committed).
+instances_root: ${project_root}/../ware_ops_pipes/data/instances
+benchmark:
+  instance_set: HennWaescherUniform
+  instance: 21s-20-30-1
+  pipeline: GIA+SavingsSShape+SShape
+
+cosy_repo:
+  components: []
+
+hydra:
+  job_logging:
+    root:
+      level: CRITICAL
+  hydra_logging:
+    root:
+      level: CRITICAL
+
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+
+project_root: ${hydra:runtime.cwd}
+instances_base: ${instances_root}
+cache_base: ${hydra:runtime.output_dir}/cache
+verbose: False
+
+viz:
+  launch: False
+  port: 8050
+
+experiment:
+  name: ${benchmark.instance_set}
+  output_dir: ${hydra:runtime.output_dir}
+  instance_name: ${benchmark.instance}

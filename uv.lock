@@ -6,6 +6,13 @@ resolution-markers = [
     "sys_platform != 'win32'",
 ]
 
+[manifest]
+overrides = [
+    { name = "cosy-luigi", git = "https://github.com/cls-python/cosy-luigi.git?rev=572209d699ce0c04ee0264f0e7b6036e7fa07e4f" },
+    { name = "luigi" },
+    { name = "ware-ops-algos", editable = "../ware_ops_algos" },
+]
+
 [[package]]
 name = "absl-py"
 version = "2.5.1"
@@ -71,6 +78,8 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "hypothesis" },
+    { name = "pyarrow" },
+    { name = "ware-ops-pipes" },
 ]
 
 [package.metadata]
@@ -97,7 +106,11 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "hypothesis", specifier = ">=6.169.0" }]
+dev = [
+    { name = "hypothesis", specifier = ">=6.169.0" },
+    { name = "pyarrow", specifier = ">=26.0.0" },
+    { name = "ware-ops-pipes", git = "https://github.com/kit-dsm/ware_ops_pipes.git?rev=554a153b69394962e26ccfebdbeea0a0dc6ed552" },
+]
 
 [[package]]
 name = "certifi"
@@ -170,6 +183,29 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/27/fb/576f067976d320f5f0114a8d9fa1215425441bb35627b1993e5afd8111e5/cloudpickle-3.1.2.tar.gz", hash = "sha256:7fda9eb655c9c230dab534f1983763de5835249750e85fbcef43aaa30a9a2414", size = 22330, upload-time = "2025-11-03T09:25:26.604Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/39/799be3f2f0f38cc727ee3b4f1445fe6d5e4133064ec2e4115069418a5bb6/cloudpickle-3.1.2-py3-none-any.whl", hash = "sha256:9acb47f6afd73f60dc1df93bb801b472f05ff42fa6c84167d25cb206be1fbf4a", size = 22228, upload-time = "2025-11-03T09:25:25.534Z" },
+]
+
+[[package]]
+name = "cls-luigi"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cls-python" },
+    { name = "luigi" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/21/f8/3609620254f1fab0a1fc1e9ad9a246d6543ef259e67690a41e5e6fc66084/cls-luigi-0.1.1.tar.gz", hash = "sha256:b215360455bfe35dd232b841ca828e44131af3f7040227e7d08cd127735add14", size = 354698, upload-time = "2024-02-29T13:15:55.026Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/00/f7/5bebb72740107298e248b605b9923ad892de6687324f5f1b4ccf981e813e/cls_luigi-0.1.1-py3-none-any.whl", hash = "sha256:910e3df541f4d2f7e4990c3c9561d8e4cd4ffee3ff345829d43e98f31883903a", size = 359466, upload-time = "2024-02-29T13:15:53.589Z" },
+]
+
+[[package]]
+name = "cls-python"
+version = "0.1.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/36/5f/0733e937afa399d99f7153347f7d2f2d9b6f99598580dcb35da7ea8c718e/cls-python-0.1.4.tar.gz", hash = "sha256:772bd3f8a4974a73d215e296a38f4895dda243065abfb41f68b682e2ed8f91db", size = 37989, upload-time = "2023-02-17T17:30:53.624Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/0f/d9956557918de0c0882993eafd5b8ef3b4a271eaa002f1b1502e99fb0e57/cls_python-0.1.4-py3-none-any.whl", hash = "sha256:55df7990a177566c29d70c40e5366c174cbee7998825245ee744190f10db9561", size = 26175, upload-time = "2023-02-17T17:30:51.908Z" },
 ]
 
 [[package]]
@@ -1157,6 +1193,21 @@ wheels = [
 ]
 
 [[package]]
+name = "pyarrow"
+version = "26.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/34/17c34cb38e5d940e38f0f0d9fdfa0e8a506676409ea9b85aff7e3079f831/pyarrow-26.0.0.tar.gz", hash = "sha256:0cccd36e00ea3afeb52ded61f2721ce71f604853d70c45365c58324eb773d6ae", size = 1239433, upload-time = "2026-10-09T08:26:25.315Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4d/35/ca95493712af97c46a312945c8e9d16b21c5fe2f148be5466168d0290505/pyarrow-26.0.0-cp313-cp313-macosx_12_0_arm64.whl", hash = "sha256:a6ca849f90cf73fe361f08a5762c783ead9671e4548c1f558cc637b54c9103f2", size = 36336700, upload-time = "2026-10-09T08:14:51.399Z" },
+    { url = "https://files.pythonhosted.org/packages/69/ef/b1a675f79c9babfd4fcd99af62141d3c2d1a78a524e311b0c6b80110445a/pyarrow-26.0.0-cp313-cp313-macosx_12_0_x86_64.whl", hash = "sha256:c2ba350957076b1b3a22f549261dc3e9c67ca20816d8bd5f79d7b9c69be4c4c2", size = 38698502, upload-time = "2026-10-09T08:14:57.114Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/7c/cea852a832a327a8de797b3a68e5c25ce0f5aa1d20503807671bd90ec642/pyarrow-26.0.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:e3b190ba1d3d22a5a8758597f797111b77d433473744352a184a5ee0a42d672e", size = 50865064, upload-time = "2026-10-09T08:20:01.614Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/d6/e95834b29360092376fe4da9956ba41bb7b021869efe6ee9d4172d05cb15/pyarrow-26.0.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:240bd18a7487f8767616a948a69dd4e740a8bc36a1c9da49e4dc9a32c5c2faed", size = 53926722, upload-time = "2026-10-09T08:23:10.829Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/7f/98257444e2aea2e1fddceee3af3bd2077236d550428413f80393bd1f888d/pyarrow-26.0.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:2b5fcd69c0e1107b79e55839877db5a6ed04651b73fd6fec581d09e230bed5e4", size = 54443093, upload-time = "2026-10-09T08:23:16.971Z" },
+    { url = "https://files.pythonhosted.org/packages/88/ca/dac99cfb25cfa62bf7194600cc99abc14a6bd2af50d7fdb7f15eeaf6e202/pyarrow-26.0.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:f7444ea6975c49a857c68f9bd8fa11acae96dede63d120ffb3bf0a603ea82516", size = 57381937, upload-time = "2026-10-09T08:23:24.95Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/ed/138d29fddaf803b90f4527e124bb6aaddc18aaf4a6c50fd0a5f577c94989/pyarrow-26.0.0-cp313-cp313-win_amd64.whl", hash = "sha256:3de30a7432b48b98b9decbd9e25a53bb9251d202c2e6c5a29a50869592ccb117", size = 28478571, upload-time = "2026-10-09T08:23:30.535Z" },
+]
+
+[[package]]
 name = "pydantic"
 version = "2.14.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1597,6 +1648,17 @@ requires-dist = [
     { name = "sphinx-copybutton", marker = "extra == 'docs'" },
 ]
 provides-extras = ["dev", "docs", "notebook"]
+
+[[package]]
+name = "ware-ops-pipes"
+version = "0.2.0"
+source = { git = "https://github.com/kit-dsm/ware_ops_pipes.git?rev=554a153b69394962e26ccfebdbeea0a0dc6ed552#554a153b69394962e26ccfebdbeea0a0dc6ed552" }
+dependencies = [
+    { name = "cls-luigi" },
+    { name = "luigi" },
+    { name = "pandas" },
+    { name = "ware-ops-algos" },
+]
 
 [[package]]
 name = "werkzeug"

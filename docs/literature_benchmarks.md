@@ -231,3 +231,35 @@ Approved by the user on 14 October 2026 with the changes below. Every benchmark 
 L5 runs last. The commit of `project_4D4L/2_Stochastic_Waiting` and the walking speed and pick time that produced `Results_Standard_Case.csv` are not recorded anywhere; candidates are the commits around the RADAR archive date (2026-04-29) and the paper, with speed and pick time from the paper, the RADAR metadata or each candidate's defaults, each run on the standard case and compared with the CSV.
 
 Not pursued for now: L6 (companion not available), L7 and L8 (papers not available), L9 (decided by the user), L10 (vehicle routing, which CASIM does not model).
+
+## B.4 smoke stage (L1), 14 October 2026
+
+casim `736a8b8` plus this task's changes, ware_ops_algos `dd4ffc9`, ware_ops_pipes `554a153` (loaders only), CASOP values from the v0.1.0 results parquet. 39 runs: 3 instances per set and pipeline (`smoke` column of `l1_subset.csv`). Per-run table: `scenarios/scenario_static_benchmarks/outputs/l1_smoke.csv` (not committed).
+
+Pipeline choice: CASIM has no integrated stages, so `RatliffRosenthalNF` (SPRP-SS) and `CombinedBatchingRoutingAssigning` (BahceciOencan) are a gap. The closest expressible pipeline over all instances with a reference value replaces them: SPRP-SS `MinMinIA+SingleOrderBatching+RR` (mean gap 13.99 %), BahceciOencan `GIA+LSBatchingRROrderNrFiFo+RR` (0.22 %, 0.02 s per instance, so all 45 instances instead of the approved 10, which were capped for the integrated pipeline's 151 s). The other choices are unchanged. Name mapping from v0.1.0 to today: `SavingsSShape` = `ClarkAndWrightSShape`, `LSOrdNrNN` = `LSBatchingNNFiFoOrderNr`, `LSBatchingRROrderNrFiFo` and `LSBatchingSShapeFiFoOrderNr` unchanged, `RR` = `RatliffRosenthal`, `NN` = `NearestNeighbourhood`, `GIA` = `GreedyIA`, `EDD` = `EDDScheduler`, `SingleOrderBatching` = a ware_ops_pipes template stage (one batch per order), expressed as `FiFo` on the one-order SPRP instances.
+
+| Set | Pipeline | Runs | 1. CASIM = direct | 2. direct = v0.1.0 | 3. gap to reference | Invariant violations in CASIM |
+|---|---|---:|---|---|---|---|
+| SPRP | GIA + single + RR | 3 | not executable | 3 of 3 | 0 % (all optimal) | |
+| SPRP | GIA + single + S-shape | 3 | 3 of 3 | 3 of 3 | 11.0 to 27.0 % | none |
+| SPRP-SS | MinMinIA + single + RR | 3 | not executable | 3 of 3 | 0.7 to 52.0 % | |
+| SPRP-SS | MinMinIA + single + S-shape | 3 | 3 of 3 | 3 of 3 | 85.7 to 275.5 % | none |
+| BahceciOencan | LS(RR, OrderNr) + RR | 3 | not executable | 3 of 3 | 0 to 0.54 % | |
+| BahceciOencan | LS(S-shape, OrderNr) + S-shape | 3 | 3 of 3 | 3 of 3 | 16.8 to 24.5 % | `overlap` in 1 run |
+| HennWaescher | LS(RR, OrderNr) + RR | 3 | not executable | 3 of 3 | 0.5 to 4.2 % | |
+| HennWaescher | Savings(S-shape) + S-shape | 3 | 3 of 3 | 3 of 3 | 12.5 to 21.8 % | none |
+| MuterOencanWG | LS(RR, OrderNr) + RR | 3 | not executable | 3 of 3 | 3.8 to 10.2 % | |
+| MuterOencanWG | Savings(S-shape) + S-shape | 3 | 3 of 3 | 3 of 3 | 15.5 to 20.5 % | `overlap` in 3 runs |
+| Foodmart | LS(NN, OrderNr) + NN | 3 | 3 of 3 | 3 of 3 | 7.4 to 9.2 % | none |
+| Foodmart | LS(S-shape, OrderNr) + S-shape | 3 | 3 of 3 | 3 of 3 | 6.9 to 18.3 % | none |
+| Kris | GIA + DueDate + NN + EDD (total time) | 3 | 1 of 3 | 3 of 3 | 11.5 to 28.0 % | `overlap` in 1 run |
+
+No value lies below a proven-optimal reference, and no local search or savings run reached its time limit (300 s), so every batching result is deterministic. Comparison 2 finds no drift on the smoke instances.
+
+Findings, each with its evidence:
+
+1. `RatliffRosenthalRouting` returns a distance and an item sequence but no node sequence (`annotated_route` is `None`; `routing.py`, `_run`), so CASIM cannot execute its tours (`TypeError` in `tour_manager.create_tour`). All RR pipelines (15 of 39 runs) are solved directly but not run in CASIM. This affects the closest pipeline of SPRP, SPRP-SS, BahceciOencan, HennWaescher and MuterOencanWG.
+2. Kris, comparison 1: CASIM gives 138,504 against 137,352 (instances_208_1) and 122,874 against 120,570 (instances_31_1). The batches and the routes are identical. For one and two routes respectively, `NearestNeighbourhoodRouting` reports a distance 384 shorter than the length of its own node sequence (instances_31_1: routes of orders 9 and 2 report 2,406 and 1,482, their nodes walk 2,790 and 1,866; speed 1/3, so 3 × 384 = 1,152 per route). CASIM walks the node sequence; the direct objective and CASOP's published value use the reported distance. The walked distance of the direct routes equals CASIM's distance exactly. The difference is the router's, and CASOP's published Kris values understate the walked distance where it occurs.
+3. `overlap` (`check_plan`): in the Muter-Öncan and Bahceci runs, a started tour's planned end exceeds the next tour's planned start by 5.7 × 10⁻¹⁴: on `TourStart`, `state.py` recomputes the planned end from the current time, and the strict comparison in `invariants.check_plan` has no tolerance. In Kris instances_31_1 the overlap is 1,152 s: the tour of finding 2 runs longer than the scheduler planned and nothing re-projects the queue. Both belong to the planned and executed times of Task 4.14.
+
+Changes for this stage: ware_ops_pipes `554a153` as casim development dependency (git source; `ware-ops-algos`, `cosy-luigi` and `luigi` overridden to casim's own, since only the loaders are used), pyarrow for the parquet; casim's configured-component generator renders `LocalSearchBatching` and `ClarkAndWrightBatching` cards (12 generated components, replacing the hand-written `LSBatchingNNFiFo`, `LSBatchingSShapeFiFo`, `ClarkAndWrightNN` and `ClarkAndWrightSShape`, which called `LocalSearchBatching` without its required neighbourhoods); a `MinMinIA` component; the scenario `scenario_static_benchmarks`.

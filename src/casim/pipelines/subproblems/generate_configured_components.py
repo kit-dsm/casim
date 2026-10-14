@@ -13,11 +13,12 @@ from pathlib import Path
 
 import ware_ops_algos.algorithms as algorithms
 from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
+from ware_ops_algos.algorithms.batching.batching import Batching
 from ware_ops_algos.algorithms.routing.routing import Routing
 
 
 OUTPUT_DIR = Path(__file__).parent / "generated"
-BASES = {"IncumbentStartBatching", "OrderCountWaiting"}
+BASES = {"IncumbentStartBatching", "OrderCountWaiting", "LocalSearchBatching", "ClarkAndWrightBatching"}
 
 
 def _module_name(name: str) -> str:
@@ -26,6 +27,12 @@ def _module_name(name: str) -> str:
     if not value or value[0].isdigit():
         raise ValueError(f"Invalid configured component name {name!r}")
     return value
+
+
+def _check_class(name: str, base: type, key: str) -> None:
+    candidate = getattr(algorithms, name, None)
+    if not name.isidentifier() or not inspect.isclass(candidate) or not issubclass(candidate, base):
+        raise ValueError(f"Unknown {key} {name!r}")
 
 
 def _render(name: str, implementation: dict) -> str:
@@ -38,11 +45,26 @@ def _render(name: str, implementation: dict) -> str:
                 + f"class {name}(OrderCountWaitingNode):\n"
                 + "    abstract = False\n"
                 + f"    min_orders = {minimum}\n")
+    router = implementation["routing_class"]
+    _check_class(router, Routing, "routing_class")
+    if base == "LocalSearchBatching":
+        start = implementation["start_batching_class"]
+        _check_class(start, Batching, "start_batching_class")
+        return (header
+                + "from casim.pipelines.subproblems.batching import ConfiguredLocalSearchNode\n"
+                + f"from ware_ops_algos.algorithms import {router}, {start}\n\n\n"
+                + f"class {name}(ConfiguredLocalSearchNode):\n"
+                + "    abstract = False\n"
+                + f"    routing_class = {router}\n"
+                + f"    start_batching_class = {start}\n")
+    if base == "ClarkAndWrightBatching":
+        return (header
+                + "from casim.pipelines.subproblems.batching import ConfiguredClarkAndWrightNode\n"
+                + f"from ware_ops_algos.algorithms import {router}\n\n\n"
+                + f"class {name}(ConfiguredClarkAndWrightNode):\n"
+                + "    abstract = False\n"
+                + f"    routing_class = {router}\n")
     if base == "IncumbentStartBatching":
-        router = implementation["routing_class"]
-        router_class = getattr(algorithms, router, None)
-        if not router.isidentifier() or not inspect.isclass(router_class) or not issubclass(router_class, Routing):
-            raise ValueError(f"Unknown routing_class {router!r}")
         return (header
                 + "from casim.pipelines.subproblems.batching import IncumbentBatchingNode\n"
                 + f"from ware_ops_algos.algorithms import {router}\n\n\n"

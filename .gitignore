@@ -46,3 +46,5 @@ docs/research/
 # Run output
 .phaseb_runs/
 tmp_output/
+scenarios/scenario_static_benchmarks/data/*.parquet
+scenarios/scenario_static_benchmarks/outputs/

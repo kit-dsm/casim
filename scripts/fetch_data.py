@@ -1,6 +1,6 @@
 """Download benchmark data into ignored directories and check every file's SHA-256.
 
-Usage: python scripts/fetch_data.py {oobp,dhaen,radar,all} [--check]
+Usage: python scripts/fetch_data.py {oobp,dhaen,casop,radar,all} [--check]
 
 Each dataset directory holds a committed SOURCE.md and SHA256SUMS.txt; the data
 itself is never committed (Section 3.1 of docs/revision_scopes_corrections.md).
@@ -136,6 +136,15 @@ DATASETS = {
             ("nc7gp", "37fff3236247062acd10f758ea4f9bb742721f33220a2ac0e0d4e92e2b95fd4f",
              "Online problem/Parameter tuning/Results parameter tuning.xlsx"),
         )),
+        None,
+        cache=".",
+    ),
+    "casop": Dataset(
+        ROOT / "scenarios/scenario_static_benchmarks/data",
+        (Download("https://github.com/kit-dsm/ware_ops_pipes/releases/download/v0.1.0/"
+                  "casop-results-v0.1.0.parquet",
+                  "4e3dd80237636b5a29ff80b0409769768f7b0eaba3cedfb45df5d689dd8322ac",
+                  "casop-results-v0.1.0.parquet"),),
         None,
         cache=".",
     ),

@@ -35,8 +35,14 @@ dev = [
 [project.scripts]
 casim = "casim.cli:main"
 
+[tool.uv]
+# ware_ops_pipes (CASOP) pins its own ware_ops_algos, cosy-luigi and luigi; casim keeps
+# its own, and uses only ware_ops_pipes' instance loaders (Task B.4).
+override-dependencies = ["ware-ops-algos", "cosy-luigi", "luigi"]
+
 [tool.uv.sources]
 ware_ops_algos = { path = "../ware_ops_algos", editable = true }
+ware-ops-pipes = { git = "https://github.com/kit-dsm/ware_ops_pipes.git", rev = "554a153b69394962e26ccfebdbeea0a0dc6ed552" }
 cosy-luigi = { git = "https://github.com/cls-python/cosy-luigi.git", rev = "572209d699ce0c04ee0264f0e7b6036e7fa07e4f" }
 
 [tool.setuptools.packages.find]
@@ -49,4 +55,6 @@ testpaths = ["tests"]
 [dependency-groups]
 dev = [
     "hypothesis>=6.169.0",
+    "pyarrow>=26.0.0",
+    "ware-ops-pipes",
 ]

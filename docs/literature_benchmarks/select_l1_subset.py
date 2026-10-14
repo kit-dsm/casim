@@ -4,7 +4,8 @@ Run from the ware_ops_pipes root:
     PYTHONPATH=experiments/evaluation uv run python <casim>/docs/literature_benchmarks/select_l1_subset.py l1_subset.csv 4
 The second argument is the CASIM overhead per run in seconds. One row per
 instance and pipeline; `smoke` marks the 3 runs per set and pipeline of the
-smoke stage. BahceciOencan's closest pipeline runs on 10 of its instances.
+smoke stage. Pipelines that need an integrated stage (RatliffRosenthalNF,
+CombinedBatchingRoutingAssigning) are replaced by the closest expressible one.
 """
 import importlib.util, re, sys
 import numpy as np, pandas as pd
@@ -13,14 +14,14 @@ cmp = importlib.util.module_from_spec(spec); spec.loader.exec_module(cmp)
 SEED, OVERHEAD = 20261014, float(sys.argv[2])
 PIPES = {
     "SPRP": ["GIA+SingleOrderBatching+RR", "GIA+SingleOrderBatching+SShape"],
-    "SPRP-SS": ["RatliffRosenthalNF", "MinMinIA+SingleOrderBatching+SShape"],
-    "BahceciOencan": ["GIA+CombinedBatchingRoutingAssigning", "GIA+LSBatchingSShapeFiFoOrderNr+SShape"],
+    "SPRP-SS": ["MinMinIA+SingleOrderBatching+RR", "MinMinIA+SingleOrderBatching+SShape"],
+    "BahceciOencan": ["GIA+LSBatchingRROrderNrFiFo+RR", "GIA+LSBatchingSShapeFiFoOrderNr+SShape"],
     "HennWaescher": ["GIA+LSBatchingRROrderNrFiFo+RR", "GIA+SavingsSShape+SShape"],
     "MuterOencanWG": ["GIA+LSBatchingRROrderNrFiFo+RR", "GIA+SavingsSShape+SShape"],
     "Foodmart": ["GIA+LSOrdNrNN+NN", "GIA+LSBatchingSShapeFiFoOrderNr+SShape"],
     "Kris": ["GIA+DueDate+NN+EDD"],
 }
-CAP = {("BahceciOencan", "GIA+CombinedBatchingRoutingAssigning"): 10}
+CAP: dict[tuple[str, str], int] = {}
 SMOKE = 3
 PER_STRATUM = {"SPRP": 1, "SPRP-SS": 1, "BahceciOencan": 1, "HennWaescher": 1,
                "MuterOencanWG": 2, "Foodmart": None, "Kris": None}
