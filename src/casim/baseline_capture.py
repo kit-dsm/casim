@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import Counter
 from hashlib import sha256
 import json
+from math import isclose
 from pathlib import Path
 
 from ware_ops_algos.planning.invariants import check_plan, check_progress
@@ -20,6 +21,9 @@ from casim.events.operational_events import (
     NodeArrival, OrderArrival, TravelEvent,
 )
 from casim.loggers import EventLogger
+
+
+AISLE_TOLERANCE = 1e-9
 
 
 class BaselineCapture(EventLogger):
@@ -171,20 +175,37 @@ class BaselineCapture(EventLogger):
         graph_nodes = set(dm.index)
         if pa in graph_nodes and pb in graph_nodes:
             return (float(dm.at[pa, pb]), None)
-        na = BaselineCapture._nearest_node(pa, graph_nodes)
-        if na is None:
+        aisle_a = _aisle_nodes(pa, graph_nodes)
+        if not aisle_a:
             return (None, f"position {pa} not in any aisle")
-        nb = BaselineCapture._nearest_node(pb, graph_nodes)
-        if nb is None:
+        aisle_b = _aisle_nodes(pb, graph_nodes)
+        if not aisle_b:
             return (None, f"position {pb} not in any aisle")
-        graph_dist = float(dm.at[na, nb])
-        total = abs(pa[1] - na[1]) + graph_dist + abs(pb[1] - nb[1])
+        if aisle_a == aisle_b and not _nodes_between(aisle_a, pa[1], pb[1]):
+            return (abs(pa[1] - pb[1]), None)
+        total = min(
+            abs(pa[1] - na[1]) + float(dm.at[na, nb]) + abs(pb[1] - nb[1])
+            for na in _neighbours(pa, aisle_a)
+            for nb in _neighbours(pb, aisle_b)
+        )
         return (total, None)
 
-    @staticmethod
-    def _nearest_node(pos, graph_nodes) -> tuple | None:
-        """Nearest graph node in the same aisle (same x coordinate)."""
-        same_aisle = [n for n in graph_nodes if n[0] == pos[0]]
-        if not same_aisle:
-            return None
-        return min(same_aisle, key=lambda n: abs(n[1] - pos[1]))
+
+def _aisle_nodes(pos, graph_nodes) -> list[tuple]:
+    """Graph nodes in the aisle of a position, sorted along the aisle."""
+    return sorted(n for n in graph_nodes
+                  if isclose(n[0], pos[0], abs_tol=AISLE_TOLERANCE))
+
+
+def _nodes_between(aisle: list[tuple], ya: float, yb: float) -> bool:
+    """Whether a graph node lies strictly between two aisle coordinates."""
+    low, high = sorted((ya, yb))
+    return any(low + AISLE_TOLERANCE < n[1] < high - AISLE_TOLERANCE
+               for n in aisle)
+
+
+def _neighbours(pos, aisle: list[tuple]) -> set[tuple]:
+    """The nearest aisle node below and the nearest above a position."""
+    below = [n for n in aisle if n[1] <= pos[1] + AISLE_TOLERANCE]
+    above = [n for n in aisle if n[1] >= pos[1] - AISLE_TOLERANCE]
+    return {*below[-1:], *above[:1]}

@@ -39,8 +39,8 @@ Defaults: `data_card=henn`, `decisions=henn_waiting`, `cosy_repo=baseline_waitin
 | 18 | 39s-60-60-0 / order_window | `data_card.source.filepath=39s-60-60-0.txt decisions=order_window` | ok | yes | |
 | 19 | 40s-60-75-0 / henn_waiting | `data_card.source.filepath=40s-60-75-0.txt decisions=henn_waiting` | ok | yes | |
 | 20 | 40s-60-75-0 / order_window | `data_card.source.filepath=40s-60-75-0.txt decisions=order_window` | ok | yes | |
-| 21 | 61s-80-30-0 / henn_waiting | `data_card.source.filepath=61s-80-30-0.txt decisions=henn_waiting` | ok | no | `ValueError: OBRSP: no feasible candidate solution` at `decision_engine.py:103`. Runtime defect: no candidate survives validation for this instance. Document as defect. |
-| 22 | 61s-80-30-0 / order_window | `data_card.source.filepath=61s-80-30-0.txt decisions=order_window` | ok | no | Same: `ValueError: OBRSP: no feasible candidate solution`. |
+| 21 | 61s-80-30-0 / henn_waiting | `data_card.source.filepath=61s-80-30-0.txt decisions=henn_waiting` | ok | no | `ValueError: OBRSP: no feasible candidate solution` at `decision_engine.py:103`, decision `OBRSP` at t = 2255.438. The only candidate moves order 14 from planned tour 14 into planned tour 12; validation rejects it with `ViolationCode.STATE_INFORMATION` (see below). |
+| 22 | 61s-80-30-0 / order_window | `data_card.source.filepath=61s-80-30-0.txt decisions=order_window` | ok | no | Same cause at t = 3100.995: order 14 moves from planned tour 16 into planned tour 7, rejected with `ViolationCode.STATE_INFORMATION`. |
 | 23 | 62s-80-45-0 / henn_waiting | `data_card.source.filepath=62s-80-45-0.txt decisions=henn_waiting` | ok | yes | |
 | 24 | 62s-80-45-0 / order_window | `data_card.source.filepath=62s-80-45-0.txt decisions=order_window` | ok | yes | |
 | 25 | 63s-80-60-0 / henn_waiting | `data_card.source.filepath=63s-80-60-0.txt decisions=henn_waiting` | ok | yes | |
@@ -134,8 +134,18 @@ All IJPE configurations fail because the data file `data\order_stream_historic.c
 | Config | Defect | Task that fixes |
 |---|---|---|
 | henn__rolling | `problem_class 'rolling'` is invalid; should be `OBRSP` | 6.1 |
-| henn__61s-80-30-0 (both strategies) | `ValueError: OBRSP: no feasible candidate solution` — no candidate survives validation | document; propose task |
+| henn__61s-80-30-0 (both strategies) | `to_commands` and `validation.check` disagree on moving an order between two planned tours (see below) | proposed: Task 4.13 or a new task; not fixed in Phase B |
 | grocery (all) | Loader `scenarios.scenario_grocery_retailer.grocery_retailer_loader` does not exist | 6b |
 | grocery (non-default cosy_repos) | Cards inapplicable to ORSP (batching, item_assignment) | 6b |
 | ijpe (all) | `data\order_stream_historic.csv` missing | 6b.6 |
 | ijpe (all) | Config defaults to active sweep, forcing multirun mode for single runs | 6b |
+
+## Cause of the 61s-80-30-0 failure
+
+Found by wrapping `validate_commands` in the decision engine and printing every candidate's commands and violations when all are rejected; nothing was changed in the code.
+
+With `decisions=henn_waiting`, the `OBRSP` decision at t = 2255.438 has one candidate, the schedule of the Henn repository. The plan holds eleven `planned` tours with `accepts=rebuild`, among them tour 12 with order 12 and tour 14 with orders 14 and 15; the exposed order buffer holds orders 18 to 23. The candidate batches orders 12 and 14 together and order 15 alone. `planning.conversion._schedule_commands` pairs each new job with a draft whose orders it contains: job {12, 14} matches draft 12, and draft 14 matches no job because {14, 15} is in none. It therefore emits `CancelTour(14)`, `CreateTour` for {15}, and `ReplaceSuffix(tour_id=12, added_order_ids=(14,))` with `Reschedule(12)`. `planning.validation.check` requires every added order of a `ReplaceSuffix` to be in the exposed order buffer (`validation.py`, "Added orders are not in the exposed order buffer"). Order 14 is not there: it belongs to draft 14, which the same proposal cancels. The candidate gets one violation, `ViolationCode.STATE_INFORMATION` on tour 12, so no candidate remains and the engine raises.
+
+With `decisions=order_window`, the same happens at t = 3100.995: order 14 moves from planned tour 16 (orders 14 and 15) into planned tour 7 (order 12), with the same violation on tour 7.
+
+The defect is the disagreement between conversion and validation, not the instance: conversion turns a regrouping of drafts into a suffix replacement that takes an order from another draft, and validation only admits additions from the buffer. Either conversion must emit `CancelTour` and `CreateTour` when an addition comes from another draft, or validation must count orders released by a `CancelTour` of the same proposal as available. Which rule is intended is a question for the design document; it is not fixed in Phase B.

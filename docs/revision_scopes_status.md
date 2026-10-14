@@ -1,6 +1,15 @@
-# Revision scopes status through Task 4.12
+# Revision scopes status through Task B.2
 
 This is an audit against the current `revision_scopes_corrections.md`, through Phase 3b. Evidence names are casim commits unless prefixed `ware:`. A row marked “moved to a later task” records an explicit phase boundary or user-approved sequencing deviation, not a completed check. The historical base results are diagnostics; Phase 5 establishes correctness.
+
+## Phase B progress
+
+| Task | Status | Evidence and remaining work |
+|---|---|---|
+| B.1 | done | `feb7e69`; `docs/baseline.md`, 60 configurations, 45 run, 15 fail. |
+| B.2 | done | `694830e`; `casim.baseline_capture` behind `experiment.audit`, `tests/verification/kpi_recomputation.py`, nine scenarios in `tests/verification/test_phase_b_scenarios.py`. |
+| B.2 corrections | done | Distance between positions off the graph uses both aisle neighbours with a tolerance and measures one aisle segment directly (`tests/verification/test_baseline_capture.py`, four hand-derived cases, three of which fail with the earlier nearest-node rule). Verification scenario 6 is its own walk-or-wait scenario with prefix, suffix and distances derived in its docstring. The 61s-80-30-0 failure is traced to `ViolationCode.STATE_INFORMATION` on a `ReplaceSuffix` that takes an order from a draft cancelled in the same proposal (`docs/baseline.md`); not fixed. The three scenarios of Section 7.5 give the same KPIs with and without `experiment.audit`: Henn 30,669 makespan, 11,808 distance, 27 tours, 15 decisions; stochastic waiting 87 / 76; walk-or-wait 167 / 160; no invariant violations and every route leg recomputable. |
+| B.3 | in progress | `docs/literature_benchmarks.md`. |
 
 ## Phase 4 progress
 

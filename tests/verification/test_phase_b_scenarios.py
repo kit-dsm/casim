@@ -14,12 +14,13 @@ from ware_ops_algos.algorithms import (
     WaitingInput, WarehouseOrder,
 )
 from ware_ops_algos.domain_models import Resource, Resources, ResourceType
-from ware_ops_algos.planning.commands import Reschedule, ViolationCode
+from ware_ops_algos.planning.commands import ReplaceSuffix, Reschedule, ViolationCode
 from ware_ops_algos.planning.lifecycle import Accepts, TourStates
 from ware_ops_algos.planning.models import PlanView, TourView
 from ware_ops_algos.planning.validation import check as check_commands
 from ware_ops_algos.algorithms.waiting.analytic_progress import optimal_waiting
 
+from casim.baseline_capture import BaselineCapture
 from casim.decision_engine.commitment_policies import (
     SchedulingCommitmentPolicy, WindowCommitmentPolicy,
 )
@@ -172,13 +173,79 @@ def test_scheduled_edit_rejected_and_next_candidate_selected(monkeypatch):
 
 
 def test_admission_keeps_prefix_and_sums_old_and_new_distance(tmp_path):
-    """Two suffix replacements preserve the walked prefix; total is prefix plus suffix."""
-    from tests.verification.test_positioning_invariants import (
-        test_two_admissions_keep_cumulative_prefix_and_distance,
-    )
-    from tests.verification.conftest import InvariantLogger
-    test_two_admissions_keep_cumulative_prefix_and_distance(
-        tmp_path, InvariantLogger())
+    """Admission into a started tour keeps its prefix; distance is prefix plus suffix.
+
+    Layout of the explicit example: aisle x has nodes (x, 0) to (x, 17), the
+    front cross aisle joins (x, 0) and (x + 1, 0), the rear one (x, 17) and
+    (x + 1, 17), the tour starts at (-1, -1) and ends at (-2, -1), each one
+    edge from (1, 0). Every edge has length 1, speed 1, pick 1 s, setup 0,
+    four bins. The walk-or-wait S-shape visits a single aisle to its rear end
+    and returns through it.
+
+    Order 0 arrives at 0 with a pick at (2, 10); wait-1 starts tour 1 at 0
+    along (-1,-1), (1,0), (2,0), up aisle 2 to (2,17), down to (2,0), (1,0),
+    (-2,-1): 1 + 1 + 17 + 17 + 1 + 1 = 38. The pick at (2, 10) is reached
+    at 12 and ends at 13, so at 5.5 the picker is walking, halfway between
+    (2, 3) and (2, 4).
+
+    Order 1 arrives at 5.5 with a pick at (2, 14), which lies on the remaining
+    route; one bin is used, so remaining-route admission accepts it. The
+    executed prefix is (-1,-1), (1,0), (2,0), (2,1), (2,2), (2,3): 5 units,
+    plus 0.5 on the edge in progress. The residual route starts at (2, 3.5)
+    and leaves aisle 2 at its cheaper exit:
+        rear  (2,17): 0.5 + 13 up, 17 down picking (2,14) and (2,10), 2 to the end = 32.5
+        front (2,0):  3.5 down, 17 up, 17 down, 2 to the end = 39.5
+    so the suffix has distance 32.5 and visits (2, 14). The tour distance is
+    5.5 + 32.5 = 38 and its end is 0 + 0 + 38 / 1 + 2 * 1 = 40. Completion
+    is 40 for order 0 and 40 - 5.5 = 34.5 for order 1, mean 37.25.
+    """
+    orders = [
+        {"arrival_s": 0.0, "due_s": 400.0, "picks": [[2, 10]]},
+        {"arrival_s": 5.5, "due_s": 400.0, "picks": [[2, 14]]},
+    ]
+    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
+        cfg = compose(config_name="walk_or_wait_config", overrides=[
+            "decisions=paper_intervention", "policy=wait_1",
+            f"instances_base={CONFIG.parents[1].as_posix()}",
+            f"cache_base={(tmp_path / 'cache').as_posix()}",
+            f"experiment.output_dir={tmp_path.as_posix()}",
+        ])
+    cfg.simulation.orders = orders
+    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    capture = BaselineCapture(tmp_path / "audit.json")
+    sim.event_loggers.append(capture)
+    sim.reset(hooks=[seed_pickers, seed_orders])
+    prefix = ((-1, -1), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3))
+    replacements = []
+    while True:
+        done, snapshot = sim.run()
+        if done:
+            break
+        result = engine.on_trigger(snapshot)
+        for command in result.commands:
+            if isinstance(command, ReplaceSuffix):
+                tour = sim.state.tour_manager.get_tour(command.tour_id)
+                walked = tuple(node.position for node in
+                               tour.annotated_route[:tour.cursor + 1])
+                replacements.append((sim.state.current_time, command, walked))
+        apply_decision(sim, engine, result, snapshot)
+
+    assert len(replacements) == 1
+    time, command, walked = replacements[0]
+    suffix = [node.position for node in command.route.annotated_route]
+    assert time == 5.5
+    assert command.added_order_ids == (1,)
+    assert walked == prefix
+    assert suffix[:2] == [(2.0, 3.5), (2, 4)]
+    assert (2, 14) in suffix
+    assert command.route.distance == 32.5
+    tour = sim.state.tour_manager.get_tour(1)
+    assert tuple(node.position for node in tour.executed_prefix) == prefix
+    record = sim.state.tracker.completed_tours
+    assert [(row[1], row[2], row[3]) for row in record] == [(0.0, 40.0, [0, 1])]
+    assert sim.state.tracker.distance_by_picker[0] == 38.0
+    assert sum(leg["distance"] * leg["completed_fraction"]
+               for leg in capture.legs) == pytest.approx(38.0)
 
 
 def test_window_commitment_reconsideration():
