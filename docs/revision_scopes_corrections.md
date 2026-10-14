@@ -340,6 +340,13 @@ Each task report includes the baseline comparison (7.6) and lists the difference
     - Instance values in the `simulation` groups move into the data card's `source` section; the `routing` and `policy` groups of walk-or-wait go, because a repository file now lists its components and configured cards; `warehouse_info: {type: online}` leaves the data cards. Expected: none.
     - The schema rule "scheduling decision" derives from `variant()` instead of naming `ORSP` and `OBRSP`; `DecisionTracker` records decision name and problem class separately; the duplicate `BaseTourEvent` goes. Expected: none.
 
+- [ ] **4.16** Remove what nothing uses (F63). Expected baseline difference: none. Found by reading the branch at `b44fd8a`; check each item again before deleting it, and keep it if anything references it.
+    - Delete: the empty `pipelines/subproblems/assignment.py`; `tests/verification/reference/center_before_task44.json`, which no test reads; the committed cache `tests/data/instances/caches/vis_input/inital_domain.pkl`; `tests/data/instances/29s-40-30-0.txt` and its arrival file, which no configuration names; `tests/test_henn_offline.py`, which asserts nothing and is covered by the baseline; `tests/test_tour_model.py`, which only constructs a `TourPlanningState`; the unused functions `io_helpers.load_json`, `io_helpers.dump_json`, `viz.app.picker_pos`, `viz.gantt_chart.plot_gantt_from_jobs` and `viz.kpis.active_picklist_order_ids`; the committed plots and table of the Henn study (`scripts/plots/waiting_strategy/*.png`, `summary_table.tex`), keeping `summary.csv` as the reference of Task B.6.
+    - Order splitting: `OrderSplitter` in the template, `SimpleSplitter` in `subproblems/order_splitting.py` (with a hard-coded pallet size) and the `OSBP` entry of `TAXONOMY` are used by no configuration. Delete them unless the user decides that CASIM supports order splitting (Section 9.1).
+    - `tests/test_dummy_rl_env.py` asserts `info["done_at_reset"], True`, which reads as a comparison but is an assertion with a message; assert the value. Let it use a scenario configuration instead of `tests/config/` and `tests/data/`, then delete both directories.
+    - Remove the commented-out code (`events/operational_events.py`, `state/tour_manager.py`) and replace the `print` calls in `src/` by `logging`.
+    - Keep the CoSy components that no repository file names yet (`OrderNrFiFo`, `LSBatchingNNFiFo`, `LSBatchingSShapeFiFo`, `ClarkAndWrightNN`, `ClarkAndWrightSShape`, `TSPRouting`, `RatliffRosenthal`, `ERDScheduler`): they are the portfolio the static benchmarks of Task B.4 run. Each must be run by B.4 or by a smoke test; report any that is not.
+
 Phase 4 is done when the tests pass, the name sweep test passes, and the Phase 4 report lists every baseline difference with its cause, every card whose CASOP applicability differs from `main` (none expected), and the type counts of Task 4.13.
 
 ### 8.4 Phase 5: verification gate
@@ -411,7 +418,8 @@ Leave these as they are on the branch and list them in each phase report until t
 2. The semantics of `Resources.get_features()`, which reports cart values or `None` instead of `True` (F49).
 3. The per-picker processing time in `earliest_free_assignment` (F34).
 4. The objective vocabulary of the cards (24 cards say `Distance`; the CASOP paper leaves constructive methods without objective).
-5. Whether the grocery scenario is deleted or rebuilt (Phase 6b).
+5. Whether the grocery scenario is deleted or rebuilt (Phase 6b). At `b44fd8a` it has no loader and no data, its repositories are inapplicable to ORSP, and none of its seven configurations runs.
+9. Whether CASIM supports order splitting (Task 4.16).
 6. Whether rolling horizon on the Henn instances, with synthetic due dates, is kept (Task 6.1).
 7. Whether the stochastic waiting scenario stays a scenario or becomes a verification fixture.
 8. Whether `Resource.available` and `Resource.occupied` are removed from the shared domain model once casim no longer uses them (Task 4.14).
@@ -426,7 +434,7 @@ Leave these as they are on the branch and list them in each phase report until t
 
 ## Appendix A: findings
 
-Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 from the reviews during Phases 3 and 4, F60 and F61 from the review of the benchmarks on 14 October 2026, F62 from Task B.2.
+Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 from the reviews during Phases 3 and 4, F60 and F61 from the review of the benchmarks on 14 October 2026, F62 from Task B.2, F63 from a review of unused code on 14 October 2026.
 
 | # | Finding | Fixed by | Status |
 |---|---|---|---|
@@ -492,3 +500,4 @@ Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 fro
 | F60 | The Henn online scenario and the waiting-strategy study of `aaa8333` use converted Heßler-Irnich files whose item positions differ from the published OOBP instances (`docs/oobp_source_comparison.md`); only the arrival files are identical, so their results are not comparable with published OOBP values | Archive loader and OOBP protocol; decision on the study after Phase B | B.5 |
 | F61 | No result of the branch has been compared with a published value; Phase 3b documented the OOBP protocol but ran no benchmark | Literature register and benchmarks (7.4) | B.3 to B.5 |
 | F62 | `validation.check` rejects a `ReplaceSuffix` that adds orders from a draft cancelled in the same candidate, although it accepts a `CreateTour` with those orders; with one candidate, the decision fails (61s-80-30-0) | One rule for released work | 4.13 |
+| F63 | Files, functions, tests and committed outputs that nothing uses | Removal | 4.16 |
