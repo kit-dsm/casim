@@ -7,9 +7,8 @@ import pandas as pd
 import seaborn as sns
 
 SCENARIO_MAP = {
-    "scenario_henn_waiting": "Henn Waiting",
-    "scenario_henn_order_window_waiting": "Order Window (5)",
-    "scenario_henn_order_window": "Order Window",
+    "henn_waiting": "Henn Waiting",
+    "order_window": "Order Window (5)",
 }
 
 

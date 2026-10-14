@@ -10,7 +10,7 @@ from ware_ops_algos.planning.commands import (
 )
 from ware_ops_algos.planning.lifecycle import TourStates
 
-from casim.events.decision_events import PickListDone, SequencingDone
+from casim.events.decision_events import PickListCreated, SequencingDone
 from casim.events.operational_events import TravelEvent
 
 if TYPE_CHECKING:
@@ -103,7 +103,7 @@ def apply(state: State, commands: tuple[Command, ...]):
             state.order_manager.clear_order_buffer_by_ids(
                 list(command.batch.order_numbers))
             state.add_pick_list_to_planning_state(command.batch)
-            events.append(PickListDone(state.current_time, command.batch))
+            events.append(PickListCreated(state.current_time, command.batch))
         elif isinstance(command, CreateTour):
             batch = command.job.job.route.batch
             if state.order_manager.has_pick_list(batch):

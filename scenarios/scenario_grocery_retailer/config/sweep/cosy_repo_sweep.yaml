@@ -5,4 +5,4 @@ hydra:
     params:
       cosy_repo: return, midpoint, largest_gap, nearest_neighbour, sshape, adaptive_routing
       data_card.objective: makespan
-      scenario.simulation_engine.problems.ORSP.conditions.2.threshold: 98
+      decisions.ORSP.conditions.1.threshold: 98

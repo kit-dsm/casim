@@ -1,4 +1,4 @@
-OBRSPW:
+OBRSP:
   problem_class: OBRSP
   state_information:
     orders: true
@@ -28,4 +28,3 @@ OBRSPW:
     threshold: 1
   - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
     threshold: 1
-  - _target_: casim.simulation_engine.conditions.NewInformationCondition

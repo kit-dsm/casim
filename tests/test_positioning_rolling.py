@@ -53,7 +53,7 @@ def test_center_holds_and_returns_unused_cart_at_closure(tmp_path):
         if done:
             break
         result = engine.on_trigger(snapshot)
-        if (snapshot.dynamic_warehouse_info.context.decision == "ATIP"
+        if (snapshot.dynamic_warehouse_info.context.decision == "active_tour_admission"
                 and "OrderStreamClosed" in snapshot.dynamic_warehouse_info.context.cause):
             saw_closure_route |= any(isinstance(command, ReplaceSuffix)
                                      and not command.added_order_ids
@@ -139,11 +139,11 @@ def test_solver_free_decision_releases_existing_draft(tmp_path):
 
 def test_periodic_grid_opens_horizon_without_another_arrival(tmp_path):
     sim, engine = _walk_sim(tmp_path)
-    sim.periods = {"OBRSPW": 600}
-    sim.state_adapters["OBRSPW"] = StateAdapter(
+    sim.periods = {"OBRSP": 600}
+    sim.state_adapters["OBRSP"] = StateAdapter(
         StateInformation(orders=True, window=Window(TimeAttribute.DUE_DATE, 3600)),
         RevisionScope(TourStates.SCHEDULED, Accepts.NONE))
-    sim.conditions_map["OBRSPW"] = (VisiblePlanningWorkCondition(),)
+    sim.conditions_map["OBRSP"] = (VisiblePlanningWorkCondition(),)
 
     def seed(sim, domain):
         order = domain.orders.orders[0]

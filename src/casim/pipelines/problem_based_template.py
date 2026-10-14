@@ -473,51 +473,6 @@ class AbstractWaiting(BaseComponent):
         ))
         dump_pickle(self.output()["waiting_sol"].path, result)
 
-# ─────────────────────────── Sequencing ─────────────────────────────────────
-
-
-class AbstractSequencing(BaseComponent):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    routing_sol = CoSyLuigiTaskParameter(AbstractPickerRouting)
-
-    def output(self):
-        return {
-            "sequencing_sol": self.get_luigi_local_target_with_task_id(
-                "sequencing_sol.pkl"
-            )
-        }
-
-    def _get_inited_sequencer(self):
-        raise NotImplementedError
-
-    def _load_resources(self) -> Resources:
-        return load_pickle(self.input()["instance"]["resources"].path)
-
-    def run(self):
-        routing_sol = load_pickle(
-            self.input()["routing_sol"]["routing_sol"].path
-        )
-        resources = self._load_resources()
-
-        if isinstance(routing_sol, CombinedRoutingSolution):
-            routes = routing_sol.routes
-        else:
-            routes = [r.route for r in routing_sol]
-
-        sequencing_input = SequencingInput(
-            routes=routes,
-            resources=resources,
-        )
-
-        sequencer = self._get_inited_sequencer()
-        sequencing_sol = sequencer.solve(sequencing_input)
-
-        dump_pickle(
-            self.output()["sequencing_sol"].path,
-            sequencing_sol,
-        )
-
-
 # ─────────────────────────── Plan candidate ────────────────────────────────
 
 class AbstractPlanCandidate(BaseComponent):
@@ -566,14 +521,6 @@ class PositioningPlanCandidate(AbstractPlanCandidate):
     def run(self):
         dump_pickle(self.output()["plan_candidate"].path,
                     load_pickle(self.input()["source"]["positioning_sol"].path))
-
-
-class SequencingPlanCandidate(AbstractPlanCandidate):
-    source = CoSyLuigiTaskParameter(AbstractSequencing)
-
-    def run(self):
-        dump_pickle(self.output()["plan_candidate"].path,
-                    load_pickle(self.input()["source"]["sequencing_sol"].path))
 
 
 class PlanCandidateEndpoint(BaseComponent):

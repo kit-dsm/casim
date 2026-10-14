@@ -45,7 +45,7 @@ Two more `ware_ops_algos` additions, `order_splitting` and `data_loaders`, resto
 
 An `OrderArrival` buffers the order, then emits one opportunity based on the
 operational state. A started tour yields `ActiveTourOpportunity` for OBRP;
-otherwise it yields `WaitingOpportunity` for OBRSPW. The opportunity runs after
+otherwise it yields `WaitingOpportunity` for OBRSP. The opportunity runs after
 same-time operational events and carries a version so a superseded opportunity
 does nothing. Other operational events can reopen the appropriate opportunity.
 Each opportunity has exactly one owner in the Hydra engine configuration;

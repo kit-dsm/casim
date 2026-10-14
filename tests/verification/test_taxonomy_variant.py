@@ -9,7 +9,7 @@ def test_all_online_variants_are_ordered_or_reject_by_name():
     assert not {"ATIP", "RORSP", "OBRSPW"} & TAXONOMY.keys()
     assert TAXONOMY["OBRSP"]["variables"] == [
         "item_assignment", "batching", "routing", "scheduling",
-        "sequencing", "waiting", "positioning", "admission",
+        "waiting", "positioning", "admission",
         "active_tour_routing",
     ]
     for problem_class, incumbent, origin in product(

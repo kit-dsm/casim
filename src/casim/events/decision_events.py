@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s 
 logger = logging.getLogger(__name__)
 
 
-class PickListDone(ProcessEvent):
+class PickListCreated(ProcessEvent):
     def __init__(self, time: float, pick_list: BatchObject):
         super().__init__(time)
         self.pick_list = pick_list

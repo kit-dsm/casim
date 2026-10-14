@@ -1496,7 +1496,7 @@
     ],
     "decisions": [
       [
-        "OBRSPW",
+        "OBRSP",
         0.0,
         [
           "CreateTour",
@@ -1506,46 +1506,46 @@
         ]
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         8.0,
         [
           "ReplaceSuffix"
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         8.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         12.0,
         [
           "ReplaceSuffix"
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         12.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         30.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         30.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         34.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         39.0,
         [
           "CreateTour",
@@ -1553,22 +1553,22 @@
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         43.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         55.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         86.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         100,
         []
       ]
@@ -3120,7 +3120,7 @@
     ],
     "decisions": [
       [
-        "OBRSPW",
+        "OBRSP",
         0.0,
         [
           "CreateTour",
@@ -3130,46 +3130,46 @@
         ]
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         8.0,
         [
           "ReplaceSuffix"
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         8.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         12.0,
         [
           "ReplaceSuffix"
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         12.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         30.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         30.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         34.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         39.0,
         [
           "CreateTour",
@@ -3177,22 +3177,22 @@
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         43.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         55.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         86.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         100,
         []
       ]
@@ -4744,7 +4744,7 @@
     ],
     "decisions": [
       [
-        "OBRSPW",
+        "OBRSP",
         0.0,
         [
           "CreateTour",
@@ -4754,46 +4754,46 @@
         ]
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         8.0,
         [
           "ReplaceSuffix"
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         8.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         12.0,
         [
           "ReplaceSuffix"
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         12.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         30.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         30.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         34.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         39.0,
         [
           "CreateTour",
@@ -4801,22 +4801,22 @@
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         43.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         55.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         86.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         100,
         []
       ]
@@ -6368,7 +6368,7 @@
     ],
     "decisions": [
       [
-        "OBRSPW",
+        "OBRSP",
         0.0,
         [
           "CreateTour",
@@ -6378,46 +6378,46 @@
         ]
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         8.0,
         [
           "ReplaceSuffix"
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         8.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         12.0,
         [
           "ReplaceSuffix"
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         12.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         30.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         30.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         34.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         39.0,
         [
           "CreateTour",
@@ -6425,22 +6425,22 @@
         ]
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         43.0,
         []
       ],
       [
-        "ATIP",
+        "active_tour_admission",
         55.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         86.0,
         []
       ],
       [
-        "OBRSPW",
+        "OBRSP",
         100,
         []
       ]

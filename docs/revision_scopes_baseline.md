@@ -39,7 +39,7 @@ Run these commands from the CASIM root with the existing virtual environment:
 .venv\Scripts\python.exe -m scenarios.scenario_stochastic_waiting.experiment_stochastic_waiting viz.launch=false
 .venv\Scripts\python.exe -m scenarios.scenario_walk_or_wait.experiment simulation=explicit_example viz.launch=false
 .venv\Scripts\python.exe -m scenarios.scenario_walk_or_wait.experiment simulation=explicit_wait0 policy=wait_0 cosy_repo=paper_patrol viz.launch=false
-.venv\Scripts\python.exe -m scenarios.scenario_henn_online.experiment_henn cosy_repo=repair_waiting_henn +decisions.OBRSPW.solver.solution_ranker.change_penalty=10 viz.launch=false
+.venv\Scripts\python.exe -m scenarios.scenario_henn_online.experiment_henn cosy_repo=repair_waiting_henn +decisions.OBRSP.solver.solution_ranker.change_penalty=10 viz.launch=false
 ```
 
 The final isolated runs are in `outputs/revision_scope_final/{henn_full_views,henn_repair_views,stochastic_views,walk_views,wait0_views}`. Each directory contains the normal scenario trace, `kpis/kpis.json`, and `kpis/decisions.json`. The latter records selected pipeline counts and solve, conversion, and application times. Pass `hydra.run.dir=outputs/revision_scope_final/<name>` to reproduce an isolated run.

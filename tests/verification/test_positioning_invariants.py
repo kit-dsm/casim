@@ -109,7 +109,7 @@ def test_partly_picked_tour_can_admit_order(tmp_path, invariant_logger,
             break
         result = engine.on_trigger(snapshot)
         plan = snapshot.dynamic_warehouse_info.plan
-        if (snapshot.dynamic_warehouse_info.context.decision == "ATIP"
+        if (snapshot.dynamic_warehouse_info.context.decision == "active_tour_admission"
                 and any(isinstance(command, ReplaceSuffix) and command.added_order_ids
                         for command in result.commands)):
             old = next(tour for tour in plan.tours

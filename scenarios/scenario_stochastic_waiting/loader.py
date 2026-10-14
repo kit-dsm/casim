@@ -211,7 +211,7 @@ class StochasticWaitingDataLoader(DataLoader):
         information = PlannerInformation(tpe=InformationType.PROCESS_INFORMATION, processes=processes)
         warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE)
         return SimWarehouseDomain(
-            problem_class="OBRSPW",
+            problem_class="OBRSP",
             objective="mean_order_completion_time",
             layout=layout,
             articles=articles,

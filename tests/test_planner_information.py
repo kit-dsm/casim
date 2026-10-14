@@ -124,7 +124,7 @@ def test_second_process_fits_same_snapshot_boundary(tmp_path):
         "incoming_orders": original,
         "picker_attendance": ExampleAttendanceInformation(probability=0.9),
     })
-    projection = sim.state_adapters["OBRSPW"].transform_state(sim.state, "OBRSPW", "OBRSP")
+    projection = sim.state_adapters["OBRSP"].transform_state(sim.state, "OBRSP", "OBRSP")
     assert projection.information.require("picker_attendance", ExampleAttendanceInformation).probability == 0.9
     assert projection.information.get_features() == {
         "incoming_orders.type": ExponentialSingleLineUniformLocationOrderStream.representation,

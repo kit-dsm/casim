@@ -1,4 +1,4 @@
-OBRSPW:
+OBRSP:
   problem_class: OBRSP
   state_information:
     orders: true

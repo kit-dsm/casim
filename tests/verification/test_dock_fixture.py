@@ -131,6 +131,6 @@ def test_check_rejects_dock_capacity_condition_without_dock(tmp_path):
             f"experiment.output_dir='{tmp_path.as_posix()}'",
         ])
     condition = {"_target_": "casim.simulation_engine.conditions.DockCapacityCondition"}
-    cfg.decisions.OBRSPW.conditions.append(OmegaConf.create(condition))
+    cfg.decisions.OBRSP.conditions.append(OmegaConf.create(condition))
     with pytest.raises(ValueError, match="DockCapacityCondition requires a warehouse Dock"):
         resolve(cfg, load_and_flatten_data_card(cfg.data_card))

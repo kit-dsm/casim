@@ -94,7 +94,7 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
         )
     card = load_and_flatten_data_card(cfg.data_card)
     sim, decision_engine = setup_experiment(cfg, card)
-    active_tasks = traverse_pipeline(decision_engine.solver_map["ATIP"].pipelines)
+    active_tasks = traverse_pipeline(decision_engine.solver_map["active_tour_admission"].pipelines)
     assert any(isinstance(task, RemainingRouteAdmissionNode) for task in active_tasks)
     assert any(isinstance(task, AdmittedTourBatch) for task in active_tasks)
     assert issubclass(RemainingRouteAdmissionNode, AbstractAdmission)
@@ -123,17 +123,17 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
         result = decision_engine.on_trigger(snapshot)
         plan = snapshot.dynamic_warehouse_info.plan
         decision_name = snapshot.dynamic_warehouse_info.context.decision
-        if decision_name == "ATIP" and not plan.tours:
+        if decision_name == "active_tour_admission" and not plan.tours:
             assert not snapshot.dynamic_warehouse_info.context.solve
             sim.step(result, snapshot)
             continue
-        if decision_name == "ATIP":
+        if decision_name == "active_tour_admission":
             admission_tour = to_admission_tour(plan.tours[0])
             insertion_origins.append(admission_tour.routing_origin)
             insertion_times.append(now)
             tour = sim.state.tour_manager.get_tour(admission_tour.tour_id)
             live_before_projection = (tour.cursor, tuple(tour.remaining_picks), tour.route_version)
-            projected = sim.state_adapters["ATIP"].transform_state(sim.state, "ATIP", "OBRSP")
+            projected = sim.state_adapters["active_tour_admission"].transform_state(sim.state, "active_tour_admission", "OBRSP")
             assert projected.dynamic_warehouse_info.plan.tours[0].batch is not tour.batch
             assert {order.order_id for order in projected.dynamic_warehouse_info.plan.order_buffer} == {
                 order.order_id for order in plan.order_buffer}
@@ -155,7 +155,7 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
             else:
                 assert (tour.cursor, tour.remaining_picks, tour.route_version) == tuple(before)
                 assert all((tour.tour_id, order_id) in
-                           sim.state.decision_considered_active_orders["ATIP"]
+                           sim.state.decision_considered_active_orders["active_tour_admission"]
                            for tour_id, order_id in result.considered_active_orders
                            if tour_id == tour.tour_id)
         else:
@@ -165,7 +165,7 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
                 assert tour.status in (TourStates.PLANNED, TourStates.SCHEDULED)
                 assert not sim.state.available_for_planning(0)
                 before_buffer = sim.state.order_manager.get_pick_list_buffer()
-                projected = sim.state_adapters["OBRSPW"].transform_state(sim.state, "OBRSPW", "OBRSP")
+                projected = sim.state_adapters["OBRSP"].transform_state(sim.state, "OBRSP", "OBRSP")
                 assert sim.state.order_manager.get_pick_list_buffer() == before_buffer
                 if tour.status == TourStates.PLANNED:
                     assert tour.batch == projected.dynamic_warehouse_info.plan.tours[0].batch
@@ -210,11 +210,11 @@ def test_shared_trigger_and_invalid_admission_repository(tmp_path):
             f"cache_base={(tmp_path / 'cache').as_posix()}",
             f"experiment.output_dir={tmp_path.as_posix()}",
         ])
-    cfg.decisions.ATIP.triggers = ["OrderArrival"]
+    cfg.decisions.active_tour_admission.triggers = ["OrderArrival"]
     sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    assert sim.triggers_map[OrderArrival] == ("ATIP", "OBRSPW")
+    assert sim.triggers_map[OrderArrival] == ("active_tour_admission", "OBRSP")
 
-    cfg.decisions.ATIP.triggers = ["ActiveTourOpportunity"]
+    cfg.decisions.active_tour_admission.triggers = ["ActiveTourOpportunity"]
     cfg.insertion_repo.components[3] = "casim.pipelines.subproblems.admission.MissingAdmission"
     with pytest.raises(ImportError, match="MissingAdmission"):
         setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
@@ -277,8 +277,8 @@ def test_two_active_tours_can_receive_different_orders(tmp_path):
             f"cache_base={(tmp_path / 'cache').as_posix()}",
             f"experiment.output_dir={tmp_path.as_posix()}",
         ])
-    cfg.decisions.OBRSPW.conditions = [
-        cfg.decisions.OBRSPW.conditions[0]
+    cfg.decisions.OBRSP.conditions = [
+        cfg.decisions.OBRSP.conditions[0]
     ]
     sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
     original_load = sim.data_loader.load
@@ -300,7 +300,7 @@ def test_two_active_tours_can_receive_different_orders(tmp_path):
             break
         result = decision_engine.on_trigger(snapshot)
         plan = snapshot.dynamic_warehouse_info.plan
-        if (snapshot.dynamic_warehouse_info.context.decision == "ATIP"
+        if (snapshot.dynamic_warehouse_info.context.decision == "active_tour_admission"
                 and len(plan.tours) == 2):
             multi_tour_decisions.append(tuple(command for command in result.commands
                                               if isinstance(command, ReplaceSuffix)))

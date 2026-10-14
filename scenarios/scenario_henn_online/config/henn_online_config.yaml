@@ -8,7 +8,7 @@ defaults:
 hydra:
   sweep:
     dir: outputs/multirun/
-    subdir: ${data_card.source.filepath}/${hydra:runtime.choices.scenario}
+    subdir: ${data_card.source.filepath}/${hydra:runtime.choices.decisions}
   job:
     config:
       override_dirname:
@@ -16,7 +16,7 @@ hydra:
         item_sep: ','
         exclude_keys:
           - data_card
-          - scenario
+          - decisions
   job_logging:
     root:
       level: CRITICAL

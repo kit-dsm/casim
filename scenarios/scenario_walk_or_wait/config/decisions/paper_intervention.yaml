@@ -1,4 +1,4 @@
-ATIP:
+active_tour_admission:
   problem_class: OBRSP
   state_information:
     orders: true
@@ -18,7 +18,7 @@ ATIP:
   - OrderStreamClosed
   conditions:
   - _target_: casim.simulation_engine.conditions.ActiveTourReadyCondition
-OBRSPW:
+OBRSP:
   problem_class: OBRSP
   state_information:
     orders: true

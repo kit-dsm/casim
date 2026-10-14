@@ -30,6 +30,7 @@ Thumbs.db
 
 # Project-specific
 outputs/
+scenarios/scenario_henn_online/outputs/
 tests/data/instances/caches/
 scenarios/scenario_walk_or_wait/data/radar/raw/
 scenarios/scenario_walk_or_wait/data/radar/selected/

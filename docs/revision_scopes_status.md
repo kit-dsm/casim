@@ -1,4 +1,4 @@
-# Revision scopes status through Task 4.9
+# Revision scopes status through Task 4.11
 
 This is an audit against the current `revision_scopes_corrections.md`, through Phase 3b. Evidence names are casim commits unless prefixed `ware:`. A row marked “moved to a later task” records an explicit phase boundary or user-approved sequencing deviation, not a completed check. The historical base results are diagnostics; Phase 5 establishes correctness.
 
@@ -14,9 +14,21 @@ This is an audit against the current `revision_scopes_corrections.md`, through P
 | 4.8 | done | ware:`f2e467e`; casim:`3295930`; setup starts at scheduled start. |
 | 4.9 | done | F42; `tests/verification/test_dock_fixture.py` compares the full prechange event, dock-fill, decision and KPI record for seeds 17 and 29 and truck capacities 2 and `null`. All four comparisons pass. ware adds optional `Dock`; casim owns `DockManager`, and the IJPE loader reads `simulation.dock.K_dock`. Grocery loader wiring is deferred to Phase 6b by the user's instruction. |
 | 4.10 | done | ware:`20cb91e`; casim:`640b5ce`; one order-count waiting card and component. Task 4.12 replaces temporary component aliases. |
-| 4.11–4.15 | not done | Complete in order after the Task 4.9 commit; four Task 4.12 user decisions remain untouched. |
+| 4.11 | done | Removed dead sequencing, renamed `PickListCreated` and the five decision files, restored alternative Henn strategies as `decisions` files, corrected stale references, and removed tracked outputs. One-instance sweep and 62 casim tests pass; comparison below. |
+| 4.12–4.15 | not done | Complete in order after Task 4.11; four Task 4.12 user decisions remain untouched. |
 
 Task 4.9 retained two known issues: a `TruckDeparture` with `capacity: null` releases no staged pallets, and grocery truck capacity counts orders while staging counts pallets per tour. The plan mentions a `TruckArrival` dock branch, but no such event exists in the current core; this factual slip changes no Task 4.9 work. The plan's original instruction to wire both loaders is superseded by the user's explicit direction to defer the missing grocery loader to Phase 6b.
+
+Task 4.11 corrected the Section 6.1 decision-key status: it had been marked done because removal of `OBRSPW` and `ATIP` as problem classes was mistaken for renaming them as decision names. The five decision files, their runtime references, tests, and current documentation now use `OBRSP` and `active_tour_admission`. The historical `aaa8333` Henn configurations are alternatives under the same decision key. The unused `rolling_horizon` files remain; `casim check ... decisions=rolling_horizon --json` rejects `problem_class: rolling`.
+
+The `29s-40-30-0.txt` Henn sweep compares as follows against `scripts/plots/waiting_strategy/summary.csv` (the old `scenario_henn_order_window_waiting` label denotes the order-window alternative, not a combined strategy):
+
+| Strategy | Old → current makespan | Old → current mean tour duration | Old → current utilization | Tours | Dock mean / max, old → current |
+|---|---:|---:|---:|---:|---:|
+| Henn waiting | 22533.874 → 22533.874 | 563.566667 → 563.566667 | 0.764089 → 0.764089 | 30 → 30 | 0 / 0 → 15.860469 / 30 |
+| Order window (5) | 22391.988 → 22438.988 | 594.142857 → 595.821429 | 0.773911 → 0.774405 | 28 → 28 | 0 / 0 → 14.790495 / 28 |
+
+The order-window differences in makespan and total tour duration are both exactly 47 seconds; the tour count is unchanged. This is consistent with the final route changing when `OrderStreamClosed` is emitted at the last order arrival, whereas `aaa8333` flushed at event-heap exhaustion. Task 6.5 restores `at_exhaustion`; no closure rule was changed in 4.11. The dock numbers now count staging in every `State` since Task 4.9, including warehouses without a `Dock`; the historical plot was made before that change.
 
 The Task 4.9 fixture recorded 298 events, 13 decisions, three completed tours, distance 126 and makespan 86 in each seeded run, both before and after the change. Dock fill ended at 1 with truck capacity 2 and at 3 with `capacity: null`; the full fill trace and tour records are locked in `tests/verification/dock_baseline.json`. Neither scenario config triggers a decision directly on `TruckDeparture`. The departure's emitted `PickerArrival` triggers grocery `ORSP` through `triggers_map`; IJPE has no `PickerArrival` trigger, so it triggers no decision there.
 
@@ -109,13 +121,14 @@ The Task 4.9 fixture recorded 298 events, 13 decisions, three completed tours, d
 | F42 | done | Task 4.9, typed dock and exact synthetic trace comparison. |
 | F43 | done | ware:`20cb91e`; casim:`640b5ce`; one parameterized waiting card. |
 | F44 | done | ware:`0d47fe0`; casim:`c94c410`; residual admission after completed picks. |
-| F45–F50 | moved to a later task | Tasks 4.11–4.13; the four Task 4.12 user decisions remain untouched. |
+| F45 | done | Task 4.11 follow-ups; waiting aliases move to 4.12 and dispatch checks to 4.14 as directed. |
+| F46–F50 | moved to a later task | Tasks 4.12–4.13; the four Task 4.12 user decisions remain untouched. |
 | F51 | moved to a later task | Task 6.5, timing of stream closure. |
 | F52 | moved to a later task | Tasks 4.11 and 4.13, admission choice and CoSy stage typing. |
 | F53 | moved to a later task | Task 5.0, one stage registry. |
-| F54 | moved to a later task | Task 4.11, dead sequencing and stale configurations. |
+| F54 | done | Task 4.11 removed dead sequencing and tracked Henn output; `rolling_horizon` is retained for Task 6.1 and rejected by `casim check`. |
 | F55 | moved to a later task | Task 4.14, dispatch and resource availability. |
-| F56 | moved to a later task | Task 4.11 restores the sweep; Task 5.0 checks all configurations. |
+| F56 | moved to a later task | Task 4.11 restored the alternative Henn sweep and corrected stale references; Task 5.0 checks all configurations. |
 | F57 | moved to a later task | Task 4.15, hidden decision rules. |
 | F58–F59 | moved to a later task | Phase 6b scenario structure and IJPE study. |
 
@@ -141,7 +154,7 @@ The Task 4.9 fixture recorded 298 events, 13 decisions, three completed tours, d
 | 5.2 ware taxonomy restoration | done | Exact diff against `34bd157` is empty. |
 | 5.2 casim sim_domain/tour_model | moved to a later task | Domain and tour state moved back; positioning fields stay until 4.4. |
 | 5.2 casim decision engine/ranker/interfaces/policies | done | `decision_engine/`, import and policy tests. |
-| 5.2 casim decision process events | done | `SequencingDone` and `PickListDone`; `RoutingDone` deleted. |
+| 5.2 casim decision process events | done | `SequencingDone` and `PickListCreated`; `RoutingDone` deleted. |
 | 5.2 casim state managers/apply/views | moved to a later task | Generic apply/views in place; temporary recall apply path stays until 4.4. |
 | 5.2 casim simulation engine/adapter/conditions | done | `simulation_engine/`, adapter and decision tests. |
 | 5.2 casim schema/data card/setup/CLI | done | `config/`, `setup.py`, `cli.py`, generated schema. |
@@ -161,7 +174,7 @@ The Task 4.9 fixture recorded 298 events, 13 decisions, three completed tours, d
 | 6.1 Reassign/Reschedule | done | ware `planning/commands.py`. |
 | 6.1 membership_ops removal | done | ware `planning/decision_features.py`. |
 | 6.1 waiting service-time field | done | ware `WaitingInput`, `HennWaiting` injected router. |
-| 6.1 OBRSPW/ATIP config keys | done | casim online taxonomy and active-tour decision config. |
+| 6.1 OBRSPW/ATIP config keys | done | Task 4.11 renamed all five decision files and their runtime, test, and current documentation references. Previously marked done by confusing problem-class removal with decision-key renaming. |
 | 6.1 reconsider cause enum | done | casim `sim_domain.py`, `operational_events.py`. |
 | 6.1 ranker move | done | casim `decision_engine/solution_ranker.py`; Phase 3c removes old shim. |
 | 6.1 command/conversion moves | done | ware `planning/`; no active imports from old paths. |

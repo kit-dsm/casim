@@ -37,7 +37,7 @@ def test_two_solvers_keep_distinct_cache_paths(tmp_path):
             ])
             card = load_and_flatten_data_card(cfg.data_card)
             simulation, decision_engine = setup_experiment(cfg, card)
-            solver = decision_engine.solver_map["OBRSPW"]
+            solver = decision_engine.solver_map["OBRSP"]
             simulation.reset(hooks=[add_orders_hook, picker_arrival_hook])
             while True:
                 done, snapshot = simulation.run()

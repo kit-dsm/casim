@@ -116,7 +116,7 @@ class WalkOrWaitDataLoader(DataLoader):
             current_location=layout.graph_data.start_location,
         )
         return SimWarehouseDomain(
-            problem_class="OBRSPW",
+            problem_class="OBRSP",
             objective="mean_order_completion_time",
             layout=layout,
             articles=articles,

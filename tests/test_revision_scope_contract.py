@@ -60,7 +60,7 @@ def test_committed_schema_matches_config_model():
 def test_problem_class_is_declared_independently_of_decision_name(tmp_path):
     cfg = _config(tmp_path)
     OmegaConf.set_struct(cfg.decisions, False)
-    config = cfg.decisions.pop("OBRSPW")
+    config = cfg.decisions.pop("OBRSP")
     cfg.decisions["planning"] = config
     setups = resolve(cfg, load_and_flatten_data_card(cfg.data_card))
     assert setups["planning"].problem_class == "OBRSP"
@@ -76,14 +76,14 @@ def test_overlapping_decisions_require_distinct_precedence(tmp_path):
             f"cache_base={(tmp_path / 'cache').as_posix()}",
             f"experiment.output_dir={tmp_path.as_posix()}",
         ])
-    cfg.decisions.OBRSPW.precedence = cfg.decisions.ATIP.precedence
+    cfg.decisions.OBRSP.precedence = cfg.decisions.active_tour_admission.precedence
     with pytest.raises(ValueError, match="both write.*orders"):
         resolve(cfg, load_and_flatten_data_card(cfg.data_card))
 
 
 def test_periodic_reconsider_uses_current_decision_version(tmp_path):
     cfg = _config(tmp_path)
-    cfg.decisions.OBRSPW.triggers.append({"every_s": 5})
+    cfg.decisions.OBRSP.triggers.append({"every_s": 5})
     sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
     sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
     original = next(event for event in sim.events
@@ -94,7 +94,7 @@ def test_periodic_reconsider_uses_current_decision_version(tmp_path):
     sim.step(engine.on_trigger(snapshot), snapshot)
     assert original.is_stale(sim.state)
     assert any(isinstance(event, Reconsider)
-               and event.version == sim.state.decision_versions["OBRSPW"]
+               and event.version == sim.state.decision_versions["OBRSP"]
                and event.time == snapshot.dynamic_warehouse_info.plan.time + 5
                for event in sim.events)
 
@@ -103,10 +103,10 @@ def test_invalid_live_reference_leaves_state_and_events_untouched(tmp_path):
     sim, _, snapshot, result = _first_wait(tmp_path)
     before = deepcopy(sim.state.tour_manager.all_tours)
     events_before = tuple(sim.events)
-    version = sim.state.decision_versions.get("OBRSPW", 0)
+    version = sim.state.decision_versions.get("OBRSP", 0)
     with pytest.raises(CommandViolation):
         sim.step(DecisionResult((*result.commands, CommitTour(tour_id=999))), snapshot)
-    assert sim.state.decision_versions.get("OBRSPW", 0) == version
+    assert sim.state.decision_versions.get("OBRSP", 0) == version
     assert sim.state.tour_manager.all_tours == before
     assert tuple(sim.events) == events_before
 
@@ -116,12 +116,12 @@ def test_wait_keeps_draft_and_old_reconsider_becomes_stale(tmp_path):
     sim.step(result, snapshot)
     draft = next(iter(sim.state.tour_manager.all_tours.values()))
     assert draft.status is TourStates.PLANNED
-    assert sim.state.decision_waiting["OBRSPW"]
+    assert sim.state.decision_waiting["OBRSP"]
     assert not any(isinstance(event, PickerTourQuery) for event in sim.events)
     old = next(event for event in sim.events
                if isinstance(event, Reconsider)
                and event.reason is ReconsiderReason.WAIT)
-    sim.state.apply_all("OBRSPW", ())
+    sim.state.apply_all("OBRSP", ())
     assert old.is_stale(sim.state)
 
 

@@ -12,8 +12,9 @@ other batch size while the stream is open; closure releases a final partial
 batch. The forecast in `PlannerInformation` is separate from the
 realised event stream in `simulation/reference.yaml`.
 
-The loader checks the configured three-order waiting gate, the exclusive
-decision opportunities, and the remaining-route admission component. Luigi
+The decision's `NbrOrdersCondition(threshold=3)` enforces the three-order
+waiting gate. The loader checks the exclusive decision opportunities and the
+remaining-route admission component. Luigi
 logs task errors at `ERROR` level, so invalid policy input is visible.
 
 The mail's Phase 2 is **not implemented here**. `WaitingOpportunity` runs the
@@ -47,7 +48,7 @@ From the CASIM project root, run:
 
 After the simulation finishes, open `http://127.0.0.1:8050/`. Use the slider
 to inspect the event stream. Decision frames follow the triggering event:
-`OBRSPW wait` at t=2, `OBRSPW release` at t≈11.085, and `OBRP admit` at t=12.
+`OBRSP wait` at t=2, `OBRSP release` at t≈11.085, and `OBRP admit` at t=12.
 The replay shows the picker, order status, and committed tour membership at
 each frame. It does not plot the analytical waiting calculation or evaluate
 the Phase 2 insertion choice.

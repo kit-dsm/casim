@@ -1,5 +1,5 @@
 name: "HennOnline"
-problem_type: OBRSPW
+problem_type: OBRSP
 
 objective: makespan
 source:

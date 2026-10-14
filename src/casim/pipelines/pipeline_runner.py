@@ -12,10 +12,10 @@ from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 from casim.pipelines.in_memory_dag import InMemoryDagExecutor
 from casim.pipelines.problem_based_template import (
     PlanCandidateEndpoint, BatchingPlanCandidate, RoutingPlanCandidate,
-    SchedulingPlanCandidate, SequencingPlanCandidate, PositioningPlanCandidate,
+    SchedulingPlanCandidate, PositioningPlanCandidate,
     WaitingPlanCandidate,
     AbstractBatching, AbstractPickerRouting, AbstractScheduling,
-    AbstractSequencing, AbstractWaiting, AbstractPositioning,
+    AbstractWaiting, AbstractPositioning,
     clear_store, dump_pickle, load_pickle, traverse_pipeline,
 )
 from casim.pipelines.taxonomy import variant
@@ -26,7 +26,6 @@ PLAN_SOURCES = {
     "scheduling": SchedulingPlanCandidate,
     "waiting": WaitingPlanCandidate,
     "positioning": PositioningPlanCandidate,
-    "sequencing": SequencingPlanCandidate,
 }
 
 
@@ -82,7 +81,6 @@ class CoSySolver:
             "routing": AbstractPickerRouting,
             "active_tour_routing": AbstractPickerRouting,
             "scheduling": AbstractScheduling,
-            "sequencing": AbstractSequencing,
             "waiting": AbstractWaiting,
             "positioning": AbstractPositioning,
         }

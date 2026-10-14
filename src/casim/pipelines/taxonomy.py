@@ -13,7 +13,7 @@ TAXONOMY = {
     "BSRP": {"variables": ["batching", "routing"]},
     "OBRSP": {"variables": [
         "item_assignment", "batching", "routing", "scheduling",
-        "sequencing", "waiting", "positioning", "admission",
+        "waiting", "positioning", "admission",
         "active_tour_routing",
     ], "endpoint": "ResultAggregationWaiting"},
     "ORSP": {"variables": ["routing", "scheduling"],
