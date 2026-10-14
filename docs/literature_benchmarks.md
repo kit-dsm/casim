@@ -327,3 +327,79 @@ the same sets and belong to Task 4.14. ware_ops_algos commit `8b91419`
 reconstructs the route with a test on the paper's synthetic instance; casim
 wires the component and removes the RR entry from the runner's not-executable
 list.
+
+### B.5 smoke stage (L3), 15 October 2026
+
+New scenario `scenarios/scenario_oobp` (runners `experiment_oobp.py` and
+`run_l3.py`). The decision is FCFS batching, the oldest-order batch selection
+(`FiFo` + `FIFOScheduler` under `SchedulingCommitmentPolicy(n_jobs=1)`),
+S-shape and no waiting, under the protocol of Table 4 (speed 0.8 LU/s, 10 s
+per item, setup 180 s; the archive's arrival CSVs are replayed). Both
+objectives are recomputed from the executed tours (maximum completion time,
+maximum turnover time from arrival to delivery).
+
+Loaders, both new in `scenarios/scenario_oobp/loader.py`:
+
+- `OobpHennLoader` reads the archive's `settNN.txt` (10 aisles, 45 locations
+  per side, `cell_lengt` 1, aisle centre distance `2 * cell_width +
+  aisle_widt` = 5, `dis_ais_wa` 1 from the depot to the front cross aisle) and
+  the raw order files. Locations are 0-based in the archive; a location sits at
+  `y = location`. With `depot=corner` (the benchmark page's "bottom left") the
+  depot is `dis_ais_wa` below the front cross aisle in front of the leftmost
+  aisle; with `depot=centre` (Table 3 "Center", Fig. 5a) it sits on the front
+  cross aisle between the two middle aisles. It matches the archive's
+  inconsistent arrival-file names on the separator-free stem.
+- `AlbaredaLoader` reads `wsrp_input_layout_*` and `wsrp_input_pedido_*`:
+  shared shelves, so the centre distance is shelf width plus aisle width; the
+  depot sits on the front cross aisle at the leftmost aisle (0) or between the
+  two middle aisles (1); W4's items carry their weights, and the cart is by
+  weight. Pick nodes are the distinct item positions per aisle.
+
+Smoke result (16 Henn runs, both depots; 8 Albareda runs), completion and
+turnover in seconds against `data/oobp_reference.csv`; no run of the runner
+raises, below-best-known is recorded per row:
+
+| Instance | Depot | CASIM completion (bk) | CASIM turnover (bk) | Below bk |
+|---|---|---|---|---|
+| abc1 29s-40-30-0 | corner | 24,541 (21,109) | 15,541 (9,848) | - |
+| abc1 29s-40-30-0 | centre | 24,223 (21,109) | 15,223 (9,848) | - |
+| abc1 30s-40-45-0 | corner | 17,298 (17,541) | 8,299 (5,133) | completion -1.4 % |
+| abc1 30s-40-45-0 | centre | 16,947 (17,541) | 7,948 (5,133) | completion -3.4 % |
+| abc2 10l-40-45-0 | corner | 18,841 (18,170) | 10,070 (9,377) | - |
+| abc2 10l-40-45-0 | centre | 18,487 (18,170) | 9,716 (9,377) | - |
+| abc2 11l-40-60-0 | corner | 14,678 (15,708) | 5,908 (4,829) | completion -6.5 % |
+| abc2 11l-40-60-0 | centre | 14,345 (15,708) | 5,574 (4,829) | completion -8.7 % |
+| ran1 29s-40-30-0 | corner / centre | 30,091 / 29,647 (24,689) | 21,091 / 20,647 (12,838) | - |
+| ran1 30s-40-45-0 | corner / centre | 19,418 / 19,109 (18,023) | 10,595 / 10,286 (8,715) | - |
+| ran2 10l-40-45-0 | corner / centre | 21,751 / 21,440 (21,073) | 12,751 / 12,441 (8,990) | - |
+| ran2 11l-40-60-0 | corner / centre | 16,241 / 15,976 (16,051) | 7,691 / 7,426 (5,874) | centre completion -0.5 % |
+| W1 100 _000 / _030 | 0 | 25,381 (22,308) / 20,969 (18,371) | 13,740 / 9,339 | - |
+| W2 100 _000 / _030 | 0 | 17,977 (17,203) / 15,185 (15,535) | 6,520 / 4,171 (2,702) | _030 completion -2.3 % |
+| W3 100 _000 / _030 | 0 | 40,450 (39,902) / 34,040 (33,212) | 29,195 / 23,963 | turnover below bk (30,959 / 25,539) |
+| W4 100 _000 / _030 | 0 | 129,629 (110,218) / 104,982 (92,936) | 118,055 / 93,298 | - |
+
+Findings, each with its evidence:
+
+1. Under the published depot (corner), CASIM's rule beats the published
+   best-known completion on abc1 30s (-1.4 %) and abc2 11l (-6.5 %), and the
+   centre depot on three instances. A hand check of the abc2 11l corner run:
+   12 tours for 40 orders and 569 picks, every tour gap exactly the 180 s
+   setup (the picker never idles after the first tour), per-tour travel 448 LU
+   on average, and the first tour's walked node sequence reproduces the
+   paper's S-shape by hand (368 LU computed, 368 LU executed). The paper's
+   routing skips empty aisles and U-turns in the last aisle of an odd count
+   (Section 3.3), which the implementation follows. The completion gap to the
+   best known 15,707 s corresponds to about two additional tours at the same
+   per-tour work, or to a systematically longer tour, neither of which the
+   protocol text states. Section 9 applies; see the phase report.
+2. W3 (25 aisles) has `Tiempo de giro (fuera y dentro) 20 0` in its layout
+   files, a turning time the protocol tables do not mention and CASIM cannot
+   charge. Its turnover beats the best known on both smoke instances while
+   completion stays above; consistent with 20 s per aisle traversal missing
+   from CASIM's tours. Not modeled; recorded here.
+3. The epsilon `check_plan overlap` violations appear as before (planned end
+   recomputed at `TourStart`, Task 4.14); counts 0 to 1,499 per run.
+4. The paper's Table 2 warehouse values differ from the archive's layout
+   files (for example W1: paper aisle length 50 and centre distance 4.3, file
+   86.917 and 7.167). The runs use the files, which the published values
+   correspond to; the discrepancy is recorded in the register's L3 row.
