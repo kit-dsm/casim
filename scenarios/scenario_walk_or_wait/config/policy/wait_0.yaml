@@ -1,1 +1,2 @@
 min_orders: 0
+component: casim.pipelines.subproblems.waiting.NoWaitingNode

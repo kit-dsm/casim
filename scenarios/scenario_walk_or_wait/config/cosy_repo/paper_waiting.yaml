@@ -5,4 +5,4 @@ components:
 - casim.pipelines.subproblems.batching.FiFo
 - ${routing.component}
 - casim.pipelines.subproblems.scheduling.FIFOScheduler
-- casim.pipelines.subproblems.waiting.WaitFor${policy.min_orders}
+- ${policy.component}

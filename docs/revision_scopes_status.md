@@ -1,4 +1,4 @@
-# Revision scopes status through Task 4.11
+# Revision scopes status through Task 4.12
 
 This is an audit against the current `revision_scopes_corrections.md`, through Phase 3b. Evidence names are casim commits unless prefixed `ware:`. A row marked “moved to a later task” records an explicit phase boundary or user-approved sequencing deviation, not a completed check. The historical base results are diagnostics; Phase 5 establishes correctness.
 
@@ -15,7 +15,12 @@ This is an audit against the current `revision_scopes_corrections.md`, through P
 | 4.9 | done | F42; `tests/verification/test_dock_fixture.py` compares the full prechange event, dock-fill, decision and KPI record for seeds 17 and 29 and truck capacities 2 and `null`. All four comparisons pass. ware adds optional `Dock`; casim owns `DockManager`, and the IJPE loader reads `simulation.dock.K_dock`. Grocery loader wiring is deferred to Phase 6b by the user's instruction. |
 | 4.10 | done | ware:`20cb91e`; casim:`640b5ce`; one order-count waiting card and component. Task 4.12 replaces temporary component aliases. |
 | 4.11 | done | Removed dead sequencing, renamed `PickListCreated` and the five decision files, restored alternative Henn strategies as `decisions` files, corrected stale references, and removed tracked outputs. One-instance sweep and 62 casim tests pass; comparison below. |
-| 4.12–4.15 | not done | Complete in order after Task 4.11; four Task 4.12 user decisions remain untouched. |
+| 4.12 | done | Five configured CoSy components are generated from resolved CASOP cards; wait 0–4 and both Henn pipelines keep their KPIs. The seven CASOP applicability sets equal `main` (counts 19, 15, 19, 24, 19, 8, 13); Task 5.0 commits the permanent lock. Module layout, rerouting base, mapper docstrings, and `OrderSplittingSolution` are corrected. Four user decisions remain untouched. |
+| 4.13–4.15 | not done | Complete in order after Task 4.12. |
+
+Task 4.12 makes `walk_or_wait_sshape_routing` and `fifo_scheduler` inapplicable to CASOP by requiring the `routing_origin` decision feature, which the seven CASOP data cards lack. CASIM's corresponding data cards provide it. A comparison of the applicable card-name sets for each of those seven data cards against `main` shows no additions or removals after this change. `IncumbentStartBatchingSShape` merges the SShape requirements through `configs.yaml`; `OrderCountWaiting1` through `OrderCountWaiting4` resolve the value option. The prechange committed code and current code have byte-identical `kpis.json` for `wait_0` through `wait_4` on `explicit_example` and for `repair_waiting_henn` on `29s-40-30-0.txt`. The baseline Henn pipeline still has makespan 22533.874, 30 tours, mean tour duration 563.566667 and distance 11057, as in Task 4.11. The task generated its components without scenario-data changes.
+
+The shipped CASOP source has no reference to order splitting outside its implementation package and no order-splitting card; `OrderSplittingSolution` is now placed with the other algorithm interfaces. I propose removing order splitting from the CASOP library in a later task unless a supported CASOP use case is identified; I did not add a card with no consumer. The following Task 4.12 decisions remain untouched: whether to restore the `due_date` requirement of `spt_scheduling.yaml`, whether to change `Resources.get_features()` semantics, whether to change per-picker processing time in `earliest_free_assignment`, and whether to revise the cards' objective vocabulary.
 
 Task 4.9 retained two known issues: a `TruckDeparture` with `capacity: null` releases no staged pallets, and grocery truck capacity counts orders while staging counts pallets per tour. The plan mentions a `TruckArrival` dock branch, but no such event exists in the current core; this factual slip changes no Task 4.9 work. The plan's original instruction to wire both loaders is superseded by the user's explicit direction to defer the missing grocery loader to Phase 6b.
 
@@ -122,7 +127,9 @@ The Task 4.9 fixture recorded 298 events, 13 decisions, three completed tours, d
 | F43 | done | ware:`20cb91e`; casim:`640b5ce`; one parameterized waiting card. |
 | F44 | done | ware:`0d47fe0`; casim:`c94c410`; residual admission after completed picks. |
 | F45 | done | Task 4.11 follow-ups; waiting aliases move to 4.12 and dispatch checks to 4.14 as directed. |
-| F46–F50 | moved to a later task | Tasks 4.12–4.13; the four Task 4.12 user decisions remain untouched. |
+| F46 | awaiting user decision | `spt_scheduling.yaml` due-date requirement left untouched in Task 4.12. |
+| F47–F49 | done, with named decisions pending | Task 4.12 card applicability, configured components, module layout and mapper docstrings; the four named decisions above remain untouched. |
+| F50 | moved to a later task | Task 4.13 type consolidation. |
 | F51 | moved to a later task | Task 6.5, timing of stream closure. |
 | F52 | moved to a later task | Tasks 4.11 and 4.13, admission choice and CoSy stage typing. |
 | F53 | moved to a later task | Task 5.0, one stage registry. |

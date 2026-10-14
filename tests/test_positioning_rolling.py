@@ -7,7 +7,7 @@ from ware_ops_algos.algorithms import (
     AdmissionInput, AdmissionTour, Job, PickPosition, RoutingOrigin,
     ScheduledJob, WarehouseOrder,
 )
-from ware_ops_algos.algorithms.admission.center_position import CenterPositionAdmission
+from ware_ops_algos.algorithms.admission import CenterPositionAdmission
 from ware_ops_algos.algorithms.routing.patrol import all_aisles_patrol_route
 from ware_ops_algos.planning.lifecycle import Accepts, ResourceStates, TimeAttribute, TourStates
 from ware_ops_algos.planning.scope import RevisionScope, StateInformation, Window

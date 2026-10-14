@@ -1,10 +1,6 @@
-import inspect
-
-import ware_ops_algos.algorithms as algorithms
 from ware_ops_algos.algorithms import OrderNrFifoBatching, FifoBatching, DueDateBatching, LocalSearchBatching, \
     NearestNeighbourhoodRouting, SShapeRouting, ClarkAndWrightBatching
 from ware_ops_algos.algorithms.batching import IncumbentStartBatching
-from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 from ware_ops_algos.algorithms.routing.routing import Routing
 
 from cosy_luigi import CoSyLuigiTaskParameter
@@ -14,28 +10,18 @@ from casim.pipelines.problem_based_template import (
 )
 
 
-def resolve_algorithm_class(class_name: str) -> type[Routing]:
-    """Resolve a card's routing class from the algorithm library."""
-    candidate = getattr(algorithms, class_name, None)
-    if not inspect.isclass(candidate) or not issubclass(candidate, Routing):
-        raise ValueError(f"Unknown routing_class {class_name!r}")
-    return candidate
-
-
 class IncumbentBatchingNode(BatchingNode):
     """Repair candidate: keep selected drafts and insert newly buffered orders."""
 
     incumbent = CoSyLuigiTaskParameter(IncumbentProvider)
+    routing_class: type[Routing] | None = None
 
     def _get_inited_batcher(self):
         resources = self._get_resources()
         layout = self._get_layout().layout_network
-        cards = [card for card in load_packaged_algo_cards()
-                 if card.implementation.get("component_name") == type(self).__name__]
-        if len(cards) != 1:
-            raise ValueError(f"Expected one algorithm card for {type(self).__name__}")
-        router_class = resolve_algorithm_class(
-            cards[0].implementation["routing_class"])
+        router_class = self.routing_class
+        if router_class is None:
+            raise ValueError("Incumbent batching needs a configured routing class")
         carts = [resource.pick_cart for resource in resources.resources]
         if not carts or carts[0] is None or any(cart != carts[0] for cart in carts):
             raise ValueError("IncumbentStartBatching requires homogeneous pick carts")
