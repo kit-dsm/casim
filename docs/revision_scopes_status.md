@@ -1,4 +1,4 @@
-# Revision scopes status through Task B.2
+# Revision scopes status through Task B.3
 
 This is an audit against the current `revision_scopes_corrections.md`, through Phase 3b. Evidence names are casim commits unless prefixed `ware:`. A row marked “moved to a later task” records an explicit phase boundary or user-approved sequencing deviation, not a completed check. The historical base results are diagnostics; Phase 5 establishes correctness.
 
@@ -9,7 +9,7 @@ This is an audit against the current `revision_scopes_corrections.md`, through P
 | B.1 | done | `feb7e69`; `docs/baseline.md`, 60 configurations, 45 run, 15 fail. |
 | B.2 | done | `694830e`; `casim.baseline_capture` behind `experiment.audit`, `tests/verification/kpi_recomputation.py`, nine scenarios in `tests/verification/test_phase_b_scenarios.py`. |
 | B.2 corrections | done | Distance between positions off the graph uses both aisle neighbours with a tolerance and measures one aisle segment directly (`tests/verification/test_baseline_capture.py`, four hand-derived cases, three of which fail with the earlier nearest-node rule). Verification scenario 6 is its own walk-or-wait scenario with prefix, suffix and distances derived in its docstring. The 61s-80-30-0 failure is traced to `ViolationCode.STATE_INFORMATION` on a `ReplaceSuffix` that takes an order from a draft cancelled in the same proposal (`docs/baseline.md`); not fixed. The three scenarios of Section 7.5 give the same KPIs with and without `experiment.audit`: Henn 30,669 makespan, 11,808 distance, 27 tours, 15 decisions; stochastic waiting 87 / 76; walk-or-wait 167 / 160; no invariant violations and every route leg recomputable. |
-| B.3 | in progress | `docs/literature_benchmarks.md`. |
+| B.3 | done, awaiting approval of the subsets | `docs/literature_benchmarks.md`: register L1 to L6 verified against the sources, twelve corrections to Section 7.4, candidates L7 to L9; L4 OSF files committed (CC BY 4.0) in `scenarios/scenario_dhaen_online/data/`; 64 Albareda instances local and ignored (no licence stated), hashes in `ALBAREDA_SHA256SUMS.txt`; subset lists in `docs/literature_benchmarks/`; expected run time about 17 h CASIM and 2.75 h CASOP. Open: D'Haen paper, Lorenz companion, the 4D4L commit of the published RADAR values, speed and pick time of L5, the depot of the Henn OOBP warehouse. |
 
 ## Phase 4 progress
 

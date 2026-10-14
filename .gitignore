@@ -34,3 +34,4 @@ scenarios/scenario_henn_online/outputs/
 tests/data/instances/caches/
 scenarios/scenario_walk_or_wait/data/radar/raw/
 scenarios/scenario_walk_or_wait/data/radar/selected/
+scenarios/scenario_henn_online/data/oobp/albareda/
