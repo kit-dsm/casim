@@ -10,7 +10,8 @@ Usage: python -m scenarios.scenario_static_benchmarks.run_benchmark {smoke,full}
 from __future__ import annotations
 
 import argparse
-import csv
+from dataclasses import asdict
+from dataclasses import replace
 import json
 import logging
 from math import isclose
@@ -24,14 +25,15 @@ from scenarios.scenario_static_benchmarks.direct import TIME_LIMIT_S, solve
 from scenarios.scenario_static_benchmarks.experiment import run
 from scenarios.scenario_static_benchmarks.loader import load_casop_domain, to_static_sim_domain
 from scenarios.scenario_static_benchmarks.pipelines import PIPELINES
+from ware_ops_algos.domain_models import Resources
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBSET = ROOT / "docs" / "literature_benchmarks" / "l1_subset.csv"
+RUNLIST = ROOT / "docs" / "literature_benchmarks" / "l1_runlist.csv"
 RESULTS = Path(__file__).resolve().parent / "data" / "casop-results-v0.1.0.parquet"
-INSTANCES = ROOT.parent / "ware_ops_pipes" / "data" / "instances"
+INSTANCES = ROOT / "scenarios" / "scenario_static_benchmarks" / "data" / "instances"
 OUTPUT = Path(__file__).resolve().parent / "outputs"
 REL_TOL = 1e-9
-NOT_EXECUTABLE = {"RatliffRosenthal": "RatliffRosenthalRouting builds no node sequence (annotated_route)"}
+NOT_EXECUTABLE = {"RatliffRosenthal": "RatliffRosenthalRouting builds no node sequence"}
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +68,11 @@ def violations(audit: Path) -> int:
     return sum(sum(counts.values()) for counts in data["violations"].values())
 
 
-def evaluate(row: pd.Series, results: pd.DataFrame) -> dict:
+def evaluate(row: pd.Series, results: pd.DataFrame, smoke: bool = False) -> dict:
     instance_set, stem = raw_instance(row.instance_set, row.instance_name)
     pipeline = PIPELINES[row.pipeline]
     objective = "total_time" if pipeline.scheduling == "EDDScheduler" else "distance"
-    domain = to_static_sim_domain(load_casop_domain(INSTANCES, instance_set, stem))
+    domain = to_static_sim_domain(load_casop_domain(INSTANCES, instance_set, stem), instance_set)
     direct = solve(pipeline, domain)
     direct_value = direct.total_time if objective == "total_time" else direct.distance
     out = {
@@ -80,17 +82,56 @@ def evaluate(row: pd.Series, results: pd.DataFrame) -> dict:
         "batching_s": round(direct.batching_seconds, 3),
         "time_limit_reached": direct.batching_seconds >= TIME_LIMIT_S,
     }
+    if smoke and row.instance_set != "Kris":
+        second = to_static_sim_domain(load_casop_domain(INSTANCES, instance_set, stem), instance_set)
+        second.resources = Resources(second.resources.tpe, [
+            replace(resource, speed=2.0, time_per_pick=7.0, tour_setup_time=11.0)
+            for resource in second.resources.resources
+        ])
+        out["second_times_distance_equal"] = equal(
+            direct.distance, solve(pipeline, second).distance)
+        if not out["second_times_distance_equal"]:
+            raise RuntimeError(f"Distance changed with time parameters: {row.instance_set} "
+                               f"{row.instance_name} {row.pipeline}")
+    if pipeline.routing == "NearestNeighbourhood":
+        changed = [route for route in direct.routes if route.walked_distance is not None
+                   and not equal(route.reported_distance, route.walked_distance)]
+        walked_value = (direct_value + (direct.walked_distance - direct.distance)
+                        / domain.resources.resources[0].speed
+                        if objective == "total_time" else direct.walked_distance)
+        out.update(
+            routes_json=json.dumps([asdict(route) for route in direct.routes]),
+            routes_with_distance_gap=len(changed),
+            distance_shortfall=sum(route.walked_distance - route.reported_distance
+                                   for route in changed),
+            walked_reference_gap_pct=(100 * (walked_value - row.reference_value)
+                                      / row.reference_value),
+        )
     reason = NOT_EXECUTABLE.get(pipeline.routing)
+    casim_value = None
+    out["c1_f64_explained"] = False
     if reason is None:
-        with tempfile.TemporaryDirectory() as folder:
+        OUTPUT.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=OUTPUT) as folder:
             casim = run(instance_set, stem, row.pipeline, Path(folder), audit=True)
             out["casim_violations"] = violations(Path(folder) / "audit.json")
         casim_value = casim.total_time if objective == "total_time" else casim.distance
         out.update(casim=casim_value, casim_distance=casim.distance, casim_decisions=casim.decisions,
                    same_batches=casim.batches == direct.batches,
                    c1_equal=equal(casim_value, direct_value))
+        speed = domain.resources.resources[0].speed
+        predicted_gap = (direct.walked_distance - direct.distance) / speed if objective == "total_time" \
+            else direct.walked_distance - direct.distance
+        out["c1_f64_explained"] = (pipeline.routing == "NearestNeighbourhood"
+                                   and not equal(direct.walked_distance, direct.distance)
+                                   and out["same_batches"]
+                                   and equal(casim.distance, direct.walked_distance)
+                                   and equal(casim_value - direct_value, predicted_gap))
     else:
-        out.update(casim=None, casim_not_run=reason)
+        out.update(casim=None, casim_not_run=reason, c1_equal=None)
+    if out["c1_equal"] is False and not out["c1_f64_explained"]:
+        raise RuntimeError(f"Unexplained CASIM/direct difference: {row.instance_set} "
+                           f"{row.instance_name} {row.pipeline}: {casim_value} != {direct_value}")
     v010 = published(results, instance_set, stem, row.pipeline)
     v010_value = None if v010 is None else v010["total_time" if objective == "total_time" else "total_distance"]
     out.update(casop_v010=v010_value, c2_equal=equal(direct_value, v010_value))
@@ -98,6 +139,13 @@ def evaluate(row: pd.Series, results: pd.DataFrame) -> dict:
                c3_gap_pct=100 * (direct_value - row.reference_value) / row.reference_value,
                below_proven_optimum=bool(row.reference_is_opt)
                and direct_value < row.reference_value * (1 - REL_TOL))
+    out["below_proven_optimum_f64_explained"] = (
+        out["below_proven_optimum"] and out["c1_f64_explained"]
+        and casim_value is not None
+        and casim_value >= row.reference_value * (1 - REL_TOL))
+    if out["below_proven_optimum"] and not out["below_proven_optimum_f64_explained"]:
+        raise RuntimeError(f"Below proven optimum: {row.instance_set} {row.instance_name} "
+                           f"{row.pipeline}: {direct_value} < {row.reference_value}")
     return out
 
 
@@ -106,29 +154,43 @@ def main() -> None:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("stage", choices=["smoke", "full"])
     parser.add_argument("--sets", nargs="*")
+    parser.add_argument("--pipelines", nargs="*")
+    parser.add_argument("--exclude-runlist", type=Path,
+                        help="run only rows absent from this prior run list")
+    parser.add_argument("--resume", action="store_true", help="continue an existing output CSV")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    subset = pd.read_csv(SUBSET, dtype={"instance_name": str, "stratum": str})
+    subset = pd.read_csv(RUNLIST, dtype={"instance_name": str, "stratum": str})
     if args.stage == "smoke":
         subset = subset[subset.smoke]
     if args.sets:
         subset = subset[subset.instance_set.isin(args.sets)]
+    if args.pipelines:
+        subset = subset[subset.pipeline.isin(args.pipelines)]
+    if args.exclude_runlist:
+        prior = pd.read_csv(args.exclude_runlist)
+        keys = set(zip(prior.instance_set, prior.instance_name, prior.pipeline))
+        subset = subset[[key not in keys for key in zip(
+            subset.instance_set, subset.instance_name, subset.pipeline)]]
     results = pd.read_parquet(RESULTS, columns=["instance_set", "instance_name", "strategy",
                                                 "total_distance", "total_time"])
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    path = OUTPUT / f"l1_{args.stage}.csv"
-    rows = []
-    for _, row in subset.iterrows():
-        rows.append(evaluate(row, results))
+    suffix = "_missing" if args.exclude_runlist else (
+        "_filtered" if args.pipelines or args.sets else "")
+    path = OUTPUT / f"l1_{args.stage}{suffix}.csv"
+    rows = pd.read_csv(path).to_dict("records") if args.resume and path.exists() else []
+    for index, (_, row) in enumerate(subset.iterrows()):
+        if index < len(rows):
+            prior = rows[index]
+            if (prior["set"], prior["instance"], prior["pipeline"]) != (
+                    row.instance_set, row.instance_name, row.pipeline):
+                raise RuntimeError(f"Resume CSV row {index} does not match the run list")
+            continue
+        rows.append(evaluate(row, results, smoke=args.stage == "smoke"))
+        pd.DataFrame(rows).to_csv(path, index=False)
         logger.info("%s %s %s: direct %s, CASIM %s, v0.1.0 %s", row.instance_set,
                     row.instance_name, row.pipeline, rows[-1]["direct"], rows[-1]["casim"],
                     rows[-1]["casop_v010"])
-    fields = sorted({key for row in rows for key in row}, key=lambda key: list(rows[0]).index(key)
-                    if key in rows[0] else len(rows[0]))
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows)
     logger.info("Wrote %s", path)
 
 

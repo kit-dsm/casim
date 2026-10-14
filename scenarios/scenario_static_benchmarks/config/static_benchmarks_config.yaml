@@ -4,7 +4,7 @@ defaults:
   - decisions: static
 
 # Instances are read where ware_ops_pipes' README places them (Section 3.1: not committed).
-instances_root: ${project_root}/../ware_ops_pipes/data/instances
+instances_root: ${project_root}/scenarios/scenario_static_benchmarks/data/instances
 benchmark:
   instance_set: HennWaescherUniform
   instance: 21s-20-30-1

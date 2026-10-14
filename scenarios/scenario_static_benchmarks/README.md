@@ -18,10 +18,10 @@ of a difference:
 
 ## Data
 
-- Instances: ware_ops_pipes' `data/instances/`, placed as its README
-  describes; `instances_root` in `config/static_benchmarks_config.yaml`
-  points there. Loaded with ware_ops_pipes' own loaders (`loader.py`),
-  ware_ops_pipes `554a153` as a development dependency of casim.
+- Instances: `python scripts/fetch_data.py casop_instances` restores the selected
+  public files into `data/instances/` and verifies their committed checksums.
+  Loaded with ware_ops_pipes' own loaders (`loader.py`), ware_ops_pipes
+  `554a153` as a development dependency of casim.
 - CASOP v0.1.0 results: `python scripts/fetch_data.py casop` downloads the
   release asset into `data/` and checks it against `data/SHA256SUMS.txt`.
 
@@ -48,13 +48,17 @@ card; every SPRP and SPRP-SS instance has one order, which the loader gives one
 box, so `FiFo` returns the same single batch. The FIFO scheduler and no waiting
 only let the picker execute the tours; they change no distance.
 `RatliffRosenthalNF` and `CombinedBatchingRoutingAssigning` need integrated
-stages that CASIM does not have; they are replaced by the closest pipeline
-CASIM can express. `RatliffRosenthalRouting` returns no node sequence, so its
-pipelines are solved directly but cannot be executed in CASIM.
+stages that CASIM does not have. `RatliffRosenthalRouting` has no node
+sequence yet, so its pipelines are solved directly but not executed in CASIM.
 
 ## Running
 
     python -m scenarios.scenario_static_benchmarks.run_benchmark smoke
     python -m scenarios.scenario_static_benchmarks.run_benchmark full [--sets SET ...]
+
+The full run reads the committed `docs/literature_benchmarks/l1_runlist.csv`,
+reproducible from `docs/literature_benchmarks/select_l1_runlist.py`.
+Pass `--resume` after an interrupted run to continue from its existing CSV;
+the prefix of instance and pipeline keys is checked against the run list.
 
 The result table is written to `outputs/l1_<stage>.csv` (not committed).

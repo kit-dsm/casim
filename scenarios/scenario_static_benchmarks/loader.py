@@ -35,10 +35,21 @@ def load_casop_domain(instances_root: Path, instance_set: str, instance: str) ->
     """The static domain exactly as ware_ops_pipes' loader returns it."""
     loader_class, kwargs = LOADERS[instance_set]
     directory = Path(instances_root) / instance_set
-    return loader_class(directory, **kwargs).load(directory / f"{instance}.txt")
+    domain = loader_class(directory, **kwargs).load(directory / f"{instance}.txt")
+    for resource in domain.resources.resources:
+        if instance_set.startswith("Kris") and any(
+            value is None for value in (resource.speed, resource.time_per_pick,
+                                        resource.tour_setup_time)
+        ):
+            raise ValueError(f"{instance_set}/{instance}: Kris time parameter missing")
+        if instance_set not in {"SPRP", "SPRP-SS"} and (
+            resource.pick_cart is None or resource.capacity is None
+        ):
+            raise ValueError(f"{instance_set}/{instance}: cart or capacity missing")
+    return domain
 
 
-def to_static_sim_domain(domain: BaseWarehouseDomain) -> SimWarehouseDomain:
+def to_static_sim_domain(domain: BaseWarehouseDomain, instance_set: str) -> SimWarehouseDomain:
     """Release every order at time 0 and complete the values the simulator needs.
 
     The routing and batching sets carry no times; walking speed 1, no pick time
@@ -49,15 +60,17 @@ def to_static_sim_domain(domain: BaseWarehouseDomain) -> SimWarehouseDomain:
     orders = [replace(order, order_date=0.0) for order in domain.orders.orders]
     total = sum(position.amount for order in orders for position in order.order_positions)
     resources = []
+    timed = instance_set.startswith("Kris")
     for resource in domain.resources.resources:
-        cart = resource.pick_cart or PickCart(
-            n_dimension=1, capacities=[total], dimensions=[DimensionType.ITEMS],
-            n_boxes=1, box_can_mix_orders=True)
+        cart = resource.pick_cart
+        if cart is None:
+            cart = PickCart(n_dimension=1, capacities=[total], dimensions=[DimensionType.ITEMS],
+                            n_boxes=1, box_can_mix_orders=True)
         resources.append(replace(
             resource,
-            speed=1.0 if resource.speed is None else resource.speed,
-            time_per_pick=0.0 if resource.time_per_pick is None else resource.time_per_pick,
-            tour_setup_time=0.0 if resource.tour_setup_time is None else resource.tour_setup_time,
+            speed=resource.speed if timed else 1.0,
+            time_per_pick=resource.time_per_pick if timed else 0.0,
+            tour_setup_time=resource.tour_setup_time if timed else 0.0,
             capacity=total if resource.capacity is None else resource.capacity,
             pick_cart=cart,
             current_location=resource.current_location or domain.layout.graph_data.start_location,
@@ -86,4 +99,4 @@ class StaticBenchmarkLoader(DataLoader):
 
     def load(self, **kwargs) -> SimWarehouseDomain:
         domain = load_casop_domain(self.instances_root, self.instance_set, self.instance)
-        return to_static_sim_domain(domain)
+        return to_static_sim_domain(domain, self.instance_set)

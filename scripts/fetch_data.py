@@ -1,6 +1,6 @@
 """Download benchmark data into ignored directories and check every file's SHA-256.
 
-Usage: python scripts/fetch_data.py {oobp,dhaen,casop,radar,all} [--check]
+Usage: python scripts/fetch_data.py {oobp,dhaen,casop,casop_instances,radar,all} [--check]
 
 Each dataset directory holds a committed SOURCE.md and SHA256SUMS.txt; the data
 itself is never committed (Section 3.1 of docs/revision_scopes_corrections.md).
@@ -112,6 +112,65 @@ def unpack_radar(directory: Path, files: dict[str, Path]) -> None:
                     write_member(instances.extractfile(member), directory / name)
 
 
+def unpack_casop_instances(directory: Path, files: dict[str, Path]) -> None:
+    """Recreate the selected CASOP instance tree from the public archives."""
+    wanted = expected_sums(directory)
+    archives = {name: zipfile.ZipFile(path) for name, path in files.items()}
+    try:
+        members = {
+            name: {member.filename.rsplit("/", 1)[-1]: [] for member in archive.infolist()
+                   if not member.is_dir() and not member.filename.startswith("__MACOSX/")}
+            for name, archive in archives.items()
+        }
+        for name, archive in archives.items():
+            for member in archive.infolist():
+                if member.is_dir() or member.filename.startswith("__MACOSX/"):
+                    continue
+                members[name][member.filename.rsplit("/", 1)[-1]].append(member.filename)
+        source = {
+            "BahceciOencan": ("mainz.zip",),
+            "FoodmartData": ("foodmart.zip",),
+            "HennWaescherClassBased": ("mainz.zip",),
+            "HennWaescherUniform": ("mainz.zip",),
+            "KrisLargeData": ("kris_large.zip",),
+            "KrisSmallDataCorrected": ("kris_small.zip",),
+            "MuterOencanWG": ("mainz.zip",),
+            "SPRP": ("mainz.zip",),
+            "SPRP-SS": ("sprp_ss.zip", "mainz.zip"),
+        }
+        for relative, digest in wanted.items():
+            target = directory / relative
+            if target.exists() and file_sha256(target) == digest:
+                continue
+            group, basename = relative.split("/", 1)
+            candidates = []
+            for archive_name in source[group]:
+                for member in members[archive_name].get(basename, []):
+                    if group.startswith("HennWaescher"):
+                        policy = "class-based_" if group.endswith("ClassBased") else "uniform_"
+                        if policy not in member:
+                            continue
+                    candidates.append((archive_name, member))
+            for archive_name, member in candidates:
+                content = archives[archive_name].read(member)
+                if group == "MuterOencanWG":
+                    for original, updated in ((b"DISTANCE_TOP_TO_CELL : 1", b"DISTANCE_TOP_TO_CELL : 1.5"),
+                                              (b"DISTANCE_BOTTOM_TO_CELL : 1", b"DISTANCE_BOTTOM_TO_CELL : 1.5")):
+                        if content.count(original) != 1:
+                            raise ValueError(f"Unexpected Muter source format: {member}")
+                        content = content.replace(original, updated, 1)
+                    content = content.decode("cp1252").encode("utf-8")
+                if sha256(content).hexdigest() == digest:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(content)
+                    break
+            else:
+                raise ValueError(f"No published archive member matches {relative} ({digest})")
+    finally:
+        for archive in archives.values():
+            archive.close()
+
+
 DATASETS = {
     "oobp": Dataset(
         ROOT / "scenarios/scenario_henn_online/data/oobp",
@@ -147,6 +206,23 @@ DATASETS = {
                   "casop-results-v0.1.0.parquet"),),
         None,
         cache=".",
+    ),
+    "casop_instances": Dataset(
+        ROOT / "scenarios/scenario_static_benchmarks/data/instances",
+        (
+            Download("https://download.uni-mainz.de/fb03-logistikmanagement/benchmarks/instances_SPRP-SS_JOBPRP.zip",
+                     "5d3931c7076fc7de2815695c008531079a51c549f0780235934f7fcb01eac8d8", "mainz.zip"),
+            Download("https://github.com/katrinhessler/SPRP-SS/archive/refs/heads/main.zip",
+                     "0352b6203331c0ad5e259dac4b5d45858f1f30678c442ebb0f4f7e7e448b27e6", "sprp_ss.zip"),
+            Download("https://pagesperso.g-scop.grenoble-inp.fr/~cambazah/batching/data/FoodmartData.zip",
+                     "cb9043e0d63e3974acb70992276752561fcb646f1c15b7895b3c23886e5c90de", "foodmart.zip"),
+            Download("https://pagesperso.g-scop.grenoble-inp.fr/~cambazah/sequencing/data/KrisSmallDataCorrected.zip",
+                     "cf5ea2a77fef4383b2447f3692a5801dd35fde88148f75239a26b302c3d41cc2", "kris_small.zip"),
+            Download("https://pagesperso.g-scop.grenoble-inp.fr/~cambazah/sequencing/data/KrisLargeDataCorrected.zip",
+                     "9a4441e4752dc5b694da38bd610e1771bca39577df5463409510a6f4037e2f92", "kris_large.zip"),
+        ),
+        unpack_casop_instances,
+        cache="../.source",
     ),
     "radar": Dataset(
         ROOT / "scenarios/scenario_walk_or_wait/data/radar",

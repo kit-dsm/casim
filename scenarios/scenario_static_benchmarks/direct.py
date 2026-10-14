@@ -24,6 +24,16 @@ TIME_LIMIT_S = 300
 
 
 @dataclass(frozen=True)
+class RouteMeasurement:
+    """Reported distance and two measures of the emitted node sequence."""
+
+    order_ids: tuple[int, ...]
+    reported_distance: float
+    walked_distance: float | None
+    graph_edge_distance: float | None
+
+
+@dataclass(frozen=True)
 class DirectResult:
     """Objective values and what is needed to compare them."""
 
@@ -32,6 +42,7 @@ class DirectResult:
     total_time: float
     max_lateness: float | None
     route_distances: tuple[float, ...]
+    routes: tuple[RouteMeasurement, ...]
     batches: tuple[tuple[int, ...], ...]
     batching_seconds: float
 
@@ -127,16 +138,24 @@ def make_router(name: str, domain: BaseWarehouseDomain):
     return ROUTERS[name](**_network_kwargs(domain, gen_tour=True))
 
 
-def _walked(routes, domain: BaseWarehouseDomain) -> float | None:
-    """Length of the routes' node sequences; None if a router builds none (RatliffRosenthal)."""
+def _walked(route, domain: BaseWarehouseDomain) -> float | None:
+    """Sum the matrix distances CASIM charges between emitted route nodes."""
     matrix = domain.layout.layout_network.distance_matrix
-    total = 0.0
-    for route in routes:
-        if not route.annotated_route:
-            return None
-        nodes = [node.position for node in route.annotated_route]
-        total += sum(matrix.at[a, b] for a, b in zip(nodes, nodes[1:]))
-    return total
+    if not route.annotated_route:
+        return None
+    nodes = [node.position for node in route.annotated_route]
+    return sum(matrix.at[a, b] for a, b in zip(nodes, nodes[1:]))
+
+
+def _graph_edges(route, domain: BaseWarehouseDomain) -> float | None:
+    """Sum the underlying graph edges of an emitted route, including zero-length picks."""
+    if not route.annotated_route:
+        return None
+    graph = domain.layout.layout_network.graph
+    nodes = [node.position for node in route.annotated_route]
+    if any(a != b and not graph.has_edge(a, b) for a, b in zip(nodes, nodes[1:])):
+        return None
+    return sum(graph[a][b]["weight"] for a, b in zip(nodes, nodes[1:]) if a != b)
 
 
 def solve(pipeline: Pipeline, domain: BaseWarehouseDomain) -> DirectResult:
@@ -159,13 +178,23 @@ def solve(pipeline: Pipeline, domain: BaseWarehouseDomain) -> DirectResult:
     scheduled = scheduler.solve(jobs).jobs
     lateness = [job.end_time - job.job.due_date for job in scheduled
                 if job.job.due_date not in (None, float("inf"))]
+    measurements = tuple(RouteMeasurement(
+        order_ids=tuple(sorted(order.order_id for order in route.batch.orders)),
+        reported_distance=route.distance,
+        walked_distance=_walked(route, domain),
+        graph_edge_distance=_graph_edges(route, domain),
+    ) for route in routes)
+    walked = (sum(measurement.walked_distance for measurement in measurements)
+              if all(measurement.walked_distance is not None for measurement in measurements)
+              else None)
     return DirectResult(
         distance=sum(route.distance for route in routes),
-        walked_distance=_walked(routes, domain),
+        walked_distance=walked,
         total_time=sum(job.processing_time for job in jobs)
         + (domain.resources.resources[0].tour_setup_time or 0.0) * len(jobs),
         max_lateness=max(lateness) if lateness else None,
         route_distances=tuple(sorted(route.distance for route in routes)),
+        routes=measurements,
         batches=tuple(sorted(tuple(sorted(order.order_id for order in batch.orders))
                              for batch in batches)),
         batching_seconds=batching_seconds,

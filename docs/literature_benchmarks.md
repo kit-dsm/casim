@@ -222,7 +222,7 @@ Approved by the user on 14 October 2026 with the changes below. Every benchmark 
 
 | # | Subset | Runs | Basis of the run time | Expected time |
 |---|---|---|---|---|
-| L1 | One instance per stratum (stratum = instance name without its replication index), drawn among proven optima; all of Foodmart and Kris; two per stratum for MuterOencanWG. Two pipelines per set (one for Kris); BahceciOencan's integrated pipeline on 10 of its 45 instances, its S-shape pipeline on all 45. Smoke: 3 per set and pipeline (`smoke` column). List: `docs/literature_benchmarks/l1_subset.csv`, made by `select_l1_subset.py` | 1,498 CASIM runs, 39 of them smoke | CASOP's measured CPU of the same pipelines and instances (1.25 h) plus 4 s per run | CASIM 2.9 h; the CASOP rerun of B.4 about 1.25 h |
+| L1 | The initial approved subset is preserved in `l1_subset.csv`. The user's revised Task B.4 selects ten instances spread through the strata of each of the six distance sets, retaining the three smoke instances and prioritizing proven optima, and the full 295-instance Kris subset. Both pipelines use the same ten instances in each distance set. Exact list: `l1_runlist.csv`; smoke is its `smoke` column. | 415 runs, including 39 smoke | Measured smoke times and the 295 Kris instances dominate | Record actual time at the end of B.4 |
 | L2 | Journal target (α = 0): 16 classes (C and U × n × W) × 2 routings × 5 strategies (FCFS with FIRST, SHORT, LONG, SAV; IGNORE FCFS). Working-paper target (α = 1): 8 classes × 2 routings × 4 rules. 50 generated instances per class, shared by both targets and all strategies of a class; λ = 0.0625 for n = 30, and λ = 0.08625 as a sensitivity variant for the n = 30 cells of both targets. Smoke: 2 instances of every cell. Both turnover definitions are computed | 224 cells + 56 sensitivity cells = 280 cells × 50 = 14,000 runs; smoke 560 | Henn online scenario, 100 orders over 8 h: 8.7 s per run | 34 h sequential; about 6 h on six parallel processes |
 | L3 | All 128 instances with FCFS batching, the oldest-order selection, S-shape and no waiting; the 64 Henn instances twice, with the depot in the centre and bottom left. Smoke: 2 Henn instances per depot and 2 Albareda instances. List: `docs/literature_benchmarks/l3_instances.csv` | 192 | Henn online: 40 orders 5.1 s, 100 orders 8.7 s; Albareda up to 250 orders estimated at 15 s | 0.5 h |
 | L4 | Replication 21 of each of the 96 OSF combinations (72 of the main design, 24 with uniform+ arrivals), forecasting off, 20 % of the trucks active, an earliest-due-date rule. Smoke: 3 instances | 96 | estimated 30 s for about 800 orders and 3 to 5 pickers | 0.8 h |
@@ -259,7 +259,38 @@ No value lies below a proven-optimal reference, and no local search or savings r
 Findings, each with its evidence:
 
 1. `RatliffRosenthalRouting` returns a distance and an item sequence but no node sequence (`annotated_route` is `None`; `routing.py`, `_run`), so CASIM cannot execute its tours (`TypeError` in `tour_manager.create_tour`). All RR pipelines (15 of 39 runs) are solved directly but not run in CASIM. This affects the closest pipeline of SPRP, SPRP-SS, BahceciOencan, HennWaescher and MuterOencanWG.
-2. Kris, comparison 1: CASIM gives 138,504 against 137,352 (instances_208_1) and 122,874 against 120,570 (instances_31_1). The batches and the routes are identical. For one and two routes respectively, `NearestNeighbourhoodRouting` reports a distance 384 shorter than the length of its own node sequence (instances_31_1: routes of orders 9 and 2 report 2,406 and 1,482, their nodes walk 2,790 and 1,866; speed 1/3, so 3 × 384 = 1,152 per route). CASIM walks the node sequence; the direct objective and CASOP's published value use the reported distance. The walked distance of the direct routes equals CASIM's distance exactly. The difference is the router's, and CASOP's published Kris values understate the walked distance where it occurs.
+2. Kris, comparison 1: CASIM gives 138,504 against 137,352 (instances_208_1) and 122,874 against 120,570 (instances_31_1). The batches and the routes are identical. CASIM charges more for some consecutive nodes of the NN route than the graph-edge weights and the router's reported distance. In instances_31_1, the routes of orders 9 and 2 each have a reported and graph-edge distance 384 shorter than the sum of their matrix legs (2,406 vs. 2,790 and 1,482 vs. 1,866). With speed 1/3 this is 1,152 per route. The source of the conflicting edge and matrix weights is outstanding; see the continuation below.
 3. `overlap` (`check_plan`): in the Muter-Öncan and Bahceci runs, a started tour's planned end exceeds the next tour's planned start by 5.7 × 10⁻¹⁴: on `TourStart`, `state.py` recomputes the planned end from the current time, and the strict comparison in `invariants.check_plan` has no tolerance. In Kris instances_31_1 the overlap is 1,152 s: the tour of finding 2 runs longer than the scheduler planned and nothing re-projects the queue. Both belong to the planned and executed times of Task 4.14.
 
 Changes for this stage: ware_ops_pipes `554a153` as casim development dependency (git source; `ware-ops-algos`, `cosy-luigi` and `luigi` overridden to casim's own, since only the loaders are used), pyarrow for the parquet; casim's configured-component generator renders `LocalSearchBatching` and `ClarkAndWrightBatching` cards (12 generated components, replacing the hand-written `LSBatchingNNFiFo`, `LSBatchingSShapeFiFo`, `ClarkAndWrightNN` and `ClarkAndWrightSShape`, which called `LocalSearchBatching` without its required neighbourhoods); a `MinMinIA` component; the scenario `scenario_static_benchmarks`.
+
+### B.4 continuation: outstanding distance representation
+
+The prior smoke finding 2 correctly describes the **matrix-leg** distance CASIM charges, but its attribution to the NN router and its claim that this is the correct walked distance are unsupported. The graph edges of the emitted route for order 9 in Kris `instances_31_1_small` sum to the reported 2,406, while summing the distance matrix between consecutive emitted nodes gives 2,790. The corresponding figures for order 2 are 1,482 and 1,866. The two paths traverse `(96,1022)→(144,1022)` and `(144,1022)→(144,985)` in both directions. The graph gives these edges weights 48 and 37; the distance matrix gives 144 and 133. Four 96-unit differences explain the 384-unit tour gap. CASIM's `TravelEvent` calls `LayoutManager.get_distance`, which uses the matrix. Both edge pairs exist in the graph, so the graph-edge sum is independent of the router's stated distance.
+
+The user directed that this conflict remain outstanding while the rest of the plan proceeds. B.4 records each NN route's reported, graph-edge and matrix-leg distances; comparison 1 may differ only by the measured matrix-leg gap. No router, matrix or simulator behaviour is changed here. `warehouse_info` is not named by any algorithm card, so the static domain's `OFFLINE` value cannot alter mapper applicability.
+
+### B.4 full stage
+
+`select_l1_runlist.py` fixes the full selection at 415 rows: ten distinct
+instances for each of the six distance sets under both pipelines, all 295
+selected Kris instances, and all 39 original smoke rows. The 355 distinct
+instance files are restored and checked by `scripts/fetch_data.py
+casop_instances`; `data/instances/SHA256SUMS.txt` pins their prepared bytes.
+The initial full selection retained only 23 smoke rows, so the remaining 50
+rows of the corrected selection were run and checked separately. All 415
+direct results equal CASOP v0.1.0. Of 365 non-RR rows that CASIM can execute
+at B.4, 260 equal the direct objective and the other 105 are Kris cases whose
+CASIM/direct difference equals the measured matrix-leg gap. None of the 36
+distance-set smoke distances changes with speed 2, pick time 7 and setup 11.
+No batching run reaches its 300-second limit. The per-run CSV is ignored run
+output in `scenarios/scenario_static_benchmarks/outputs/`.
+
+Across 3,672 Kris NN routes, 202 matrix-leg sums differ from the router
+report, by 71,904 distance units in total; 566 graph-edge sums differ from
+the report. The matrix-based total-time gap to the literature is 0.45 to
+48.70 %, compared with −2.81 to 48.70 % for the router-reported total time.
+The sole direct result below a marked optimum is `instances_207_1_small`:
+128,700 against 132,420, while CASIM gives 133,020. This is the same F64
+question the user asked to leave outstanding. RR pipelines are compared
+directly with CASOP here; Task B.4a makes them executable in CASIM.

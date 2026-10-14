@@ -47,4 +47,8 @@ docs/research/
 .phaseb_runs/
 tmp_output/
 scenarios/scenario_static_benchmarks/data/*.parquet
+scenarios/scenario_static_benchmarks/data/.source/
+scenarios/scenario_static_benchmarks/data/instances/*
+!scenarios/scenario_static_benchmarks/data/instances/SOURCE.md
+!scenarios/scenario_static_benchmarks/data/instances/SHA256SUMS.txt
 scenarios/scenario_static_benchmarks/outputs/
