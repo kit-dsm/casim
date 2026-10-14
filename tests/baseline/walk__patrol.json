@@ -1,0 +1,72 @@
+{
+  "name": "walk__patrol",
+  "scenario": "scenario_walk_or_wait",
+  "command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment policy=wait_0 simulation=explicit_wait0 cosy_repo=paper_patrol viz.launch=false",
+  "check_command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m casim check C:\\Users\\zm0714\\Documents\\Projekte\\casim\\scenarios\\scenario_walk_or_wait\\config walk_or_wait_config policy=wait_0 simulation=explicit_wait0 cosy_repo=paper_patrol --json",
+  "check_exit": 0,
+  "check_output": "ok",
+  "run_exit": 0,
+  "run_output": "ok",
+  "casim_commit": "a9dadffc240774a29f4bf940be2a67dc42b1a6b8",
+  "ware_ops_algos_commit": "dd4ffc98fa29e9317d38ddf111d36a448a351896",
+  "kpis": {
+    "makespan": 87.0,
+    "mean_order_completion_time": 54.333333333333336,
+    "num_tours": 2,
+    "num_orders_completed": 3,
+    "avg_tour_makespan": 43.5,
+    "avg_batch_size": 1.5,
+    "orders_per_hour": 124.13793103448276,
+    "tours_per_hour": 82.75862068965517,
+    "distance_by_picker": {
+      "0": 84.0
+    },
+    "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "total_distance": 84.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "39.0": 1,
+      "87.0": 2
+    },
+    "total_tour_times": 87.0,
+    "picks_per_hour": 124.13793103448276,
+    "total_processing_time": 87.0
+  },
+  "decisions": {
+    "OBRSP": 6,
+    "active_tour_admission": 6
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [],
+      "start": 0.0,
+      "end": 152.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        1,
+        2
+      ],
+      "start": 39.0,
+      "end": 87.0
+    }
+  ],
+  "trace_digest": "4afee6080636ef8bb7bd09c041d098c07844f1264a0514824e93067e972f217b",
+  "event_count": 202,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

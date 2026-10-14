@@ -1,0 +1,74 @@
+{
+  "name": "stochastic__analytic_waiting",
+  "scenario": "scenario_stochastic_waiting",
+  "command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m scenarios.scenario_stochastic_waiting.experiment_stochastic_waiting cosy_repo=analytic_waiting viz.launch=false",
+  "check_command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m casim check C:\\Users\\zm0714\\Documents\\Projekte\\casim\\scenarios\\scenario_stochastic_waiting\\config stochastic_waiting_config cosy_repo=analytic_waiting --json",
+  "check_exit": 0,
+  "check_output": "ok",
+  "run_exit": 0,
+  "run_output": "ok",
+  "casim_commit": "a9dadffc240774a29f4bf940be2a67dc42b1a6b8",
+  "ware_ops_algos_commit": "dd4ffc98fa29e9317d38ddf111d36a448a351896",
+  "kpis": {
+    "makespan": 87.08503484833503,
+    "mean_order_completion_time": 54.835034848335034,
+    "num_tours": 2,
+    "num_orders_completed": 4,
+    "avg_tour_makespan": 38.0,
+    "avg_batch_size": 2.0,
+    "orders_per_hour": 165.3556208030307,
+    "tours_per_hour": 82.67781040151534,
+    "distance_by_picker": {
+      "0": 76.0
+    },
+    "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "total_distance": 76.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "49.085034848335034": 1,
+      "87.08503484833503": 2
+    },
+    "total_tour_times": 76.0,
+    "picks_per_hour": 165.3556208030307,
+    "total_processing_time": 76.0
+  },
+  "decisions": {
+    "OBRSP": 7
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0,
+        1,
+        2
+      ],
+      "start": 11.085034848335033,
+      "end": 49.085034848335034
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        3
+      ],
+      "start": 49.085034848335034,
+      "end": 87.08503484833503
+    }
+  ],
+  "trace_digest": "652f168990d22096d43b4782dfd785d936dcb4d05ee2d64563af5d2bdf52bf22",
+  "event_count": 183,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

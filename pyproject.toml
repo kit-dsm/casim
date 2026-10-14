@@ -51,6 +51,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = ["baseline: compares every scenario run against its recorded baseline"]
 
 [dependency-groups]
 dev = [

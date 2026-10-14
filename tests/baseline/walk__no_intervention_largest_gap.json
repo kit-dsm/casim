@@ -1,0 +1,85 @@
+{
+  "name": "walk__no_intervention_largest_gap",
+  "scenario": "scenario_walk_or_wait",
+  "command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment decisions=paper_no_intervention routing=largest_gap viz.launch=false",
+  "check_command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m casim check C:\\Users\\zm0714\\Documents\\Projekte\\casim\\scenarios\\scenario_walk_or_wait\\config walk_or_wait_config decisions=paper_no_intervention routing=largest_gap --json",
+  "check_exit": 0,
+  "check_output": "ok",
+  "run_exit": 0,
+  "run_output": "ok",
+  "casim_commit": "a9dadffc240774a29f4bf940be2a67dc42b1a6b8",
+  "ware_ops_algos_commit": "dd4ffc98fa29e9317d38ddf111d36a448a351896",
+  "kpis": {
+    "makespan": 125.0,
+    "mean_order_completion_time": 77.83333333333333,
+    "num_tours": 3,
+    "num_orders_completed": 6,
+    "avg_tour_makespan": 41.666666666666664,
+    "avg_batch_size": 2.0,
+    "orders_per_hour": 172.79999999999998,
+    "tours_per_hour": 86.39999999999999,
+    "distance_by_picker": {
+      "0": 118.0
+    },
+    "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "total_distance": 118.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "11.0": 1,
+      "74.0": 2,
+      "125.0": 3
+    },
+    "total_tour_times": 125.0,
+    "picks_per_hour": 201.6,
+    "total_processing_time": 125.0
+  },
+  "decisions": {
+    "OBRSP": 9
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0
+      ],
+      "start": 0.0,
+      "end": 11.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        1,
+        2
+      ],
+      "start": 11.0,
+      "end": 74.0
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        3,
+        4,
+        5
+      ],
+      "start": 74.0,
+      "end": 125.0
+    }
+  ],
+  "trace_digest": "b4badbe9d9a2ecba1dbd431850107d9eed48629b8a2967e914e5fce64758758a",
+  "event_count": 283,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

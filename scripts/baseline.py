@@ -1,0 +1,242 @@
+"""Record and compare Phase B scenario baselines at fixed configuration inputs."""
+
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+from uuid import uuid4
+
+
+ROOT = Path(__file__).resolve().parents[1]
+BASELINES = ROOT / "tests" / "baseline"
+RUNS = ROOT / ".phaseb_runs"
+PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
+if not PYTHON.exists():
+    PYTHON = Path(sys.executable)
+sys.path.insert(0, str(ROOT))
+from tests.verification.kpi_recomputation import recompute_kpis  # noqa: E402
+
+
+def cases() -> dict[str, tuple[str, str, tuple[str, ...]]]:
+    """Inventory defaults, sweeps and documented configuration selections."""
+    result = {}
+
+    def add(name, scenario, module, overrides=()):
+        result[name] = (scenario, module, tuple(overrides))
+
+    henn = "scenarios.scenario_henn_online.experiment_henn"
+    add("henn__default", "scenario_henn_online", henn)
+    add("henn__repair", "scenario_henn_online", henn,
+        ("cosy_repo=repair_waiting_henn", "decisions.OBRSP.change_penalty=10"))
+    add("henn__rolling", "scenario_henn_online", henn,
+        ("data_card=henn_rolling", "decisions=rolling_horizon",
+         "cosy_repo=rolling_horizon"))
+    add("henn__release_only", "scenario_henn_online", henn,
+        ("decisions=release_only_example",))
+    instances = (
+        "29s-40-30-0.txt", "30s-40-45-0.txt", "31s-40-60-0.txt",
+        "32s-40-75-0.txt", "37s-60-30-0.txt", "38s-60-45-0.txt",
+        "39s-60-60-0.txt", "40s-60-75-0.txt", "61s-80-30-0.txt",
+        "62s-80-45-0.txt", "63s-80-60-0.txt", "64s-80-75-0.txt",
+        "69s-100-30-0.txt", "70s-100-45-0.txt", "72s-100-75-0.txt",
+    )
+    for instance in instances:
+        for strategy in ("henn_waiting", "order_window"):
+            add(f"henn__{instance[:-4]}__{strategy}", "scenario_henn_online", henn,
+                (f"data_card.source.filepath={instance}", f"decisions={strategy}"))
+
+    walk = "scenarios.scenario_walk_or_wait.experiment"
+    add("walk__default", "scenario_walk_or_wait", walk)
+    for minimum in range(5):
+        add(f"walk__wait_{minimum}", "scenario_walk_or_wait", walk,
+            (f"policy=wait_{minimum}", "simulation=explicit_example"))
+    add("walk__radar_wait_1", "scenario_walk_or_wait", walk,
+        ("simulation=radar_standard_case", "policy=wait_1"))
+    add("walk__patrol", "scenario_walk_or_wait", walk,
+        ("policy=wait_0", "simulation=explicit_wait0", "cosy_repo=paper_patrol"))
+    add("walk__center", "scenario_walk_or_wait", walk,
+        ("policy=center", "simulation=explicit_wait0", "cosy_repo=paper_center",
+         "insertion_repo=center"))
+    add("walk__no_intervention_return", "scenario_walk_or_wait", walk,
+        ("decisions=paper_no_intervention", "policy=wait_4", "routing=return"))
+    add("walk__no_intervention_nearest", "scenario_walk_or_wait", walk,
+        ("decisions=paper_no_intervention", "policy=wait_2",
+         "routing=nearest_neighbour"))
+    add("walk__no_intervention_largest_gap", "scenario_walk_or_wait", walk,
+        ("decisions=paper_no_intervention", "routing=largest_gap"))
+
+    stochastic = "scenarios.scenario_stochastic_waiting.experiment_stochastic_waiting"
+    for repo in ("analytic_waiting", "henn_waiting", "no_waiting"):
+        add(f"stochastic__{repo}", "scenario_stochastic_waiting", stochastic,
+            (f"cosy_repo={repo}",))
+
+    grocery = "scenarios.scenario_grocery_retailer.experiment_grocery_retailer"
+    for repo in ("return", "midpoint", "largest_gap", "nearest_neighbour",
+                 "sshape", "adaptive_routing", "baseline", "full_portfolio"):
+        add(f"grocery__{repo}", "scenario_grocery_retailer", grocery,
+            (f"cosy_repo={repo}",))
+
+    ijpe = "scenarios.scenario_ijpe.scenario_grocery_retailer"
+    for simulation in ("baseline", "scenario1", "scenario2", "scenario3",
+                       "scenario4"):
+        add(f"ijpe__{simulation}", "scenario_ijpe", ijpe,
+            (f"simulation={simulation}",))
+    return result
+
+
+def _config_name(scenario: str) -> str:
+    return {
+        "scenario_henn_online": "henn_online_config",
+        "scenario_walk_or_wait": "walk_or_wait_config",
+        "scenario_stochastic_waiting": "stochastic_waiting_config",
+        "scenario_grocery_retailer": "grocery_retailer_config",
+        "scenario_ijpe": "grocery_retailer_config",
+    }[scenario]
+
+
+def _run(command: list[str], env: dict | None = None,
+         timeout: int = 240) -> tuple[int, str]:
+    try:
+        result = subprocess.run(command, cwd=ROOT, env=env,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                text=True, errors="replace", timeout=timeout)
+        return result.returncode, result.stdout[-2000:]
+    except subprocess.TimeoutExpired as error:
+        return 124, f"Timed out after {timeout}s: {error}"
+
+
+def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
+    """Check and run one configuration, retaining only diagnostic outputs."""
+    scenario, module, overrides = definition
+    check = [str(PYTHON), "-m", "casim", "check",
+             str(ROOT / "scenarios" / scenario / "config"),
+             _config_name(scenario), *overrides, "--json"]
+    check_code, check_tail = _run(check)
+    out_dir = RUNS / f"{name}-{uuid4().hex[:8]}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    capture = out_dir / "audit.json"
+    command = [str(PYTHON), "-m", module, *overrides,
+               "viz.launch=false", "+experiment.audit=true",
+               f"hydra.run.dir={out_dir}"]
+    run_code, run_tail = _run(command)
+    result = {
+        "name": name, "scenario": scenario,
+        "command": " ".join(command[:-1]),
+        "check_command": " ".join(check),
+        "check_exit": check_code, "check_output": check_tail if check_code else "ok",
+        "run_exit": run_code, "run_output": run_tail if run_code else "ok",
+    }
+    kpi_path = out_dir / "kpis" / "kpis.json"
+    if run_code != 0 or not capture.exists() or not kpi_path.exists():
+        result["status"] = "not_runnable"
+        return result
+    audit = json.loads(capture.read_text(encoding="utf-8"))
+    kpis = json.loads(kpi_path.read_text(encoding="utf-8"))
+    differences = recompute_kpis(audit, kpis)
+    result.update({
+        "casim_commit": _run(["git", "rev-parse", "HEAD"])[1].strip(),
+        "ware_ops_algos_commit": _run([
+            "git", "-C", str(ROOT.parent / "ware_ops_algos"),
+            "rev-parse", "HEAD"])[1].strip(),
+        "kpis": kpis,
+        "decisions": audit["decisions"],
+        "committed_tours": audit["committed_tours"],
+        "trace_digest": audit["trace_digest"],
+        "event_count": audit["event_count"],
+        "violations": audit["violations"],
+        "first_violations": audit["first_violations"],
+        "kpi_differences": differences,
+    })
+    result["status"] = ("inconsistent" if differences or any(
+        audit["violations"][kind] for kind in audit["violations"])
+        else "consistent")
+    return result
+
+
+def compare_recorded(recorded: dict, current: dict) -> list[str]:
+    """Describe every difference from one recorded configuration."""
+    findings = []
+    if recorded["status"] != current["status"]:
+        findings.append(f"status {recorded['status']} -> {current['status']}")
+    if current["status"] == "not_runnable":
+        return findings or ["run became unavailable"]
+    old_kpis, new_kpis = recorded["kpis"], current["kpis"]
+    for key in sorted(set(old_kpis) | set(new_kpis)):
+        if old_kpis.get(key) != new_kpis.get(key):
+            findings.append(f"KPI {key}: {old_kpis.get(key)} -> {new_kpis.get(key)}")
+    for key in ("decisions", "violations", "kpi_differences"):
+        if recorded[key] != current[key]:
+            findings.append(f"{key}: {recorded[key]} -> {current[key]}")
+    old_tours, new_tours = recorded["committed_tours"], current["committed_tours"]
+    for index in range(max(len(old_tours), len(new_tours))):
+        old = old_tours[index] if index < len(old_tours) else None
+        new = new_tours[index] if index < len(new_tours) else None
+        if old != new:
+            findings.append(f"first committed tour {index}: {old} -> {new}")
+            break
+    if recorded["trace_digest"] != current["trace_digest"]:
+        findings.append("trace digest changed")
+    return findings
+
+
+def record(selected: set[str] | None = None) -> list[dict]:
+    """Write one immutable baseline file for every runnable case."""
+    BASELINES.mkdir(parents=True, exist_ok=True)
+    inventory = []
+    for name, definition in cases().items():
+        if selected is not None and name not in selected:
+            continue
+        print(f"record {name}", flush=True)
+        result = run_case(name, definition)
+        inventory.append({key: result[key] for key in (
+            "name", "scenario", "command", "check_command", "check_exit",
+            "check_output", "run_exit", "run_output", "status")})
+        if result["status"] != "not_runnable":
+            (BASELINES / f"{name}.json").write_text(
+                json.dumps(result, indent=2), encoding="utf-8")
+        print(f"  {result['status']} check={result['check_exit']} "
+              f"run={result['run_exit']}", flush=True)
+    if selected is None:
+        (BASELINES / "inventory.json").write_text(
+            json.dumps(inventory, indent=2), encoding="utf-8")
+    return inventory
+
+
+def compare(selected: set[str] | None = None) -> list[str]:
+    """Re-run and compare every saved case."""
+    findings = []
+    for name, definition in cases().items():
+        if selected is not None and name not in selected:
+            continue
+        path = BASELINES / f"{name}.json"
+        if not path.exists():
+            continue
+        print(f"compare {name}", flush=True)
+        old = json.loads(path.read_text(encoding="utf-8"))
+        new = run_case(name, definition)
+        differences = compare_recorded(old, new)
+        for difference in differences:
+            findings.append(f"{name}: {difference}")
+            print(f"  {difference}", flush=True)
+    return findings
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("action", choices=("record", "compare"))
+    parser.add_argument("--case", action="append", dest="selected")
+    args = parser.parse_args()
+    selected = set(args.selected) if args.selected else None
+    if args.action == "record":
+        record(selected)
+        return 0
+    return 1 if compare(selected) else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
