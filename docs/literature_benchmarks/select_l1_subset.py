@@ -2,7 +2,9 @@
 
 Run from the ware_ops_pipes root:
     PYTHONPATH=experiments/evaluation uv run python <casim>/docs/literature_benchmarks/select_l1_subset.py l1_subset.csv 4
-The second argument is the CASIM overhead per run in seconds.
+The second argument is the CASIM overhead per run in seconds. One row per
+instance and pipeline; `smoke` marks the 3 runs per set and pipeline of the
+smoke stage. BahceciOencan's closest pipeline runs on 10 of its instances.
 """
 import importlib.util, re, sys
 import numpy as np, pandas as pd
@@ -18,6 +20,8 @@ PIPES = {
     "Foodmart": ["GIA+LSOrdNrNN+NN", "GIA+LSBatchingSShapeFiFoOrderNr+SShape"],
     "Kris": ["GIA+DueDate+NN+EDD"],
 }
+CAP = {("BahceciOencan", "GIA+CombinedBatchingRoutingAssigning"): 10}
+SMOKE = 3
 PER_STRATUM = {"SPRP": 1, "SPRP-SS": 1, "BahceciOencan": 1, "HennWaescher": 1,
                "MuterOencanWG": 2, "Foodmart": None, "Kris": None}
 def stratum(name):
@@ -42,13 +46,22 @@ for name, pipes in PIPES.items():
         pool = g[g.reference_is_opt] if g.reference_is_opt.sum() >= k else g
         picks.append(pool.iloc[sorted(rng.choice(len(pool), size=k, replace=False))])
     p = pd.concat(picks)
-    cpu = x[x.instance_name.isin(p.instance_name)].groupby("strategy").total_cpu_time.sum()
-    runs = len(p) * len(pipes)
-    seconds = cpu.sum() + runs * OVERHEAD
+    sub_rng = np.random.default_rng([SEED, len(summary)])
+    runs, cpu = 0, 0.0
+    for pipe in pipes:
+        q = p.sort_values("instance_name")
+        cap = CAP.get((name, pipe))
+        if cap is not None:
+            q = q.iloc[sorted(sub_rng.choice(len(q), size=cap, replace=False))]
+        smoke = set(q.instance_name.iloc[sorted(sub_rng.choice(len(q), size=min(SMOKE, len(q)), replace=False))])
+        runs += len(q)
+        cpu += x[x.strategy.eq(pipe) & x.instance_name.isin(q.instance_name)].total_cpu_time.sum()
+        for _, row in q.iterrows():
+            chosen.append((name, pipe, row.instance_name, row.stratum, row.instance_name in smoke,
+                           row.reference_value, bool(row.reference_is_opt), row.reference_source))
+    seconds = cpu + runs * OVERHEAD
     summary.append((name, len(r), int(r.reference_is_opt.sum()), r.stratum.nunique(), len(p),
-                    int(p.reference_is_opt.sum()), runs, round(cpu.sum() / 60, 1), round(seconds / 3600, 2)))
-    for _, row in p.iterrows():
-        chosen.append((name, row.instance_name, row.stratum, row.reference_value, bool(row.reference_is_opt), row.reference_source))
-pd.DataFrame(chosen, columns=["instance_set", "instance_name", "stratum", "reference_value", "reference_is_opt", "reference_source"]).to_csv(sys.argv[1], index=False)
+                    int(p.reference_is_opt.sum()), runs, round(cpu / 60, 1), round(seconds / 3600, 2)))
+pd.DataFrame(chosen, columns=["instance_set", "pipeline", "instance_name", "stratum", "smoke", "reference_value", "reference_is_opt", "reference_source"]).to_csv(sys.argv[1], index=False)
 s = pd.DataFrame(summary, columns=["set", "with_reference", "proven_opt", "strata", "subset", "subset_opt", "runs", "casop_cpu_min", "expected_h"])
 print(s.to_string(index=False)); print("total expected h", round(s.expected_h.sum(), 2))
