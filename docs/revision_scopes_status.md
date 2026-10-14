@@ -1,6 +1,24 @@
-# Revision scopes status at Phase 3c
+# Revision scopes status through Task 4.9
 
 This is an audit against the current `revision_scopes_corrections.md`, through Phase 3b. Evidence names are casim commits unless prefixed `ware:`. A row marked “moved to a later task” records an explicit phase boundary or user-approved sequencing deviation, not a completed check. The historical base results are diagnostics; Phase 5 establishes correctness.
+
+## Phase 4 progress
+
+| Task | Status | Evidence and remaining work |
+|---|---|---|
+| 4.0 | done | ware:`2676b78`, `ed97e5f`; casim:`2b482a0`; waiting, admission and positioning bases. Module consolidation remains in 4.12. |
+| 4.1–4.2 | done | ware:`a05bf88`; casim:`1a1c7ab`, `0111acc`; whole-schedule waiting and injected Henn router. |
+| 4.3 | done | ware:`a8b5142`; casim:`c07839d`; analytical precondition and cart capacity. |
+| 4.4 | done | ware:`2ca5f67`; casim:`9458945`; ordinary positioning tours and return routing. |
+| 4.5–4.7 | done | ware:`f29ff63`, `1c7aef9`; casim:`6387f0b`, `6853ab1`; incumbent router, card/base check and name sweep. |
+| 4.8 | done | ware:`f2e467e`; casim:`3295930`; setup starts at scheduled start. |
+| 4.9 | done | F42; `tests/verification/test_dock_fixture.py` compares the full prechange event, dock-fill, decision and KPI record for seeds 17 and 29 and truck capacities 2 and `null`. All four comparisons pass. ware adds optional `Dock`; casim owns `DockManager`, and the IJPE loader reads `simulation.dock.K_dock`. Grocery loader wiring is deferred to Phase 6b by the user's instruction. |
+| 4.10 | done | ware:`20cb91e`; casim:`640b5ce`; one order-count waiting card and component. Task 4.12 replaces temporary component aliases. |
+| 4.11–4.15 | not done | Complete in order after the Task 4.9 commit; four Task 4.12 user decisions remain untouched. |
+
+Task 4.9 retained two known issues: a `TruckDeparture` with `capacity: null` releases no staged pallets, and grocery truck capacity counts orders while staging counts pallets per tour. The plan mentions a `TruckArrival` dock branch, but no such event exists in the current core; this factual slip changes no Task 4.9 work. The plan's original instruction to wire both loaders is superseded by the user's explicit direction to defer the missing grocery loader to Phase 6b.
+
+The Task 4.9 fixture recorded 298 events, 13 decisions, three completed tours, distance 126 and makespan 86 in each seeded run, both before and after the change. Dock fill ended at 1 with truck capacity 2 and at 3 with `capacity: null`; the full fill trace and tour records are locked in `tests/verification/dock_baseline.json`. Neither scenario config triggers a decision directly on `TruckDeparture`. The departure's emitted `PickerArrival` triggers grocery `ORSP` through `triggers_map`; IJPE has no `PickerArrival` trigger, so it triggers no decision there.
 
 ## Tasks through Phase 3b
 
@@ -88,6 +106,18 @@ This is an audit against the current `revision_scopes_corrections.md`, through P
 | F39 | done | `d1f1447`; routing-only setup rejection, no RoutingDone event. |
 | F40 | done | ware:`54e7217`; `git diff 34bd157 -- src/ware_ops_algos/taxonomy/taxonomy.py` is empty. |
 | F41 | done | `27826f4`, `d30b895`; simulator domain moved back and re-export removed. |
+| F42 | done | Task 4.9, typed dock and exact synthetic trace comparison. |
+| F43 | done | ware:`20cb91e`; casim:`640b5ce`; one parameterized waiting card. |
+| F44 | done | ware:`0d47fe0`; casim:`c94c410`; residual admission after completed picks. |
+| F45–F50 | moved to a later task | Tasks 4.11–4.13; the four Task 4.12 user decisions remain untouched. |
+| F51 | moved to a later task | Task 6.5, timing of stream closure. |
+| F52 | moved to a later task | Tasks 4.11 and 4.13, admission choice and CoSy stage typing. |
+| F53 | moved to a later task | Task 5.0, one stage registry. |
+| F54 | moved to a later task | Task 4.11, dead sequencing and stale configurations. |
+| F55 | moved to a later task | Task 4.14, dispatch and resource availability. |
+| F56 | moved to a later task | Task 4.11 restores the sweep; Task 5.0 checks all configurations. |
+| F57 | moved to a later task | Task 4.15, hidden decision rules. |
+| F58–F59 | moved to a later task | Phase 6b scenario structure and IJPE study. |
 
 ## Section 5 rules
 

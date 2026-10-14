@@ -11,18 +11,6 @@ BREAK_1_SEC = 8 * 3600
 BREAK_2_SEC = 11 * 3600
 
 
-class DockManager:
-    def __init__(self, K_dock: int):
-        self.K_dock = K_dock
-        self.n_staged_pallets: int = 0
-
-    def stage_pallets(self, n_pallets: int = 1) -> None:
-        self.n_staged_pallets += n_pallets
-
-    def release_pallets(self, n_pallets: int = 1) -> None:
-        self.n_staged_pallets = max(0, self.n_staged_pallets - n_pallets)
-
-
 def picker_arrival_hook(sim,
                         domain):
     min_order_date = np.inf
@@ -56,12 +44,6 @@ def wms_run_hook(sim, domain):
 def break_start_hook(sim, domain):
     sim.add_event(BreakStart(time=43200, break_duration=1800))
     sim.add_event(BreakStart(time=32400, break_duration=1800))
-
-def make_dock_manager_hook(K_dock: int = 98):
-    def hook(sim, domain) -> None:
-        sim.state.dock_manager = DockManager(K_dock=K_dock)
-    return hook
-
 
 def make_truck_schedule_hook(
     bin_minutes: int = 30,

@@ -112,6 +112,7 @@ class StateAdapter:
             storage=state.get_storage(),
             warehouse_info=state.warehouse_info,
             information=state.information,
+            dock=state.dock_manager.dock,
             dynamic_warehouse_info=dynamic,
         )
         return deepcopy(snapshot)

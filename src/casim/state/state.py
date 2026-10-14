@@ -1,11 +1,12 @@
 from ware_ops_algos.algorithms import Route, RouteNode, NodeType, WarehouseOrder, BatchObject, ScheduledJob
-from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation
+from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Dock
 
 from .order_manager import OrderManager
 from .resource_manager import ResourceManager
 from .tour_manager import TourManager
 from .layout_manager import LayoutManager
 from .storage_manager import StorageManager
+from .dock_manager import DockManager
 from ..trackers import ExperimentTracker
 
 
@@ -22,7 +23,8 @@ class State:
                  resources: Resources,
                  active_objective,
                  warehouse_info: WarehouseInfo | None = None,
-                 information: PlannerInformation | None = None):
+                 information: PlannerInformation | None = None,
+                 dock: Dock | None = None):
         # time is a float (simulation time units)
         self.current_time: float = 0.0
         self.current_picker_id = None
@@ -33,6 +35,7 @@ class State:
         self.order_manager = OrderManager()
         self.tour_manager = TourManager()
         self.layout_manager = LayoutManager(layout=layout)
+        self.dock_manager = DockManager(dock)
 
         self._layout = layout
         self._articles = articles

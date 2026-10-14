@@ -75,6 +75,7 @@ class SimulationEngine:
             active_objective=domain.objective,
             warehouse_info=domain.warehouse_info,
             information=domain.information,
+            dock=domain.dock,
         )
         self._period_anchor = self.state.current_time
         for hook in hooks or ():
@@ -94,8 +95,8 @@ class SimulationEngine:
     def _operations(self) -> OperationsView:
         return OperationsView(
             is_break=self.state.is_break,
-            n_staged_pallets=(self.state.dock_manager.n_staged_pallets
-                              if hasattr(self.state, "dock_manager") else 0),
+            n_staged_pallets=self.state.dock_manager.n_staged_pallets,
+            dock_capacity=self.state.dock_manager.capacity,
         )
 
     def _due(self, decision: str, cause: str | None,

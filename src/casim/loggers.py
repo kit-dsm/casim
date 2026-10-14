@@ -189,7 +189,7 @@ class KPILogger(EventLogger):
             f"dist={sum(t.distance_by_picker.values()):.0f},"
             f"on_time_ratio={100 * t.on_time_ratio:.1f}% "
             f"delayed_ratio={100 * t.delayed_ratio:.1f} "
-            + (f"dock_fill={state.dock_manager.n_staged_pallets}" if hasattr(state, "dock_manager") else "")
+            f"dock_fill={state.dock_manager.n_staged_pallets}"
         )
 
     @staticmethod

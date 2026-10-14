@@ -18,7 +18,7 @@ from ware_ops_algos.domain_models import (
     OrdersDomain, OrderType, Order, OrderPosition,
     PickCart, ResourceType, Resources,
     StorageLocation, StorageLocations, StorageSlot, StorageType,
-    WarehouseInfoType,
+    WarehouseInfoType, Dock,
 )
 
 from casim.io_helpers import dump_pickle, load_pickle
@@ -155,6 +155,7 @@ class WarehousePickingLoaderDigraph(DataLoader):
             resources=resources,
             storage=storage,
             orders=orders,
+            dock=Dock(capacity=int(self.cfg.simulation.dock.K_dock)),
             dynamic_warehouse_info=dynamic_info,
         )
 

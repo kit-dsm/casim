@@ -25,18 +25,6 @@ DAY_SEC = 86400
 HOUR_SEC = 3600
 
 
-class DockManager:
-    def __init__(self, K_dock: int):
-        self.K_dock = K_dock
-        self.n_staged_pallets: int = 0
-
-    def stage_pallets(self, n_pallets: int = 1) -> None:
-        self.n_staged_pallets += n_pallets
-
-    def release_pallets(self, n_pallets: int = 1) -> None:
-        self.n_staged_pallets = max(0, self.n_staged_pallets - n_pallets)
-
-
 def h(hour: float) -> int:
     return int(hour * HOUR_SEC)
 
@@ -112,13 +100,6 @@ def make_break_hook(n_days: int, breaks, day_sec: int):
                         break_duration=int(break_cfg.duration_minutes * 60),
                     )
                 )
-
-    return hook
-
-
-def make_dock_manager_hook(K_dock: int):
-    def hook(sim, domain) -> None:
-        sim.state.dock_manager = DockManager(K_dock=K_dock)
 
     return hook
 
@@ -425,9 +406,6 @@ def build_sim_hooks(cfg):
                 n_days=n_days,
                 wms_run_hour=float(time_model.wms_run_hour),
                 day_sec=day_sec,
-            ),
-            make_dock_manager_hook(
-                K_dock=int(sim_cfg.dock.K_dock),
             ),
             make_break_hook(
                 n_days=n_days,

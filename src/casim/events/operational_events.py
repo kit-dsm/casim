@@ -248,14 +248,12 @@ class TruckDeparture(Event):
                     ts_expected_finish.append(t.end_time_planned)
 
         state.tracker.on_truck_departure_delays(self.time, ts_delayed, ts_expected_finish)
-        if hasattr(state, "dock_manager"):
-            if self.capacity:
-                state.dock_manager.release_pallets(self.capacity)
-                logger.warning("released %d pallets", self.capacity)
-            resources = state.resource_manager.get_resources().resources
-            idle_pickers = [p for p in resources if not p.occupied]
-            return [PickerArrival(self.time, p.id, p.available) for p in idle_pickers]
-        return []
+        if self.capacity:
+            state.dock_manager.release_pallets(self.capacity)
+            logger.warning("released %d pallets", self.capacity)
+        resources = state.resource_manager.get_resources().resources
+        idle_pickers = [p for p in resources if not p.occupied]
+        return [PickerArrival(self.time, p.id, p.available) for p in idle_pickers]
 
 
 class WMSRun(Event):
@@ -529,10 +527,8 @@ class TourEnd(BaseTourEvent):
         if self.tour_id == state.tour_manager.get_next_tour_for_picker(res.id):
             logger.error("Tour ID %d matches next tour for picker (queues: %s)", self.tour_id, state.tour_manager._picker_tour_queues)
             raise AssertionError(f"Tour {self.tour_id} should not be next tour for picker {res.id}")
-        n_pallets_dock = 0
-        if hasattr(state, "dock_manager"):
-            state.dock_manager.stage_pallets(1)
-            n_pallets_dock = state.dock_manager.n_staged_pallets
+        state.dock_manager.stage_pallets(state.dock_manager.pallets_per_tour)
+        n_pallets_dock = state.dock_manager.n_staged_pallets
         n_lines = len(tour.completed_picks)
         state.tracker.on_tour_end(tour.tour_id,
                                   tour.start_time,

@@ -26,12 +26,10 @@ class BreakCondition(Condition):
 
 
 class DockCapacityCondition(Condition):
-    def __init__(self, threshold: int):
-        self.threshold = threshold
-
     def get_decision(self, state_snapshot, operations):
         plan = state_snapshot.dynamic_warehouse_info.plan
-        return operations.n_staged_pallets + len(plan.tours) <= self.threshold
+        return (operations.dock_capacity is None or
+                operations.n_staged_pallets + len(plan.tours) <= operations.dock_capacity)
 
 
 class NbrPickersCondition(Condition):

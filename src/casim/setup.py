@@ -19,7 +19,7 @@ from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.pipelines.pipeline_runner import CoSySolver
 from casim.pipelines.card_components import card_matches_component
 from casim.pipelines.taxonomy import TAXONOMY, variant
-from casim.simulation_engine.conditions import Condition
+from casim.simulation_engine.conditions import Condition, DockCapacityCondition
 from casim.simulation_engine.state_adapter import StateAdapter
 
 
@@ -129,13 +129,20 @@ def resolve(cfg: DictConfig, data_card) -> dict[str, DecisionSetup]:
                    if isinstance(event, PeriodicTrigger)]
         if len(periods) > 1:
             raise ValueError(f"{name}: only one every_s trigger is allowed")
+        conditions = tuple(instantiate(condition) for condition in raw.get("conditions", ()))
+        if (any(isinstance(condition, DockCapacityCondition) for condition in conditions)
+                and OmegaConf.select(cfg, "simulation.dock") is None):
+            raise ValueError(
+                f"{name}: DockCapacityCondition requires a warehouse Dock "
+                "(simulation.dock.K_dock)"
+            )
         setups[name] = DecisionSetup(
             name=name, config=model, solver=solver,
             ranker=(SolutionRanker(data_card.objective, model.change_penalty)
                     if solver is not None else None),
             commitment_policy=model.commitment_policy,
             adapter=StateAdapter(model.state_information, model.scope),
-            conditions=tuple(instantiate(condition) for condition in raw.get("conditions", ())),
+            conditions=conditions,
             trigger_types=trigger_types,
             pipeline_count=len(solver.pipelines) if solver is not None else 0,
             decision_features=features, subproblems=stages,
