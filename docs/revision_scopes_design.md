@@ -278,9 +278,11 @@ Every structured value is a frozen dataclass or an enum. As in the paper, the sn
 | `TourView` | `tour_id`, `picker_id`, `status: TourStates`, `accepts: Accepts`, `batch`, `route`, `start_time`, `end_time` (the planned times, projected for committed tours), `earliest_start: float \| None` (Task 4.14), `processing_time`, `pick_cart`; for started tours also `cursor`, `pinned_prefix`, `remaining_route`, `routing_origin`, `occupied_bins`, `picking_until`, `holding: bool` |
 | `DecisionMemory` | `considered_active_orders: frozenset[tuple[int, int]]`, `last_information_version: int`, `current_information_version: int`, `waiting: bool`, `reconsider_at: float \| None` |
 
+Admission, after Task 4.13 of the correction plan: `AdmissionInput` holds `orders`, `tours` (the started `TourView`s with `progress`), `candidate_order_ids`, `considered_pairs` and `input_closed: bool`, as the waiting and positioning inputs do. `AdmissionSolution` holds `assignments` (tour, order), `considered_pairs` and `return_tour_ids: tuple[int, ...]`, the started tours that hold away from the depot and are sent back without added orders. Returning an empty holding tour once the stream is closed is a choice of the admission algorithm; the pipeline component that assembles the routing input only reads `assignments` and `return_tour_ids`.
+
 `SimWarehouseDomain.orders` holds every order the pipelines may place: the exposed order buffer, the orders of planned tours the decision may rebuild, and the unpicked part of started tours it may admit orders to. `PlanView.order_buffer` holds only the exposed order buffer.
 
-A tour whose route does not end at the depot holds at its last node until a later decision replaces its suffix, and `TourView.holding` reports that the picker has arrived there. Positioning uses this, so the snapshot carries no positioning mode. `AdmissionTour` keeps its name and stays the input type of admission algorithms; the admission component builds it from a `TourView`. Task 4.13 replaces it by \`TourView\` with a \`TourProgress\`, which groups the execution fields of a started tour, and dissolves \`OperationsView\` into the warehouse; the tables here describe the state before that task.
+A tour whose route does not end at the depot holds at its last node until a later decision replaces its suffix, and `TourView.holding` reports that the picker has arrived there. Positioning uses this, so the snapshot carries no positioning mode. On the branch, `AdmissionTour` is the input type of admission algorithms, built by the admission component from a `TourView`. Task 4.13 replaces it by `TourView` with a `TourProgress`, which groups the execution fields of a started tour; the tables here describe the state before that task.
 
 | Type | Fields |
 | --- | --- |
@@ -315,7 +317,7 @@ A tour whose route does not end at the depot holds at its last node until a late
 Two further types stay in casim:
 
 - `TourPlanningState` is the mutable execution record of a tour, as in the paper: its route field holds the latest committed route, original\_route the initial one, and executed\_prefix the nodes walked before the last route replacement; only `TourManager.advance` writes its status.
-- `OperationsView` (`n_staged_pallets: int`) is what conditions may read beyond the snapshot, until Task 4.13 dissolves it into the warehouse's `Dock`; breaks are resource availability (see Resources and dispatch).
+- `OperationsView` (`n_staged_pallets: int`) is what conditions may read beyond the snapshot. It stays until Phase 6b, where the warehouse's `Dock` holds the dock schedule and replaces it; breaks are resource availability (see Resources and dispatch).
 
 ## Configuration
 
@@ -323,7 +325,7 @@ The base configuration split each problem class into a `simulation_engine` block
 
 ```yaml
 # scenarios/scenario_henn_online/config/decisions/henn_waiting.yaml
-OBRSPW:                           # decision name, as in the file on the branch
+OBRSP:                            # decision name; OBRSPW on the branch until Task 4.11 renames it
   problem_class: OBRSP
   state_information:
     orders: true
@@ -336,7 +338,7 @@ OBRSPW:                           # decision name, as in the file on the branch
   commitment_policy:
     _target_: casim.decision_engine.commitment_policies.SchedulingCommitmentPolicy
     n_jobs: 1
-  triggers: [OrderArrival, OrderStreamClosed, PickerIdle, FlushRemainingOrders]
+  triggers: [OrderArrival, OrderStreamClosed, PickerIdle]   # FlushRemainingOrders goes in Task 4.15
   conditions:
     - {_target_: casim.simulation_engine.conditions.NbrPickersCondition, threshold: 1}
     - {_target_: casim.simulation_engine.conditions.NbrOrdersCondition, threshold: 1}
@@ -529,7 +531,7 @@ Forecasts and uncertainty are not part of this plan. Their design, from the sepa
 | O16 | DynamicInfo subclassed WarehouseInfo at the base; on the branch it is a frozen dataclass. Features of the dynamic state belong on the data card, but at two levels: what a decision can see (decision\_features, fixed at setup) and what a snapshot contains (runtime features, such as the q−1 orders of O8). Runtime features would need applicability checks per decision, which changes the candidate set and with it the stable candidate names an RL action relies on. | This plan keeps decision\_features at setup. The same split applies to the belief: whether knowledge exists is static, its current value is read at decision time (State model) |
 | O17 | Waiting and commitment both decide whether a tour is released now: the waiting stage through action wait, the commitment policy through DecisionMemory.waiting. Conjecture, not verified: if waiting only delayed start times, the commitment policy could decide alone, and WaitingSolution.action, DecisionMemory.waiting and their coupling would disappear. Under the Henn configuration a committed but delayed tour stays revisable (freeze\_from: pending), and the decision sees reserved pickers, so a new order still triggers a re-solve. | Task 4.8 provides the mechanism: a planned tour with a future start is queried again at that time, so a wait can be a later planned start or the absence of commitment. Task 6.4 removes DecisionMemory.waiting and reconsider\_at after the gate, only if the regression values stay identical |
 | O18 | Forecasting and optimization over distributions are not modeled: PlannerInformation has no point-forecast or scenario variant, there is no forecasting subproblem, and the SolutionRanker evaluates a single objective value. Forecasts that depend on the decision itself would not fit a pipeline stage, because the forecast would then depend on the plan. | Outside this plan; see the forecasting document |
-| O19 | Both `experiment_henn.py` and the stochastic waiting hook emit `OrderStreamClosed` at the last order date, so a policy learns at the last arrival that nothing follows. This is oracle information; a wait-k policy releases its last orders without delay, which affects completion times at the end of every run. Operationally closure is either announced in advance (an order cutoff) or not observable. Policies such as `OrderCountWaiting` only terminate with closure knowledge or a timeout. Which closure assumption Henn (2012) and Gil-Borrás make has not been checked. | Task 6.5 after Task 6.4, without belief infrastructure: a scenario parameter `stream_closure` (`at_last_arrival`, labelled as oracle; `announced`; `never`), a card feature for observable closure required by policies without a timeout, the variant recorded in every result, and a check of the closure assumption of the reproduced sources; the default `at_last_arrival` keeps regression values identical |
+| O19 | Both `experiment_henn.py` and the stochastic waiting hook emit `OrderStreamClosed` at the last order date, so a policy learns at the last arrival that nothing follows. This is oracle information; a wait-k policy releases its last orders without delay, which affects completion times at the end of every run. Operationally closure is either announced in advance (an order cutoff) or not observable. Policies such as `OrderCountWaiting` only terminate with closure knowledge or a timeout. Which closure assumption Henn (2012) and Gil-Borrás make has not been checked. The paper-results commit aaa8333 used a third variant: the engine emitted FlushRemainingOrders once the event heap was empty with orders still buffered, set the closure flag and forced a decision; 7e47bbe replaced it by the emission at the last order date, so the branch's Henn runs differ from the published setup in this respect. | Task 6.5 after Task 6.4, without belief infrastructure: a scenario parameter `stream_closure` (`at_last_arrival`, labelled as oracle; `at_exhaustion`, the published setup; `announced`; `never`), a card feature for observable closure required by policies without a timeout, the variant recorded in every result, and a check of the closure assumption of the reproduced sources; the default `at_last_arrival` keeps regression values identical |
 
 ## Related concepts in literature and industry
 
