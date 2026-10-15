@@ -1,0 +1,9 @@
+# FiFo, return routing, FIFO scheduling, wait_4.
+components:
+- casim.pipelines.problem_based_template.InstanceLoader
+- casim.pipelines.problem_based_template.OrdersProvider
+- casim.pipelines.subproblems.item_assingment.GreedyIA
+- casim.pipelines.subproblems.batching.FiFo
+- casim.pipelines.subproblems.picker_routing.Return
+- casim.pipelines.subproblems.scheduling.FIFOScheduler
+- casim.pipelines.subproblems.generated.order_count_waiting4.OrderCountWaiting4

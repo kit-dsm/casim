@@ -51,25 +51,22 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
             add(f"henn__{instance[:-4]}__{strategy}", "henn_waiting", henn,
                 (f"source.filepath={instance}", f"decisions={strategy}"))
 
-    walk = "scenarios.scenario_walk_or_wait.experiment"
-    add("walk__default", "scenario_walk_or_wait", walk)
+    walk = None
+    add("walk__default", "walk_or_wait", walk)
     for minimum in (0, 2, 3, 4):
-        add(f"walk__wait_{minimum}", "scenario_walk_or_wait", walk,
-            (f"policy=wait_{minimum}", "simulation=explicit_example"))
-    add("walk__radar_wait_1", "scenario_walk_or_wait", walk,
-        ("simulation=radar_standard_case", "policy=wait_1"))
-    add("walk__patrol", "scenario_walk_or_wait", walk,
-        ("policy=wait_0", "simulation=explicit_wait0", "cosy_repo=paper_patrol"))
-    add("walk__center", "scenario_walk_or_wait", walk,
-        ("policy=center", "simulation=explicit_wait0", "cosy_repo=paper_center",
-         "insertion_repo=center"))
-    add("walk__no_intervention_return", "scenario_walk_or_wait", walk,
-        ("decisions=paper_no_intervention", "policy=wait_4", "routing=return"))
-    add("walk__no_intervention_nearest", "scenario_walk_or_wait", walk,
-        ("decisions=paper_no_intervention", "policy=wait_2",
-         "routing=nearest_neighbour"))
-    add("walk__no_intervention_largest_gap", "scenario_walk_or_wait", walk,
-        ("decisions=paper_no_intervention", "routing=largest_gap"))
+        add(f"walk__wait_{minimum}", "walk_or_wait", walk, (f"cosy_repo=wait_{minimum}",))
+    add("walk__radar_wait_1", "walk_or_wait", walk, ("variants=radar_standard_case",))
+    add("walk__patrol", "walk_or_wait", walk,
+        ("cosy_repo=paper_patrol", "variants=explicit_wait0"))
+    add("walk__center", "walk_or_wait", walk,
+        ("cosy_repo=paper_center", "decisions=paper_intervention_center",
+         "variants=explicit_wait0"))
+    add("walk__no_intervention_return", "walk_or_wait", walk,
+        ("decisions=paper_no_intervention", "cosy_repo=wait_4_return"))
+    add("walk__no_intervention_nearest", "walk_or_wait", walk,
+        ("decisions=paper_no_intervention", "cosy_repo=wait_2_nearest_neighbour"))
+    add("walk__no_intervention_largest_gap", "walk_or_wait", walk,
+        ("decisions=paper_no_intervention", "cosy_repo=wait_1_largest_gap"))
 
     stochastic = "scenarios.scenario_stochastic_waiting.experiment_stochastic_waiting"
     for repo in ("analytic_waiting", "henn_waiting", "no_waiting"):
@@ -92,7 +89,6 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
 
 def _config_name(scenario: str) -> str:
     return {
-        "scenario_walk_or_wait": "walk_or_wait_config",
         "scenario_stochastic_waiting": "stochastic_waiting_config",
         "scenario_grocery_retailer": "grocery_retailer_config",
         "scenario_ijpe": "grocery_retailer_config",

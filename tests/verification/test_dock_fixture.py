@@ -7,19 +7,17 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
 
 from casim.events.operational_events import TruckDeparture
 from casim.setup import resolve
 from casim.state.dock_manager import DockManager
-from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
+from casim.config.data_card import load_and_flatten_data_card
+from casim.run import prepare
+from casim.sources.base import release
 from ware_ops_algos.domain_models import Dock, Resources
 from casim.domain_objects.sim_domain import SimWarehouseDomain
-from scenarios.scenario_walk_or_wait.hooks import seed_orders, seed_pickers
-
-
-CONFIG = Path(__file__).resolve().parents[2] / "scenarios" / "scenario_walk_or_wait" / "config"
+from tests.scenario_configs import walk_config
 
 
 class DockTrace:
@@ -45,15 +43,11 @@ class DockTrace:
 def run_fixture(tmp_path, seed, capacity):
     random.seed(seed)
     np.random.seed(seed)
-    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            "policy=wait_0", "simulation=explicit_wait0", "cosy_repo=paper_patrol",
-            f"instances_base={CONFIG.parents[1].as_posix()}",
-            f"cache_base='{(tmp_path / 'cache').as_posix()}'",
-            f"experiment.output_dir='{tmp_path.as_posix()}'",
-        ])
-    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    original_load = sim.data_loader.load
+    prepared = prepare(walk_config(tmp_path, "cosy_repo=paper_patrol",
+                                   "variants=explicit_wait0"))
+    sim, engine = prepared.sim, prepared.engine
+    loader = prepared.source.loader
+    original_load = loader.load
 
     def load_two_pickers(**kwargs):
         domain = original_load(**kwargs)
@@ -74,7 +68,7 @@ def run_fixture(tmp_path, seed, capacity):
             dynamic_warehouse_info=domain.dynamic_warehouse_info,
         )
 
-    sim.data_loader.load = load_two_pickers
+    loader.load = load_two_pickers
     trace = DockTrace()
     sim.event_loggers.append(trace)
 
@@ -82,7 +76,7 @@ def run_fixture(tmp_path, seed, capacity):
         sim.add_event(TruckDeparture(time=20, capacity=capacity))
         sim.add_event(TruckDeparture(time=100, capacity=capacity))
 
-    sim.reset(hooks=[seed_pickers, seed_orders, trucks])
+    sim.reset(hooks=[release(prepared.source), trucks])
     while True:
         done, snapshot = sim.run()
         if done:
@@ -123,13 +117,7 @@ def test_dock_manager_counts_without_dock_and_uses_pallet_yield():
 
 
 def test_check_rejects_dock_capacity_condition_without_dock(tmp_path):
-    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            "policy=wait_0", "simulation=explicit_wait0", "cosy_repo=paper_patrol",
-            f"instances_base={CONFIG.parents[1].as_posix()}",
-            f"cache_base='{(tmp_path / 'cache').as_posix()}'",
-            f"experiment.output_dir='{tmp_path.as_posix()}'",
-        ])
+    cfg = walk_config(tmp_path, "cosy_repo=paper_patrol", "variants=explicit_wait0")
     condition = {"_target_": "casim.simulation_engine.conditions.DockCapacityCondition"}
     cfg.decisions.OBRSP.conditions.append(OmegaConf.create(condition))
     with pytest.raises(ValueError, match="DockCapacityCondition requires a warehouse Dock"):

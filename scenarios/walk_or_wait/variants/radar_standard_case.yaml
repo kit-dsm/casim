@@ -1,0 +1,12 @@
+# @package _global_
+# RADAR standard case, instance 1 (source.instance selects another).
+source:
+  orders: null
+  n_aisles: null
+  n_pick_locations: null
+  depot_aisle: null
+  instance: radar/selected/Instances/Orders/OFAT/Standard_case/instance_1.json
+  shift_start_s: 0.0
+  capacity_orders: 4
+  walking_speed: 1.0
+  pick_time_s: 1.0

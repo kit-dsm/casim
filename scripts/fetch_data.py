@@ -246,7 +246,7 @@ DATASETS = {
         cache="../.source",
     ),
     "radar": Dataset(
-        ROOT / "scenarios/scenario_walk_or_wait/data/radar",
+        ROOT / "scenarios/walk_or_wait/data/radar",
         (Download("https://radar.kit.edu/radar-backend/archives/mwsv59v8sk9sqaan/versions/1/content",
                   "5d866dae22333c1e0b0dc3277e68dfe5ee8ab7d0267dd9fe3aa60713d9c8b93f",
                   "radar_bag.tar"),),

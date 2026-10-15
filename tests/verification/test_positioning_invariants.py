@@ -1,31 +1,21 @@
 """The three-order center example keeps every order and every executed route prefix."""
 
-from pathlib import Path
-
 import pytest
-from hydra import compose, initialize_config_dir
 from ware_ops_algos.planning.commands import ReplaceSuffix
 from ware_ops_algos.planning.lifecycle import TourStates
 
 from casim.runner import apply_decision
-from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
-from scenarios.scenario_walk_or_wait.hooks import seed_orders, seed_pickers
-
-
-CONFIG = Path(__file__).resolve().parents[2] / "scenarios" / "scenario_walk_or_wait" / "config"
+from casim.run import prepare
+from tests.scenario_configs import walk_config
 
 
 def test_center_example_preserves_plan_invariants(tmp_path, invariant_logger):
-    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            "policy=center", "simulation=explicit_wait0", "cosy_repo=paper_center",
-            "insertion_repo=center", f"instances_base={CONFIG.parents[1].as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    prepared = prepare(walk_config(tmp_path, "cosy_repo=paper_center",
+                                   "decisions=paper_intervention_center",
+                                   "variants=explicit_wait0"))
+    sim, engine = prepared.sim, prepared.engine
     sim.event_loggers.append(invariant_logger)
-    sim.reset(hooks=[seed_pickers, seed_orders])
+    prepared.reset()
     while True:
         done, snapshot = sim.run()
         if done:
@@ -39,22 +29,14 @@ def test_center_example_preserves_plan_invariants(tmp_path, invariant_logger):
 
 
 def test_two_admissions_keep_cumulative_prefix_and_distance(tmp_path, invariant_logger):
-    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            "policy=wait_0", "simulation=explicit_wait0", "cosy_repo=paper_patrol",
-            "insertion_repo=paper_remaining_route",
-            f"instances_base={CONFIG.parents[1].as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    cfg.simulation.orders = [
+    prepared = prepare(walk_config(tmp_path, "cosy_repo=paper_patrol", orders=[
         {"arrival_s": 8.5, "due_s": 400.0, "picks": [[2, 3]]},
         {"arrival_s": 10.5, "due_s": 400.0, "picks": [[2, 8]]},
         {"arrival_s": 30.0, "due_s": 400.0, "picks": [[6, 9]]},
-    ]
-    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    ]))
+    sim, engine = prepared.sim, prepared.engine
     sim.event_loggers.append(invariant_logger)
-    sim.reset(hooks=[seed_pickers, seed_orders])
+    prepared.reset()
     admissions = []
     distance_at_second = remaining_after_second = first_tour_distance = None
     while True:
@@ -92,16 +74,10 @@ def test_two_admissions_keep_cumulative_prefix_and_distance(tmp_path, invariant_
 ])
 def test_partly_picked_tour_can_admit_order(tmp_path, invariant_logger,
                                             policy, makespan, distance):
-    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            f"policy={policy}", "simulation=explicit_example",
-            f"instances_base={CONFIG.parents[1].as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    prepared = prepare(walk_config(tmp_path, f"cosy_repo={policy}"))
+    sim, engine = prepared.sim, prepared.engine
     sim.event_loggers.append(invariant_logger)
-    sim.reset(hooks=[seed_pickers, seed_orders])
+    prepared.reset()
     admitted_after_pick = False
     while True:
         done, snapshot = sim.run()

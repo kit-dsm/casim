@@ -1,30 +1,17 @@
 """A scheduled tour enters setup at its start and travels after one setup."""
 
-from pathlib import Path
-
-from hydra import compose, initialize_config_dir
-
 from ware_ops_algos.algorithms import FIFOScheduling, Job
 from ware_ops_algos.algorithms.routing.patrol import all_aisles_patrol_route
 from ware_ops_algos.planning.lifecycle import ResourceStates, TourStates
 
 from casim.events.operational_events import PickerTourQuery, TourEnd, TourStart
-from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
-
-
-CONFIG = (Path(__file__).resolve().parents[2] / "scenarios" /
-          "scenario_walk_or_wait" / "config")
+from casim.run import prepare
+from tests.scenario_configs import walk_config
 
 
 def test_setup_begins_at_scheduled_start_and_occurs_once(tmp_path):
-    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            "policy=wait_0", "simulation=explicit_wait0", "cosy_repo=paper_patrol",
-            f"instances_base={CONFIG.parents[1].as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    cfg = walk_config(tmp_path, "cosy_repo=paper_patrol", "variants=explicit_wait0")
+    sim = prepare(cfg).sim
     sim.reset()
     state = sim.state
     state.resource_manager.set_picker_available(0)

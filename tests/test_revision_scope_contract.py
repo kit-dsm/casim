@@ -18,6 +18,7 @@ from casim.events.operational_events import PickerTourQuery, Reconsider
 from casim.setup import resolve
 from casim.state.apply import CommandViolation
 from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
+from tests.scenario_configs import walk_config
 from scenarios.scenario_stochastic_waiting.scenario_specific_hooks import (
     add_orders_hook, picker_arrival_hook,
 )
@@ -68,14 +69,7 @@ def test_problem_class_is_declared_independently_of_decision_name(tmp_path):
 
 
 def test_overlapping_decisions_require_distinct_precedence(tmp_path):
-    walk_config = (Path(__file__).resolve().parents[1] / "scenarios"
-                   / "scenario_walk_or_wait" / "config")
-    with initialize_config_dir(config_dir=str(walk_config), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            f"instances_base={tmp_path.as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
+    cfg = walk_config(tmp_path)
     cfg.decisions.OBRSP.precedence = cfg.decisions.active_tour_admission.precedence
     with pytest.raises(ValueError, match="both write.*orders"):
         resolve(cfg, load_and_flatten_data_card(cfg.data_card))

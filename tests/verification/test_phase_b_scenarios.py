@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from math import exp, log
-from pathlib import Path
 from types import SimpleNamespace
 
-from hydra import compose, initialize_config_dir
 import pytest
 
 from ware_ops_algos.algorithms import (
@@ -31,25 +29,14 @@ from casim.domain_objects.sim_domain import (
 )
 from casim.events.operational_events import Reconsider
 from casim.runner import apply_decision
-from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
-from scenarios.scenario_walk_or_wait.hooks import seed_orders, seed_pickers
-
-
-CONFIG = (Path(__file__).resolve().parents[2] / "scenarios" /
-          "scenario_walk_or_wait" / "config")
+from casim.run import prepare
+from tests.scenario_configs import walk_config
 
 
 def _walk(tmp_path, orders, *overrides):
-    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            *overrides,
-            f"instances_base={CONFIG.parents[1].as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    cfg.simulation.orders = orders
-    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    sim.reset(hooks=[seed_pickers, seed_orders])
+    prepared = prepare(walk_config(tmp_path, *overrides, orders=orders))
+    sim, engine = prepared.sim, prepared.engine
+    prepared.reset()
     decisions = []
     while True:
         done, snapshot = sim.run()
@@ -76,7 +63,7 @@ def test_one_picker_one_order_has_derived_end_and_completion(tmp_path):
     """One pick at (2,3) uses 38 unit edges; at speed 1 plus one pick, end is 39."""
     order = [{"arrival_s": 0.0, "due_s": 400.0, "picks": [[2, 3]]}]
     sim, _ = _walk(tmp_path, order, "decisions=paper_no_intervention",
-                   "policy=wait_1")
+                   "cosy_repo=wait_1")
     record = sim.state.tracker.completed_tours
     assert len(record) == 1
     _, start, end, order_ids, _, _, _, _ = record[0]
@@ -92,9 +79,9 @@ def test_two_orders_wait_zero_vs_wait_two(tmp_path):
         {"arrival_s": 10.0, "due_s": 400.0, "picks": [[4, 5]]},
     ]
     immediate, _ = _walk(tmp_path / "immediate", orders,
-                          "decisions=paper_no_intervention", "policy=wait_0")
+                          "decisions=paper_no_intervention", "cosy_repo=wait_0")
     waiting, _ = _walk(tmp_path / "waiting", orders,
-                        "decisions=paper_no_intervention", "policy=wait_2")
+                        "decisions=paper_no_intervention", "cosy_repo=wait_2")
     assert [row[3] for row in immediate.state.tracker.completed_tours] == [[0], [1]]
     assert [row[3] for row in waiting.state.tracker.completed_tours] == [[0, 1]]
     assert waiting.state.tracker.completed_tours[0][1] == 10.0
@@ -203,18 +190,12 @@ def test_admission_keeps_prefix_and_sums_old_and_new_distance(tmp_path):
         {"arrival_s": 0.0, "due_s": 400.0, "picks": [[2, 10]]},
         {"arrival_s": 5.5, "due_s": 400.0, "picks": [[2, 14]]},
     ]
-    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            "decisions=paper_intervention", "policy=wait_1",
-            f"instances_base={CONFIG.parents[1].as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    cfg.simulation.orders = orders
-    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    prepared = prepare(walk_config(tmp_path, "decisions=paper_intervention",
+                                   "cosy_repo=wait_1", orders=orders))
+    sim, engine = prepared.sim, prepared.engine
     capture = BaselineCapture(tmp_path / "audit.json")
     sim.event_loggers.append(capture)
-    sim.reset(hooks=[seed_pickers, seed_orders])
+    prepared.reset()
     prefix = ((-1, -1), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3))
     replacements = []
     while True:
@@ -268,16 +249,11 @@ def test_periodic_decisions_stop_at_stream_close(tmp_path):
         {"arrival_s": 0.0, "due_s": 400.0, "picks": [[2, 3]]},
         {"arrival_s": 12.0, "due_s": 400.0, "picks": [[4, 5]]},
     ]
-    with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            "decisions=paper_no_intervention", "policy=wait_1",
-            f"instances_base={CONFIG.parents[1].as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    cfg.simulation.orders = orders
+    cfg = walk_config(tmp_path, "decisions=paper_no_intervention", "cosy_repo=wait_1",
+                      orders=orders)
     cfg.decisions.OBRSP.triggers.append({"every_s": 5})
-    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    prepared = prepare(cfg)
+    sim, engine = prepared.sim, prepared.engine
 
     class Times:
         def __init__(self):
@@ -298,7 +274,7 @@ def test_periodic_decisions_stop_at_stream_close(tmp_path):
 
     times = Times()
     sim.event_loggers.append(times)
-    sim.reset(hooks=[seed_pickers, seed_orders])
+    prepared.reset()
     while True:
         done, snapshot = sim.run()
         if done:

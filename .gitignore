@@ -31,15 +31,15 @@ Thumbs.db
 # Project-specific
 outputs/
 tests/data/instances/caches/
-scenarios/scenario_walk_or_wait/data/radar/raw/
-scenarios/scenario_walk_or_wait/data/radar/selected/
+scenarios/walk_or_wait/data/radar/raw/
+scenarios/walk_or_wait/data/radar/selected/
 
 # Benchmark data and papers are never committed (Section 3.1); scripts/fetch_data.py restores the data
 scenarios/scenario_henn_online/data/oobp/*
 !scenarios/scenario_henn_online/data/oobp/SOURCE.md
 !scenarios/scenario_henn_online/data/oobp/SHA256SUMS.txt
 scenarios/scenario_dhaen_online/data/osf/
-scenarios/scenario_walk_or_wait/data/radar/.download/
+scenarios/walk_or_wait/data/radar/.download/
 docs/research/
 
 # Run output

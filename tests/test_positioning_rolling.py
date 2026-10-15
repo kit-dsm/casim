@@ -1,8 +1,6 @@
 """Focused execution contracts for positioning and rolling release."""
 
-from pathlib import Path
 
-from hydra import compose, initialize_config_dir
 from ware_ops_algos.algorithms import (
     AdmissionInput, AdmissionTour, Job, PickPosition, RoutingOrigin,
     ScheduledJob, WarehouseOrder,
@@ -20,25 +18,15 @@ from casim.domain_objects.sim_domain import ReconsiderReason
 from casim.events.operational_events import OrderStreamClosed, PickerArrival
 from casim.simulation_engine.conditions import VisiblePlanningWorkCondition
 from casim.simulation_engine.state_adapter import StateAdapter
-from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
-
-
-ROOT = Path(__file__).resolve().parents[1]
-WALK_CONFIG = ROOT / "scenarios" / "scenario_walk_or_wait" / "config"
+from casim.run import prepare
+from tests.scenario_configs import walk_config
 
 
 def _walk_sim(tmp_path, policy="center"):
-    with initialize_config_dir(config_dir=str(WALK_CONFIG), version_base="1.3"):
-        cfg = compose(config_name="walk_or_wait_config", overrides=[
-            f"policy={policy}", "simulation=explicit_wait0",
-            f"cosy_repo={'paper_center' if policy == 'center' else 'paper_patrol'}",
-            "insertion_repo=center" if policy == "center" else
-            "insertion_repo=paper_remaining_route",
-            f"instances_base={(ROOT / 'scenarios').as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    return setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    overrides = (("cosy_repo=paper_center", "decisions=paper_intervention_center")
+                 if policy == "center" else ("cosy_repo=paper_patrol",))
+    prepared = prepare(walk_config(tmp_path, *overrides, "variants=explicit_wait0"))
+    return prepared.sim, prepared.engine
 
 
 def test_center_holds_and_returns_unused_cart_at_closure(tmp_path):

@@ -1,2 +1,0 @@
-min_orders: 2
-component: casim.pipelines.subproblems.generated.order_count_waiting2.OrderCountWaiting2

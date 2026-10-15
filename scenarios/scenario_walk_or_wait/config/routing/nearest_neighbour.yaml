@@ -1,2 +1,0 @@
-name: nearest_neighbour
-component: casim.pipelines.subproblems.picker_routing.NearestNeighbourhood
