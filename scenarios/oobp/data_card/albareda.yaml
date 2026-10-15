@@ -1,11 +1,7 @@
-name: "HennOOBP"
+name: "AlbaredaOOBP"
 problem_type: OBRSP
 
 objective: makespan
-source:
-  data_loader: scenarios.scenario_oobp.loader.OobpHennLoader
-  filepath: "abc1/29s-40-30-0.txt"
-  depot: corner
 
 layout:
   type: conventional
@@ -43,6 +39,7 @@ articles:
     - name: Article
       features:
         - name: article_id
+        - name: weight
 
 orders:
   type: standard
@@ -73,7 +70,7 @@ resources:
           features:
             - name: capacities
             - name: dimensions_type
-              value: [items]
+              value: [weight]
 
 storage:
   type: scattered

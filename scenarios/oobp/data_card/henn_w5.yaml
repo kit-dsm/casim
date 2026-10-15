@@ -1,10 +1,7 @@
-name: "AlbaredaOOBP"
+name: "HennOOBP"
 problem_type: OBRSP
 
 objective: makespan
-source:
-  data_loader: scenarios.scenario_oobp.loader.AlbaredaLoader
-  filepath: "albareda/W1/100/wsrp_input_pedido_01_000.txt"
 
 layout:
   type: conventional
@@ -42,7 +39,6 @@ articles:
     - name: Article
       features:
         - name: article_id
-        - name: weight
 
 orders:
   type: standard
@@ -73,7 +69,7 @@ resources:
           features:
             - name: capacities
             - name: dimensions_type
-              value: [weight]
+              value: [items]
 
 storage:
   type: scattered

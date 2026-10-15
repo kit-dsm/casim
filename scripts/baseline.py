@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
@@ -247,16 +248,55 @@ def compare(selected: set[str] | None = None) -> list[str]:
     return findings
 
 
+def _l3_overrides(record: dict) -> tuple[str, ...]:
+    if record["stratum"].startswith("W"):
+        return ("variants=albareda",
+                f"source.filepath=albareda/{record['stratum']}/{record['instance']}.txt")
+    return (f"source.filepath={record['stratum']}/{record['instance']}.txt",
+            f"source.depot={record['depot']}")
+
+
+BENCHMARKS = {"l3": ("oobp", _l3_overrides)}
+
+
+def benchmark_cases(kind: str) -> dict[str, tuple[Path, tuple[str, str | None, tuple[str, ...]]]]:
+    """Every recorded run of a benchmark, as a casim-run case of its scenario."""
+    scenario, overrides = BENCHMARKS[kind]
+    return {path.stem: (path, (scenario, None, overrides(json.loads(
+                path.read_text(encoding="utf-8")))))
+            for path in sorted((BASELINES / "benchmarks" / kind).glob("*.json"))}
+
+
+def compare_benchmark(kind: str, workers: int) -> list[str]:
+    """Re-run every recorded run of a benchmark in parallel and compare."""
+    def one(item):
+        name, (path, definition) = item
+        return name, compare_recorded(json.loads(path.read_text(encoding="utf-8")),
+                                      run_case(name, definition))
+
+    findings = []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for name, differences in pool.map(one, benchmark_cases(kind).items()):
+            print(f"compare {kind} {name}: {'; '.join(differences) or 'equal'}", flush=True)
+            findings.extend(f"{name}: {difference}" for difference in differences)
+    return findings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("record", "compare"))
+    parser.add_argument("action", choices=("record", "compare", "compare-benchmark"))
     parser.add_argument("--case", action="append", dest="selected")
+    parser.add_argument("--benchmark", choices=tuple(BENCHMARKS))
+    parser.add_argument("--workers", type=int, default=4)
     args = parser.parse_args()
     selected = set(args.selected) if args.selected else None
     if args.action == "record":
         record(selected)
         return 0
+    if args.action == "compare-benchmark":
+        return 1 if compare_benchmark(args.benchmark, args.workers) else 0
     return 1 if compare(selected) else 0
+
 
 
 if __name__ == "__main__":

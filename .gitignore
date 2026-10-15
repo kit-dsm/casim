@@ -35,9 +35,9 @@ scenarios/walk_or_wait/data/radar/raw/
 scenarios/walk_or_wait/data/radar/selected/
 
 # Benchmark data and papers are never committed (Section 3.1); scripts/fetch_data.py restores the data
-scenarios/scenario_henn_online/data/oobp/*
-!scenarios/scenario_henn_online/data/oobp/SOURCE.md
-!scenarios/scenario_henn_online/data/oobp/SHA256SUMS.txt
+scenarios/oobp/data/*
+!scenarios/oobp/data/SOURCE.md
+!scenarios/oobp/data/SHA256SUMS.txt
 scenarios/scenario_dhaen_online/data/osf/
 scenarios/walk_or_wait/data/radar/.download/
 docs/research/

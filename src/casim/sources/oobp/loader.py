@@ -124,11 +124,10 @@ class OobpHennLoader(DataLoader):
     (Gil-Borrás et al., Table 3 "Center"; Fig. 5a).
     """
 
-    def __init__(self, instances_dir: str | Path, cfg: dict, cache_dir=None):
+    def __init__(self, instances_dir: str | Path, depot: str = "corner", cache_dir=None):
         super().__init__(instances_dir)
-        self.cfg = cfg
         self.cache_dir = Path(cache_dir) if cache_dir else None
-        self.depot = str(cfg.data_card.source.get("depot", "corner"))
+        self.depot = str(depot)
         if self.depot not in {"corner", "centre"}:
             raise ValueError(f"depot must be corner or centre, got {self.depot!r}")
 
@@ -266,9 +265,8 @@ class AlbaredaLoader(DataLoader):
     cross aisle, at the leftmost aisle (0) or between the two middle aisles (1).
     """
 
-    def __init__(self, instances_dir: str | Path, cfg: dict, cache_dir=None):
+    def __init__(self, instances_dir: str | Path, cache_dir=None):
         super().__init__(instances_dir)
-        self.cfg = cfg
         self.cache_dir = Path(cache_dir) if cache_dir else None
 
     def load(self, filepath: str, use_cache: bool = True) -> SimWarehouseDomain:

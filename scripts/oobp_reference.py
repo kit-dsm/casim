@@ -1,7 +1,9 @@
 """Extract the published OOBP values and compare the Henn source files.
 
-Usage: python oobp_reference.py experiments.xlsx oobp_instances.zip
+Usage: python scripts/oobp_reference.py experiments.xlsx oobp_instances.zip
 The official downloads are linked at https://grafo.etsii.urjc.es/optsicom/oobp.html.
+Writes ``scenarios/oobp/reference.csv`` in the format of ``casim.reference``: one
+row per instance, objective and method, selected by ``source.filepath``.
 """
 
 from __future__ import annotations
@@ -15,11 +17,14 @@ from zipfile import ZipFile
 
 
 NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
-DATA = Path(__file__).resolve().parents[1] / "data"
-COLUMNS = (
-    "instance", "gil_completion_s", "gil_turnover_s",
-    "best_known_completion_s", "best_known_turnover_s",
-)
+ROOT = Path(__file__).resolve().parents[1]
+DATA = ROOT / "scenarios" / "henn_waiting" / "data"
+REFERENCE = ROOT / "scenarios" / "oobp" / "reference.csv"
+RUNLIST = ROOT / "docs" / "literature_benchmarks" / "l3_instances.csv"
+COLUMNS = ("source.filepath", "kpi", "published", "kind", "source")
+# (column of the workbook rows, KPI of the scenario, method in the source column)
+VALUES = ((1, "max_completion_time", "GRASP+VND"), (2, "max_turnover_time", "GRASP+VND"),
+          (3, "max_completion_time", "best known"), (4, "max_turnover_time", "best known"))
 
 
 def _shared_strings(book: ZipFile) -> list[str]:
@@ -51,18 +56,39 @@ def _rows(book: ZipFile, sheet: str, strings: list[str]):
                     for column in "BCDE"))
 
 
-def extract(workbook: Path, output: Path = DATA / "oobp_reference.csv") -> int:
+def instance_key(group: str, stratum: str, path: str) -> str:
+    """The instance's name in ``experiments.xlsx``."""
+    if group == "Henn":
+        setting, orders, _, _ = Path(path).stem.split("-")
+        return f"H_{stratum}_{orders}_{setting.rstrip('sl')}"
+    stem = Path(path)
+    warehouse = stem.name.split("_")[-2]
+    return f"A_{int(warehouse)}_{stem.parent.name}_{stem.name.split('_')[-1].split('.')[0]}"
+
+
+def filepaths() -> dict[str, str]:
+    """Workbook instance name -> the instance's path in the oobp data directory."""
+    with RUNLIST.open(newline="", encoding="utf-8") as stream:
+        return {instance_key(row["group"], row["stratum"], row["path_in_data_oobp"]):
+                row["path_in_data_oobp"] for row in csv.DictReader(stream)}
+
+
+def extract(workbook: Path, output: Path = REFERENCE) -> int:
     with ZipFile(workbook) as book:
         strings = _shared_strings(book)
         records = [*_rows(book, "xl/worksheets/sheet1.xml", strings),
                    *_rows(book, "xl/worksheets/sheet2.xml", strings)]
     if len(records) != 128 or len({row[0] for row in records}) != len(records):
         raise ValueError(f"Expected 128 distinct instances, got {len(records)}")
+    paths = filepaths()
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream)
         writer.writerow(COLUMNS)
-        writer.writerows(records)
+        for record in sorted(records, key=lambda row: paths[row[0]]):
+            for column, kpi, method in VALUES:
+                writer.writerow((paths[record[0]], kpi, record[column], "bound",
+                                 f"Gil-Borrás et al. 2020, experiments.xlsx, {method}"))
     return len(records)
 
 

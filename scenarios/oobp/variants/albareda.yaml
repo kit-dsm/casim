@@ -1,0 +1,9 @@
+# @package _global_
+# An Albareda-Sambola instance (warehouses W1 to W4); the depot comes from its layout file.
+defaults:
+  - override /data_card: albareda
+
+source:
+  format: albareda
+  filepath: albareda/W1/100/wsrp_input_pedido_01_000.txt
+

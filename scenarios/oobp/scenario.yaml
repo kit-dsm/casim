@@ -1,0 +1,16 @@
+defaults:
+  - _self_
+  - data_card: henn_w5
+  - decisions: oobp
+  - cosy_repo: oobp_baseline
+  - optional variants: null
+
+name: OobpBenchmark
+# One instance of the OOBP archive (Gil-Borrás et al. 2020, Table 4 protocol):
+# FCFS, oldest-order selection, S-shape, no waiting; the stream closes at the
+# last arrival. variants/albareda.yaml selects the Albareda-Sambola format.
+source:
+  name: oobp
+  format: henn
+  filepath: abc1/29s-40-30-0.txt
+  depot: corner

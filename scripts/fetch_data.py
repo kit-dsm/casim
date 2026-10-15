@@ -194,7 +194,7 @@ DATASETS = {
         restore_from_git("9ecdaac", "scenarios/scenario_henn_online/data"),
     ),
     "oobp": Dataset(
-        ROOT / "scenarios/scenario_henn_online/data/oobp",
+        ROOT / "scenarios/oobp/data",
         (Download("https://grafo.etsii.urjc.es/optsicom/oobp/oobp-files/oobp_instances.zip",
                   "c8c7e1096ef515d373c770a705ad8aeda975d5874cafcefab2fdb4dcea29e20d",
                   "oobp_instances.zip"),),

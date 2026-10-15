@@ -7,7 +7,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "scenarios" / "henn_waiting" / "data"
-ARCHIVE = ROOT / "scenarios" / "scenario_henn_online" / "data" / "oobp" / "abc1"
+ARCHIVE = ROOT / "scenarios" / "oobp" / "data" / "abc1"
 INSTANCE = re.compile(r"^(\d+)[sl]-(\d+)-(\d+)-\d+\.txt$")
 ARCHIVE_ORDER = re.compile(r"Order (\d+)\s+number of articles (\d+)")
 ARCHIVE_ITEM = re.compile(r"\d+\s+Aisle (\d+)\s+Location (\d+)")
