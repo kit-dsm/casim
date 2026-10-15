@@ -1,0 +1,16 @@
+defaults:
+  - henn
+  - _self_
+orders:
+  type: standard
+  objects:
+    - name: Order
+      features:
+        - {name: order_number}
+        - {name: order_date}
+        - {name: due_date}
+      objects:
+        - name: OrderPosition
+          features:
+            - {name: amount}
+            - {name: article_id}

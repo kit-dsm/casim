@@ -1,0 +1,12 @@
+defaults:
+  - _self_
+  - data_card: henn
+  - decisions: henn_waiting
+  - cosy_repo: baseline_waiting_henn
+
+name: HennOnline
+problem_type: OBRSP
+source:
+  name: hessler_irnich
+  filepath: 72s-100-75-0.txt
+  arrival_dir: HennOnline

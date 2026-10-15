@@ -30,7 +30,6 @@ Thumbs.db
 
 # Project-specific
 outputs/
-scenarios/scenario_henn_online/outputs/
 tests/data/instances/caches/
 scenarios/scenario_walk_or_wait/data/radar/raw/
 scenarios/scenario_walk_or_wait/data/radar/selected/
@@ -52,3 +51,6 @@ scenarios/scenario_static_benchmarks/data/instances/*
 !scenarios/scenario_static_benchmarks/data/instances/SOURCE.md
 !scenarios/scenario_static_benchmarks/data/instances/SHA256SUMS.txt
 scenarios/scenario_static_benchmarks/outputs/
+scenarios/henn_waiting/data/*
+!scenarios/henn_waiting/data/SOURCE.md
+!scenarios/henn_waiting/data/SHA256SUMS.txt

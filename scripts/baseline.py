@@ -33,14 +33,11 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
     def add(name, scenario, module, overrides=()):
         result[name] = (scenario, module, tuple(overrides))
 
-    henn = "scenarios.scenario_henn_online.experiment_henn"
-    add("henn__default", "scenario_henn_online", henn)
-    add("henn__repair", "scenario_henn_online", henn,
+    henn = None
+    add("henn__default", "henn_waiting", henn)
+    add("henn__repair", "henn_waiting", henn,
         ("cosy_repo=repair_waiting_henn", "+decisions.OBRSP.change_penalty=10"))
-    add("henn__rolling", "scenario_henn_online", henn,
-        ("data_card=henn_rolling", "decisions=rolling_horizon",
-         "cosy_repo=rolling_horizon"))
-    add("henn__release_only", "scenario_henn_online", henn,
+    add("henn__release_only", "henn_waiting", henn,
         ("decisions=release_only_example",))
     instances = (
         "29s-40-30-0.txt", "30s-40-45-0.txt", "31s-40-60-0.txt",
@@ -51,8 +48,8 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
     )
     for instance in instances:
         for strategy in ("henn_waiting", "order_window"):
-            add(f"henn__{instance[:-4]}__{strategy}", "scenario_henn_online", henn,
-                (f"data_card.source.filepath={instance}", f"decisions={strategy}"))
+            add(f"henn__{instance[:-4]}__{strategy}", "henn_waiting", henn,
+                (f"source.filepath={instance}", f"decisions={strategy}"))
 
     walk = "scenarios.scenario_walk_or_wait.experiment"
     add("walk__default", "scenario_walk_or_wait", walk)
@@ -95,7 +92,6 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
 
 def _config_name(scenario: str) -> str:
     return {
-        "scenario_henn_online": "henn_online_config",
         "scenario_walk_or_wait": "walk_or_wait_config",
         "scenario_stochastic_waiting": "stochastic_waiting_config",
         "scenario_grocery_retailer": "grocery_retailer_config",

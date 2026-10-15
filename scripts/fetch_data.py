@@ -1,6 +1,6 @@
 """Download benchmark data into ignored directories and check every file's SHA-256.
 
-Usage: python scripts/fetch_data.py {oobp,dhaen,casop,casop_instances,radar,all} [--check]
+Usage: python scripts/fetch_data.py {henn_waiting,oobp,dhaen,casop,casop_instances,radar,all} [--check]
 
 Each dataset directory holds a committed SOURCE.md and SHA256SUMS.txt; the data
 itself is never committed (Section 3.1 of docs/revision_scopes_corrections.md).
@@ -14,6 +14,7 @@ from hashlib import sha256
 import logging
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tarfile
 from typing import Callable, IO
@@ -171,7 +172,27 @@ def unpack_casop_instances(directory: Path, files: dict[str, Path]) -> None:
             archive.close()
 
 
+def restore_from_git(commit: str, prefix: str) -> Callable[[Path, dict[str, Path]], None]:
+    """Write the listed files from an earlier commit of this repository.
+
+    For data without a public URL that this repository once held: the commit
+    keeps the bytes, so restoring needs no download.
+    """
+    def unpack(directory: Path, _files: dict[str, Path]) -> None:
+        for name in expected_sums(directory):
+            blob = subprocess.run(["git", "show", f"{commit}:{prefix}/{name}"], cwd=ROOT,
+                                  check=True, capture_output=True).stdout
+            target = directory / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(blob)
+    return unpack
+
+
 DATASETS = {
+    "henn_waiting": Dataset(
+        ROOT / "scenarios/henn_waiting/data", (),
+        restore_from_git("9ecdaac", "scenarios/scenario_henn_online/data"),
+    ),
     "oobp": Dataset(
         ROOT / "scenarios/scenario_henn_online/data/oobp",
         (Download("https://grafo.etsii.urjc.es/optsicom/oobp/oobp-files/oobp_instances.zip",

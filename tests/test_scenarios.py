@@ -28,9 +28,22 @@ def test_check_all_passes_for_tracked_scenarios():
     assert check_all(ROOT, _tracked_scenarios()) == []
 
 
+def _missing_data(directory: Path) -> list[str]:
+    """Listed data files that are not present: not fetched or not placed yet."""
+    missing = []
+    for listing in (directory / "data").rglob("SHA256SUMS.txt"):
+        for line in listing.read_text(encoding="utf-8").split("\n"):
+            if line.strip() and not (listing.parent / line.split(maxsplit=1)[1].lstrip("*")).exists():
+                missing.append(line.split(maxsplit=1)[1])
+    return missing
+
+
 @pytest.mark.parametrize("name", PORTED)
 def test_default_configuration_runs_without_violations(name, tmp_path):
-    cfg = compose_scenario(ROOT / "scenarios" / name, output_dir=tmp_path)
+    directory = ROOT / "scenarios" / name
+    if _missing_data(directory):
+        pytest.skip(f"data of {name} not present; see its data/SOURCE.md")
+    cfg = compose_scenario(directory, output_dir=tmp_path)
     cfg.experiment.audit = True
     run(cfg)
     audit = json.loads((tmp_path / "audit.json").read_text(encoding="utf-8"))
