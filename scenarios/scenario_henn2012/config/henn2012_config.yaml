@@ -1,0 +1,45 @@
+defaults:
+  - _self_
+  - data_card: henn_w5
+  - decisions: l2_journal
+  - cosy_repo: journal_sshape_first
+
+name: "Henn2012"
+problem_type: OBRSP
+
+hydra:
+  job:
+    config:
+      override_dirname:
+        kv_sep: '='
+        item_sep: ','
+        exclude_keys:
+          - data_card
+          - decisions
+          - cosy_repo
+  job_logging:
+    root:
+      level: CRITICAL
+  hydra_logging:
+    root:
+      level: CRITICAL
+
+luigi:
+  log_level: CRITICAL
+  logdir: null
+  background: null
+  logging_conf_file: null
+
+project_root: ${hydra:runtime.cwd}
+instances_base: ${project_root}/scenarios/scenario_henn2012/outputs/generated
+cache_base: ${instances_base}/caches
+verbose: False
+
+viz:
+  launch: False
+  port: 8050
+
+experiment:
+  name: ${data_card.name}
+  output_dir: ${hydra:runtime.output_dir}
+  instance_name: ${data_card.name}_${data_card.objective}

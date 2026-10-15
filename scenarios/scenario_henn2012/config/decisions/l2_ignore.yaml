@@ -1,0 +1,27 @@
+OBRSP:
+  problem_class: OBRSP
+  state_information:
+    orders: true
+    pick_lists: false
+    tours:
+    - planned
+    resources:
+    - idle
+  scope:
+    freeze_from: pending
+    frozen_accepts: none
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    repo: ${cosy_repo}
+  commitment_policy:
+    _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
+  precedence: 10
+  triggers:
+  - OrderArrival
+  - OrderStreamClosed
+  - PickerIdle
+  conditions:
+  - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+    threshold: 1
+  - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+    threshold: 1

@@ -18,7 +18,8 @@ from ware_ops_algos.algorithms.routing.routing import Routing
 
 
 OUTPUT_DIR = Path(__file__).parent / "generated"
-BASES = {"IncumbentStartBatching", "OrderCountWaiting", "LocalSearchBatching", "ClarkAndWrightBatching"}
+BASES = {"IncumbentStartBatching", "OrderCountWaiting", "LocalSearchBatching",
+          "ClarkAndWrightBatching", "SAVScheduling"}
 
 
 def _module_name(name: str) -> str:
@@ -69,6 +70,13 @@ def _render(name: str, implementation: dict) -> str:
                 + "from casim.pipelines.subproblems.batching import IncumbentBatchingNode\n"
                 + f"from ware_ops_algos.algorithms import {router}\n\n\n"
                 + f"class {name}(IncumbentBatchingNode):\n"
+                + "    abstract = False\n"
+                + f"    routing_class = {router}\n")
+    if base == "SAVScheduling":
+        return (header
+                + "from casim.pipelines.subproblems.scheduling import SAVScheduler\n"
+                + f"from ware_ops_algos.algorithms import {router}\n\n\n"
+                + f"class {name}(SAVScheduler):\n"
                 + "    abstract = False\n"
                 + f"    routing_class = {router}\n")
     raise ValueError(f"No generator for {base}")

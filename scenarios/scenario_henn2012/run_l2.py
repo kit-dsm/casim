@@ -27,23 +27,28 @@ from tests.verification.kpi_recomputation import recompute_kpis
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG = ROOT / "scenarios" / "scenario_oobp" / "config"
+CONFIG = Path(__file__).resolve().parent / "config"
 OUTPUT = ROOT / "scenarios" / "scenario_henn2012" / "outputs"
 BASELINES = ROOT / "tests" / "baseline" / "benchmarks" / "l2"
-ROUTERS = {
-    "SShape": "casim.pipelines.subproblems.picker_routing.SShape",
-    "LargestGap": "casim.pipelines.subproblems.picker_routing.LargestGap",
+
+REPO = {
+    ("SShape", "FIRST"): "journal_sshape_first",
+    ("SShape", "SHORT"): None,
+    ("SShape", "LONG"): "journal_sshape_long",
+    ("SShape", "SAV"): "journal_sshape_sav",
+    ("SShape", "IGNORE"): "journal_sshape_ignore",
+    ("LargestGap", "FIRST"): "journal_lg_first",
+    ("LargestGap", "SHORT"): None,
+    ("LargestGap", "LONG"): "journal_lg_long",
+    ("LargestGap", "SAV"): "journal_lg_sav",
+    ("LargestGap", "IGNORE"): "journal_lg_ignore",
 }
-SCHEDULERS = {
-    "FIRST": "casim.pipelines.subproblems.scheduling.FIFOScheduler",
-    "SHORT": "casim.pipelines.subproblems.scheduling.SPTScheduler",
-    "LONG": "casim.pipelines.subproblems.scheduling.HennLongScheduler",
-    "SAV": "casim.pipelines.subproblems.scheduling.SAVScheduler",
-    "IGNORE": "casim.pipelines.subproblems.scheduling.FIFOScheduler",
-}
-WAITING = {
-    "journal": "casim.pipelines.subproblems.waiting.NoWaitingNode",
-    "working": "casim.pipelines.subproblems.waiting.HennWaitingNode",
+DECISIONS = {"l2_journal", "l2_ignore", "l2_long"}
+WAITING_TARGETS = {
+    "journal": {"FIRST": "l2_journal", "SHORT": "l2_journal", "LONG": "l2_long",
+                "SAV": "l2_journal", "IGNORE": "l2_ignore"},
+    "working": {"FIRST": None, "SHORT": None, "LONG": None, "SAV": None,
+                "IGNORE": None},
 }
 
 
@@ -54,6 +59,17 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
         raise ValueError("working paper has only class-based storage")
     if target == "working" and selection == "IGNORE":
         raise ValueError("IGNORE is a journal benchmark only")
+
+    repo_name = REPO.get((routing, selection))
+    if repo_name is None and target == "working":
+        repo_name = f"working_{routing.lower()}_{'first' if selection == 'FIRST' else selection.lower()}"
+    if repo_name is None:
+        raise ValueError(f"no cosy_repo for {routing}/{selection}")
+
+    decisions_name = WAITING_TARGETS[target][selection]
+    if target == "working" and selection != "IGNORE":
+        decisions_name = "l2_journal"
+
     data_root = OUTPUT / "generated"
     relative = generate_instance(
         data_root, storage=storage, n_orders=n_orders, capacity=capacity,
@@ -61,28 +77,19 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
     OUTPUT.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=OUTPUT) as folder:
         out = Path(folder)
+        overrides = [
+            f"cosy_repo={repo_name}",
+            f"decisions={decisions_name}",
+            f"data_card.source.filepath='HennOOBP/{relative}'",
+            f"instances_base={data_root.as_posix()}",
+            f"project_root={ROOT.as_posix()}",
+            f"cache_base={(out / 'cache').as_posix()}",
+            f"experiment.output_dir={out.as_posix()}",
+            "+stream_closure=announced",
+            "+experiment.audit=true",
+        ]
         with initialize_config_dir(config_dir=str(CONFIG), version_base="1.3"):
-            cfg = compose(config_name="oobp_config", overrides=[
-                f"data_card.source.filepath='HennOOBP/{relative}'",
-                f"instances_base={data_root.as_posix()}",
-                f"project_root={ROOT.as_posix()}",
-                f"cache_base={(out / 'cache').as_posix()}",
-                f"experiment.output_dir={out.as_posix()}",
-                "stream_closure=announced",
-                "+experiment.audit=true",
-            ])
-        cfg.cosy_repo.components[4] = ROUTERS[routing]
-        cfg.cosy_repo.components[5] = SCHEDULERS[selection]
-        cfg.cosy_repo.components[6] = (WAITING["journal"] if selection == "IGNORE"
-                                       else WAITING[target])
-        if selection == "LONG":
-            cfg.decisions.OBRSP.solver._target_ = (
-                "scenarios.scenario_henn2012.solver.HennLongSolver")
-        if selection == "IGNORE":
-            cfg.decisions.OBRSP.state_information.resources = ["idle"]
-            cfg.decisions.OBRSP.commitment_policy = OmegaConf.create({
-                "_target_": "casim.decision_engine.commitment_policies.CommitAllPolicy",
-            })
+            cfg = compose(config_name="henn2012_config", overrides=overrides)
         sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
         horizon_s = 480 * 60
 
@@ -138,7 +145,7 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
                               violations else "consistent")
         BASELINES.mkdir(parents=True, exist_ok=True)
         (BASELINES / f"{label}.json").write_text(json.dumps(baseline, indent=2),
-                                                  encoding="utf-8")
+                                                   encoding="utf-8")
         return {
             "target": target, "storage": storage, "n_orders": n_orders,
             "capacity": capacity, "routing": routing, "selection": selection,
@@ -157,13 +164,13 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=("pilot", "full"))
-    parser.add_argument("--target", choices=tuple(WAITING), required=True)
+    parser.add_argument("stage", choices=("pilot", "full", "validation"))
+    parser.add_argument("--target", choices=tuple(WAITING_TARGETS), required=True)
     parser.add_argument("--storage", choices=("C", "U"), default="C")
     parser.add_argument("--orders", type=int, choices=(30, 60, 90, 120), required=True)
     parser.add_argument("--capacity", type=int, choices=(45, 75), required=True)
-    parser.add_argument("--routing", choices=tuple(ROUTERS), default="SShape")
-    parser.add_argument("--selection", choices=tuple(SCHEDULERS), default="FIRST")
+    parser.add_argument("--routing", choices=("SShape", "LargestGap"), default="SShape")
+    parser.add_argument("--selection", choices=("FIRST", "SHORT", "LONG", "SAV", "IGNORE"), default="FIRST")
     parser.add_argument("--arrival-mode", choices=("truncated", "conditioned"), required=True)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
@@ -172,7 +179,7 @@ def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     path = OUTPUT / f"{label}__{args.stage}.csv"
     rows = pd.read_csv(path).to_dict("records") if args.resume and path.exists() else []
-    count = 10 if args.stage == "pilot" else 50
+    count = {"pilot": 10, "full": 50, "validation": 20}[args.stage]
     for replication in range(len(rows), count):
         started = time.perf_counter()
         row = run_case(args.target, args.storage, args.orders, args.capacity,
@@ -182,7 +189,8 @@ def main() -> None:
         rows.append(row)
         pd.DataFrame(rows).to_csv(path, index=False)
         print(f"{label} {replication}: completion={row['completion_s']:.1f}s "
-              f"turnover={row['mean_turnover_arrival_s']:.1f}s", flush=True)
+              f"turnover={row['mean_turnover_arrival_s']:.1f}s "
+              f"({row['seconds']:.1f}s/run)", flush=True)
 
 
 if __name__ == "__main__":
