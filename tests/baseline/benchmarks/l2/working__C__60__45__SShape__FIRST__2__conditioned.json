@@ -2,11 +2,11 @@
   "name": "working__C__60__45__SShape__FIRST__2__conditioned",
   "stream_closure": "announced_at_480",
   "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "cf2d4a89271d980fe70400f3b860138921c86a66",
-  "ware_ops_algos_commit": "20d7cedce595b31e307efa03a17c517a19104ce1",
+  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
+  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
   "kpis": {
     "makespan": 31735.619202356,
-    "mean_order_completion_time": 2602.773853909917,
+    "mean_order_completion_time": 2607.6463358224837,
     "num_tours": 24,
     "num_orders_completed": 60,
     "avg_tour_makespan": 861.9791666666666,
@@ -28,7 +28,7 @@
       "4832.455323918": 4,
       "5946.205323918": 5,
       "6834.955323918": 6,
-      "7911.205323918": 7,
+      "8057.379781295": 7,
       "10782.597486199998": 8,
       "12630.277533138": 9,
       "14664.955464069999": 10,
@@ -121,8 +121,8 @@
         11,
         12
       ],
-      "start": 6834.955323918,
-      "end": 7911.205323918
+      "start": 6981.129781295,
+      "end": 8057.379781295
     },
     {
       "tour_id": 8,
@@ -308,7 +308,7 @@
       "end": 31735.619202356
     }
   ],
-  "trace_digest": "875e4586ffbdb4c0962d6acff01a84ff2486a9e415396c1f01eafb3e2786ad41",
+  "trace_digest": "b94c96836cc77e52d2e6ba8a361958f041d4c516bb691fda0a843dd2e95072dd",
   "event_count": 19014,
   "violations": {
     "check_plan": {},

@@ -1,0 +1,194 @@
+{
+  "name": "working__C__30__45__SShape__SAV__2__conditioned",
+  "stream_closure": "announced_at_480",
+  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
+  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
+  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
+  "kpis": {
+    "makespan": 29893.75,
+    "mean_order_completion_time": 2657.503313938333,
+    "num_tours": 13,
+    "num_orders_completed": 30,
+    "avg_tour_makespan": 877.4038461538462,
+    "avg_batch_size": 2.3076923076923075,
+    "orders_per_hour": 3.6127953167468116,
+    "tours_per_hour": 1.5655446372569517,
+    "distance_by_picker": {
+      "0": 5389.0
+    },
+    "idle_time_by_picker": {
+      "0": 17670.907313440002
+    },
+    "total_distance": 5389.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "1130.34268656": 1,
+      "5492.121780916": 2,
+      "7920.083802002": 3,
+      "9018.833802002": 4,
+      "11047.421399642": 5,
+      "11923.671399642": 6,
+      "14388.363617767001": 7,
+      "15617.113617767001": 8,
+      "17182.129552542": 9,
+      "18395.049480218": 10,
+      "20340.804495682998": 11,
+      "25537.201290975": 12,
+      "29893.75": 13
+    },
+    "total_tour_times": 11406.25,
+    "picks_per_hour": 56.23918043069203,
+    "total_processing_time": 11406.25
+  },
+  "decisions": {
+    "OBRSP": 46
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0
+      ],
+      "start": 636.59268656,
+      "end": 1130.34268656
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        1
+      ],
+      "start": 4615.871780916,
+      "end": 5492.121780916
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        2,
+        3,
+        4
+      ],
+      "start": 6726.333802002,
+      "end": 7920.083802002
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        5,
+        6,
+        7
+      ],
+      "start": 7920.083802002,
+      "end": 9018.833802002
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 0,
+      "order_ids": [
+        8,
+        9
+      ],
+      "start": 9863.671399642,
+      "end": 11047.421399642
+    },
+    {
+      "tour_id": 6,
+      "picker_id": 0,
+      "order_ids": [
+        10
+      ],
+      "start": 11047.421399642,
+      "end": 11923.671399642
+    },
+    {
+      "tour_id": 7,
+      "picker_id": 0,
+      "order_ids": [
+        11,
+        12,
+        13
+      ],
+      "start": 13184.613617767001,
+      "end": 14388.363617767001
+    },
+    {
+      "tour_id": 8,
+      "picker_id": 0,
+      "order_ids": [
+        14,
+        15
+      ],
+      "start": 14388.363617767001,
+      "end": 15617.113617767001
+    },
+    {
+      "tour_id": 9,
+      "picker_id": 0,
+      "order_ids": [
+        16,
+        17,
+        18
+      ],
+      "start": 16038.379552542,
+      "end": 17182.129552542
+    },
+    {
+      "tour_id": 10,
+      "picker_id": 0,
+      "order_ids": [
+        19,
+        20,
+        21
+      ],
+      "start": 17356.299480218,
+      "end": 18395.049480218
+    },
+    {
+      "tour_id": 11,
+      "picker_id": 0,
+      "order_ids": [
+        22,
+        23,
+        24
+      ],
+      "start": 19207.054495682998,
+      "end": 20340.804495682998
+    },
+    {
+      "tour_id": 12,
+      "picker_id": 0,
+      "order_ids": [
+        25,
+        26
+      ],
+      "start": 24355.951290975,
+      "end": 25537.201290975
+    },
+    {
+      "tour_id": 13,
+      "picker_id": 0,
+      "order_ids": [
+        27,
+        28,
+        29
+      ],
+      "start": 28800,
+      "end": 29893.75
+    }
+  ],
+  "trace_digest": "eddcbd8e96d55016156b146025502851c2b17b9f7aff18098c93372264c84632",
+  "event_count": 10373,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

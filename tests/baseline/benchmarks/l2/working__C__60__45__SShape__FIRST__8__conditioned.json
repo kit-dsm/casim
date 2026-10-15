@@ -2,22 +2,22 @@
   "name": "working__C__60__45__SShape__FIRST__8__conditioned",
   "stream_closure": "announced_at_480",
   "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "cf2d4a89271d980fe70400f3b860138921c86a66",
-  "ware_ops_algos_commit": "20d7cedce595b31e307efa03a17c517a19104ce1",
+  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
+  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
   "kpis": {
-    "makespan": 29993.654660452998,
-    "mean_order_completion_time": 2242.891275450316,
+    "makespan": 30357.961009774,
+    "mean_order_completion_time": 2291.4654553597825,
     "num_tours": 24,
     "num_orders_completed": 60,
     "avg_tour_makespan": 906.25,
     "avg_batch_size": 2.5,
-    "orders_per_hour": 7.201523203666095,
-    "tours_per_hour": 2.880609281466438,
+    "orders_per_hour": 7.115102359162296,
+    "tours_per_hour": 2.8460409436649186,
     "distance_by_picker": {
       "0": 10088.0
     },
     "idle_time_by_picker": {
-      "0": 8035.787159340998
+      "0": 8400.093508662001
     },
     "total_distance": 10088.0,
     "total_delayed": 0,
@@ -43,12 +43,12 @@
       "24387.404660452998": 19,
       "25486.154660452998": 20,
       "26594.904660452998": 21,
-      "27713.654660452998": 22,
-      "28872.404660452998": 23,
-      "29993.654660452998": 24
+      "28077.961009774": 22,
+      "29236.711009774": 23,
+      "30357.961009774": 24
     },
     "total_tour_times": 21750.0,
-    "picks_per_hour": 109.70320346918018,
+    "picks_per_hour": 108.38672593790564,
     "total_processing_time": 21750.0
   },
   "decisions": {
@@ -282,19 +282,19 @@
         52,
         53
       ],
-      "start": 26594.904660452998,
-      "end": 27713.654660452998
+      "start": 26959.211009774,
+      "end": 28077.961009774
     },
     {
       "tour_id": 23,
       "picker_id": 0,
       "order_ids": [
-        56,
         54,
-        55
+        55,
+        56
       ],
-      "start": 27713.654660452998,
-      "end": 28872.404660452998
+      "start": 28077.961009774,
+      "end": 29236.711009774
     },
     {
       "tour_id": 24,
@@ -304,11 +304,11 @@
         58,
         59
       ],
-      "start": 28872.404660452998,
-      "end": 29993.654660452998
+      "start": 29236.711009774,
+      "end": 30357.961009774
     }
   ],
-  "trace_digest": "41c8b245931999a4e056321f697d279278a946695ee26f6dcda8d6b1328d3982",
+  "trace_digest": "5e07f3fa36a7e347ea92a31f172c26b44b739f1ab24a76f5d392fc9b11941e0f",
   "event_count": 19483,
   "violations": {
     "check_plan": {},

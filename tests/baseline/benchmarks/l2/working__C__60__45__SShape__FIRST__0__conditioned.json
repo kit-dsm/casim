@@ -2,22 +2,22 @@
   "name": "working__C__60__45__SShape__FIRST__0__conditioned",
   "stream_closure": "announced_at_480",
   "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "cf2d4a89271d980fe70400f3b860138921c86a66",
-  "ware_ops_algos_commit": "20d7cedce595b31e307efa03a17c517a19104ce1",
+  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
+  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
   "kpis": {
-    "makespan": 56090.39915667,
-    "mean_order_completion_time": 4469.002178344936,
+    "makespan": 29758.75,
+    "mean_order_completion_time": 3591.280539789269,
     "num_tours": 23,
     "num_orders_completed": 60,
     "avg_tour_makespan": 896.6847826086956,
     "avg_batch_size": 2.608695652173913,
-    "orders_per_hour": 3.8509264196297726,
-    "tours_per_hour": 1.4761884608580795,
+    "orders_per_hour": 7.258369387155038,
+    "tours_per_hour": 2.7823749317427646,
     "distance_by_picker": {
       "0": 9467.0
     },
     "idle_time_by_picker": {
-      "0": 33697.610447966
+      "0": 7365.961291296
     },
     "total_distance": 9467.0,
     "total_delayed": 0,
@@ -44,14 +44,14 @@
       "24704.287707105002": 20,
       "25793.037707105002": 21,
       "28082.286039620998": 22,
-      "56090.39915667": 23
+      "29758.75": 23
     },
     "total_tour_times": 20623.75,
-    "picks_per_hour": 56.416072047576165,
+    "picks_per_hour": 106.3351115218213,
     "total_processing_time": 20623.75
   },
   "decisions": {
-    "OBRSP": 86
+    "OBRSP": 85
   },
   "committed_tours": [
     {
@@ -295,12 +295,12 @@
         58,
         59
       ],
-      "start": 55131.64915667,
-      "end": 56090.39915667
+      "start": 28800,
+      "end": 29758.75
     }
   ],
-  "trace_digest": "4e781c7f664968621de216e9ab299bff7bbed7257ea23862685f10bbbb45e2f1",
-  "event_count": 18543,
+  "trace_digest": "c2cef94b331e47c9f792408802a2dade3aca68412cb2053cb0d7e3b4d1134cbf",
+  "event_count": 18542,
   "violations": {
     "check_plan": {},
     "check_progress": {}

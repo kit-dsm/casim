@@ -1,0 +1,293 @@
+{
+  "name": "journal__U__30__75__SShape__SAV__13__conditioned",
+  "stream_closure": "announced_at_480",
+  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
+  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
+  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
+  "kpis": {
+    "makespan": 30089.441891368002,
+    "mean_order_completion_time": 1268.4357072691666,
+    "num_tours": 24,
+    "num_orders_completed": 30,
+    "avg_tour_makespan": 706.25,
+    "avg_batch_size": 1.25,
+    "orders_per_hour": 3.589298877324236,
+    "tours_per_hour": 2.8714391018593886,
+    "distance_by_picker": {
+      "0": 10352.0
+    },
+    "idle_time_by_picker": {
+      "0": 12927.319942996004
+    },
+    "total_distance": 10352.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "760.871948372": 1,
+      "1482.1219483720001": 2,
+      "2476.721124407": 3,
+      "4134.590818447": 4,
+      "4778.340818447": 5,
+      "6179.919370033": 6,
+      "6801.169370033": 7,
+      "8092.231489692": 8,
+      "9188.481489692": 9,
+      "10036.077906417999": 10,
+      "13324.823799762": 11,
+      "14106.073799762": 12,
+      "17065.004498876": 13,
+      "17866.254498876": 14,
+      "19005.004498876": 15,
+      "19733.754498876": 16,
+      "20617.504498876": 17,
+      "21333.754498876": 18,
+      "23113.975375423": 19,
+      "24312.725375423": 20,
+      "25511.475375423": 21,
+      "27824.441891368002": 22,
+      "28893.191891368002": 23,
+      "30089.441891368002": 24
+    },
+    "total_tour_times": 16950.0,
+    "picks_per_hour": 47.976961660233954,
+    "total_processing_time": 16950.0
+  },
+  "decisions": {
+    "OBRSP": 55
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0
+      ],
+      "start": 32.121948372,
+      "end": 760.871948372
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        1
+      ],
+      "start": 760.871948372,
+      "end": 1482.1219483720001
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        2
+      ],
+      "start": 1485.471124407,
+      "end": 2476.721124407
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        3
+      ],
+      "start": 3045.840818447,
+      "end": 4134.590818447
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 0,
+      "order_ids": [
+        4
+      ],
+      "start": 4134.590818447,
+      "end": 4778.340818447
+    },
+    {
+      "tour_id": 6,
+      "picker_id": 0,
+      "order_ids": [
+        5
+      ],
+      "start": 5461.169370033,
+      "end": 6179.919370033
+    },
+    {
+      "tour_id": 7,
+      "picker_id": 0,
+      "order_ids": [
+        6
+      ],
+      "start": 6179.919370033,
+      "end": 6801.169370033
+    },
+    {
+      "tour_id": 8,
+      "picker_id": 0,
+      "order_ids": [
+        7
+      ],
+      "start": 7435.981489692,
+      "end": 8092.231489692
+    },
+    {
+      "tour_id": 9,
+      "picker_id": 0,
+      "order_ids": [
+        8,
+        9
+      ],
+      "start": 8092.231489692,
+      "end": 9188.481489692
+    },
+    {
+      "tour_id": 10,
+      "picker_id": 0,
+      "order_ids": [
+        10
+      ],
+      "start": 9467.327906417999,
+      "end": 10036.077906417999
+    },
+    {
+      "tour_id": 11,
+      "picker_id": 0,
+      "order_ids": [
+        11
+      ],
+      "start": 12448.573799762,
+      "end": 13324.823799762
+    },
+    {
+      "tour_id": 12,
+      "picker_id": 0,
+      "order_ids": [
+        12
+      ],
+      "start": 13324.823799762,
+      "end": 14106.073799762
+    },
+    {
+      "tour_id": 13,
+      "picker_id": 0,
+      "order_ids": [
+        13
+      ],
+      "start": 15963.754498876,
+      "end": 17065.004498876
+    },
+    {
+      "tour_id": 14,
+      "picker_id": 0,
+      "order_ids": [
+        14
+      ],
+      "start": 17065.004498876,
+      "end": 17866.254498876
+    },
+    {
+      "tour_id": 15,
+      "picker_id": 0,
+      "order_ids": [
+        16,
+        17,
+        15
+      ],
+      "start": 17866.254498876,
+      "end": 19005.004498876
+    },
+    {
+      "tour_id": 16,
+      "picker_id": 0,
+      "order_ids": [
+        18
+      ],
+      "start": 19005.004498876,
+      "end": 19733.754498876
+    },
+    {
+      "tour_id": 17,
+      "picker_id": 0,
+      "order_ids": [
+        19
+      ],
+      "start": 19733.754498876,
+      "end": 20617.504498876
+    },
+    {
+      "tour_id": 18,
+      "picker_id": 0,
+      "order_ids": [
+        20
+      ],
+      "start": 20617.504498876,
+      "end": 21333.754498876
+    },
+    {
+      "tour_id": 19,
+      "picker_id": 0,
+      "order_ids": [
+        21
+      ],
+      "start": 22200.225375423,
+      "end": 23113.975375423
+    },
+    {
+      "tour_id": 20,
+      "picker_id": 0,
+      "order_ids": [
+        22,
+        23
+      ],
+      "start": 23113.975375423,
+      "end": 24312.725375423
+    },
+    {
+      "tour_id": 21,
+      "picker_id": 0,
+      "order_ids": [
+        24,
+        25
+      ],
+      "start": 24312.725375423,
+      "end": 25511.475375423
+    },
+    {
+      "tour_id": 22,
+      "picker_id": 0,
+      "order_ids": [
+        26
+      ],
+      "start": 26993.191891368002,
+      "end": 27824.441891368002
+    },
+    {
+      "tour_id": 23,
+      "picker_id": 0,
+      "order_ids": [
+        27
+      ],
+      "start": 27824.441891368002,
+      "end": 28893.191891368002
+    },
+    {
+      "tour_id": 24,
+      "picker_id": 0,
+      "order_ids": [
+        28,
+        29
+      ],
+      "start": 28893.191891368002,
+      "end": 30089.441891368002
+    }
+  ],
+  "trace_digest": "7980c4bbf78a9ba80014753991102fec3935b86b9db8eb21cf3751ca62e30f96",
+  "event_count": 18405,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}
