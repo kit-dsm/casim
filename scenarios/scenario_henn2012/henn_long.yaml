@@ -1,0 +1,21 @@
+algo_name: HennLong
+problem_type: scheduling
+description: Henn LONG selects the batch with the longest service time.
+requirements:
+  layout:
+    type: [any]
+    features: []
+  resources:
+    type: [any]
+    features: [speed, time_per_pick]
+  orders:
+    type: [any]
+    features: [order_date]
+  storage:
+    type: [any]
+    features: []
+objective: Distance
+implementation:
+  class_name: LPTScheduling
+  component_name: HennLongScheduler
+  type: heuristic

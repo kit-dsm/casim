@@ -19,9 +19,10 @@ from omegaconf import OmegaConf
 import pandas as pd
 
 from casim.runner import apply_decision
+from casim.events.operational_events import OrderStreamClosed
 from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
 from scenarios.scenario_henn2012.generator import generate_instance
-from scenarios.scenario_oobp.experiment_oobp import orders_hook_for, picker_arrival_hook
+from scenarios.scenario_oobp.experiment_oobp import picker_arrival_hook
 from tests.verification.kpi_recomputation import recompute_kpis
 
 
@@ -36,7 +37,7 @@ ROUTERS = {
 SCHEDULERS = {
     "FIRST": "casim.pipelines.subproblems.scheduling.FIFOScheduler",
     "SHORT": "casim.pipelines.subproblems.scheduling.SPTScheduler",
-    "LONG": "casim.pipelines.subproblems.scheduling.LPTScheduler",
+    "LONG": "casim.pipelines.subproblems.scheduling.HennLongScheduler",
     "SAV": "casim.pipelines.subproblems.scheduling.SAVScheduler",
     "IGNORE": "casim.pipelines.subproblems.scheduling.FIFOScheduler",
 }
@@ -48,7 +49,7 @@ WAITING = {
 
 def run_case(target: str, storage: str, n_orders: int, capacity: int,
              routing: str, selection: str, replication: int,
-             printed_rate: bool = False) -> dict:
+             arrival_mode: str) -> dict:
     if target == "working" and storage != "C":
         raise ValueError("working paper has only class-based storage")
     if target == "working" and selection == "IGNORE":
@@ -56,7 +57,7 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
     data_root = OUTPUT / "generated"
     relative = generate_instance(
         data_root, storage=storage, n_orders=n_orders, capacity=capacity,
-        replication=replication, printed_rate=printed_rate)
+        replication=replication, arrival_mode=arrival_mode)
     OUTPUT.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=OUTPUT) as folder:
         out = Path(folder)
@@ -75,16 +76,21 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
         cfg.cosy_repo.components[6] = (WAITING["journal"] if selection == "IGNORE"
                                        else WAITING[target])
         if selection == "LONG":
-            cfg.data_card.source.data_loader = (
-                "scenarios.scenario_henn2012.loader.Henn2012LongLoader")
-            cfg.data_card.orders.objects[0].features.append({"name": "due_date"})
+            cfg.decisions.OBRSP.solver._target_ = (
+                "scenarios.scenario_henn2012.solver.HennLongSolver")
         if selection == "IGNORE":
             cfg.decisions.OBRSP.state_information.resources = ["idle"]
             cfg.decisions.OBRSP.commitment_policy = OmegaConf.create({
                 "_target_": "casim.decision_engine.commitment_policies.CommitAllPolicy",
             })
         sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-        sim.reset(hooks=[orders_hook_for(cfg.stream_closure), picker_arrival_hook])
+        horizon_s = 480 * 60
+
+        def orders_hook(simulation, domain):
+            for order in domain.orders.orders:
+                simulation.add_order(order)
+            simulation.add_event(OrderStreamClosed(horizon_s))
+        sim.reset(hooks=[orders_hook, picker_arrival_hook])
         while True:
             done, snapshot = sim.run()
             if done:
@@ -104,14 +110,15 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
             for order_id in order_ids:
                 arrival_turnovers.append(end - arrivals[order_id])
                 start_turnovers.append(end - setup_start)
-        if len(arrival_turnovers) != n_orders:
-            raise RuntimeError(f"completed {len(arrival_turnovers)} of {n_orders} orders")
+        realized_orders = len(arrivals)
+        if len(arrival_turnovers) != realized_orders:
+            raise RuntimeError(f"completed {len(arrival_turnovers)} of {realized_orders} orders")
 
         label = (f"{target}__{storage}__{n_orders}__{capacity}__{routing}__"
-                 f"{selection}__{replication}__{'printed' if printed_rate else 'stated'}")
+                 f"{selection}__{replication}__{arrival_mode}")
         baseline = {
             "name": label,
-            "stream_closure": "announced",
+            "stream_closure": "announced_at_480",
             "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
             "casim_commit": subprocess.check_output(
                 ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
@@ -136,11 +143,12 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
             "target": target, "storage": storage, "n_orders": n_orders,
             "capacity": capacity, "routing": routing, "selection": selection,
             "replication": replication,
-            "arrival_rate": "printed" if printed_rate else "stated",
-            "stream_closure": "announced",
+            "arrival_mode": arrival_mode,
+            "realized_orders": realized_orders,
+            "stream_closure": "announced_at_480",
             "completion_s": completion,
-            "mean_turnover_arrival_s": sum(arrival_turnovers) / n_orders,
-            "mean_turnover_start_s": sum(start_turnovers) / n_orders,
+            "mean_turnover_arrival_s": sum(arrival_turnovers) / realized_orders,
+            "mean_turnover_start_s": sum(start_turnovers) / realized_orders,
             "tours": len(sim.state.tracker.completed_tours),
             "decisions": sum(audit["decisions"].values()),
             "violations": violations,
@@ -156,12 +164,11 @@ def main() -> None:
     parser.add_argument("--capacity", type=int, choices=(45, 75), required=True)
     parser.add_argument("--routing", choices=tuple(ROUTERS), default="SShape")
     parser.add_argument("--selection", choices=tuple(SCHEDULERS), default="FIRST")
-    parser.add_argument("--printed-rate", action="store_true")
+    parser.add_argument("--arrival-mode", choices=("truncated", "conditioned"), required=True)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     label = (f"{args.target}__{args.storage}__{args.orders}__{args.capacity}__"
-             f"{args.routing}__{args.selection}__"
-             f"{'printed' if args.printed_rate else 'stated'}")
+             f"{args.routing}__{args.selection}__{args.arrival_mode}")
     OUTPUT.mkdir(parents=True, exist_ok=True)
     path = OUTPUT / f"{label}__{args.stage}.csv"
     rows = pd.read_csv(path).to_dict("records") if args.resume and path.exists() else []
@@ -170,7 +177,7 @@ def main() -> None:
         started = time.perf_counter()
         row = run_case(args.target, args.storage, args.orders, args.capacity,
                        args.routing, args.selection, replication,
-                       printed_rate=args.printed_rate)
+                       arrival_mode=args.arrival_mode)
         row["seconds"] = round(time.perf_counter() - started, 2)
         rows.append(row)
         pd.DataFrame(rows).to_csv(path, index=False)

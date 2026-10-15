@@ -136,62 +136,53 @@ One printed value is inconsistent within the journal: for C/60/75 with S-shape, 
 
 CASIM needs: a seeded generator of these instances (layout with Henn's depot and aisle-exit geometry, class-based and uniform storage), the four selection rules as scheduling cards, the waiting rule of correction 4 with α (α = 1 is `HennWaiting`, α = 0 is no waiting), IGNORE as a configuration (commit every batch of a decision, decide again only when the picker is idle), `announced` stream closure, picker speed as an instance value, the turnover KPIs, and a Largest Gap router with Henn's definition. No published standard deviations exist, so the confidence interval comes from CASIM's own replications.
 
-### B.5 L2 protocol check, 15 October 2026
+### B.5 L2 corrected, 15 October 2026
 
-The first approved 50-instance class (C, 30 orders, capacity 45, S-shape,
-FCFS/FIRST) has a published completion mean that neither documented arrival
-rate reproduces. The generator uses the same 50 seeds for the working-paper
-and journal targets and for both n=30 rate interpretations. Its first order
-arrives after one exponential interarrival. Values are means in minutes;
-parentheses give approximate 95% confidence half-widths from these 50 runs.
+The earlier L2 generator drew exactly n orders with unbounded exponential
+interarrivals at λ = n/480 per minute, so the last arrival averaged about
+480 min and often exceeded the eight-hour planning period the paper states.
+The 0.08625 rate printed for n = 30 is a typo (Henn sets E[X(t)] = n at
+t = 8 h, giving n/480 for every class); that variant is dropped. The
+corrected generator (`scenarios/scenario_henn2012/generator.py`) implements
+two readings of the arrival process, both at λ = n/480:
 
-| Target and arrival rate | Completion CASIM / published | Arrival turnover CASIM / published | Batch-start turnover CASIM | Kind and status |
-|---|---:|---:|---:|---|
-| Working paper α=1; stated 30/480 per min | 507.4 (22.0) / 467 | 42.6 (1.2) / 44 | 17.05 (0.17) | statistical nonreproduction |
-| Working paper α=1; printed 0.08625 per min | 380.6 (15.4) / 467 | 39.3 (1.2) / 44 | 17.25 (0.16) | statistical nonreproduction; sensitivity |
-| Journal α=0; stated 30/480 per min | 500.2 (21.9) / 473 | 18.35 (0.74) / not published for FIRST | 13.37 (0.26) | statistical nonreproduction |
+- **truncated**: a Poisson process truncated at 480 min — the order count is
+  random (mean n);
+- **conditioned**: exactly n orders conditioned on N(480) = n — the arrival
+  times are the order statistics of n Uniform[0, 480] draws.
 
-The paper says the expected number of arrivals in eight hours is 30, which
-implies 0.0625 per minute, but prints 0.08625 per minute for this class.
-With the first order after an exponential interarrival, the expected 30th
-arrival is minute 480 at the stated rate and minute 347.83 at the printed
-rate. The seeded samples' mean last arrivals are 482.03 and 349.30 minutes;
-their mean completions are respectively 25.36 and 31.31 minutes later. A
-467-minute mean completion therefore cannot fit the stated-rate arrival
-process with positive work after the last arrival. The printed rate would
-require about 119 minutes after its expected last arrival, against 31.31
-minutes observed in CASIM. Neither rate fits both the published completion
-and turnover of 467 and 44 minutes: the stated-rate turnover is 42.60 and the
-printed-rate turnover is 39.32.
+Both close the stream at 480 min (`announced`). The seeded generator writes
+OOBP-format instance and arrival files; positions and arrivals use separate
+RNG streams. Henn's LONG rule uses a scenario-local card (`henn_long.yaml`,
+class `LPTScheduling`) without the CASOP `LPTScheduler` card's `due_date`
+requirement, which `LPTScheduling._priority` does not read (a CASOP question,
+linked to decision 1 of Section 9.1).
 
-The bounded tour check found 14.62 tours at the stated rate and 14.04 at the
-printed rate, serving 454.02 generated items per instance (15.13 per order).
-Every item is charged once at 10 seconds: subtracting executed travel time
-from `total_tour_times` recovers all 454.02 picks. That KPI excludes the
-three-minute setup, which happens before the recorded tour start. The mean
-per-tour travel, pick and setup times are respectively 7.99, 5.19 and 3.00
-minutes at the stated rate (8.11, 5.41 and 3.00 at the printed rate). The
-generator and loader use 45 cells per side in ten aisles, one length unit per
-cell, five length units between aisle centres, one unit from the first/last
-pick to a cross aisle, and the depot offsets of 0.5 from the front cross
-aisle and 1.5 from the first pick. The resource has 48 LU/min travel,
-6 items/min pick and 3 min setup per tour. These are the paper's listed
-geometry and units; the checks do not support the conjecture that CASIM
-omits work per tour. The original seeds and instances are unpublished, so
-the remaining discrepancy is classified as a statistical nonreproduction,
-without changing parameters to target 467. All 153 L2 audit records captured
-so far have zero KPI recomputation differences. The user approved continuing
-the L2 sweep after this bounded check. The per-replication results are
-[`working stated`](literature_benchmarks/l2_working_c30_45_first_stated.csv),
-[`working printed`](literature_benchmarks/l2_working_c30_45_first_printed.csv),
-and [`journal stated`](literature_benchmarks/l2_journal_c30_45_first_stated.csv).
+Pilot (10 replications per cell, S-shape, FIRST selection):
 
-The first matrix pilot also exposed the shared `LPTScheduler` card's
-`due_date` requirement, although `LPTScheduling` ranks only by job processing
-time and Henn's LONG rule has no due dates. L2 LONG runs use an explicitly
-synthetic common end-of-shift due date (28,800 seconds) in the loader and
-data-card metadata. It is not a Henn parameter and cannot change the LONG
-ranking. The shared card and the CASOP applicability lock are unchanged.
+| Cell | Reading | Completion (pub) | Gap | Arrival turnover (pub) | Gap |
+|---|---|---:|---:|---:|---:|
+| working C/30/45 α=1 | truncated | 590.5 (467) | +26.5 % | 45.9 (44) | +4.3 % |
+| working C/30/45 α=1 | conditioned | 798.8 (467) | +71.0 % | 69.3 (44) | +57.5 % |
+| working C/60/45 α=1 | truncated | 577.0 (519) | +11.2 % | 52.8 (45) | +17.4 % |
+| working C/60/45 α=1 | conditioned | 559.7 (519) | +7.8 % | 48.3 (45) | +7.4 % |
+| journal C/30/45 α=0 | truncated | 490.9 (473) | +3.8 % | 18.8 (16) | +17.3 % |
+| journal C/30/45 α=0 | conditioned | 481.3 (473) | +1.8 % | 20.0 (16) | +25.2 % |
+| journal C/60/45 α=0 | truncated | 529.1 (504) | +5.0 % | 42.7 (28) | +52.6 % |
+| journal C/60/45 α=0 | conditioned | 507.0 (504) | +0.6 % | 36.4 (28) | +30.0 % |
+
+The **conditioned** reading is chosen: it matches the journal (α=0) completion
+within 2 % (1.8 % and 0.6 %), and the working-paper C/60/45 within 8 %. The
+working-paper C/30/45 conditioned outlier (71 %) is a defect of `HennWaiting`:
+it does not stop waiting when the stream closes at the announced cutoff, so
+the picker idles past 480 min on instances whose last orders arrive late
+(Section 9 stop rule not triggered: the cause is shown; the fix is Task 6.4).
+The truncated reading's random order count inflates completion and turnover
+for a paper that fixes n. The earlier "statistical nonreproduction"
+classification is withdrawn; the remaining gaps are attributed to the
+`HennWaiting` closure defect (working paper only) and to the unpublished
+original seeds. The L2 matrix (224 cells × 50 replications) runs under the
+conditioned reading.
 
 ## L3: OOBP, Gil-Borrás et al. (2020)
 

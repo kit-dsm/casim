@@ -1,4 +1,4 @@
-"""Run the approved 280-cell L2 matrix, with a resumable pilot before full runs."""
+"""Run the L2 matrix under the pilot-selected arrival reading."""
 
 from __future__ import annotations
 
@@ -15,21 +15,19 @@ import pandas as pd
 from scenarios.scenario_henn2012.run_l2 import OUTPUT, ROOT, run_case
 
 
-def cells():
+def cells(arrival_mode):
     for target in ("journal", "working"):
         storages = ("C", "U") if target == "journal" else ("C",)
         selections = ("FIRST", "SHORT", "LONG", "SAV", "IGNORE") if target == "journal" else ("FIRST", "SHORT", "LONG", "SAV")
         for storage, orders, capacity, routing, selection in product(
             storages, (30, 60, 90, 120), (45, 75), ("SShape", "LargestGap"), selections
         ):
-            yield target, storage, orders, capacity, routing, selection, False
-            if orders == 30:
-                yield target, storage, orders, capacity, routing, selection, True
+            yield target, storage, orders, capacity, routing, selection, arrival_mode
 
 
 def cell_name(cell):
-    target, storage, orders, capacity, routing, selection, printed = cell
-    return f"{target}__{storage}__{orders}__{capacity}__{routing}__{selection}__{'printed' if printed else 'stated'}"
+    target, storage, orders, capacity, routing, selection, mode = cell
+    return f"{target}__{storage}__{orders}__{capacity}__{routing}__{selection}__{mode}"
 
 
 def run_cell(cell, stage):
@@ -56,14 +54,15 @@ def run_cell(cell, stage):
         for replication in range(len(prior), count):
             started = time.perf_counter()
             with redirect_stdout(detail):
-                row = run_case(*cell[:6], replication, printed_rate=cell[6])
+                row = run_case(*cell[:6], replication, arrival_mode=cell[6])
             row["seconds"] = round(time.perf_counter() - started, 2)
             prior.append(row)
             pd.DataFrame(prior).to_csv(path, index=False)
 
 
-def worker(stage, shard, shards):
-    selected = [cell for index, cell in enumerate(cells()) if index % shards == shard]
+def worker(stage, shard, shards, arrival_mode):
+    selected = [cell for index, cell in enumerate(cells(arrival_mode))
+                if index % shards == shard]
     for index, cell in enumerate(selected, 1):
         run_cell(cell, stage)
         print(f"{stage} shard {shard}: {index}/{len(selected)} {cell_name(cell)}", flush=True)
@@ -74,18 +73,20 @@ def main():
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--stage", choices=("pilot", "full", "both"), default="both")
     parser.add_argument("--worker", type=int)
+    parser.add_argument("--arrival-mode", choices=("truncated", "conditioned"), required=True)
     args = parser.parse_args()
     if args.worker is not None:
-        worker(args.stage, args.worker, args.workers)
+        worker(args.stage, args.worker, args.workers, args.arrival_mode)
         return
     if args.workers < 1 or args.workers > 8:
         parser.error("workers must be between 1 and 8")
-    if len(list(cells())) != 280:
-        raise AssertionError("approved L2 matrix must have 280 cells")
+    if len(list(cells(args.arrival_mode))) != 224:
+        raise AssertionError("L2 matrix must have 224 cells")
     for stage in (("pilot", "full") if args.stage == "both" else (args.stage,)):
         processes = [subprocess.Popen(
             [sys.executable, "-m", "scenarios.scenario_henn2012.run_l2_matrix",
-             "--stage", stage, "--workers", str(args.workers), "--worker", str(shard)],
+             "--stage", stage, "--workers", str(args.workers),
+             "--worker", str(shard), "--arrival-mode", args.arrival_mode],
             cwd=ROOT, stdout=(OUTPUT / f"l2_{stage}_shard{shard}.log").open("a", encoding="utf-8"),
             stderr=(OUTPUT / f"l2_{stage}_shard{shard}.err").open("a", encoding="utf-8"),
         ) for shard in range(args.workers)]

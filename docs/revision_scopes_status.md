@@ -1,7 +1,6 @@
 # Revision scopes status: Phase B in progress
 
-Last committed CASIM change: `8ffdcf2` (`B.5: record L2 rate ambiguity and
-audited pilot`). The full L3 sweep was `c3f5eee`, B.7's L1 capture was
+Last committed CASIM change: `cf2d4a8` (`B.5: supply explicit synthetic due date for L2 LONG`). The matrix runner and L2 classification were `8ba4a4c`; earlier L2 groundwork was `8ffdcf2`. The full L3 sweep was `c3f5eee`, B.7's L1 capture was
 `7cc47cc`, and the earlier B.7 recorder commit was
 `1e2d053`, and B.9 was
 `b519ecb`. The requested plan-only

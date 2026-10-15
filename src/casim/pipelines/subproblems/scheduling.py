@@ -24,6 +24,10 @@ class LPTScheduler(AbstractScheduling):
         return LPTScheduling(resources, available_from=available_from)
 
 
+class HennLongScheduler(LPTScheduler):
+    """Henn's LONG rule: rank batches by service time, with no due dates."""
+
+
 class SPTScheduler(AbstractScheduling):
     def _get_inited_scheduler(self, available_from: dict[int, float]):
         resources = self._load_resources()
