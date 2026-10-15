@@ -75,12 +75,6 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
         add(f"stochastic__{repo}", "analytic_waiting", stochastic,
             (f"cosy_repo={repo}",))
 
-    grocery = "scenarios.scenario_grocery_retailer.experiment_grocery_retailer"
-    for repo in ("return", "midpoint", "largest_gap", "nearest_neighbour",
-            "sshape", "adaptive_routing", "full_portfolio"):
-        add(f"grocery__{repo}", "scenario_grocery_retailer", grocery,
-            (f"cosy_repo={repo}",))
-
     ijpe = "scenarios.scenario_ijpe.scenario_grocery_retailer"
     for simulation in ("baseline", "scenario1", "scenario2", "scenario3",
                        "scenario4"):
@@ -91,7 +85,6 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
 
 def _config_name(scenario: str) -> str:
     return {
-        "scenario_grocery_retailer": "grocery_retailer_config",
         "scenario_ijpe": "grocery_retailer_config",
     }[scenario]
 

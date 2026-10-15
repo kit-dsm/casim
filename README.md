@@ -16,15 +16,21 @@ uv run --locked pytest
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.13 (installed automatically by uv).
 
-##  Experiments
+## Scenarios
 
-Two experiment setups can be found in scenarios/.
-In scenarios/scenario_grocery_retailer you can find the results of a real-life using from an european grocery retailer. 
-We provide the configuration, experiment scripts and detailed results. 
+A scenario is one warehouse case in `scenarios/<name>/`, run with
 
-In scenarios/scenario_henn_online we reproduce two classic waiting strategy approaches as detailed in Henn 2012. 
-This can be used as a starting point to get familiar with the framework.
+```bash
+python -m casim run scenarios/<name> [overrides]
+python -m casim check --all
+```
 
-The [Walking vs. Waiting scenario](scenarios/scenario_walk_or_wait/README.md) maps
-the paper's wait-count and intervention rules to configured CASIM components. Its
-README lists supported strategy combinations and the remaining parity limits.
+Every scenario has the same structure (`AGENTS.md`); `scenarios/minimal/` is
+the template for a new one.
+
+- [minimal](scenarios/minimal/README.md): one picker, one order, values derived by hand.
+- [henn_waiting](scenarios/henn_waiting/README.md): Henn's (2012) waiting rule and an order window on converted Henn instances.
+- [walk_or_wait](scenarios/walk_or_wait/README.md): the wait-k and intervention rules of *Walking vs. Waiting*, with the RADAR standard case.
+- [analytic_waiting](scenarios/analytic_waiting/README.md): the analytical stochastic waiting example.
+- [oobp](scenarios/oobp/README.md), [casop_static](scenarios/casop_static/README.md): the literature benchmarks L3 and L1 (`docs/literature_benchmarks.md`); `scenario_henn2012/` (L2) is ported next.
+- `scenario_ijpe/`: the IJPE study, ported in Task 6b.6.
