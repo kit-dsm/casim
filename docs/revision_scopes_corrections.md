@@ -352,6 +352,7 @@ Each task report includes the baseline comparison (7.6) and lists the difference
 - [ ] **4.15** Hidden rules (F57). Apply in this order, with a baseline comparison after each step; each step names its expected difference.
     - `FlushRemainingOrders` is a trigger in five decisions, no code emits it, and the engine lets it bypass the conditions. Delete the event, the engine clause and the trigger entries. Expected: none. (At `aaa8333` the engine emitted it when the event heap ran empty with orders buffered; Task 6.5 restores that behaviour as `stream_closure: at_exhaustion`.)
     - The engine lets `ReconsiderReason.WAIT` bypass the conditions. Keep it until Task 6.4. Expected: none.
+    - `NbrOrdersCondition` counts only buffered orders. Once a waiting decision has put its batch into a planned tour, the condition reports no work, so the decision at the stream's end does not solve, the wait of the earlier decision persists, and the picker idles until the stale `reconsider_at` (F67; 443 min in an L2 replication). The condition counts the work open to the decision: buffered orders and the orders of its planned, uncommitted tours. Expected: changes in every configuration whose last batch waits at the stream's end, the Henn scenario among them; list them.
     - `StateAdapter` switches the due-date window off once the stream is closed. Remove the exception; `casim check` rejects a window `by: due_date` when the data card declares no `due_date`. Expected: differences only in configurations with a due-date window; list them.
     - `StateAdapter` adds the pickers of exposed started tours to the snapshot even when `state_information.resources` excludes them. They stay reachable through the tour view and leave `snapshot.resources`; components that need them read `TourView.picker_id`. Expected: none.
     - `StateAdapter` hard-codes `ResourceType.HUMAN` and `OrderType.STANDARD`; take both from the state. Expected: none.
@@ -460,7 +461,7 @@ Leave these as they are on the branch and list them in each phase report until t
 
 ## Appendix A: findings
 
-Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 from the reviews during Phases 3 and 4, F60 and F61 from the review of the benchmarks on 14 October 2026, F62 from Task B.2, F63 from a review of unused code on 14 October 2026, F64 and F65 from the smoke stage of Task B.4, F66 from a review of the scenarios on 15 October 2026.
+Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 from the reviews during Phases 3 and 4, F60 and F61 from the review of the benchmarks on 14 October 2026, F62 from Task B.2, F63 from a review of unused code on 14 October 2026, F64 and F65 from the smoke stage of Task B.4, F66 from a review of the scenarios on 15 October 2026, F67 from Task B.5.
 
 | # | Finding | Fixed by | Status |
 |---|---|---|---|
@@ -530,3 +531,4 @@ Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 fro
 | F64 | `NearestNeighbourhoodRouting` reports a shorter distance than its own node sequence on some routes (384 less on the Kris smoke routes); CASOP's published Kris values use the reported distance | Root cause and extent; fix by user decision | B.4 |
 | F65 | `RatliffRosenthalRouting` returns no node sequence, so its tours cannot be executed | Return the reconstructed route | B.4a |
 | F66 | `scenarios/` mixes data sources, studies and main loops; every new one differs (five entry-point styles, three hook styles, two loaders for Henn's instances); "scenario" has three meanings | One defined scenario structure, library sources, `casim run`, checks | S.1 to S.4 |
+| F67 | `NbrOrdersCondition` ignores orders in planned tours, so a wait set before the stream's end is never cleared | Condition counts open work | 4.15 |
