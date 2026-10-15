@@ -267,9 +267,9 @@ The baseline records what every scenario configuration does at a given commit, d
 
 ## 8. Work plan
 
-The scope of this plan ends with Phase 5: a corrected core whose results are checked internally and against the literature. Phases 6, 6b and 7 are deferred; they get their own plan once Phase 5 is accepted, and they are not part of the done criteria.
+The scope of this plan ends with Phase 5: a corrected core whose results are checked internally and against the literature, with one scenario structure (Phase S). Phases 6, 6b and 7 are deferred; they get their own plan once Phase 5 is accepted, and they are not part of the done criteria.
 
-Work autonomously through the open tasks in the order of this section. Stop only for the reasons of Section 9 and at the end of each phase (Phase B, Phase 4, Phase 5) with one report. Keep `docs/revision_scopes_status.md` current after every commit: the last commit, the task in progress, what is done of it, and the next step. Another agent may continue from that file and this plan alone, without any other context.
+Work autonomously through the open tasks in the order of this section. Stop only for the reasons of Section 9 and at the end of each phase (Phase B, Phase S, Phase 4, Phase 5) with one report. Keep `docs/revision_scopes_status.md` current after every commit: the last commit, the task in progress, what is done of it, and the next step. Another agent may continue from that file and this plan alone, without any other context.
 
 
 ### 8.1 Done
@@ -309,6 +309,23 @@ Work from the current heads; B.1 is done (`feb7e69`). Commit each step separatel
 B.6 (the Henn study at `aaa8333`) and B.8 (Tasks 4.11 and 4.12 checked afterwards) are dropped: comparison (2) of B.4 already shows that the ware_ops_algos branch computes what the published release computes, and the `aaa8333` study used instances that are not the published ones (F60).
 
 Report Phase B once, at its end: the register status, per static set the three comparisons, F64 with its extent, B.4a, the tables of L3 and L2 (published value, CASIM value, kind, status), and the baseline summary. Then continue with Task 4.13 unless a stop rule applies; the user answers the report while you work. A defect that Phase B finds and no task fixes is added to Appendix A by the user.
+
+### 8.2b Phase S: one scenario structure (after Phase B, before Task 4.13)
+
+Today `scenarios/` has no structure: every agent that added a scenario copied a different one, so there are five entry-point styles, three hook styles, loaders under three names, two loaders for Henn's instances in two places, and the static and OOBP benchmarks each brought a runner of their own (F66). Phase S keeps the name scenario, defines it, and makes one structure the only one that passes the checks. The baseline of B.7 and the benchmark runs of Phase B guard every port: a ported scenario must reproduce its recorded files, apart from paths.
+
+A scenario is one warehouse case that CASIM runs: a literature benchmark, a study on real company data, or, later, a shadow of a running WMS. It consists of three parts, matching the state model of the design document:
+
+- the source, which gives the initial state (W_0, B_0) and the exogenous events: a replayed file, a generator, or a live feed;
+- the decisions with their CoSy repositories;
+- the runs: sweeps, variants of the exogenous events (the IJPE `scenario1` to `scenario4` are variants, not scenarios), and for a benchmark the published reference values.
+
+Layout of `scenarios/<name>/`: `README.md` (what the case is, its source or paper, how to run it); `scenario.yaml` (the source and its parameters, and the Hydra groups `decisions`, `cosy_repo`, `sweep`, `variants`); `source.py` only if no library source fits; optional `metrics.py` (functions of the output files), `plots.py` (reads output files only) and `reference.csv` (published values with the kind of Section 7.4); `data/SOURCE.md` with `SHA256SUMS.txt`, the data itself fetched or placed by the user (Section 3.1). A scenario contains no simulation loop and no hooks.
+
+- [ ] **S.1** The source interface in `casim.sources`: a protocol `Source` with `initial_state() -> SimWarehouseDomain` and `events() -> Iterator[Event]`, an iterator in time order that never requires the whole stream in advance, so that a live feed fits the same interface later. Readers for public formats are library sources, configured by name and parameters in `scenario.yaml`: `hessler_irnich` (converted Henn files and CASOP's Heßler-Irnich sets), `oobp` (Henn and Albareda archives), `casop` (dispatching to the ware_ops_pipes loaders), `radar` (walk-or-wait), `foodmart`, `kris`. Each replaces the corresponding loader and hooks; their initial events (order arrivals, picker arrivals and departures, truck departures, stream closure) come from `events()`. Task 6b.1 later types the event set.
+- [ ] **S.2** One runner and one reference scenario: `casim run <scenario directory> [overrides]` (also `casim run` inside the directory) validates the configuration first, then owns the loop of `SimulationEngine.run`, `DecisionEngine.on_trigger` and `step`, the audit flag, and the outputs `kpis.json`, `decisions.json`, `tours.csv` and the trace digest, and with `reference.csv` present also writes the comparison table of Section 7.4; `casim check [<scenario directory> | --all]` runs the same validation alone, for CI. `scripts/baseline.py` uses `casim run`. Remove `scenarios/experiment_commons.py` once nothing uses it. Add `scenarios/minimal/` on a hand-made instance whose expected values are derived by hand, as verification scenario 1, with a smoke test that the test suite discovers for every scenario (it loads and runs its smallest configuration under the audit flag with no invariant violation). `scenarios/minimal/` is the template for new scenarios until the user decides the command-line design for creating them (Section 9.1); do not add `casim init`, templates or other commands.
+- [ ] **S.3** Enforcement: `casim check --all` rejects any other layout (required and allowed files, config groups, the source protocol, checksums, any simulation loop or `SimulationEngine` use inside a scenario), and the test suite runs it. `AGENTS.md`, and a `CLAUDE.md` pointing to it, say: a new case starts from `scenarios/minimal/`, a new data format becomes a library source, no other existing scenario is copied, and `casim check --all` must pass.
+- [ ] **S.4** Port, one commit per scenario, each reproducing its recorded files: `henn_waiting` (source `hessler_irnich`, F60), `oobp` (source `oobp`), `casop_static` (source `casop`), `walk_or_wait` (source `radar` and its explicit examples), `analytic_waiting` (its own `source.py`), and `henn2012` once L2 exists. Delete the grocery scenario (Section 9.1, decision 5) unless the user decides otherwise before S.4. Leave `scenarios/scenario_ijpe/` as it is until Task 6b.6 ports it as a scenario with its own `source.py` for the company data and its disruptions as variants.
 
 ### 8.3 Phase 4, remaining tasks
 
@@ -377,7 +394,7 @@ Not part of this plan's scope (Section 8); kept as the starting point of the nex
 
 Task 6.3 of version 1 is part of Task 6b.6.
 
-### 8.6 Phase 6b: one scenario structure (deferred)
+### 8.6 Phase 6b: exogenous stream, perturbations and IJPE (deferred)
 
 Not part of this plan's scope (Section 8); kept as the starting point of the next plan.
 
@@ -385,9 +402,7 @@ Read the section "Scenarios and exogenous information" of the design document fi
 
 - [ ] **6b.1** Exogenous information as one typed stream. A loader returns W_0, B_0 and an `ExogenousStream`, a time-ordered tuple of events from a closed set: `OrderArrival`, `OrderUpdate(order_id, due_date=None, cancelled=False)`, `PickerArrival`, `PickerDeparture`, `DepartureUpdate(departure_id, time=None, capacity=None)`, `Timer` and `OrderStreamClosed`. Handlers change W or B only, never the plan. Departures belong to W (the `Dock` holds the schedule, which also replaces `OperationsView`), and the engine emits `TruckDeparture` from it. Hooks are deleted.
 - [ ] **6b.2** Perturbations as declared, typed and seeded transformations of the stream, listed under `perturbations:` and applied before the run: `inject_orders`, `reveal_early`, `update_due_dates`, `move_departure`, `absence`, each with a selector by due date, arrival window, customer or volume, each recording its changes in the trace.
-- [ ] **6b.3** One layout and a generator: `README.md`, `config/<name>.yaml` with exactly the groups `data_card`, `decisions`, `cosy_repo`, `sweep`, one `loader.py`, optional `metrics.py` and `plots.py` (which reads output files only), and a `data/SOURCE.md` with `SHA256SUMS.txt`; the data itself is fetched by `scripts/fetch_data.py` or placed by the user, never committed (Section 3.1). Move the data committed on `main` behind the script here. `casim new <name>` creates the skeleton; shared code moves into `casim.scenarios`.
-- [ ] **6b.4** One entry point and one output format: `casim run <scenario> [overrides]` writes `kpis.json`, `decisions.json`, the trace, the output of `metrics.py` and the Gantt chart; `--dash` starts the dashboard. `scripts/baseline.py` uses `casim run`. `casim check --all` checks the layout.
-- [ ] **6b.5** Port Henn online, walk-or-wait and stochastic waiting, one commit each, with their baselines unchanged. Delete the grocery scenario unless the user decides otherwise.
+Tasks 6b.3 to 6b.5 of earlier versions are Phase S.
 - [ ] **6b.6** Reintegrate the IJPE study (F59) once the user has added the original data, the original loaders and the IJPE paper to `docs/`. Read the paper and list every simulated number it reports. Then, stopping after each step:
     1. Reproduction: run the original code on the original data at the commit the paper used (ask if neither the paper nor the history says which), compare with the paper, port the scenario (original loaders as `loader.py`, hooks as perturbations, the cancellation of `TruckDisruption` as a decision), run again and explain every difference by a fix of this plan, a changed semantics or a defect of the original. Where a published number can only be reproduced by restoring a defect, present the options.
     2. Data audit: units (including 1.6 TE per order), day boundaries, duplicate or missing lines, due dates before arrival, articles without location, pickers per day against the records, the configuration values, the two points of Task 4.9. Report each with evidence and its effect; do not change the data.
@@ -429,6 +444,7 @@ Leave these as they are on the branch and list them in each phase report until t
 4. The objective vocabulary of the cards (24 cards say `Distance`; the CASOP paper leaves constructive methods without objective).
 5. Whether the grocery scenario is deleted or rebuilt (Phase 6b). At `b44fd8a` it has no loader and no data, its repositories are inapplicable to ORSP, and none of its seven configurations runs.
 9. Whether CASIM supports order splitting (Task 4.16).
+10. The command line for creating and inspecting scenarios (`casim init` with templates, a results view); Phase S builds only `casim run` and `casim check`.
 6. Whether rolling horizon on the Henn instances, with synthetic due dates, is kept (Task 6.1).
 7. Whether the stochastic waiting scenario stays a scenario or becomes a verification fixture.
 8. Whether `Resource.available` and `Resource.occupied` are removed from the shared domain model once casim no longer uses them (Task 4.14).
@@ -438,12 +454,13 @@ Leave these as they are on the branch and list them in each phase report until t
 - Phases B, 4 and 5 are reported and accepted by the user, and every finding of Appendix A is fixed, deferred to the next plan, or decided by the user.
 - CASIM equals the direct algorithm calls on every static benchmark run of Tasks B.4 and B.4a; no online benchmark of Task B.5 has a value below a proven optimum or best-known value; every benchmark of the register is run or has a stated reason why not.
 - `python -m pytest -q` passes in one process in both repositories, including the exhaustive, invariant, resource, KPI recomputation, verification, baseline, import-boundary and AST tests.
+- `casim check --all` passes; every scenario follows Phase S, except `scenario_ijpe` until Task 6b.6.
 - `woa check` passes with an applicability lock equal to that of `main`, or changed only with the user's recorded approval.
 - No name of Section 6.3 is referenced anywhere.
 
 ## Appendix A: findings
 
-Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 from the reviews during Phases 3 and 4, F60 and F61 from the review of the benchmarks on 14 October 2026, F62 from Task B.2, F63 from a review of unused code on 14 October 2026, F64 and F65 from the smoke stage of Task B.4.
+Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 from the reviews during Phases 3 and 4, F60 and F61 from the review of the benchmarks on 14 October 2026, F62 from Task B.2, F63 from a review of unused code on 14 October 2026, F64 and F65 from the smoke stage of Task B.4, F66 from a review of the scenarios on 15 October 2026.
 
 | # | Finding | Fixed by | Status |
 |---|---|---|---|
@@ -512,3 +529,4 @@ Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 fro
 | F63 | Files, functions, tests and committed outputs that nothing uses | Removal | 4.16 |
 | F64 | `NearestNeighbourhoodRouting` reports a shorter distance than its own node sequence on some routes (384 less on the Kris smoke routes); CASOP's published Kris values use the reported distance | Root cause and extent; fix by user decision | B.4 |
 | F65 | `RatliffRosenthalRouting` returns no node sequence, so its tours cannot be executed | Return the reconstructed route | B.4a |
+| F66 | `scenarios/` mixes data sources, studies and main loops; every new one differs (five entry-point styles, three hook styles, two loaders for Henn's instances); "scenario" has three meanings | One defined scenario structure, library sources, `casim run`, checks | S.1 to S.4 |
