@@ -30,7 +30,6 @@ FORBIDDEN_IMPORTS = ("casim.simulation_engine", "casim.runner", "casim.run",
 # Scenarios not yet ported to this structure (Phase S, Task S.4); IJPE stays
 # until Task 6b.6. Each port removes its entry.
 NOT_PORTED = frozenset({
-    "scenario_static_benchmarks",
     "scenario_henn2012",
     "scenario_grocery_retailer", "scenario_ijpe",
     "scenario_dhaen_online",  # data of L4 only; deferred with Phase 6
@@ -137,12 +136,25 @@ def check_scenario(directory: Path) -> list[str]:
             read_reference(directory / REFERENCE_FILE)
         except ValueError as error:
             findings.append(str(error))
+    variants = [f"variants={path.stem}" for path in sorted((directory / "variants").glob("*.yaml"))]
     for overrides in _compositions(directory):
-        try:
-            check(compose_scenario(directory, overrides))
-        except Exception as error:  # every configuration error is a finding
+        error = _first_error(directory, overrides)
+        # A file that fits only some instances (a set's own pipeline) must
+        # compose with at least one variant.
+        if error is not None and overrides and not overrides[0].startswith("variants="):
+            if any(_first_error(directory, [*overrides, variant]) is None for variant in variants):
+                continue
+        if error is not None:
             findings.append(f"{' '.join(overrides) or 'default'}: {error}")
     return findings
+
+
+def _first_error(directory: Path, overrides: list[str]) -> str | None:
+    try:
+        check(compose_scenario(directory, overrides))
+    except Exception as error:  # every configuration error is a finding
+        return str(error)
+    return None
 
 
 def _has_content(directory: Path) -> bool:

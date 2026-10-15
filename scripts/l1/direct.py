@@ -18,7 +18,7 @@ from ware_ops_algos.algorithms import (
 from ware_ops_algos.algorithms.scheduling.scheduling import build_jobs
 from ware_ops_algos.domain_models.base_domain import BaseWarehouseDomain
 
-from scenarios.scenario_static_benchmarks.pipelines import Pipeline
+from scripts.l1.pipelines import Pipeline
 
 TIME_LIMIT_S = 300
 

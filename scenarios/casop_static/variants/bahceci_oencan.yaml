@@ -1,0 +1,8 @@
+# @package _global_
+# The set BahceciOencan with one instance of the L1 run list; source.instance selects another.
+defaults:
+  - override /data_card: bahceci_oencan
+
+source:
+  instance_set: BahceciOencan
+  instance: 'Pr_20_1_20_Store1_13'

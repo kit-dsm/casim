@@ -45,12 +45,12 @@ docs/research/
 # Run output
 .phaseb_runs/
 tmp_output/
-scenarios/scenario_static_benchmarks/data/*.parquet
-scenarios/scenario_static_benchmarks/data/.source/
-scenarios/scenario_static_benchmarks/data/instances/*
-!scenarios/scenario_static_benchmarks/data/instances/SOURCE.md
-!scenarios/scenario_static_benchmarks/data/instances/SHA256SUMS.txt
-scenarios/scenario_static_benchmarks/outputs/
+scenarios/casop_static/data/*.parquet
+scenarios/casop_static/data/.source/
+scenarios/casop_static/data/instances/*
+!scenarios/casop_static/data/instances/SOURCE.md
+!scenarios/casop_static/data/instances/SHA256SUMS.txt
+scenarios/casop_static/outputs/
 scenarios/henn_waiting/data/*
 !scenarios/henn_waiting/data/SOURCE.md
 !scenarios/henn_waiting/data/SHA256SUMS.txt

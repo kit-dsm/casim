@@ -21,6 +21,7 @@ if not PYTHON.exists():
     PYTHON = Path(sys.executable)
 sys.path.insert(0, str(ROOT))
 from tests.verification.kpi_recomputation import recompute_kpis  # noqa: E402
+from scripts.l1.run_benchmark import raw_instance, scenario_overrides  # noqa: E402
 
 
 def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
@@ -256,7 +257,12 @@ def _l3_overrides(record: dict) -> tuple[str, ...]:
             f"source.depot={record['depot']}")
 
 
-BENCHMARKS = {"l3": ("oobp", _l3_overrides)}
+def _l1_overrides(record: dict) -> tuple[str, ...]:
+    instance_set, instance = raw_instance(record["instance_set"], record["instance"])
+    return tuple(scenario_overrides(instance_set, instance, record["pipeline"]))
+
+
+BENCHMARKS = {"l1": ("casop_static", _l1_overrides), "l3": ("oobp", _l3_overrides)}
 
 
 def benchmark_cases(kind: str) -> dict[str, tuple[Path, tuple[str, str | None, tuple[str, ...]]]]:

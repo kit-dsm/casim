@@ -1,0 +1,8 @@
+# @package _global_
+# The set KrisLargeData with one instance of the L1 run list; source.instance selects another.
+defaults:
+  - override /data_card: kris
+
+source:
+  instance_set: KrisLargeData
+  instance: 'instances_115_1'

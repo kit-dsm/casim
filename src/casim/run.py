@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 from hydra import compose, initialize_config_dir
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 from ware_ops_algos.planning.lifecycle import TourStates
 
 from casim.baseline_capture import BaselineCapture
@@ -29,13 +29,22 @@ REFERENCE_FILE = "reference.csv"
 
 def compose_scenario(scenario_dir: Path, overrides: list[str] = (),
                      output_dir: Path | None = None) -> DictConfig:
-    """Compose ``scenario.yaml`` with the run settings every scenario shares."""
+    """Compose ``scenario.yaml`` with the run settings every scenario shares.
+
+    ``choices`` records the file chosen in every group (for example
+    ``choices.decisions``), so that ``reference.csv`` can select rows by them.
+    """
     scenario_dir = scenario_dir.resolve()
     with initialize_config_dir(config_dir=str(scenario_dir), version_base="1.3"):
         cfg = compose(config_name=SCENARIO_FILE.removesuffix(".yaml"),
-                      overrides=list(overrides))
+                      overrides=list(overrides), return_hydra_config=True)
+    choices = {group: choice for group, choice in cfg.hydra.runtime.choices.items()
+               if not group.startswith("hydra") and choice is not None}
+    with open_dict(cfg):
+        del cfg["hydra"]
     output_dir = (output_dir or scenario_dir / "outputs" / "run").resolve()
     shared = OmegaConf.create({
+        "choices": choices,
         "scenario_dir": scenario_dir.as_posix(),
         "project_root": Path.cwd().resolve().as_posix(),
         "instances_base": (scenario_dir / "data").as_posix(),
@@ -125,13 +134,18 @@ def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
     }, indent=2), encoding="utf-8")
     with open(output_dir / "tours.csv", "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        writer.writerow(("tour_id", "picker_id", "status", "start", "end", "picks",
-                         "orders_at_start", "order_ids"))
+        # start is the start of the route, after the setup (Task 4.14 separates
+        # planned and actual times); distance is the route's planned distance.
+        writer.writerow(("tour_id", "picker_id", "status", "start", "end", "setup",
+                         "distance", "picks", "orders_at_start", "order_ids"))
+        resources = sim.state.resource_manager
         for tour in sorted(sim.state.tour_manager.get_all_tours(),
                            key=lambda tour: tour.tour_id):
+            setup = (resources.get_resource(tour.assigned_resource).tour_setup_time or 0.0
+                     if tour.assigned_resource is not None else None)
             writer.writerow((tour.tour_id, tour.assigned_resource, tour.status.value,
-                             tour.start_time, tour.end_time, len(tour.completed_picks),
-                             len(tour.original_route.batch.orders),
+                             tour.start_time, tour.end_time, setup, tour.route.distance,
+                             len(tour.completed_picks), len(tour.original_route.batch.orders),
                              " ".join(map(str, tour.order_numbers))))
     manager = sim.state.order_manager
     completions = {order_id: tour.end_time

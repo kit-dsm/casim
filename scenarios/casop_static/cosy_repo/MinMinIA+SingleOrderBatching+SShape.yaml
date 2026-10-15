@@ -1,0 +1,9 @@
+# CASOP v0.1.0 pipeline MinMinIA+SingleOrderBatching+SShape (scripts/l1/pipelines.py).
+components:
+- casim.pipelines.problem_based_template.InstanceLoader
+- casim.pipelines.problem_based_template.OrdersProvider
+- casim.pipelines.subproblems.item_assingment.MinMinIA
+- casim.pipelines.subproblems.batching.FiFo
+- casim.pipelines.subproblems.picker_routing.SShape
+- casim.pipelines.subproblems.scheduling.FIFOScheduler
+- casim.pipelines.subproblems.waiting.NoWaitingNode

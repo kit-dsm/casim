@@ -4,14 +4,16 @@
 2. Algorithm drift: the direct result against CASOP's published v0.1.0 result.
 3. Literature: the direct result against the reference value.
 
-Usage: python -m scenarios.scenario_static_benchmarks.run_benchmark {smoke,full} [--sets SET ...]
+Usage: python -m scripts.l1.run_benchmark {smoke,full} [--sets SET ...]
+
+CASIM runs the scenario scenarios/casop_static through casim.run; the direct calls
+and the comparisons with CASOP and the literature are this script's.
 """
 
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
-from dataclasses import replace
+from dataclasses import asdict, dataclass, replace
 import json
 import logging
 from math import isclose
@@ -22,23 +24,78 @@ import tempfile
 
 import pandas as pd
 
-from scenarios.scenario_static_benchmarks.direct import TIME_LIMIT_S, solve
-from scenarios.scenario_static_benchmarks.experiment import run
-from scenarios.scenario_static_benchmarks.loader import load_casop_domain, to_static_sim_domain
-from scenarios.scenario_static_benchmarks.pipelines import PIPELINES
 from ware_ops_algos.domain_models import Resources
+
+from casim.run import compose_scenario, run as run_scenario
+from casim.sources.casop.loader import load_casop_domain, to_static_sim_domain
+from scripts.l1.direct import TIME_LIMIT_S, solve
+from scripts.l1.pipelines import PIPELINES
 from tests.verification.kpi_recomputation import recompute_kpis
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNLIST = ROOT / "docs" / "literature_benchmarks" / "l1_runlist.csv"
-RESULTS = Path(__file__).resolve().parent / "data" / "casop-results-v0.1.0.parquet"
-INSTANCES = ROOT / "scenarios" / "scenario_static_benchmarks" / "data" / "instances"
-OUTPUT = Path(__file__).resolve().parent / "outputs"
+SCENARIO = ROOT / "scenarios" / "casop_static"
+RESULTS = SCENARIO / "data" / "casop-results-v0.1.0.parquet"
+INSTANCES = SCENARIO / "data" / "instances"
+OUTPUT = SCENARIO / "outputs"
 BASELINES = ROOT / "tests" / "baseline" / "benchmarks" / "l1"
 REL_TOL = 1e-9
 NOT_EXECUTABLE = {}
 
 logger = logging.getLogger(__name__)
+DATA_CARDS = {
+    "SPRP": "sprp", "SPRP-SS": "sprp_ss", "BahceciOencan": "bahceci_oencan",
+    "HennWaescherUniform": "henn_waescher", "HennWaescherClassBased": "henn_waescher",
+    "MuterOencanWG": "muter_oencan", "FoodmartData": "foodmart",
+    "KrisSmallDataCorrected": "kris", "KrisLargeData": "kris",
+}
+
+
+@dataclass(frozen=True)
+class CasimResult:
+    """What the executed tours give."""
+
+    distance: float
+    total_time: float
+    max_lateness: float | None
+    route_distances: tuple[float, ...]
+    batches: tuple[tuple[int, ...], ...]
+    decisions: int
+
+
+def scenario_overrides(instance_set: str, instance: str, label: str) -> list[str]:
+    """The casim run overrides of one L1 row."""
+    return [f"data_card={DATA_CARDS[instance_set]}", f"source.instance_set={instance_set}",
+            f"source.instance='{instance}'", f"cosy_repo='{label}'"]
+
+
+def run(instance_set: str, instance: str, label: str, output_dir: Path,
+        audit: bool = False) -> CasimResult:
+    """Run one row through scenarios/casop_static and read the result from its outputs.
+
+    Total time counts each completed tour from the start of its setup; ``start``
+    in ``tours.csv`` is the start of the route, after the setup.
+    """
+    cfg = compose_scenario(SCENARIO, scenario_overrides(instance_set, instance, label), output_dir)
+    cfg.experiment.audit = audit
+    run_scenario(cfg)
+    tours = pd.read_csv(output_dir / "tours.csv", dtype={"order_ids": str})
+    orders = pd.read_csv(output_dir / "orders.csv")
+    done = tours[tours.status == "done"]
+    late = (orders.completion - orders.due_date).dropna()
+    kpis = json.loads((output_dir / "kpis.json").read_text(encoding="utf-8"))
+    decisions = (sum(json.loads((output_dir / "audit.json").read_text(encoding="utf-8"))
+                     ["decisions"].values()) if audit else
+                 json.loads((output_dir / "decisions.json").read_text(encoding="utf-8"))["decisions"])
+    return CasimResult(
+        distance=sum(kpis["distance_by_picker"].values()),
+        total_time=float((done.end - done.start + done.setup).sum()),
+        max_lateness=float(late.max()) if len(late) else None,
+        route_distances=tuple(sorted(tours.distance)),
+        batches=tuple(sorted(tuple(sorted(int(order) for order in ids.split()))
+                             for ids in tours.order_ids.fillna(""))),
+        decisions=decisions,
+    )
 
 
 def raw_instance(instance_set: str, name: str) -> tuple[str, str]:
@@ -76,11 +133,11 @@ def record_baseline(row: pd.Series, folder: Path) -> int:
     audit_path = folder / "audit.json"
     audit_violations = violations(audit_path)
     audit = json.loads(audit_path.read_text(encoding="utf-8"))
-    kpis = json.loads((folder / "kpis" / "kpis.json").read_text(encoding="utf-8"))
+    kpis = json.loads((folder / "kpis.json").read_text(encoding="utf-8"))
     baseline = {
         "instance_set": row.instance_set, "instance": row.instance_name,
         "pipeline": row.pipeline,
-        "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+        "command": "python -m scripts.l1.run_benchmark full",
         "casim_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
         "ware_ops_algos_commit": subprocess.check_output(

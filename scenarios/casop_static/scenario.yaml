@@ -1,0 +1,15 @@
+defaults:
+  - _self_
+  - data_card: henn_waescher
+  - decisions: static
+  - cosy_repo: GIA+SavingsSShape+SShape
+  - optional variants: null
+
+name: casop_static
+# One static instance of a CASOP benchmark set: every order and picker at
+# t = 0, one decision, every tour committed. The data card names the set's
+# features; source.instance_set picks ware_ops_pipes' loader.
+source:
+  name: casop
+  instance_set: HennWaescherUniform
+  instance: 21s-20-30-1

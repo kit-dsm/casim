@@ -1,0 +1,8 @@
+# @package _global_
+# The set SPRP with one instance of the L1 run list; source.instance selects another.
+defaults:
+  - override /data_card: sprp
+
+source:
+  instance_set: SPRP
+  instance: 'unit_F1_m10_C180_a15_39'

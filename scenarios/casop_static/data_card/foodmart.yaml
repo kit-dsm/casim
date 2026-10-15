@@ -1,11 +1,7 @@
-# Copied from ware_ops_pipes data/data_cards/sprp_ss.yaml (554a153); source and order_date added for CASIM.
-# The loader gives SPRP instances one box for their single order (see loader.py).
-name: SPRP
-problem_class: SPRP
+# Copied from ware_ops_pipes data/data_cards/foodmart.yaml (554a153); source and order_date added for CASIM.
+name: foodmart
+problem_class: OBRP
 objective: distance
-source:
-  data_loader: scenarios.scenario_static_benchmarks.loader.StaticBenchmarkLoader
-
 layout:
   type: conventional
   objects:
@@ -15,14 +11,10 @@ layout:
         - name: end_node
         - name: closest_node_to_start
         - name: dist_pick_locations
-        - name: dist_aisle_location
-        - name: dist_aisle
-        - name: dist_start
-        - name: dist_end
         - name: n_aisles
         - name: n_pick_locations
         - name: n_blocks
-          value: 1
+          value: 2
         - name: dist_top_to_pick_location
         - name: dist_bottom_to_pick_location
         - name: start_location
@@ -42,6 +34,8 @@ articles:
     - name: Article
       features:
         - name: article_id
+        - name: weight
+        - name: volume
 
 orders:
   type: standard
@@ -64,6 +58,7 @@ resources:
       type: human
       features:
         - name: speed
+        - name: time_per_pick
 
       objects:
         - name: PickCart
@@ -73,10 +68,10 @@ resources:
             - name: dimensions_type
               value: [items]
             - name: n_boxes
-              value: 1
+              value: 8
 
 storage:
-  type: scattered
+  type: dedicated
   objects:
     - name: StorageLocations
       features:

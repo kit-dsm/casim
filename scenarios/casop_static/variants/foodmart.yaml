@@ -1,0 +1,8 @@
+# @package _global_
+# The set FoodmartData with one instance of the L1 run list; source.instance selects another.
+defaults:
+  - override /data_card: foodmart
+
+source:
+  instance_set: FoodmartData
+  instance: 'instances_d10_ord10_MAL'

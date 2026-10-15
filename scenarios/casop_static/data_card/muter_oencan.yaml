@@ -1,11 +1,7 @@
-# Copied from ware_ops_pipes data/data_cards/sprp.yaml (554a153); source and order_date added for CASIM.
-# The loader gives SPRP instances one box for their single order (see loader.py).
-name: SPRP
-problem_class: SPRP
+# Copied from ware_ops_pipes data/data_cards/muter_oencan.yaml (554a153); source and order_date added for CASIM.
+name: BahceciOencan
+problem_class: OBRP
 objective: distance
-source:
-  data_loader: scenarios.scenario_static_benchmarks.loader.StaticBenchmarkLoader
-
 layout:
   type: conventional
   objects:

@@ -220,7 +220,7 @@ DATASETS = {
         cache=".",
     ),
     "casop": Dataset(
-        ROOT / "scenarios/scenario_static_benchmarks/data",
+        ROOT / "scenarios/casop_static/data",
         (Download("https://github.com/kit-dsm/ware_ops_pipes/releases/download/v0.1.0/"
                   "casop-results-v0.1.0.parquet",
                   "4e3dd80237636b5a29ff80b0409769768f7b0eaba3cedfb45df5d689dd8322ac",
@@ -229,7 +229,7 @@ DATASETS = {
         cache=".",
     ),
     "casop_instances": Dataset(
-        ROOT / "scenarios/scenario_static_benchmarks/data/instances",
+        ROOT / "scenarios/casop_static/data/instances",
         (
             Download("https://download.uni-mainz.de/fb03-logistikmanagement/benchmarks/instances_SPRP-SS_JOBPRP.zip",
                      "5d3931c7076fc7de2815695c008531079a51c549f0780235934f7fcb01eac8d8", "mainz.zip"),

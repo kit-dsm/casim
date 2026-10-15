@@ -12,7 +12,6 @@ from ware_ops_algos.domain_models import (
 from ware_ops_algos.domain_models.base_domain import BaseWarehouseDomain
 from ware_ops_pipes.data_loaders import FoodmartLoader, HesslerIrnichLoader, IBRSPLoader
 
-from casim.data_loader import DataLoader
 from casim.domain_objects.sim_domain import SimWarehouseDomain, initial_dynamic_info
 
 logger = logging.getLogger(__name__)
@@ -86,17 +85,3 @@ def to_static_sim_domain(domain: BaseWarehouseDomain, instance_set: str) -> SimW
         warehouse_info=WarehouseInfo(tpe=WarehouseInfoType.OFFLINE),
         dynamic_warehouse_info=initial_dynamic_info(),
     )
-
-
-class StaticBenchmarkLoader(DataLoader):
-    """Scenario loader: one CASOP instance, all orders at time 0."""
-
-    def __init__(self, instances_dir: str | Path, cfg):
-        super().__init__(instances_dir)
-        self.instances_root = Path(cfg.instances_root)
-        self.instance_set = cfg.benchmark.instance_set
-        self.instance = cfg.benchmark.instance
-
-    def load(self, **kwargs) -> SimWarehouseDomain:
-        domain = load_casop_domain(self.instances_root, self.instance_set, self.instance)
-        return to_static_sim_domain(domain, self.instance_set)

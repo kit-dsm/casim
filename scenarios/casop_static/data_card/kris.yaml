@@ -1,10 +1,7 @@
-# Copied from ware_ops_pipes data/data_cards/muter_oencan.yaml (554a153); source and order_date added for CASIM.
-name: BahceciOencan
-problem_class: OBRP
+# Copied from ware_ops_pipes data/data_cards/kris.yaml (554a153).
+name: kris
+problem_class: OBSRP
 objective: distance
-source:
-  data_loader: scenarios.scenario_static_benchmarks.loader.StaticBenchmarkLoader
-
 layout:
   type: conventional
   objects:
@@ -14,14 +11,10 @@ layout:
         - name: end_node
         - name: closest_node_to_start
         - name: dist_pick_locations
-        - name: dist_aisle_location
-        - name: dist_aisle
-        - name: dist_start
-        - name: dist_end
         - name: n_aisles
         - name: n_pick_locations
         - name: n_blocks
-          value: 1
+          value: 2
         - name: dist_top_to_pick_location
         - name: dist_bottom_to_pick_location
         - name: start_location
@@ -41,6 +34,8 @@ articles:
     - name: Article
       features:
         - name: article_id
+        - name: weight
+        - name: volume
 
 orders:
   type: standard
@@ -48,7 +43,8 @@ orders:
     - name: Order
       features:
         - name: order_id
-        - name: order_date   # set to 0 by the loader: every order is released at t = 0
+        - name: due_date
+        - name: order_date
 
       objects:
         - name: OrderPosition
@@ -63,6 +59,7 @@ resources:
       type: human
       features:
         - name: speed
+        - name: time_per_pick
 
       objects:
         - name: PickCart
@@ -70,9 +67,7 @@ resources:
           features:
             - name: capacities
             - name: dimensions_type
-              value: [items]
-            - name: n_boxes
-              value: 1
+              value: [orderlines]
 
 storage:
   type: dedicated
