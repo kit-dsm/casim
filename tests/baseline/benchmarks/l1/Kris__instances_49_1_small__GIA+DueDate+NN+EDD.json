@@ -1,0 +1,95 @@
+{
+  "instance_set": "Kris",
+  "instance": "instances_49_1_small",
+  "pipeline": "GIA+DueDate+NN+EDD",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 33894.0,
+    "mean_order_completion_time": 22791.5,
+    "num_tours": 4,
+    "num_orders_completed": 12,
+    "avg_tour_makespan": 10566.0,
+    "avg_batch_size": 3.0,
+    "orders_per_hour": 1.2745618693574086,
+    "tours_per_hour": 0.4248539564524695,
+    "distance_by_picker": {
+      "0": 5898.0,
+      "1": 4690.0
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 10588.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "13764.0": 1,
+      "19608.0": 2,
+      "29970.0": 3,
+      "33894.0": 4
+    },
+    "total_tour_times": 42264.0,
+    "picks_per_hour": 3.7174721189591082,
+    "total_processing_time": 42264.0
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        3,
+        1,
+        11,
+        4
+      ],
+      "start": 0.0,
+      "end": 19032.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 1,
+      "order_ids": [
+        5,
+        6,
+        7
+      ],
+      "start": 0.0,
+      "end": 13764.0
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 1,
+      "order_ids": [
+        8,
+        9,
+        10,
+        2
+      ],
+      "start": 13764.0,
+      "end": 29970.0
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        12
+      ],
+      "start": 19032.0,
+      "end": 33318.0
+    }
+  ],
+  "trace_digest": "a05b943591580bc811c5c611a23bc5de93d22aeb43e17fc6c392008c2dc63c19",
+  "event_count": 464,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

@@ -1,0 +1,107 @@
+{
+  "instance_set": "Kris",
+  "instance": "instances_170_1_small",
+  "pipeline": "GIA+DueDate+NN+EDD",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 58638.0,
+    "mean_order_completion_time": 41309.0,
+    "num_tours": 5,
+    "num_orders_completed": 6,
+    "avg_tour_makespan": 16336.8,
+    "avg_batch_size": 1.2,
+    "orders_per_hour": 0.36836181315870253,
+    "tours_per_hour": 0.3069681776322521,
+    "distance_by_picker": {
+      "0": 13346.0,
+      "1": 12482.0
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 25828.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "24072.0": 1,
+      "24378.0": 2,
+      "45360.0": 3,
+      "50046.0": 4,
+      "58638.0": 5
+    },
+    "total_tour_times": 81684.0,
+    "picks_per_hour": 0.859510897370306,
+    "total_processing_time": 81684.0
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        2
+      ],
+      "start": 0.0,
+      "end": 23802.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 1,
+      "order_ids": [
+        3
+      ],
+      "start": 0.0,
+      "end": 23208.0
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 1,
+      "order_ids": [
+        1
+      ],
+      "start": 23208.0,
+      "end": 49182.0
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        5,
+        6
+      ],
+      "start": 23802.0,
+      "end": 44784.0
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 0,
+      "order_ids": [
+        4
+      ],
+      "start": 44784.0,
+      "end": 57486.0
+    }
+  ],
+  "trace_digest": "6c1499f4968b138975edd43f95b58d58bd3cccd8bfbef386da3446b58388db60",
+  "event_count": 263,
+  "violations": {
+    "check_plan": {
+      "overlap": 106
+    },
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {
+      "overlap": {
+        "at": "TourStart",
+        "time": 29778.0,
+        "tour_id": 5,
+        "message": "Picker 0 has overlapping tours"
+      }
+    },
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "inconsistent"
+}

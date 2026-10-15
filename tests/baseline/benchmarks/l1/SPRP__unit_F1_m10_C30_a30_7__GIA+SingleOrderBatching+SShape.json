@@ -1,0 +1,56 @@
+{
+  "instance_set": "SPRP",
+  "instance": "unit_F1_m10_C30_a30_7",
+  "pipeline": "GIA+SingleOrderBatching+SShape",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full # SPRP/unit_F1_m10_C30_a30_7/GIA+SingleOrderBatching+SShape",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 324.0,
+    "mean_order_completion_time": 324.0,
+    "num_tours": 1,
+    "num_orders_completed": 1,
+    "avg_tour_makespan": 324.0,
+    "avg_batch_size": 1.0,
+    "orders_per_hour": 11.11111111111111,
+    "tours_per_hour": 11.11111111111111,
+    "distance_by_picker": {
+      "0": 324.0
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 324.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "324.0": 1
+    },
+    "total_tour_times": 324.0,
+    "picks_per_hour": 333.33333333333337,
+    "total_processing_time": 324.0
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0
+      ],
+      "start": 0.0,
+      "end": 324.0
+    }
+  ],
+  "trace_digest": "7913a64f8052338e1e3b9f279c0d16b471f4f8269626447d5b61a0e1d017c8cf",
+  "event_count": 651,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

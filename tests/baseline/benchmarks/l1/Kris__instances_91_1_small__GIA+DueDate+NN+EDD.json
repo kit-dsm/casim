@@ -1,0 +1,110 @@
+{
+  "instance_set": "Kris",
+  "instance": "instances_91_1_small",
+  "pipeline": "GIA+DueDate+NN+EDD",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "b519ecb431a5186764ab3d4f9ba8ad2f5c974ec1",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 69606.0,
+    "mean_order_completion_time": 46017.333333333336,
+    "num_tours": 5,
+    "num_orders_completed": 18,
+    "avg_tour_makespan": 19515.6,
+    "avg_batch_size": 3.6,
+    "orders_per_hour": 0.9309542280837858,
+    "tours_per_hour": 0.2585983966899405,
+    "distance_by_picker": {
+      "0": 13124.0,
+      "1": 16002.0
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 29126.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "23214.0": 1,
+      "27498.0": 2,
+      "52854.0": 3,
+      "54972.0": 4,
+      "69606.0": 5
+    },
+    "total_tour_times": 97578.0,
+    "picks_per_hour": 1.7584690974915955,
+    "total_processing_time": 97578.0
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        5,
+        6
+      ],
+      "start": 0.0,
+      "end": 27498.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 1,
+      "order_ids": [
+        17,
+        3,
+        13,
+        14
+      ],
+      "start": 0.0,
+      "end": 23214.0
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 1,
+      "order_ids": [
+        9,
+        18,
+        11,
+        1
+      ],
+      "start": 23214.0,
+      "end": 52854.0
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        2,
+        4,
+        7,
+        8,
+        15,
+        16
+      ],
+      "start": 27498.0,
+      "end": 54972.0
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 1,
+      "order_ids": [
+        10,
+        12
+      ],
+      "start": 52854.0,
+      "end": 69606.0
+    }
+  ],
+  "trace_digest": "c61c1f1c2a6c5d2ad6c564ed1caef1f95e29ee0204760517140baffd70722c4b",
+  "event_count": 645,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

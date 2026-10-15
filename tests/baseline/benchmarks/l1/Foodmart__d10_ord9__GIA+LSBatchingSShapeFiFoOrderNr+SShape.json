@@ -1,0 +1,73 @@
+{
+  "instance_set": "Foodmart",
+  "instance": "d10_ord9",
+  "pipeline": "GIA+LSBatchingSShapeFiFoOrderNr+SShape",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 681.19,
+    "mean_order_completion_time": 483.4566666666667,
+    "num_tours": 2,
+    "num_orders_completed": 9,
+    "avg_tour_makespan": 340.595,
+    "avg_batch_size": 4.5,
+    "orders_per_hour": 47.56382213479352,
+    "tours_per_hour": 10.569738252176338,
+    "distance_by_picker": {
+      "0": 681.19
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 681.19,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "384.59000000000003": 1,
+      "681.19": 2
+    },
+    "total_tour_times": 681.19,
+    "picks_per_hour": 655.3237716349329,
+    "total_processing_time": 681.19
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        9
+      ],
+      "start": 0.0,
+      "end": 384.59000000000003
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        8,
+        3,
+        7
+      ],
+      "start": 384.59000000000003,
+      "end": 681.19
+    }
+  ],
+  "trace_digest": "1bbe4bc629369f53fa11967ba65bb945f7df81398add2c39055b2803638b9a9f",
+  "event_count": 803,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

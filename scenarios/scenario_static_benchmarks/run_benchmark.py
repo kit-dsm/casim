@@ -17,6 +17,7 @@ import logging
 from math import isclose
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 
 import pandas as pd
@@ -26,12 +27,14 @@ from scenarios.scenario_static_benchmarks.experiment import run
 from scenarios.scenario_static_benchmarks.loader import load_casop_domain, to_static_sim_domain
 from scenarios.scenario_static_benchmarks.pipelines import PIPELINES
 from ware_ops_algos.domain_models import Resources
+from tests.verification.kpi_recomputation import recompute_kpis
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNLIST = ROOT / "docs" / "literature_benchmarks" / "l1_runlist.csv"
 RESULTS = Path(__file__).resolve().parent / "data" / "casop-results-v0.1.0.parquet"
 INSTANCES = ROOT / "scenarios" / "scenario_static_benchmarks" / "data" / "instances"
 OUTPUT = Path(__file__).resolve().parent / "outputs"
+BASELINES = ROOT / "tests" / "baseline" / "benchmarks" / "l1"
 REL_TOL = 1e-9
 NOT_EXECUTABLE = {}
 
@@ -66,6 +69,37 @@ def published(results: pd.DataFrame, instance_set: str, stem: str, label: str) -
 def violations(audit: Path) -> int:
     data = json.loads(audit.read_text(encoding="utf-8"))
     return sum(sum(counts.values()) for counts in data["violations"].values())
+
+
+def record_baseline(row: pd.Series, folder: Path) -> int:
+    """Keep the audit facts from a CASIM run and return its violation count."""
+    audit_path = folder / "audit.json"
+    audit_violations = violations(audit_path)
+    audit = json.loads(audit_path.read_text(encoding="utf-8"))
+    kpis = json.loads((folder / "kpis" / "kpis.json").read_text(encoding="utf-8"))
+    baseline = {
+        "instance_set": row.instance_set, "instance": row.instance_name,
+        "pipeline": row.pipeline,
+        "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+        "casim_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "ware_ops_algos_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT.parent / "ware_ops_algos",
+            text=True).strip(),
+        "kpis": kpis, "decisions": audit["decisions"],
+        "committed_tours": audit["committed_tours"],
+        "trace_digest": audit["trace_digest"],
+        "event_count": audit["event_count"],
+        "violations": audit["violations"],
+        "first_violations": audit["first_violations"],
+        "kpi_differences": recompute_kpis(audit, kpis),
+    }
+    baseline["status"] = ("inconsistent" if baseline["kpi_differences"] or
+                          audit_violations else "consistent")
+    BASELINES.mkdir(parents=True, exist_ok=True)
+    (BASELINES / f"{row.instance_set}__{row.instance_name}__{row.pipeline}.json").write_text(
+        json.dumps(baseline, indent=2), encoding="utf-8")
+    return audit_violations
 
 
 def evaluate(row: pd.Series, results: pd.DataFrame, smoke: bool = False) -> dict:
@@ -121,7 +155,7 @@ def evaluate(row: pd.Series, results: pd.DataFrame, smoke: bool = False) -> dict
         OUTPUT.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=OUTPUT) as folder:
             casim = run(instance_set, stem, row.pipeline, Path(folder), audit=True)
-            out["casim_violations"] = violations(Path(folder) / "audit.json")
+            out["casim_violations"] = record_baseline(row, Path(folder))
         casim_value = casim.total_time if objective == "total_time" else casim.distance
         out.update(casim=casim_value, casim_distance=casim.distance, casim_decisions=casim.decisions,
                    same_batches=casim.batches == direct.batches,
@@ -165,6 +199,8 @@ def main() -> None:
     parser.add_argument("--exclude-runlist", type=Path,
                         help="run only rows absent from this prior run list")
     parser.add_argument("--resume", action="store_true", help="continue an existing output CSV")
+    parser.add_argument("--refresh-baselines", action="store_true",
+                        help="rerun completed rows for audit baselines and check their values")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     subset = pd.read_csv(RUNLIST, dtype={"instance_name": str, "stratum": str})
@@ -185,6 +221,10 @@ def main() -> None:
     suffix = "_missing" if args.exclude_runlist else (
         "_filtered" if args.pipelines or args.sets else "")
     path = OUTPUT / f"l1_{args.stage}{suffix}.csv"
+    if args.refresh_baselines and args.stage == "full" and not suffix:
+        corrected = OUTPUT / "l1_full_corrected.csv"
+        if corrected.exists():
+            path = corrected
     rows = pd.read_csv(path).to_dict("records") if args.resume and path.exists() else []
     for index, (_, row) in enumerate(subset.iterrows()):
         if index < len(rows):
@@ -192,6 +232,21 @@ def main() -> None:
             if (prior["set"], prior["instance"], prior["pipeline"]) != (
                     row.instance_set, row.instance_name, row.pipeline):
                 raise RuntimeError(f"Resume CSV row {index} does not match the run list")
+            if args.refresh_baselines:
+                baseline_path = BASELINES / (f"{row.instance_set}__{row.instance_name}__"
+                                             f"{row.pipeline}.json")
+                if baseline_path.exists():
+                    continue
+                instance_set, stem = raw_instance(row.instance_set, row.instance_name)
+                with tempfile.TemporaryDirectory(dir=OUTPUT) as folder:
+                    casim = run(instance_set, stem, row.pipeline, Path(folder), audit=True)
+                    objective = prior["objective"]
+                    value = casim.total_time if objective == "total_time" else casim.distance
+                    if not equal(value, prior["casim"]):
+                        raise RuntimeError(f"Baseline rerun changed CASIM value: "
+                                           f"{row.instance_set} {row.instance_name} "
+                                           f"{row.pipeline}: {value} != {prior['casim']}")
+                    record_baseline(row, Path(folder))
             continue
         rows.append(evaluate(row, results, smoke=args.stage == "smoke"))
         pd.DataFrame(rows).to_csv(path, index=False)

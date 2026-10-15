@@ -1,0 +1,63 @@
+{
+  "instance_set": "BahceciOencan",
+  "instance": "Pr_20_1_20_Store1_13",
+  "pipeline": "GIA+LSBatchingSShapeFiFoOrderNr+SShape",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full # BahceciOencan/Pr_20_1_20_Store1_13/GIA+LSBatchingSShapeFiFoOrderNr+SShape",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 131.20000000000005,
+    "mean_order_completion_time": 131.20000000000005,
+    "num_tours": 1,
+    "num_orders_completed": 8,
+    "avg_tour_makespan": 131.20000000000005,
+    "avg_batch_size": 8.0,
+    "orders_per_hour": 219.51219512195112,
+    "tours_per_hour": 27.43902439024389,
+    "distance_by_picker": {
+      "0": 131.20000000000005
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 131.20000000000005,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "131.20000000000005": 1
+    },
+    "total_tour_times": 131.20000000000005,
+    "picks_per_hour": 548.7804878048778,
+    "total_processing_time": 131.20000000000005
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "start": 0.0,
+      "end": 131.20000000000002
+    }
+  ],
+  "trace_digest": "6747229c3aa973605a05a5bb3b15a52f2870d6df08d4fe945a074c59b3839fca",
+  "event_count": 274,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

@@ -1,0 +1,80 @@
+{
+  "instance_set": "Kris",
+  "instance": "instances_17_1_small",
+  "pipeline": "GIA+DueDate+NN+EDD",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 29802.0,
+    "mean_order_completion_time": 18847.0,
+    "num_tours": 3,
+    "num_orders_completed": 6,
+    "avg_tour_makespan": 10292.0,
+    "avg_batch_size": 2.0,
+    "orders_per_hour": 0.7247835715723776,
+    "tours_per_hour": 0.3623917857861888,
+    "distance_by_picker": {
+      "0": 3258.0,
+      "1": 5334.0
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 8592.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "14184.0": 1,
+      "17274.0": 2,
+      "29802.0": 3
+    },
+    "total_tour_times": 30876.0,
+    "picks_per_hour": 2.053553452788403,
+    "total_processing_time": 30876.0
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "start": 0.0,
+      "end": 17274.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 1,
+      "order_ids": [
+        1
+      ],
+      "start": 0.0,
+      "end": 14184.0
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 1,
+      "order_ids": [
+        2
+      ],
+      "start": 14184.0,
+      "end": 29802.0
+    }
+  ],
+  "trace_digest": "2815949661b48971943ac9e7994823d179950b04b95e4966825b13f557e01752",
+  "event_count": 244,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

@@ -1,0 +1,107 @@
+{
+  "instance_set": "Kris",
+  "instance": "instances_35_1_small",
+  "pipeline": "GIA+DueDate+NN+EDD",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 40266.0,
+    "mean_order_completion_time": 24027.0,
+    "num_tours": 6,
+    "num_orders_completed": 6,
+    "avg_tour_makespan": 7115.0,
+    "avg_batch_size": 1.0,
+    "orders_per_hour": 0.5364327223960661,
+    "tours_per_hour": 0.5364327223960661,
+    "distance_by_picker": {
+      "0": 5308.0,
+      "1": 6822.0
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 12130.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "7032.0": 1,
+      "13332.0": 2,
+      "21204.0": 3,
+      "27504.0": 4,
+      "34824.0": 5,
+      "40266.0": 6
+    },
+    "total_tour_times": 42690.0,
+    "picks_per_hour": 1.8775145283862316,
+    "total_processing_time": 42690.0
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        5
+      ],
+      "start": 0.0,
+      "end": 7032.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 1,
+      "order_ids": [
+        1
+      ],
+      "start": 0.0,
+      "end": 13332.0
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        2
+      ],
+      "start": 7032.0,
+      "end": 21204.0
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 1,
+      "order_ids": [
+        3
+      ],
+      "start": 13332.0,
+      "end": 27504.0
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 0,
+      "order_ids": [
+        4
+      ],
+      "start": 21204.0,
+      "end": 34824.0
+    },
+    {
+      "tour_id": 6,
+      "picker_id": 1,
+      "order_ids": [
+        6
+      ],
+      "start": 27504.0,
+      "end": 40266.0
+    }
+  ],
+  "trace_digest": "c1946e8f44adce392b08096e566ece772a58d6ea271f0ccb94c2a1d83402538c",
+  "event_count": 404,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

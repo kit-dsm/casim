@@ -1,0 +1,113 @@
+{
+  "instance_set": "Kris",
+  "instance": "instances_230_1_small",
+  "pipeline": "GIA+DueDate+NN+EDD",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 78618.0,
+    "mean_order_completion_time": 50317.5,
+    "num_tours": 6,
+    "num_orders_completed": 12,
+    "avg_tour_makespan": 19711.0,
+    "avg_batch_size": 2.0,
+    "orders_per_hour": 0.5494924826375639,
+    "tours_per_hour": 0.27474624131878195,
+    "distance_by_picker": {
+      "0": 19106.0,
+      "1": 17016.0
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 36122.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "20736.0": 1,
+      "25110.0": 2,
+      "51408.0": 3,
+      "51972.0": 4,
+      "72048.0": 5,
+      "78618.0": 6
+    },
+    "total_tour_times": 118266.0,
+    "picks_per_hour": 1.5111043272533007,
+    "total_processing_time": 118266.0
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        10,
+        3
+      ],
+      "start": 0.0,
+      "end": 25110.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 1,
+      "order_ids": [
+        2
+      ],
+      "start": 0.0,
+      "end": 20736.0
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 1,
+      "order_ids": [
+        8,
+        5,
+        6
+      ],
+      "start": 20736.0,
+      "end": 51972.0
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        9,
+        4,
+        1
+      ],
+      "start": 25110.0,
+      "end": 51408.0
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 0,
+      "order_ids": [
+        7
+      ],
+      "start": 51408.0,
+      "end": 78618.0
+    },
+    {
+      "tour_id": 6,
+      "picker_id": 1,
+      "order_ids": [
+        11,
+        12
+      ],
+      "start": 51972.0,
+      "end": 72048.0
+    }
+  ],
+  "trace_digest": "7f08282eb37b44bd450acfe8e9b482cdeaac3ce0e0eeb880594f325df641d118",
+  "event_count": 654,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

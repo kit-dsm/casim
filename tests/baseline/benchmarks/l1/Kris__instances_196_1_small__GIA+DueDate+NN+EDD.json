@@ -1,0 +1,98 @@
+{
+  "instance_set": "Kris",
+  "instance": "instances_196_1_small",
+  "pipeline": "GIA+DueDate+NN+EDD",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 68040.0,
+    "mean_order_completion_time": 36928.0,
+    "num_tours": 5,
+    "num_orders_completed": 6,
+    "avg_tour_makespan": 17684.4,
+    "avg_batch_size": 1.2,
+    "orders_per_hour": 0.3174603174603175,
+    "tours_per_hour": 0.2645502645502646,
+    "distance_by_picker": {
+      "0": 11494.0,
+      "1": 16480.0
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 27974.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "19560.0": 1,
+      "21192.0": 2,
+      "44202.0": 3,
+      "47382.0": 4,
+      "68040.0": 5
+    },
+    "total_tour_times": 88422.0,
+    "picks_per_hour": 0.7936507936507937,
+    "total_processing_time": 88422.0
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        5
+      ],
+      "start": 0.0,
+      "end": 19560.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 1,
+      "order_ids": [
+        3,
+        6
+      ],
+      "start": 0.0,
+      "end": 21192.0
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        1
+      ],
+      "start": 19560.0,
+      "end": 43638.0
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 1,
+      "order_ids": [
+        2
+      ],
+      "start": 21192.0,
+      "end": 42474.0
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 1,
+      "order_ids": [
+        4
+      ],
+      "start": 42474.0,
+      "end": 64584.0
+    }
+  ],
+  "trace_digest": "c72632a6459ecd0a45d59c1145636cd10dc6a36695183d0b5b09c3c652282dbd",
+  "event_count": 278,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

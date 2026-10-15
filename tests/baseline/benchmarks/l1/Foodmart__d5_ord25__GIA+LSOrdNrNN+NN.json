@@ -1,0 +1,107 @@
+{
+  "instance_set": "Foodmart",
+  "instance": "d5_ord25",
+  "pipeline": "GIA+LSOrdNrNN+NN",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 1183.48,
+    "mean_order_completion_time": 715.1659999999997,
+    "num_tours": 4,
+    "num_orders_completed": 25,
+    "avg_tour_makespan": 295.87,
+    "avg_batch_size": 6.25,
+    "orders_per_hour": 76.04691249535269,
+    "tours_per_hour": 12.16750599925643,
+    "distance_by_picker": {
+      "0": 1183.4799999999998
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 1183.4799999999998,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "337.09": 1,
+      "673.68": 2,
+      "970.3900000000001": 3,
+      "1183.48": 4
+    },
+    "total_tour_times": 1183.48,
+    "picks_per_hour": 608.3752999628215,
+    "total_processing_time": 1183.48
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        1,
+        2,
+        8,
+        10,
+        13,
+        14,
+        16
+      ],
+      "start": 0.0,
+      "end": 337.09
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        3,
+        6,
+        7,
+        9,
+        11,
+        12,
+        15,
+        19
+      ],
+      "start": 337.09,
+      "end": 673.6800000000001
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        4,
+        5,
+        17,
+        18,
+        20,
+        21,
+        22,
+        23
+      ],
+      "start": 673.6800000000001,
+      "end": 970.3900000000001
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        24,
+        25
+      ],
+      "start": 970.3900000000001,
+      "end": 1183.48
+    }
+  ],
+  "trace_digest": "2cfd12d044ae977b6b9fd69060e9d6b251ebefc82d757e949e83fd89e255b84b",
+  "event_count": 1744,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

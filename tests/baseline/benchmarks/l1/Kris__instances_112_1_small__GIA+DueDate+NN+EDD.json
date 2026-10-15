@@ -1,0 +1,122 @@
+{
+  "instance_set": "Kris",
+  "instance": "instances_112_1_small",
+  "pipeline": "GIA+DueDate+NN+EDD",
+  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 60450.0,
+    "mean_order_completion_time": 39641.0,
+    "num_tours": 7,
+    "num_orders_completed": 12,
+    "avg_tour_makespan": 11331.42857142857,
+    "avg_batch_size": 1.7142857142857142,
+    "orders_per_hour": 0.7146401985111662,
+    "tours_per_hour": 0.41687344913151364,
+    "distance_by_picker": {
+      "0": 12290.0,
+      "1": 11550.0
+    },
+    "idle_time_by_picker": {},
+    "total_distance": 23840.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "8952.0": 1,
+      "15594.0": 2,
+      "29532.0": 3,
+      "37692.0": 4,
+      "44106.0": 5,
+      "56670.0": 6,
+      "60450.0": 7
+    },
+    "total_tour_times": 79320.0,
+    "picks_per_hour": 1.5483870967741935,
+    "total_processing_time": 79320.0
+  },
+  "decisions": {
+    "OBRSP": 1
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        4,
+        5
+      ],
+      "start": 0.0,
+      "end": 15594.0
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 1,
+      "order_ids": [
+        3
+      ],
+      "start": 0.0,
+      "end": 8952.0
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 1,
+      "order_ids": [
+        11,
+        6
+      ],
+      "start": 8952.0,
+      "end": 29532.0
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        10
+      ],
+      "start": 15594.0,
+      "end": 37116.0
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 1,
+      "order_ids": [
+        12
+      ],
+      "start": 29532.0,
+      "end": 44106.0
+    },
+    {
+      "tour_id": 6,
+      "picker_id": 0,
+      "order_ids": [
+        1,
+        7
+      ],
+      "start": 37116.0,
+      "end": 55518.0
+    },
+    {
+      "tour_id": 7,
+      "picker_id": 1,
+      "order_ids": [
+        8,
+        9,
+        2
+      ],
+      "start": 44106.0,
+      "end": 60450.0
+    }
+  ],
+  "trace_digest": "d720602ba706d7d349900884cb06818050b2ec22209654f878403375a4c7d392",
+  "event_count": 471,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}
