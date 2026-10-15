@@ -173,16 +173,39 @@ Pilot (10 replications per cell, S-shape, FIRST selection):
 
 The **conditioned** reading is chosen: it matches the journal (α=0) completion
 within 2 % (1.8 % and 0.6 %), and the working-paper C/60/45 within 8 %. The
-working-paper C/30/45 conditioned outlier (71 %) is a defect of `HennWaiting`:
-it does not stop waiting when the stream closes at the announced cutoff, so
-the picker idles past 480 min on instances whose last orders arrive late
-(Section 9 stop rule not triggered: the cause is shown; the fix is Task 6.4).
-The truncated reading's random order count inflates completion and turnover
-for a paper that fixes n. The earlier "statistical nonreproduction"
-classification is withdrawn; the remaining gaps are attributed to the
-`HennWaiting` closure defect (working paper only) and to the unpublished
-original seeds. The L2 matrix (224 cells × 50 replications) runs under the
-conditioned reading.
+working-paper C/30/45 conditioned outlier (71 %) is a defect of the
+waiting/condition interaction, traced on replication 1:
+
+- Last arrival: 462.6 min; stream closes at 480 min.
+- Decision at 477.6 min (picker idle, 1 order buffered, stream not yet
+  closed): HennWaiting sets `waiting=True`, `reconsider_at=923.5 min` —
+  correct per Henn's algorithm (more orders may arrive before 480 min).
+  The batch is delayed, not committed.
+- Decision at 480.0 min (stream closure): `NbrOrdersCondition(1)` fails
+  because the remaining order is in a planned tour, not the order buffer
+  (`buffered=0`), so `solve=False` and the solver is skipped. The waiting
+  flag and `reconsider_at=923.5 min` from the previous decision are
+  preserved. No tour committed.
+- Decision at 923.5 min (Reconsider at the stale `reconsider_at`): the
+  solver runs (WAIT bypasses conditions), HennWaiting sees
+  `input_closed=True` and returns no-wait, tour 14 (orders 28, 29) is
+  committed and starts at 923.5 min.
+- The picker idles 446 min (477.6 → 923.5). Completion: 936 min vs 467
+  published.
+
+HennWaiting itself correctly stops waiting when `input_closed=True`
+(`waiting.py` line 73), but the condition gate (`NbrOrdersCondition(1)`)
+blocks the solver from running at the stream-closure decision when the
+remaining orders are in planned tours, not the buffer. This is a defect of
+the waiting/condition interaction, not of HennWaiting. It is not attributed
+to Tasks 6.4 or 6.5; it is not fixed before reporting. The truncated
+reading's random order count inflates completion and turnover for a paper
+that fixes n. The earlier "statistical nonreproduction" classification is
+withdrawn; the remaining journal gaps are attributed to the unpublished
+original seeds. The validation set (journal α=0, S-shape, FIRST and SAV,
+16 classes, 20 replications) runs under the conditioned reading; the
+remaining cells (other rules, Largest Gap, 50 replications, working-paper
+α=1) are deferred and listed as such in the register.
 
 ## L3: OOBP, Gil-Borrás et al. (2020)
 

@@ -1,27 +1,6 @@
 # Revision scopes status: Phase B in progress
 
-Last committed CASIM change: `cf2d4a8` (`B.5: supply explicit synthetic due date for L2 LONG`). The matrix runner and L2 classification were `8ba4a4c`; earlier L2 groundwork was `8ffdcf2`. The full L3 sweep was `c3f5eee`, B.7's L1 capture was
-`7cc47cc`, and the earlier B.7 recorder commit was
-`1e2d053`, and B.9 was
-`b519ecb`. The requested plan-only
-commit was `dc52528`, containing only
-`docs/revision_scopes_corrections.md` and `docs/revision_scopes_design.md`.
-The active task is B.5. The full L3 run is complete after a direct check of
-capacity, setup, batch selection and W3 turning time. Forty results below best
-known are labelled **protocol not reproduced** per the user's direction. L2
-C/30/45 S-shape FIRST gives 507.4 min under
-the stated arrival rate and 380.6 min under the paper's printed rate, versus
-467 published. The journal cell is 500.2 versus 473 published. The user's
-bounded follow-up check found that the seeded last arrivals, all item picks,
-tour travel and setup match the documented units; neither rate fits both
-467-minute completion and 44-minute turnover. L2 is a statistical
-nonreproduction and its approved matrix is proceeding. B.7 corrected the
-setup-gap classification and relative commands and re-recorded the 45 runnable
-scenario configurations. Its full deterministic comparison passed. Audit
-baselines for L1 (415) and L3 (192) are complete. B.9 replaced the historical
-baseline with a pointer and removed the unreferenced waiting foundation note.
-Next: complete L2 and the single Phase B
-report, then start Phase S without waiting.
+Last committed CASIM change: `4ebbf95` (`B.5: revert cf2d4a8, correct L2 generator, choose conditioned reading`). The L2 generator correction and HennLongScheduler are committed. The working-paper C/30/45 71% gap is traced to a defect of the waiting/condition interaction (not HennWaiting itself, not Tasks 6.4/6.5): `NbrOrdersCondition(1)` blocks the solver at stream closure when the remaining order is in a planned tour, preserving the stale `waiting=True` and `reconsider_at=923.5 min`. The picker idles 446 min. Next: interface fixes (SAVScheduler card, YAML cosy_repo/decisions, FIRST verification), then the validation set (journal α=0, S-shape, FIRST+SAV, 16 classes, 20 reps, 95% CIs).
 
 The F64 graph-edge versus matrix-leg distance question remains outstanding by user direction. The last ware_ops_algos commit is `20d7ced` (the L2 SAV selector); the prior RR commit was `8b91419`.
 
