@@ -1,6 +1,19 @@
-# Revision scopes status: Phase B in progress
+# Revision scopes status: Phase S in progress
 
-Last commits: casim `9ecdaac` (`Docs: plan with F67 and CLI decision (user)`), after `7f2f87c` (`B.5: L2 YAML configs, SAVScheduler via card option, refactor run_l2`); ware_ops_algos `0bd0a7e` (`B.5: SAV card with routing_class configuration and single-picker resources`). Phase B is done and reported (B.5 L2 at `7e68bf6` and the commits after it; see "B.5 L2 validation set" in `docs/literature_benchmarks.md`). Open for the user from Phase B: the high-load L2 gap to the journal without a demonstrated cause, F64, and the decisions of Section 9.1. Task in progress: Phase S (S.1 to S.4), next step S.1/S.2 (source protocol, `casim run`, `scenarios/minimal/`).
+Last pushed code commit: casim `85a06c5` (`S.4: delete the grocery scenario`); ware_ops_algos `0bd0a7e`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause, F64, and the decisions of Section 9.1. Task in progress: Phase S. Work stopped on the user's request on 15 October 2026; no run is in progress.
+
+Stashed, not committed (`git stash list`):
+
+- `S.4 WIP henn2012`: the port of `scenarios/scenario_henn2012` as `scenarios/henn2012` (own `source.py` from the generator, the four validation sweeps, `reference.csv` in the generic format, `metrics.py`, `plots.py` replacing `run_l2.py`, `run_l2_matrix.py` and `summarize_validation.py`; Henn's LONG files to `docs/deferred/henn2012_long/`; the L2 cases of `scripts/baseline.py compare-benchmark`; test imports; `.gitignore` for `data/generated/`). Its default run reproduces `journal__C__30__45__SShape__FIRST__0__conditioned` exactly, but the comparison of the 714 recorded L2 runs has not run, so it is not committed. Until it is, `scenarios/scenario_henn2012/run_l2.py` at HEAD does not run, because it imports the OOBP hook and loader that the `oobp` port removed.
+- `S.3/S.4 WIP docs`: `AGENTS.md` and `CLAUDE.md` (S.3), the Phase S notes in `docs/literature_benchmarks.md` and `docs/baseline.md`, and a longer Phase S section of this file. They describe the state with `henn2012` ported, so they wait for it.
+
+Untracked: the L2 instances that the stopped comparison generated below `scenarios/henn2012/data/generated/` (regenerable; ignored once the henn2012 stash is applied).
+
+Next steps, in order:
+
+1. Apply `S.4 WIP henn2012`, run `python scripts/baseline.py compare-benchmark --benchmark l2 --workers 8` (714 runs, about 45 to 60 minutes), and commit the port if every run is equal; then apply the docs stash and commit it.
+2. The remaining Phase S work: the test suite in one process and `casim check --all` on the final tree, the Phase S report.
+3. The route-length check.
 
 The F64 graph-edge versus matrix-leg distance question remains outstanding by user direction.
 
@@ -22,6 +35,15 @@ This is an audit against the current `revision_scopes_corrections.md`, through P
 | B.5 (L2, final) | done; reduced validation set reported | `7e68bf6`: working-paper cells use `decisions/l2_working.yaml` without `NbrOrdersCondition` (F67); C/30/45 FIRST 798.8 → 497.1 min against 467, the rest is a bound of the arrival process (`docs/literature_benchmarks.md`, "B.5 L2 validation set"). `tests/verification/test_l2_first_selection.py` shows that FIRST commits the first FCFS batch on every recorded FIRST run. The validation set (S-shape, FIRST and SAV, 20 replications, journal 16 classes, working paper 8) is in the same section with 95 % intervals and run time per run; journal FIRST matches at n ≤ 60 and is 4 to 14 % high at high load without a demonstrated cause (open, Section 9); the working paper's published turnover is arrival-based; SAV is blocked by F62 in most cells with n ≥ 60. Deferred L2 cells are listed there. |
 | B.5 (history) | full L3 done; L2 matrix superseded by the validation set | `c3f5eee`: all 192 L3 runs complete; 40 are below at least one best-known value (30 completion, 11 turnover, one both), labelled **protocol not reproduced** per user direction. The paper confirms item-count/weight capacity, one setup per batch and oldest-order selection; GRASP+VND batch formation differs from FCFS; W3 turning-time charge remains unspecified. `8ffdcf2` and ware:`20d7ced` add the L2 generator, named `announced` closure option, SAV selector, audit baselines and initial 50-instance results. The first working-paper C/30/45 S-shape FIRST cell averages 507.4 min completion and 42.6 min arrival turnover versus published 467/44 under 30/480 arrivals per minute. The paper's printed 0.08625 rate yields 380.6 min completion and 39.3 min arrival turnover on the same 50 seeds. The journal α=0 target is 500.2 min completion versus 473 published under the stated rate. Neither rate fits the published completion and turnover together. The bounded arrival, tour, geometry and time-unit check found all generated picks charged, with setup once per tour; the unpublished source seeds leave a statistical nonreproduction. The user authorized the remaining matrix after this check. |
 | B.9 | done | `b519ecb`: `docs/revision_scopes_baseline.md` points to `docs/baseline.md`; the unreferenced `docs/waiting_intervention_foundation.md` is removed. |
+
+## Phase S progress
+
+| Task | Status | Evidence and remaining work |
+|---|---|---|
+| S.1 | done | `793d765`: `casim.sources` with the `Source` protocol (`initial_state()`, `events()`), the library sources and `local` for a scenario's `source.py`. A source creates its initial events in the order of the old hooks and yields them sorted by time with a stable sort, so equal-time ties are unchanged. |
+| S.2 | done | `793d765`: `casim run` (outputs `kpis.json`, `decisions.json`, `tours.csv`, `orders.csv`, `trace.json`; `audit.json` with `--audit`; `comparison.csv` with `reference.csv`; sweeps), `casim check <dir>`, `scenarios/minimal/`; `scripts/baseline.py` runs ported scenarios with `casim run`. |
+| S.3 | partly | `793d765`, `6dc732b`: `casim check --all` and its test. `AGENTS.md` and `CLAUDE.md` are in the docs stash. |
+| S.4 | partly | `henn_waiting` `74c520a` (31 baselines equal), `walk_or_wait` `03f642f` (11 equal), `analytic_waiting` `16768e9` (3 equal), `oobp` `74f0214` (192 L3 runs equal), `casop_static` `6dc732b` (415 L1 runs equal), grocery deleted `85a06c5`. `henn2012` stashed until its L2 comparison. |
 
 ## Phase 4 progress
 
