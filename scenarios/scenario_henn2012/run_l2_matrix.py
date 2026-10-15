@@ -63,8 +63,17 @@ def run_cell(cell, stage):
     with open(Path(__file__).with_name("l2_run_stdout.log"), "a", encoding="utf-8") as detail:
         for replication in range(len(prior), count):
             started = time.perf_counter()
-            with redirect_stdout(detail):
-                row = run_case(*cell[:6], replication, arrival_mode=cell[6])
+            # A failed decision is a result of the cell (for example F62), not
+            # a reason to abandon the remaining replications and cells.
+            try:
+                with redirect_stdout(detail):
+                    row = run_case(*cell[:6], replication, arrival_mode=cell[6])
+                row["error"] = ""
+            except ValueError as error:
+                row = dict(zip(("target", "storage", "n_orders", "capacity",
+                                "routing", "selection"), cell[:6]),
+                           replication=replication, arrival_mode=cell[6],
+                           error=str(error))
             row["seconds"] = round(time.perf_counter() - started, 2)
             prior.append(row)
             pd.DataFrame(prior).to_csv(path, index=False)

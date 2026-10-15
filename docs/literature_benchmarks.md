@@ -9,7 +9,7 @@ Kinds, as defined in Section 7.4: *exact* (same instances, deterministic method,
 | # | Benchmark | Kind | Instances here | Published values here | CASIM needs | Status |
 |---|---|---|---|---|---|---|
 | L1 | Seven CASOP sets, static | exact | all, in ware_ops_pipes `data/instances/` (not redistributable) | ware_ops_pipes `data/reference/`; CASOP results `experiments/evaluation/df_results.parquet` | `scenario_static_benchmarks` with the ware_ops_pipes loader (B.4) | ready for B.4; subset proposed |
-| L2 | Henn (2012), online FCFS with four selection rules | statistical | generator in the papers; no files | journal Tables 2 to 7 (α = 0, class-based and uniform storage) and working-paper Tables 7.1 to 7.4 (α = 1, class-based), transcribed below | seeded generator, Henn layout and both storage policies, selection rules as scheduling cards, the waiting rule with α, IGNORE, `announced` stream closure, both turnover definitions (B.5) | sources verified; subset approved |
+| L2 | Henn (2012), online FCFS with four selection rules | statistical | generator in the papers; no files | journal Tables 2 to 7 (α = 0, class-based and uniform storage) and working-paper Tables 7.1 to 7.4 (α = 1, class-based), transcribed below | seeded generator, Henn layout and both storage policies, selection rules as scheduling cards, the waiting rule with α, IGNORE, `announced` stream closure, both turnover definitions (B.5) | reduced validation set run (S-shape, FIRST and SAV, 20 replications, both targets); SAV mostly blocked by F62; the rest deferred (see "B.5 L2 validation set") |
 | L3 | OOBP, Gil-Borrás et al. (2020) | bound | 64 Henn and 64 Albareda, `scripts/fetch_data.py oobp` | `experiments.xlsx` (128 rows), `data/oobp_reference.csv` | archive loader for both formats, weight capacity, depot per warehouse, maximum completion and turnover time (B.5) | sources verified; Henn instances run with both depots; subset approved |
 | L4 | D'Haen, Braekers and Ramaekers (2023) | bound | OSF online instances (960), `scripts/fetch_data.py dhaen` | OSF results workbook (5,760 rows) | loader, two-block layout, trucks and due dates as departures, tardiness and pick time | protocol verified (correction 9); subset approved |
 | L5 | Walking vs. Waiting, RADAR standard case | reproduction | RADAR dataset, `scripts/fetch_data.py radar` | RADAR `Results/OFAT/Standard_Case/Results_Standard_Case.csv` | exists for S-shape with intervention; the 4D4L commit and parameters that reproduce the CSV | simulator commit to be established; subset approved; run last |
@@ -196,16 +196,164 @@ waiting/condition interaction, traced on replication 1:
 HennWaiting itself correctly stops waiting when `input_closed=True`
 (`waiting.py` line 73), but the condition gate (`NbrOrdersCondition(1)`)
 blocks the solver from running at the stream-closure decision when the
-remaining orders are in planned tours, not the buffer. This is a defect of
-the waiting/condition interaction, not of HennWaiting. It is not attributed
-to Tasks 6.4 or 6.5; it is not fixed before reporting. The truncated
-reading's random order count inflates completion and turnover for a paper
-that fixes n. The earlier "statistical nonreproduction" classification is
-withdrawn; the remaining journal gaps are attributed to the unpublished
-original seeds. The validation set (journal α=0, S-shape, FIRST and SAV,
-16 classes, 20 replications) runs under the conditioned reading; the
-remaining cells (other rules, Largest Gap, 50 replications, working-paper
-α=1) are deferred and listed as such in the register.
+remaining orders are in planned tours, not the buffer. This is finding F67
+(Appendix A of the plan), fixed by Task 4.15, not by HennWaiting and not by
+Tasks 6.4 or 6.5. The truncated reading's random order count inflates
+completion and turnover for a paper that fixes n. The validation set below
+runs under the conditioned reading.
+
+### B.5 L2 validation set, 15 October 2026
+
+Commits casim `7e68bf6` (runs) and ware_ops_algos `0bd0a7e`. Command:
+`python -m scenarios.scenario_henn2012.run_l2_matrix --stage validation --workers 6 --arrival-mode conditioned`;
+summary: `python -m scenarios.scenario_henn2012.summarize_validation`, published values in
+`scenarios/scenario_henn2012/reference.csv`. The set: S-shape, FIRST and SAV, 20 replications
+(seeds `BASE_SEED + storage + 100 n + replication`, replications 0 to 19), the journal (α = 0)
+on its 16 classes (C and U × n × W) and the working paper (α = 1) on its 8 classes (class-based
+storage only, so "all 16 classes" is 8 for this target), both closing the stream at 480 min
+(`announced`). Times in minutes; 95 % Student-t intervals over the successful replications.
+
+**F67 for the working-paper cells.** The working-paper cells use `decisions/l2_working.yaml`,
+`l2_journal.yaml` without `NbrOrdersCondition`: Henn's Algorithm 4.1 has no order-count gate.
+On C/30/45 FIRST (10 replications, the same seeds, all at casim `7e68bf6`):
+
+| Decision | Completion | Arrival turnover |
+|---|---:|---:|
+| with `NbrOrdersCondition(1)` (F67) | 798.8 | 69.3 |
+| without it (`l2_working`) | 497.1 | 46.6 |
+| without it, stream closed at the last arrival (diagnostic only) | 488.9 | 45.9 |
+| published (Table 7.1, 7.2) | 467 | 44 |
+
+F67 explains 302 of the 332 minutes. The gap to 467 does not close: the remaining +6.4 % is a
+bound, not a defect. Under the conditioned reading the expected last arrival is
+480 · 30/31 = 464.5 min (sample mean 464.2), and the batch of the last order still needs at
+least the 3 min setup plus 5 items at 10 s, so any rule completes after about 468.3 min plus
+travel. 467 lies below that bound, so Henn's working-paper instances cannot have had this
+arrival process. The journal cells are unaffected by the condition: on C/30/45 and C/60/45 FIRST,
+20 of 20 replications give identical trace digests with and without it, so they keep
+`l2_journal`.
+
+**FIRST is Henn's first FCFS batch.** `FifoBatching` sorts the unprocessed orders by
+`order_date` and fills batches next-fit; routing keeps the batch order; `build_jobs` numbers jobs
+by route index; `FIFOScheduling` sorts by job id; with one picker the start times increase
+strictly, so `SchedulingCommitmentPolicy(n_jobs=1)` commits job 0, the first batch FCFS creates.
+`tests/verification/test_l2_first_selection.py` checks this on every recorded FIRST run of both
+targets: the committed tours, sorted by start, partition the orders sorted by arrival into
+consecutive runs, and each tour is maximal (the next order exceeds the capacity or had not
+arrived when the tour started). SAV breaks ties by the lowest job id, Henn's lowest index.
+
+**Results.**
+
+Journal (α = 0), completion published in Table 2; the journal publishes turnover only for FCFS/LONG, so no turnover comparison here:
+
+| Class | Rule | Runs (failed) | s/run | Completion, mean [95 % CI] | Published | Gap | In CI | Arrival turnover [95 % CI] |
+|---|---|---:|---:|---:|---:|---:|---|---:|
+| C/30/45 | FIRST | 20 (0) | 6.7 | 478.3 [469.7, 486.8] | 473 | +1.1 % | yes | 19.1 [17.0, 21.2] |
+| C/30/45 | SAV | 20 (0) | 6.6 | 478.3 [469.7, 486.8] | 473 | +1.1 % | yes | 18.9 [17.2, 20.6] |
+| C/30/75 | FIRST | 20 (0) | 6.5 | 478.3 [469.7, 486.8] | 473 | +1.1 % | yes | 18.2 [17.2, 19.3] |
+| C/30/75 | SAV | 20 (0) | 6.5 | 478.3 [469.7, 486.8] | 473 | +1.1 % | yes | 18.2 [17.2, 19.3] |
+| C/60/45 | FIRST | 20 (0) | 13.4 | 508.2 [498.8, 517.7] | 504 | +0.8 % | yes | 35.3 [31.3, 39.2] |
+| C/60/45 | SAV | 6 (14) | 13.1 | 502.3 [490.3, 514.3] | 503 | -0.1 % | yes | 26.9 [23.3, 30.4] |
+| C/60/75 | FIRST | 20 (0) | 11.4 | 492.1 [486.5, 497.7] | 497 | -1.0 % | yes | 27.0 [25.5, 28.4] |
+| C/60/75 | SAV | 20 (0) | 11.4 | 492.1 [486.5, 497.7] | 497 | -1.0 % | yes | 27.0 [25.5, 28.4] |
+| C/90/45 | FIRST | 20 (0) | 29.7 | 680.0 [666.5, 693.4] | 598 | +13.7 % | no | 112.0 [103.3, 120.7] |
+| C/90/45 | SAV | 0 (20) | – | – | 590 | – | – | – |
+| C/90/75 | FIRST | 20 (0) | 14.4 | 540.8 [530.4, 551.3] | 509 | +6.3 % | no | 52.3 [47.8, 56.8] |
+| C/90/75 | SAV | 9 (11) | 14.5 | 540.4 [522.1, 558.6] | 508 | +6.4 % | no | 45.6 [40.8, 50.5] |
+| C/120/45 | FIRST | 20 (0) | 76.3 | 887.4 [865.2, 909.7] | 787 | +12.8 % | no | 216.8 [202.8, 230.9] |
+| C/120/45 | SAV | 1 (19) | 74.3 | 811.1 | 773 | +4.9 % | – | 170.5 |
+| C/120/75 | FIRST | 20 (0) | 37.0 | 679.0 [662.6, 695.4] | 618 | +9.9 % | no | 118.0 [108.6, 127.3] |
+| C/120/75 | SAV | 3 (17) | 24.7 | 675.4 [625.9, 725.0] | 614 | +10.0 % | no | 98.8 [40.9, 156.7] |
+| U/30/45 | FIRST | 20 (0) | 9.4 | 480.6 [473.2, 488.0] | 481 | -0.1 % | yes | 24.2 [22.8, 25.7] |
+| U/30/45 | SAV | 19 (1) | 9.6 | 482.1 [475.0, 489.2] | 481 | +0.2 % | yes | 23.7 [22.7, 24.6] |
+| U/30/75 | FIRST | 20 (0) | 10.7 | 480.6 [473.2, 488.0] | 479 | +0.3 % | yes | 23.2 [22.4, 24.0] |
+| U/30/75 | SAV | 20 (0) | 11.7 | 480.6 [473.2, 488.0] | 479 | +0.3 % | yes | 23.2 [22.4, 24.0] |
+| U/60/45 | FIRST | 20 (0) | 26.6 | 552.8 [532.6, 573.1] | 544 | +1.6 % | yes | 56.0 [49.9, 62.1] |
+| U/60/45 | SAV | 7 (13) | 19.9 | 551.4 [513.7, 589.0] | 538 | +2.5 % | yes | 44.5 [37.7, 51.3] |
+| U/60/75 | FIRST | 20 (0) | 15.1 | 506.2 [498.7, 513.6] | 508 | -0.4 % | yes | 33.6 [32.5, 34.8] |
+| U/60/75 | SAV | 20 (0) | 16.3 | 506.2 [498.7, 513.6] | 508 | -0.4 % | yes | 33.6 [32.5, 34.8] |
+| U/90/45 | FIRST | 20 (0) | 51.7 | 773.6 [748.4, 798.8] | 744 | +4.0 % | no | 164.9 [151.2, 178.6] |
+| U/90/45 | SAV | 1 (19) | 58.9 | 795.9 | 724 | +9.9 % | – | 149.3 |
+| U/90/75 | FIRST | 20 (0) | 23.2 | 562.7 [548.3, 577.1] | 548 | +2.7 % | no | 66.9 [60.7, 73.1] |
+| U/90/75 | SAV | 7 (13) | 20.6 | 561.8 [525.8, 597.7] | 546 | +2.9 % | yes | 59.2 [43.9, 74.5] |
+| U/120/45 | FIRST | 20 (0) | 119.5 | 1023.4 [1009.8, 1037.0] | 985 | +3.9 % | no | 282.0 [271.0, 292.9] |
+| U/120/45 | SAV | 0 (20) | – | – | 956 | – | – | – |
+| U/120/75 | FIRST | 20 (0) | 32.5 | 724.1 [714.7, 733.4] | 700 | +3.4 % | no | 138.4 [130.5, 146.3] |
+| U/120/75 | SAV | 2 (18) | 51.4 | 719.2 [525.0, 913.5] | 691 | +4.1 % | yes | 131.0 [25.1, 236.9] |
+
+Working paper (α = 1), Tables 7.1 and 7.2:
+
+| Class | Rule | Runs (failed) | s/run | Completion, mean [95 % CI] | Published | Gap | In CI | Start turnover [95 % CI] | Arrival turnover [95 % CI] | Published turnover |
+|---|---|---:|---:|---:|---:|---:|---|---:|---:|---:|
+| C/30/45 | FIRST | 20 (0) | 5.6 | 498.5 [496.2, 500.8] | 467 | +6.7 % | no | 17.9 [17.7, 18.2] | 47.1 [44.8, 49.4] | 44 |
+| C/30/45 | SAV | 20 (0) | 6.6 | 498.4 [496.2, 500.6] | 467 | +6.7 % | no | 17.9 [17.7, 18.2] | 46.9 [44.7, 49.0] | 44 |
+| C/30/75 | FIRST | 20 (0) | 4.5 | 500.2 [497.4, 502.9] | 457 | +9.4 % | no | 23.2 [22.9, 23.5] | 63.0 [60.8, 65.1] | 57 |
+| C/30/75 | SAV | 20 (0) | 5.5 | 500.2 [497.4, 502.9] | 457 | +9.4 % | no | 23.2 [22.9, 23.5] | 63.0 [60.8, 65.1] | 57 |
+| C/60/45 | FIRST | 20 (0) | 16.1 | 516.4 [507.5, 525.3] | 519 | -0.5 % | yes | 17.8 [17.6, 18.0] | 45.6 [41.7, 49.6] | 45 |
+| C/60/45 | SAV | 6 (14) | 16.5 | 507.9 [497.8, 518.1] | 518 | -1.9 % | yes | 17.9 [17.4, 18.4] | 37.2 [35.3, 39.1] | 44 |
+| C/60/75 | FIRST | 20 (0) | 9.8 | 504.4 [501.8, 507.0] | 499 | +1.1 % | no | 23.7 [23.4, 23.9] | 47.0 [45.6, 48.3] | 46 |
+| C/60/75 | SAV | 20 (0) | 12.6 | 504.5 [502.0, 507.0] | 499 | +1.1 % | no | 23.7 [23.5, 23.9] | 46.9 [45.5, 48.3] | 46 |
+| C/90/45 | FIRST | 20 (0) | 32.7 | 684.6 [671.1, 698.1] | 651 | +5.2 % | no | 17.8 [17.7, 18.0] | 116.3 [107.6, 125.1] | 113 |
+| C/90/45 | SAV | 0 (20) | – | – | 643 | – | – | – | – | 96 |
+| C/90/75 | FIRST | 20 (0) | 18.7 | 549.6 [539.7, 559.4] | 520 | +5.7 % | no | 24.0 [23.8, 24.2] | 59.5 [55.2, 63.8] | 55 |
+| C/90/75 | SAV | 10 (10) | 22.1 | 556.1 [537.8, 574.5] | 518 | +7.4 % | no | 24.0 [23.7, 24.3] | 55.1 [50.4, 59.7] | 53 |
+| C/120/45 | FIRST | 20 (0) | 84.2 | 889.0 [866.4, 911.6] | 856 | +3.9 % | no | 17.9 [17.7, 18.0] | 218.3 [203.5, 233.1] | 207 |
+| C/120/45 | SAV | 1 (19) | 85.4 | 811.4 | 847 | -4.2 % | – | 17.7 | 169.1 | 175 |
+| C/120/75 | FIRST | 20 (0) | 42.8 | 682.2 [666.2, 698.3] | 634 | +7.6 % | no | 23.9 [23.7, 24.0] | 121.2 [112.6, 129.7] | 101 |
+| C/120/75 | SAV | 2 (18) | 52.4 | 681.1 [491.8, 870.3] | 630 | +8.1 % | yes | 24.0 [16.0, 32.0] | 118.3 [3.4, 233.3] | 93 |
+
+**Findings.**
+
+1. Journal, n ≤ 60: every FIRST cell lies within ±1.6 % of the published value and its
+   interval contains it (8 of 8). The statistical comparison holds where the picker is not
+   saturated.
+2. Journal, n = 90 and 120: every FIRST cell is above the published value and outside its
+   interval, by 2.7 to 13.7 %; the largest gaps are class-based with W = 45 (C/90/45 +13.7 %,
+   C/120/45 +12.8 %). At C/120/45 the picker is busy 883 of 887 minutes:
+   picking 303 (1,821 items at 10 s), setup 151 (50.4 tours at 3 min), travel 428 (408 length
+   units per tour at 48 per minute). The published 787 min would need about 95 min less setup
+   and travel. Two observations bound the cause without showing it: CASIM gives nearly the same
+   completion for α = 0 and α = 1 at high load (887 and 889 for C/120/45), as it must when the
+   picker never waits, while the journal and the working paper publish 787 and 856 for the same
+   class, 69 min apart; and against the working paper the high-load gaps are only +3.9 to +7.6 %.
+   The journal's high-load instances therefore differ from the working paper's in a way the
+   papers do not state (the journal prints λ = 0.08625 for n = 30 as well). **No cause is
+   demonstrated; this is an open difference (Section 9).**
+3. Working paper: the turnover values Henn publishes match the arrival-to-completion definition
+   (C/30/45: 47.1 against 44; C/60/45: 45.1 against 45; C/120/45: 218.3 against 207), not the
+   start-to-completion one that the working paper's text states (about 18 to 24 min in every
+   class, the tour duration). Correction 3 is settled in favour of the journal's definition.
+   Completion is 6.7 and 9.4 % above at n = 30 (the bound of the F67 paragraph applies to both
+   capacities), within ±1.9 % at n = 60, and 3.9 to 7.6 % above at n = 90 and 120.
+4. SAV is blocked by F62 in most cells with n ≥ 60 and W = 45: a candidate cancels a draft and
+   moves its orders into another draft through `ReplaceSuffix`, which `validation.check` rejects
+   with "Added orders are not in the exposed order buffer", so the decision has no feasible
+   candidate. 246 of 960 runs fail, all with "no feasible candidate solution" (checked on C/90/45 replication 0 at
+   t = 19,522 s and C/60/45 replication 3 at t = 11,563 s). FIRST never fails: FCFS batches only
+   grow at the tail. Task 4.13 fixes F62; the SAV cells are to be rerun after it. Cells with at
+   least two successful replications are reported, but their samples are the replications
+   without the defect, so they are not a fair estimate.
+
+**Run time.** 23.8 s per run on average over the 714 successful runs, growing with n: 5 to 12 s
+at n = 30, 10 to 27 s at n = 60, 14 to 59 s at n = 90 and 25 to 120 s at n = 120 (column s/run).
+The set took about 85 minutes with 6 to 12 processes on 16 logical cores.
+
+**Deferred for L2** (not run in Phase B, with the reason): the selection rules SHORT, LONG and
+IGNORE and Largest Gap routing (the reduced set approved for Phase B is S-shape, FIRST and SAV);
+50 replications per class (20 suffice for the intervals reported); the truncated arrival reading
+and the printed rate 0.08625 (the conditioned reading is chosen above); SAV on every cell that
+F62 blocks (after Task 4.13); the working paper's α = 1 cells with LONG and SHORT. The scenario
+keeps their configurations (`journal_sshape_long`, `journal_sshape_ignore`, `l2_long`,
+`l2_ignore`).
+
+**The Henn scenario and F67.** `scenarios/scenario_henn_online` (`henn_waiting` after Phase S)
+uses the same gate, `NbrOrdersCondition(threshold=1)`, together with `HennWaitingNode`
+(`decisions/henn_waiting.yaml`). It closes the stream at the last arrival, where the last order
+is still buffered, so the stale wait of the L2 working-paper cells is not certain to occur there,
+but every decision at which a waiting batch sits in a planned tour with an empty buffer is gated
+the same way. It is likely affected by F67; Task 4.15 lists it among the configurations whose
+baseline changes. The OOBP benchmark (L3) uses the same gate with `NoWaitingNode`, like the
+journal cells, where it changes nothing measurable.
 
 ## L3: OOBP, Gil-Borrás et al. (2020)
 
