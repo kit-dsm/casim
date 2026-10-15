@@ -3,17 +3,18 @@
 This configured scenario exercises the single-line, exponential-arrival
 waiting calculation from the explainer mail. It is **not** the wait-k study in
 *Walking vs. Waiting*; that study is mapped in
-`../scenario_walk_or_wait/README.md`.
+`../walk_or_wait/README.md`.
 
 The analytical special case starts with exactly q−1 known orders. For the
 four-bin example the engine waits until three orders are visible before asking
 `AnalyticStochasticWaiting` for a departure time. The policy rejects any
 other batch size while the stream is open; closure releases a final partial
 batch. The forecast in `PlannerInformation` is separate from the
-realised event stream in `simulation/reference.yaml`.
+realised event stream in `scenario.yaml` (`source.arrival_times_s`, read by
+the scenario's own `source.py`).
 
 The decision's `NbrOrdersCondition(threshold=3)` enforces the three-order
-waiting gate. The loader checks the exclusive decision opportunities and the
+waiting gate. The source and setup check the exclusive decision opportunities and the
 remaining-route admission component. Luigi
 logs task errors at `ERROR` level, so invalid policy input is visible.
 
@@ -43,7 +44,7 @@ Do not use its metrics as a validation or publication result for that method.
 From the CASIM project root, run:
 
 ```powershell
-.venv\Scripts\python.exe -m scenarios.scenario_stochastic_waiting.experiment_stochastic_waiting viz.launch=true
+python -m casim run scenarios/analytic_waiting
 ```
 
 After the simulation finishes, open `http://127.0.0.1:8050/`. Use the slider
@@ -52,3 +53,14 @@ to inspect the event stream. Decision frames follow the triggering event:
 The replay shows the picker, order status, and committed tour membership at
 each frame. It does not plot the analytical waiting calculation or evaluate
 the Phase 2 insertion choice.
+
+## Running
+
+```bash
+python -m casim run scenarios/analytic_waiting
+python -m casim run scenarios/analytic_waiting cosy_repo=henn_waiting
+python -m casim run scenarios/analytic_waiting cosy_repo=no_waiting
+python -m casim run scenarios/analytic_waiting decisions=remaining_route_admission
+```
+
+The recorded baselines are `tests/baseline/stochastic__*.json`.

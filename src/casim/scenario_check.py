@@ -31,7 +31,7 @@ FORBIDDEN_IMPORTS = ("casim.simulation_engine", "casim.runner", "casim.run",
 # until Task 6b.6. Each port removes its entry.
 NOT_PORTED = frozenset({
     "scenario_henn_online", "scenario_oobp", "scenario_static_benchmarks",
-    "scenario_stochastic_waiting", "scenario_henn2012",
+    "scenario_henn2012",
     "scenario_grocery_retailer", "scenario_ijpe",
     "scenario_dhaen_online",  # data of L4 only; deferred with Phase 6
 })

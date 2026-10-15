@@ -24,20 +24,13 @@ from casim.pipelines.problem_based_template import (
 )
 from casim.pipelines.subproblems.admission import RemainingRouteAdmissionNode
 from casim.pipelines.taxonomy import TAXONOMY, variant
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card, setup_experiment,
-)
-from scenarios.scenario_stochastic_waiting.scenario_specific_hooks import (
-    add_orders_hook, picker_arrival_hook,
-)
-
-
-CONFIG_DIR = Path(__file__).resolve().parents[1] / "scenarios" / "scenario_stochastic_waiting" / "config"
+from casim.config.data_card import load_and_flatten_data_card
+from casim.run import prepare
+from tests.scenario_configs import analytic_config
 
 
 def test_admission_card_matches_the_active_tour_problem():
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        cfg = compose(config_name="stochastic_waiting_config")
+    cfg = analytic_config(None)
     card = load_and_flatten_data_card(cfg.data_card)
     card.problem_class = "OBRSP"
     card.decision_features = {"type": "decision", "features": {
@@ -79,21 +72,9 @@ def test_admission_card_matches_the_active_tour_problem():
 )
 def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
                                          waiting_repo, active_expected, admission_expected):
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        cfg = compose(
-            config_name="stochastic_waiting_config",
-            overrides=[
-                "decisions=remaining_route_admission",
-                f"cosy_repo={waiting_repo}",
-                f"simulation.arrival_times_s={arrivals}",
-                f"simulation.pick_time_s={pick_time}",
-                f"instances_base={tmp_path.as_posix()}",
-                f"cache_base={(tmp_path / 'cache').as_posix()}",
-                f"experiment.output_dir={tmp_path.as_posix()}",
-            ],
-        )
-    card = load_and_flatten_data_card(cfg.data_card)
-    sim, decision_engine = setup_experiment(cfg, card)
+    cfg = analytic_config(tmp_path, "decisions=remaining_route_admission", f"cosy_repo={waiting_repo}", f"source.arrival_times_s={arrivals}", f"source.pick_time_s={pick_time}")
+    prepared = prepare(cfg)
+    sim, decision_engine = prepared.sim, prepared.engine
     active_tasks = traverse_pipeline(decision_engine.solver_map["active_tour_admission"].pipelines)
     assert any(isinstance(task, RemainingRouteAdmissionNode) for task in active_tasks)
     assert any(isinstance(task, AdmittedTourBatch) for task in active_tasks)
@@ -101,7 +82,7 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
     assert not issubclass(RemainingRouteAdmissionNode, AbstractBatching)
     assert issubclass(AdmittedTourBatch, AbstractBatchProvider)
     assert not issubclass(AdmittedTourBatch, AbstractBatching)
-    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    prepared.reset()
 
     insertion_origins = []
     insertion_times = []
@@ -185,16 +166,10 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
 
 
 def test_same_time_arrivals_are_visible_before_one_waiting_decision(tmp_path):
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        cfg = compose(config_name="stochastic_waiting_config", overrides=[
-            "cosy_repo=no_waiting",
-            "simulation.arrival_times_s=[0.0,0.0,0.0,12.0]",
-            f"instances_base={tmp_path.as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
-    sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    cfg = analytic_config(tmp_path, "cosy_repo=no_waiting", "source.arrival_times_s=[0.0,0.0,0.0,12.0]")
+    prepared = prepare(cfg)
+    sim = prepared.sim
+    prepared.reset()
     done, snapshot = sim.run()
     assert not done
     assert snapshot.problem_class == "OBRSP"
@@ -203,21 +178,16 @@ def test_same_time_arrivals_are_visible_before_one_waiting_decision(tmp_path):
 
 
 def test_shared_trigger_and_invalid_admission_repository(tmp_path):
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        cfg = compose(config_name="stochastic_waiting_config", overrides=[
-            "decisions=remaining_route_admission",
-            f"instances_base={tmp_path.as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
+    cfg = analytic_config(tmp_path, "decisions=remaining_route_admission")
     cfg.decisions.active_tour_admission.triggers = ["OrderArrival"]
-    sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+    sim = prepare(cfg).sim
     assert sim.triggers_map[OrderArrival] == ("active_tour_admission", "OBRSP")
 
     cfg.decisions.active_tour_admission.triggers = ["ActiveTourOpportunity"]
-    cfg.insertion_repo.components[3] = "casim.pipelines.subproblems.admission.MissingAdmission"
+    cfg.decisions.active_tour_admission.solver.repo.components[3] = (
+        "casim.pipelines.subproblems.admission.MissingAdmission")
     with pytest.raises(ImportError, match="MissingAdmission"):
-        setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+        prepare(cfg)
 
 def test_remaining_route_admission_respects_path_and_cart_capacity():
     assert not isinstance(RemainingRouteAdmission(), Batching)
@@ -267,32 +237,24 @@ def test_admission_greedily_assigns_orders_across_tours():
 
 
 def test_two_active_tours_can_receive_different_orders(tmp_path):
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        cfg = compose(config_name="stochastic_waiting_config", overrides=[
-            "decisions=remaining_route_admission",
-            "cosy_repo=no_waiting",
-            "simulation.arrival_times_s=[0.0,0.1,1.0,1.0]",
-            "+simulation.pick_locations=[[2,1],[6,1],[2,1],[6,1]]",
-            f"instances_base={tmp_path.as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
+    cfg = analytic_config(tmp_path, "decisions=remaining_route_admission", "cosy_repo=no_waiting", "source.arrival_times_s=[0.0,0.1,1.0,1.0]", "+source.pick_locations=[[2,1],[6,1],[2,1],[6,1]]")
     cfg.decisions.OBRSP.conditions = [
         cfg.decisions.OBRSP.conditions[0]
     ]
-    sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    original_load = sim.data_loader.load
+    prepared = prepare(cfg)
+    sim, source = prepared.sim, prepared.source
+    original_initial_state = source.initial_state
 
-    def load_with_two_pickers(**kwargs):
-        domain = original_load(**kwargs)
+    def initial_state_with_two_pickers():
+        domain = original_initial_state()
         second = copy.deepcopy(domain.resources.resources[0])
         second.id = 1
         domain.resources.resources.append(second)
         return domain
 
-    sim.data_loader.load = load_with_two_pickers
-    _, decision_engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    source.initial_state = initial_state_with_two_pickers
+    decision_engine = prepare(cfg).engine
+    prepared.reset()
     multi_tour_decisions = []
     while True:
         done, snapshot = sim.run()

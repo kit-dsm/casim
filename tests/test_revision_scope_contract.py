@@ -17,30 +17,20 @@ from casim.domain_objects.sim_domain import ReconsiderReason
 from casim.events.operational_events import PickerTourQuery, Reconsider
 from casim.setup import resolve
 from casim.state.apply import CommandViolation
-from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
-from tests.scenario_configs import walk_config
-from scenarios.scenario_stochastic_waiting.scenario_specific_hooks import (
-    add_orders_hook, picker_arrival_hook,
-)
-
-
-CONFIG_DIR = (Path(__file__).resolve().parents[1] / "scenarios"
-              / "scenario_stochastic_waiting" / "config")
+from casim.config.data_card import load_and_flatten_data_card
+from casim.run import prepare
+from tests.scenario_configs import analytic_config, walk_config
 
 
 def _config(tmp_path):
-    with initialize_config_dir(config_dir=str(CONFIG_DIR), version_base="1.3"):
-        return compose(config_name="stochastic_waiting_config", overrides=[
-            f"instances_base={tmp_path.as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
+    return analytic_config(tmp_path)
 
 
 def _first_wait(tmp_path):
     cfg = _config(tmp_path)
-    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    prepared = prepare(cfg)
+    sim, engine = prepared.sim, prepared.engine
+    prepared.reset()
     for _ in range(100):
         done, snapshot = sim.run()
         assert not done
@@ -78,8 +68,9 @@ def test_overlapping_decisions_require_distinct_precedence(tmp_path):
 def test_periodic_reconsider_uses_current_decision_version(tmp_path):
     cfg = _config(tmp_path)
     cfg.decisions.OBRSP.triggers.append({"every_s": 5})
-    sim, engine = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    prepared = prepare(cfg)
+    sim, engine = prepared.sim, prepared.engine
+    prepared.reset()
     original = next(event for event in sim.events
                     if isinstance(event, Reconsider)
                     and event.reason is ReconsiderReason.PERIODIC)

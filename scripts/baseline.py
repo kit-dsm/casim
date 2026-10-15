@@ -68,9 +68,9 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
     add("walk__no_intervention_largest_gap", "walk_or_wait", walk,
         ("decisions=paper_no_intervention", "cosy_repo=wait_1_largest_gap"))
 
-    stochastic = "scenarios.scenario_stochastic_waiting.experiment_stochastic_waiting"
+    stochastic = None
     for repo in ("analytic_waiting", "henn_waiting", "no_waiting"):
-        add(f"stochastic__{repo}", "scenario_stochastic_waiting", stochastic,
+        add(f"stochastic__{repo}", "analytic_waiting", stochastic,
             (f"cosy_repo={repo}",))
 
     grocery = "scenarios.scenario_grocery_retailer.experiment_grocery_retailer"
@@ -89,7 +89,6 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
 
 def _config_name(scenario: str) -> str:
     return {
-        "scenario_stochastic_waiting": "stochastic_waiting_config",
         "scenario_grocery_retailer": "grocery_retailer_config",
         "scenario_ijpe": "grocery_retailer_config",
     }[scenario]

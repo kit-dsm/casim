@@ -18,11 +18,8 @@ from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 
 from ware_ops_algos.taxonomy.taxonomy import TAXONOMY
-from scenarios.experiment_commons import load_and_flatten_data_card
-from scenarios.scenario_stochastic_waiting.loader import StochasticWaitingDataLoader
-
-
-CONFIG_DIR = Path(__file__).resolve().parents[1] / "scenarios" / "scenario_stochastic_waiting" / "config"
+from casim.config.data_card import load_and_flatten_data_card
+from tests.scenario_configs import analytic_config, analytic_domain
 
 
 @pytest.mark.parametrize(("section", "feature", "value"), [
@@ -34,8 +31,7 @@ CONFIG_DIR = Path(__file__).resolve().parents[1] / "scenarios" / "scenario_stoch
     ("layout", "n_blocks", 2),
 ])
 def test_analytical_waiting_card_checks_declared_assumptions(section, feature, value):
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        cfg = compose(config_name="stochastic_waiting_config")
+    cfg = analytic_config(None)
     card = load_and_flatten_data_card(cfg.data_card)
     algorithm = next(model for model in load_packaged_algo_cards()
                      if model.algo_name == "AnalyticStochasticWaiting")
@@ -56,10 +52,9 @@ def test_analytical_waiting_card_checks_declared_assumptions(section, feature, v
 
 
 def test_reference_data_matches_its_card_and_uses_paper_router():
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        cfg = compose(config_name="stochastic_waiting_config")
+    cfg = analytic_config(None)
     card = load_and_flatten_data_card(cfg.data_card)
-    domain = StochasticWaitingDataLoader(CONFIG_DIR, cfg).load()
+    domain = analytic_domain(cfg)
 
     assert card.orders["features"]["order_lines_per_order"] == 1
     assert card.orders["features"]["amount"] == 1
@@ -70,9 +65,8 @@ def test_reference_data_matches_its_card_and_uses_paper_router():
 
 
 def test_reference_route_and_wait_match_the_paper_example():
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        cfg = compose(config_name="stochastic_waiting_config")
-    domain = StochasticWaitingDataLoader(CONFIG_DIR, cfg).load()
+    cfg = analytic_config(None)
+    domain = analytic_domain(cfg)
     orders = tuple(
         WarehouseOrder(
             order_id=index,

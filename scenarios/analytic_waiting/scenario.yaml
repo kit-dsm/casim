@@ -1,0 +1,17 @@
+defaults:
+  - _self_
+  - data_card: stochastic_waiting
+  - decisions: waiting
+  - cosy_repo: analytic_waiting
+
+name: stochastic_waiting
+# Luigi reports task errors, so invalid waiting-policy input is visible.
+luigi:
+  log_level: ERROR
+# The realised stream; the forecast is the data card's process information.
+source:
+  name: local
+  arrival_times_s: [0.0, 1.0, 2.0, 12.0]
+  aisles: [2, 2, 2, 2]
+  pick_time_s: 0.0
+  information: ${data_card.information}

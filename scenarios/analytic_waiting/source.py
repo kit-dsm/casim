@@ -1,8 +1,19 @@
+"""The analytical waiting example's source: one-line orders on a generated layout.
+
+Order ``i`` arrives at ``arrival_times_s[i]`` with one pick at
+``pick_locations[i]`` (or at location 1 of ``aisles[i]``). One picker with a
+four-bin cart arrives with the first order; the stream closes at the last
+arrival. The forecast, ``information``, is the data card's process
+information and never enters the event stream.
+"""
+
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
-from casim.data_loader import DataLoader
+from casim.events.base_events import Event
+from casim.sources.events import first_arrival_release
 from casim.sources.layout import conventional_layout
 from casim.domain_objects.sim_domain import SimWarehouseDomain, initial_dynamic_info
 from ware_ops_algos.domain_models import (
@@ -30,26 +41,22 @@ from ware_ops_algos.domain_models import (
 
 
 
-class StochasticWaitingDataLoader(DataLoader):
-    """Build the small single-line system assumed by the analytical model."""
+class ScenarioSource:
+    def __init__(self, data_dir: Path, *, arrival_times_s: list[float], pick_time_s: float,
+                 information: dict, aisles: list[int] | None = None,
+                 pick_locations: list[list[int]] | None = None):
+        self.arrival_times_s = arrival_times_s
+        self.pick_time_s = float(pick_time_s)
+        self.information = information
+        self.aisles = aisles
+        self.pick_locations = pick_locations
+        self._domain: SimWarehouseDomain | None = None
 
-    def __init__(
-        self,
-        instances_dir: str | Path,
-        cfg,
-    ):
-        super().__init__(Path(instances_dir).resolve())
-        self.cfg = cfg
-
-    def load(
-        self,
-        **kwargs,
-    ) -> SimWarehouseDomain:
-        arrivals = [float(value) for value in self.cfg.simulation.arrival_times_s]
-        pick_nodes = ([tuple(int(value) for value in node)
-                       for node in self.cfg.simulation.pick_locations]
-                      if "pick_locations" in self.cfg.simulation else
-                      [(int(aisle), 1) for aisle in self.cfg.simulation.aisles])
+    def initial_state(self) -> SimWarehouseDomain:
+        arrivals = [float(value) for value in self.arrival_times_s]
+        pick_nodes = ([tuple(int(value) for value in node) for node in self.pick_locations]
+                      if self.pick_locations is not None else
+                      [(int(aisle), 1) for aisle in self.aisles])
         if len(arrivals) != len(pick_nodes):
             raise ValueError("Each realized order needs one pick location")
 
@@ -106,7 +113,7 @@ class StochasticWaitingDataLoader(DataLoader):
                     id=0,
                     capacity=4,
                     speed=1.0,
-                    time_per_pick=float(self.cfg.simulation.pick_time_s),
+                    time_per_pick=self.pick_time_s,
                     tour_setup_time=0.0,
                     pick_cart=cart,
                     available=True,
@@ -116,16 +123,16 @@ class StochasticWaitingDataLoader(DataLoader):
             ],
         )
         processes = {}
-        for obj in self.cfg.data_card.information.objects:
-            features = {feature.name: feature.value for feature in obj.features}
+        for obj in self.information["objects"]:
+            features = {feature["name"]: feature["value"] for feature in obj["features"]}
             if features["type"] != ExponentialSingleLineUniformLocationOrderStream.representation:
                 raise ValueError(f"Unsupported process information: {features['type']}")
-            processes[obj.name] = ExponentialSingleLineUniformLocationOrderStream(
+            processes[obj["name"]] = ExponentialSingleLineUniformLocationOrderStream(
                 features["mean_interarrival_time_s"]
             )
         information = PlannerInformation(tpe=InformationType.PROCESS_INFORMATION, processes=processes)
         warehouse_info = WarehouseInfo(tpe=WarehouseInfoType.ONLINE)
-        return SimWarehouseDomain(
+        self._domain = SimWarehouseDomain(
             problem_class="OBRSP",
             objective="mean_order_completion_time",
             layout=layout,
@@ -137,3 +144,7 @@ class StochasticWaitingDataLoader(DataLoader):
             warehouse_info=warehouse_info,
             information=information,
         )
+        return self._domain
+
+    def events(self) -> Iterator[Event]:
+        return first_arrival_release(self._domain)

@@ -11,7 +11,14 @@ active_tour_admission:
     frozen_accepts: insert
   solver:
     _target_: casim.pipelines.pipeline_runner.CoSySolver
-    repo: ${insertion_repo}
+    repo:
+      components:
+      - casim.pipelines.problem_based_template.InstanceLoader
+      - casim.pipelines.problem_based_template.OrdersProvider
+      - casim.pipelines.subproblems.item_assingment.GreedyIA
+      - casim.pipelines.subproblems.admission.RemainingRouteAdmissionNode
+      - casim.pipelines.problem_based_template.AdmittedTourBatch
+      - casim.pipelines.subproblems.picker_routing.ReroutableSShape
   precedence: 0
   triggers:
   - ActiveTourOpportunity

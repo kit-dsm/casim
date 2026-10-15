@@ -16,24 +16,17 @@ from ware_ops_algos.domain_models import (
 )
 from ware_ops_algos.domain_models.datacards import load_and_flatten_data_card as load_card_path
 
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card, setup_experiment,
-)
-from scenarios.scenario_stochastic_waiting.scenario_specific_hooks import (
-    add_orders_hook, picker_arrival_hook,
-)
+from casim.config.data_card import load_and_flatten_data_card
+from casim.run import prepare
+from casim.setup import resolve
+from tests.scenario_configs import ANALYTIC_WAITING, analytic_config
 
 
-CONFIG_DIR = Path(__file__).resolve().parents[1] / "scenarios" / "scenario_stochastic_waiting" / "config"
+CONFIG_DIR = ANALYTIC_WAITING
 
 
 def configured_study(tmp_path):
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        return compose(config_name="stochastic_waiting_config", overrides=[
-            f"instances_base={tmp_path.as_posix()}",
-            f"cache_base={(tmp_path / 'cache').as_posix()}",
-            f"experiment.output_dir={tmp_path.as_posix()}",
-        ])
+    return analytic_config(tmp_path)
 
 
 def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp_path):
@@ -44,8 +37,9 @@ def test_waiting_information_crosses_decision_boundary_without_future_orders(tmp
         "incoming_orders.mean_interarrival_time_s": 28.8,
     }
     assert load_card_path(CONFIG_DIR / "data_card" / "stochastic_waiting.yaml").information == card.information
-    sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    prepared = prepare(cfg)
+    sim = prepared.sim
+    prepared.reset()
     done, snapshot = sim.run()
     assert not done
     assert snapshot.information is not sim.state.information
@@ -78,7 +72,7 @@ def test_invalid_forecast_rejected_during_resolution(tmp_path, feature_name, val
     feature.value = value
     load_and_flatten_data_card(cfg.data_card)
     with pytest.raises(ValueError, match="configured cards excluded"):
-        setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
+        prepare(cfg)
 
 
 def test_duplicate_process_ids_fail_when_card_loads(tmp_path):
@@ -97,14 +91,14 @@ def test_mapper_excludes_missing_or_incompatible_information_before_simulation(t
     card.information = {"type": None, "features": {}}
     assert mapper.filter([algorithm], card) == []
     with pytest.raises(ValueError, match="configured cards excluded"):
-        setup_experiment(cfg, card)
+        resolve(cfg, card)
 
     card.information = {"type": "process_information", "features": {
         "incoming_orders.type": "different_order_process",
     }}
     assert mapper.filter([algorithm], card) == []
     with pytest.raises(ValueError, match="configured cards excluded"):
-        setup_experiment(cfg, card)
+        resolve(cfg, card)
 
 
 @dataclass(frozen=True)
@@ -117,8 +111,9 @@ class ExampleAttendanceInformation:
 
 def test_second_process_fits_same_snapshot_boundary(tmp_path):
     cfg = configured_study(tmp_path)
-    sim, _ = setup_experiment(cfg, load_and_flatten_data_card(cfg.data_card))
-    sim.reset(hooks=[add_orders_hook, picker_arrival_hook])
+    prepared = prepare(cfg)
+    sim = prepared.sim
+    prepared.reset()
     original = sim.state.information.require("incoming_orders", ExponentialSingleLineUniformLocationOrderStream)
     sim.state.information = PlannerInformation(InformationType.PROCESS_INFORMATION, {
         "incoming_orders": original,

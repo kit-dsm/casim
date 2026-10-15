@@ -1,20 +1,8 @@
 """Luigi tasks built for separate solvers keep their own pipeline paths."""
 
-from pathlib import Path
-
-from hydra import compose, initialize_config_dir
-
 from casim.pipelines.problem_based_template import InstanceLoader
-from scenarios.experiment_commons import (
-    load_and_flatten_data_card, setup_experiment,
-)
-from scenarios.scenario_stochastic_waiting.scenario_specific_hooks import (
-    add_orders_hook, picker_arrival_hook,
-)
-
-
-CONFIG_DIR = (Path(__file__).resolve().parents[1] / "scenarios"
-              / "scenario_stochastic_waiting" / "config")
+from casim.run import prepare
+from tests.scenario_configs import analytic_config
 
 
 def _instance_loaders(task):
@@ -27,25 +15,18 @@ def _instance_loaders(task):
 def test_two_solvers_keep_distinct_cache_paths(tmp_path):
     """A second CoSy solver must read its own dynamic domain cache."""
     runs = []
-    with initialize_config_dir(version_base="1.3", config_dir=str(CONFIG_DIR)):
-        for name in ("first", "second"):
-            directory = tmp_path / name
-            cfg = compose(config_name="stochastic_waiting_config", overrides=[
-                f"instances_base={directory.as_posix()}",
-                f"cache_base={directory.as_posix()}",
-                f"experiment.output_dir={directory.as_posix()}",
-            ])
-            card = load_and_flatten_data_card(cfg.data_card)
-            simulation, decision_engine = setup_experiment(cfg, card)
-            solver = decision_engine.solver_map["OBRSP"]
-            simulation.reset(hooks=[add_orders_hook, picker_arrival_hook])
-            while True:
-                done, snapshot = simulation.run()
-                assert not done
-                if snapshot.dynamic_warehouse_info.context.solve:
-                    break
-                simulation.step(decision_engine.on_trigger(snapshot), snapshot)
-            runs.append((solver, snapshot))
+    for name in ("first", "second"):
+        prepared = prepare(analytic_config(tmp_path / name))
+        simulation, decision_engine = prepared.sim, prepared.engine
+        solver = decision_engine.solver_map["OBRSP"]
+        prepared.reset()
+        while True:
+            done, snapshot = simulation.run()
+            assert not done
+            if snapshot.dynamic_warehouse_info.context.solve:
+                break
+            simulation.step(decision_engine.on_trigger(snapshot), snapshot)
+        runs.append((solver, snapshot))
 
     assert runs[0][0].cache_path != runs[1][0].cache_path
     for solver, snapshot in runs:
