@@ -186,6 +186,13 @@ the L2 sweep after this bounded check. The per-replication results are
 [`working printed`](literature_benchmarks/l2_working_c30_45_first_printed.csv),
 and [`journal stated`](literature_benchmarks/l2_journal_c30_45_first_stated.csv).
 
+The first matrix pilot also exposed the shared `LPTScheduler` card's
+`due_date` requirement, although `LPTScheduling` ranks only by job processing
+time and Henn's LONG rule has no due dates. L2 LONG runs use an explicitly
+synthetic common end-of-shift due date (28,800 seconds) in the loader and
+data-card metadata. It is not a Henn parameter and cannot change the LONG
+ranking. The shared card and the CASOP applicability lock are unchanged.
+
 ## L3: OOBP, Gil-Borrás et al. (2020)
 
 | Field | Value |

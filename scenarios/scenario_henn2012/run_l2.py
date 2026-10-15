@@ -74,6 +74,10 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
         cfg.cosy_repo.components[5] = SCHEDULERS[selection]
         cfg.cosy_repo.components[6] = (WAITING["journal"] if selection == "IGNORE"
                                        else WAITING[target])
+        if selection == "LONG":
+            cfg.data_card.source.data_loader = (
+                "scenarios.scenario_henn2012.loader.Henn2012LongLoader")
+            cfg.data_card.orders.objects[0].features.append({"name": "due_date"})
         if selection == "IGNORE":
             cfg.decisions.OBRSP.state_information.resources = ["idle"]
             cfg.decisions.OBRSP.commitment_policy = OmegaConf.create({
