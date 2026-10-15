@@ -136,6 +136,32 @@ One printed value is inconsistent within the journal: for C/60/75 with S-shape, 
 
 CASIM needs: a seeded generator of these instances (layout with Henn's depot and aisle-exit geometry, class-based and uniform storage), the four selection rules as scheduling cards, the waiting rule of correction 4 with α (α = 1 is `HennWaiting`, α = 0 is no waiting), IGNORE as a configuration (commit every batch of a decision, decide again only when the picker is idle), `announced` stream closure, picker speed as an instance value, the turnover KPIs, and a Largest Gap router with Henn's definition. No published standard deviations exist, so the confidence interval comes from CASIM's own replications.
 
+### B.5 L2 protocol check, 15 October 2026
+
+The first approved 50-instance class (C, 30 orders, capacity 45, S-shape,
+FCFS/FIRST) has a published completion mean that neither documented arrival
+rate reproduces. The generator uses the same 50 seeds for the working-paper
+and journal targets and for both n=30 rate interpretations. Its first order
+arrives after one exponential interarrival. Values are means in minutes;
+parentheses give approximate 95% confidence half-widths from these 50 runs.
+
+| Target and arrival rate | Completion CASIM / published | Arrival turnover CASIM / published | Batch-start turnover CASIM | Kind and status |
+|---|---:|---:|---:|---|
+| Working paper α=1; stated 30/480 per min | 507.4 (22.0) / 467 | 42.6 (1.2) / 44 | 17.05 (0.17) | statistical; cause unresolved |
+| Working paper α=1; printed 0.08625 per min | 380.6 (15.4) / 467 | 39.3 (1.2) / 44 | 17.25 (0.16) | statistical sensitivity; cause unresolved |
+| Journal α=0; stated 30/480 per min | 500.2 (21.9) / 473 | 18.35 (0.74) / not published for FIRST | 13.37 (0.26) | statistical; cause unresolved |
+
+The paper says the expected number of arrivals in eight hours is 30, which
+implies 0.0625 per minute, but prints 0.08625 per minute for this class. The
+two rates move the mean completion to opposite sides of the published value;
+neither 50-instance interval includes it. All 153 L2 audit records captured so
+far are internally consistent, so the cause has not been shown. Section 9 of
+the correction plan requires a user decision before starting the remaining
+L2 cells. The per-replication results are
+[`working stated`](literature_benchmarks/l2_working_c30_45_first_stated.csv),
+[`working printed`](literature_benchmarks/l2_working_c30_45_first_printed.csv),
+and [`journal stated`](literature_benchmarks/l2_journal_c30_45_first_stated.csv).
+
 ## L3: OOBP, Gil-Borrás et al. (2020)
 
 | Field | Value |

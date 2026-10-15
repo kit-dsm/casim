@@ -1,4 +1,7 @@
-from ware_ops_algos.algorithms import EDDScheduling, ERDScheduling, LPTScheduling, SPTScheduling, FIFOScheduling
+from ware_ops_algos.algorithms import (
+    EDDScheduling, ERDScheduling, LPTScheduling, SPTScheduling,
+    FIFOScheduling, SAVScheduling,
+)
 
 from casim.pipelines.problem_based_template import AbstractScheduling
 
@@ -30,3 +33,11 @@ class SPTScheduler(AbstractScheduling):
 class FIFOScheduler(AbstractScheduling):
     def _get_inited_scheduler(self, available_from: dict[int, float]):
         return FIFOScheduling(self._load_resources(), available_from=available_from)
+
+
+class SAVScheduler(AbstractScheduling):
+    def _get_inited_scheduler(self, available_from: dict[int, float]):
+        routing_task = self.requires()["routing_sol"]
+        return SAVScheduling(self._load_resources(),
+                             router=routing_task._get_inited_router(),
+                             available_from=available_from)

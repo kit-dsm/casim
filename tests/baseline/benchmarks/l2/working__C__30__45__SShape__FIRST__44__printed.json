@@ -1,0 +1,194 @@
+{
+  "name": "working__C__30__45__SShape__FIRST__44__printed",
+  "stream_closure": "announced",
+  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
+  "casim_commit": "b519ecb431a5186764ab3d4f9ba8ad2f5c974ec1",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 16755.886301076,
+    "mean_order_completion_time": 2060.1270675850674,
+    "num_tours": 13,
+    "num_orders_completed": 30,
+    "avg_tour_makespan": 839.5192307692307,
+    "avg_batch_size": 2.3076923076923075,
+    "orders_per_hour": 6.445496111600175,
+    "tours_per_hour": 2.7930483150267427,
+    "distance_by_picker": {
+      "0": 5203.0
+    },
+    "idle_time_by_picker": {
+      "0": 5364.189110509999
+    },
+    "total_distance": 5203.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "1176.697190566": 1,
+      "2022.947190566": 2,
+      "5027.724846063": 3,
+      "6206.474846063": 4,
+      "8310.946411113": 5,
+      "9362.369884019": 6,
+      "10536.119884019": 7,
+      "11462.369884019": 8,
+      "12453.619884019": 9,
+      "13509.869884019": 10,
+      "14763.619884019": 11,
+      "15217.369884019": 12,
+      "16755.886301076": 13
+    },
+    "total_tour_times": 10913.75,
+    "picks_per_hour": 94.74879284052257,
+    "total_processing_time": 10913.75
+  },
+  "decisions": {
+    "OBRSP": 44
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0
+      ],
+      "start": 297.947190566,
+      "end": 1176.697190566
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        1
+      ],
+      "start": 1176.697190566,
+      "end": 2022.947190566
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        2,
+        3
+      ],
+      "start": 3893.9748460630003,
+      "end": 5027.724846063
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        4,
+        5
+      ],
+      "start": 5027.724846063,
+      "end": 6206.474846063
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 0,
+      "order_ids": [
+        6,
+        7,
+        8,
+        9
+      ],
+      "start": 7132.196411112999,
+      "end": 8310.946411113
+    },
+    {
+      "tour_id": 6,
+      "picker_id": 0,
+      "order_ids": [
+        10,
+        11,
+        12
+      ],
+      "start": 8368.619884019,
+      "end": 9362.369884019
+    },
+    {
+      "tour_id": 7,
+      "picker_id": 0,
+      "order_ids": [
+        13,
+        14,
+        15
+      ],
+      "start": 9362.369884019,
+      "end": 10536.119884019
+    },
+    {
+      "tour_id": 8,
+      "picker_id": 0,
+      "order_ids": [
+        16,
+        17
+      ],
+      "start": 10536.119884019,
+      "end": 11462.369884019
+    },
+    {
+      "tour_id": 9,
+      "picker_id": 0,
+      "order_ids": [
+        18,
+        19,
+        20
+      ],
+      "start": 11462.369884019,
+      "end": 12453.619884019
+    },
+    {
+      "tour_id": 10,
+      "picker_id": 0,
+      "order_ids": [
+        21,
+        22
+      ],
+      "start": 12453.619884019,
+      "end": 13509.869884019
+    },
+    {
+      "tour_id": 11,
+      "picker_id": 0,
+      "order_ids": [
+        24,
+        23
+      ],
+      "start": 13509.869884019,
+      "end": 14763.619884019
+    },
+    {
+      "tour_id": 12,
+      "picker_id": 0,
+      "order_ids": [
+        25
+      ],
+      "start": 14763.619884019,
+      "end": 15217.369884019
+    },
+    {
+      "tour_id": 13,
+      "picker_id": 0,
+      "order_ids": [
+        26,
+        27,
+        28,
+        29
+      ],
+      "start": 15567.136301076,
+      "end": 16755.886301076
+    }
+  ],
+  "trace_digest": "5676bc140ac1d72fb23192c4f1738afa619a035f8b1b61c6ab986273f915f7c3",
+  "event_count": 9994,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

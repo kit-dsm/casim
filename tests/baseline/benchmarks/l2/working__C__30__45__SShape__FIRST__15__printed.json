@@ -1,0 +1,194 @@
+{
+  "name": "working__C__30__45__SShape__FIRST__15__printed",
+  "stream_closure": "announced",
+  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 22364.356239163,
+    "mean_order_completion_time": 2452.993499084467,
+    "num_tours": 13,
+    "num_orders_completed": 30,
+    "avg_tour_makespan": 806.25,
+    "avg_batch_size": 2.3076923076923075,
+    "orders_per_hour": 4.829112845684216,
+    "tours_per_hour": 2.0926155664631603,
+    "distance_by_picker": {
+      "0": 5017.0
+    },
+    "idle_time_by_picker": {
+      "0": 11055.851367821
+    },
+    "total_distance": 5017.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "1356.0048713420001": 1,
+      "4490.644630998": 2,
+      "5788.980267962999": 3,
+      "10264.602432662": 4,
+      "11123.352432662": 5,
+      "12157.102432662": 6,
+      "13115.852432662": 7,
+      "14685.053853582": 8,
+      "16130.043679092": 9,
+      "17930.800791990998": 10,
+      "18759.550791990998": 11,
+      "21578.106239163": 12,
+      "22364.356239163": 13
+    },
+    "total_tour_times": 10481.25,
+    "picks_per_hour": 67.7685502677685,
+    "total_processing_time": 10481.25
+  },
+  "decisions": {
+    "OBRSP": 45
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0
+      ],
+      "start": 647.2548713420001,
+      "end": 1356.0048713420001
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        1,
+        2
+      ],
+      "start": 3439.394630998,
+      "end": 4490.644630998
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        3,
+        4
+      ],
+      "start": 4880.230267962999,
+      "end": 5788.980267962999
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        5,
+        6,
+        7,
+        8
+      ],
+      "start": 8965.852432662,
+      "end": 10264.602432662
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 0,
+      "order_ids": [
+        9,
+        10
+      ],
+      "start": 10264.602432662,
+      "end": 11123.352432662
+    },
+    {
+      "tour_id": 6,
+      "picker_id": 0,
+      "order_ids": [
+        11,
+        12
+      ],
+      "start": 11123.352432662,
+      "end": 12157.102432662
+    },
+    {
+      "tour_id": 7,
+      "picker_id": 0,
+      "order_ids": [
+        13,
+        14
+      ],
+      "start": 12157.102432662,
+      "end": 13115.852432662
+    },
+    {
+      "tour_id": 8,
+      "picker_id": 0,
+      "order_ids": [
+        16,
+        15
+      ],
+      "start": 13691.303853582,
+      "end": 14685.053853582
+    },
+    {
+      "tour_id": 9,
+      "picker_id": 0,
+      "order_ids": [
+        17,
+        18,
+        19,
+        20
+      ],
+      "start": 14841.293679092,
+      "end": 16130.043679092
+    },
+    {
+      "tour_id": 10,
+      "picker_id": 0,
+      "order_ids": [
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      "start": 16727.050791990998,
+      "end": 17930.800791990998
+    },
+    {
+      "tour_id": 11,
+      "picker_id": 0,
+      "order_ids": [
+        26
+      ],
+      "start": 17930.800791990998,
+      "end": 18759.550791990998
+    },
+    {
+      "tour_id": 12,
+      "picker_id": 0,
+      "order_ids": [
+        27,
+        28
+      ],
+      "start": 20676.856239163,
+      "end": 21578.106239163
+    },
+    {
+      "tour_id": 13,
+      "picker_id": 0,
+      "order_ids": [
+        29
+      ],
+      "start": 21578.106239163,
+      "end": 22364.356239163
+    }
+  ],
+  "trace_digest": "03d9ea7e44709aac3d1d28c978b22ff321c6911d4a14357fceebff810985714d",
+  "event_count": 9563,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}

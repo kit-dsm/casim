@@ -6,6 +6,7 @@ defaults:
 
 name: "OobpBenchmark"
 problem_type: OBRSP
+stream_closure: at_last_arrival
 
 hydra:
   sweep:

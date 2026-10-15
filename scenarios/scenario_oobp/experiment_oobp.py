@@ -33,6 +33,17 @@ def add_orders_hook(sim: SimulationEngine,
     sim.add_event(OrderStreamClosed(max(order.order_date for order in domain.orders.orders)))
 
 
+def orders_hook_for(stream_closure: str):
+    """Select the named closure protocol; both know the last arrival at t=0.
+
+    ``announced`` names Henn's published type-C decision point explicitly.
+    ``at_last_arrival`` preserves the existing OOBP benchmark behaviour.
+    """
+    if stream_closure not in {"at_last_arrival", "announced"}:
+        raise ValueError(f"unsupported stream closure {stream_closure!r}")
+    return add_orders_hook
+
+
 @hydra.main(config_path="config", config_name="oobp_config")
 def main(cfg: DictConfig):
     datacard = load_and_flatten_data_card(cfg.data_card)

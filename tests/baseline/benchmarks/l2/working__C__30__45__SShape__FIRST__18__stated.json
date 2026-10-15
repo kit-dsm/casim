@@ -1,0 +1,212 @@
+{
+  "name": "working__C__30__45__SShape__FIRST__18__stated",
+  "stream_closure": "announced",
+  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "kpis": {
+    "makespan": 21883.01826997,
+    "mean_order_completion_time": 2639.652361654834,
+    "num_tours": 15,
+    "num_orders_completed": 30,
+    "avg_tour_makespan": 823.9166666666667,
+    "avg_batch_size": 2.0,
+    "orders_per_hour": 4.935333813078613,
+    "tours_per_hour": 2.4676669065393066,
+    "distance_by_picker": {
+      "0": 5855.0
+    },
+    "idle_time_by_picker": {
+      "0": 7759.097682236999
+    },
+    "total_distance": 5855.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "2863.920587733": 1,
+      "4071.591175466": 2,
+      "5255.072869368": 3,
+      "7081.57518213": 4,
+      "8017.82518213": 5,
+      "13506.76826997": 6,
+      "14625.51826997": 7,
+      "15721.76826997": 8,
+      "16658.01826997": 9,
+      "17664.26826997": 10,
+      "18585.51826997": 11,
+      "19284.26826997": 12,
+      "20028.01826997": 13,
+      "20926.76826997": 14,
+      "21883.01826997": 15
+    },
+    "total_tour_times": 12358.750000000002,
+    "picks_per_hour": 82.9136080597207,
+    "total_processing_time": 12358.750000000002
+  },
+  "decisions": {
+    "OBRSP": 46
+  },
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0,
+        1
+      ],
+      "start": 1585.170587733,
+      "end": 2863.920587733
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        2,
+        3
+      ],
+      "start": 3037.841175466,
+      "end": 4071.591175466
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        4,
+        5,
+        6
+      ],
+      "start": 4163.822869368,
+      "end": 5255.072869368
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        7,
+        8
+      ],
+      "start": 5977.82518213,
+      "end": 7081.57518213
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 0,
+      "order_ids": [
+        9,
+        10
+      ],
+      "start": 7081.57518213,
+      "end": 8017.82518213
+    },
+    {
+      "tour_id": 6,
+      "picker_id": 0,
+      "order_ids": [
+        11,
+        12,
+        13
+      ],
+      "start": 12268.01826997,
+      "end": 13506.76826997
+    },
+    {
+      "tour_id": 7,
+      "picker_id": 0,
+      "order_ids": [
+        14,
+        15
+      ],
+      "start": 13506.76826997,
+      "end": 14625.51826997
+    },
+    {
+      "tour_id": 8,
+      "picker_id": 0,
+      "order_ids": [
+        16,
+        17
+      ],
+      "start": 14625.51826997,
+      "end": 15721.76826997
+    },
+    {
+      "tour_id": 9,
+      "picker_id": 0,
+      "order_ids": [
+        18,
+        19
+      ],
+      "start": 15721.76826997,
+      "end": 16658.01826997
+    },
+    {
+      "tour_id": 10,
+      "picker_id": 0,
+      "order_ids": [
+        20,
+        21
+      ],
+      "start": 16658.01826997,
+      "end": 17664.26826997
+    },
+    {
+      "tour_id": 11,
+      "picker_id": 0,
+      "order_ids": [
+        22,
+        23
+      ],
+      "start": 17664.26826997,
+      "end": 18585.51826997
+    },
+    {
+      "tour_id": 12,
+      "picker_id": 0,
+      "order_ids": [
+        24
+      ],
+      "start": 18585.51826997,
+      "end": 19284.26826997
+    },
+    {
+      "tour_id": 13,
+      "picker_id": 0,
+      "order_ids": [
+        25
+      ],
+      "start": 19284.26826997,
+      "end": 20028.01826997
+    },
+    {
+      "tour_id": 14,
+      "picker_id": 0,
+      "order_ids": [
+        26,
+        27
+      ],
+      "start": 20028.01826997,
+      "end": 20926.76826997
+    },
+    {
+      "tour_id": 15,
+      "picker_id": 0,
+      "order_ids": [
+        28,
+        29
+      ],
+      "start": 20926.76826997,
+      "end": 21883.01826997
+    }
+  ],
+  "trace_digest": "f62f5aa6716705719ba3c3d6e90fa3a8248293cda78899aa80a467f9c1792013",
+  "event_count": 11305,
+  "violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {},
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "consistent"
+}
