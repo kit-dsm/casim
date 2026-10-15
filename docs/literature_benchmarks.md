@@ -147,17 +147,41 @@ parentheses give approximate 95% confidence half-widths from these 50 runs.
 
 | Target and arrival rate | Completion CASIM / published | Arrival turnover CASIM / published | Batch-start turnover CASIM | Kind and status |
 |---|---:|---:|---:|---|
-| Working paper α=1; stated 30/480 per min | 507.4 (22.0) / 467 | 42.6 (1.2) / 44 | 17.05 (0.17) | statistical; cause unresolved |
-| Working paper α=1; printed 0.08625 per min | 380.6 (15.4) / 467 | 39.3 (1.2) / 44 | 17.25 (0.16) | statistical sensitivity; cause unresolved |
-| Journal α=0; stated 30/480 per min | 500.2 (21.9) / 473 | 18.35 (0.74) / not published for FIRST | 13.37 (0.26) | statistical; cause unresolved |
+| Working paper α=1; stated 30/480 per min | 507.4 (22.0) / 467 | 42.6 (1.2) / 44 | 17.05 (0.17) | statistical nonreproduction |
+| Working paper α=1; printed 0.08625 per min | 380.6 (15.4) / 467 | 39.3 (1.2) / 44 | 17.25 (0.16) | statistical nonreproduction; sensitivity |
+| Journal α=0; stated 30/480 per min | 500.2 (21.9) / 473 | 18.35 (0.74) / not published for FIRST | 13.37 (0.26) | statistical nonreproduction |
 
 The paper says the expected number of arrivals in eight hours is 30, which
-implies 0.0625 per minute, but prints 0.08625 per minute for this class. The
-two rates move the mean completion to opposite sides of the published value;
-neither 50-instance interval includes it. All 153 L2 audit records captured so
-far are internally consistent, so the cause has not been shown. Section 9 of
-the correction plan requires a user decision before starting the remaining
-L2 cells. The per-replication results are
+implies 0.0625 per minute, but prints 0.08625 per minute for this class.
+With the first order after an exponential interarrival, the expected 30th
+arrival is minute 480 at the stated rate and minute 347.83 at the printed
+rate. The seeded samples' mean last arrivals are 482.03 and 349.30 minutes;
+their mean completions are respectively 25.36 and 31.31 minutes later. A
+467-minute mean completion therefore cannot fit the stated-rate arrival
+process with positive work after the last arrival. The printed rate would
+require about 119 minutes after its expected last arrival, against 31.31
+minutes observed in CASIM. Neither rate fits both the published completion
+and turnover of 467 and 44 minutes: the stated-rate turnover is 42.60 and the
+printed-rate turnover is 39.32.
+
+The bounded tour check found 14.62 tours at the stated rate and 14.04 at the
+printed rate, serving 454.02 generated items per instance (15.13 per order).
+Every item is charged once at 10 seconds: subtracting executed travel time
+from `total_tour_times` recovers all 454.02 picks. That KPI excludes the
+three-minute setup, which happens before the recorded tour start. The mean
+per-tour travel, pick and setup times are respectively 7.99, 5.19 and 3.00
+minutes at the stated rate (8.11, 5.41 and 3.00 at the printed rate). The
+generator and loader use 45 cells per side in ten aisles, one length unit per
+cell, five length units between aisle centres, one unit from the first/last
+pick to a cross aisle, and the depot offsets of 0.5 from the front cross
+aisle and 1.5 from the first pick. The resource has 48 LU/min travel,
+6 items/min pick and 3 min setup per tour. These are the paper's listed
+geometry and units; the checks do not support the conjecture that CASIM
+omits work per tour. The original seeds and instances are unpublished, so
+the remaining discrepancy is classified as a statistical nonreproduction,
+without changing parameters to target 467. All 153 L2 audit records captured
+so far have zero KPI recomputation differences. The user approved continuing
+the L2 sweep after this bounded check. The per-replication results are
 [`working stated`](literature_benchmarks/l2_working_c30_45_first_stated.csv),
 [`working printed`](literature_benchmarks/l2_working_c30_45_first_printed.csv),
 and [`journal stated`](literature_benchmarks/l2_journal_c30_45_first_stated.csv).
