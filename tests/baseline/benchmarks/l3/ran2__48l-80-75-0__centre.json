@@ -1,0 +1,299 @@
+{
+  "instance": "48l-80-75-0",
+  "stratum": "ran2",
+  "depot": "centre",
+  "command": "python -m scenarios.scenario_oobp.run_l3 full # ran2/48l-80-75-0 depot=centre",
+  "kpis": {
+    "makespan": 27078.594,
+    "mean_order_completion_time": 10323.160775,
+    "num_tours": 18,
+    "num_orders_completed": 80,
+    "avg_tour_makespan": 1306.5972222222222,
+    "avg_batch_size": 4.444444444444445,
+    "orders_per_hour": 10.635707304448673,
+    "tours_per_hour": 2.3930341435009512,
+    "distance_by_picker": {
+      "0": 9495.0
+    },
+    "idle_time_by_picker": {
+      "0": 3323.125
+    },
+    "total_distance": 9495.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "1126.094": 1,
+      "2635.469": 2,
+      "4034.844": 3,
+      "5584.219": 4,
+      "7043.594": 5,
+      "8582.969000000001": 6,
+      "10042.344000000001": 7,
+      "11571.719000000001": 8,
+      "13141.094000000001": 9,
+      "14578.594000000001": 10,
+      "16066.094000000001": 11,
+      "17603.594": 12,
+      "19191.094": 13,
+      "20778.594": 14,
+      "22336.094": 15,
+      "23903.594": 16,
+      "25521.094": 17,
+      "27078.594": 18
+    },
+    "total_tour_times": 23518.75,
+    "picks_per_hour": 154.8824876210338,
+    "total_processing_time": 23518.75
+  },
+  "decisions": {
+    "OBRSP": 98
+  },
+  "casim_commit": "b519ecb431a5186764ab3d4f9ba8ad2f5c974ec1",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "committed_tours": [
+    {
+      "tour_id": 1,
+      "picker_id": 0,
+      "order_ids": [
+        0
+      ],
+      "start": 56.719,
+      "end": 1154.219
+    },
+    {
+      "tour_id": 2,
+      "picker_id": 0,
+      "order_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "start": 1126.094,
+      "end": 2663.594
+    },
+    {
+      "tour_id": 3,
+      "picker_id": 0,
+      "order_ids": [
+        5,
+        6,
+        7
+      ],
+      "start": 2635.469,
+      "end": 4062.969
+    },
+    {
+      "tour_id": 4,
+      "picker_id": 0,
+      "order_ids": [
+        8,
+        9,
+        10,
+        11
+      ],
+      "start": 4034.844,
+      "end": 5612.344
+    },
+    {
+      "tour_id": 5,
+      "picker_id": 0,
+      "order_ids": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "start": 5584.219,
+      "end": 7081.719
+    },
+    {
+      "tour_id": 6,
+      "picker_id": 0,
+      "order_ids": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "start": 7043.594,
+      "end": 8611.094000000001
+    },
+    {
+      "tour_id": 7,
+      "picker_id": 0,
+      "order_ids": [
+        24,
+        25,
+        22,
+        23
+      ],
+      "start": 8582.969000000001,
+      "end": 10070.469000000001
+    },
+    {
+      "tour_id": 8,
+      "picker_id": 0,
+      "order_ids": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "start": 10042.344000000001,
+      "end": 11599.844000000001
+    },
+    {
+      "tour_id": 9,
+      "picker_id": 0,
+      "order_ids": [
+        32,
+        33,
+        34,
+        35,
+        36
+      ],
+      "start": 11571.719000000001,
+      "end": 13169.219000000001
+    },
+    {
+      "tour_id": 10,
+      "picker_id": 0,
+      "order_ids": [
+        40,
+        37,
+        38,
+        39
+      ],
+      "start": 13169.219000000001,
+      "end": 14616.719000000001
+    },
+    {
+      "tour_id": 11,
+      "picker_id": 0,
+      "order_ids": [
+        41,
+        42,
+        43,
+        44,
+        45
+      ],
+      "start": 14616.719000000001,
+      "end": 16094.219000000001
+    },
+    {
+      "tour_id": 12,
+      "picker_id": 0,
+      "order_ids": [
+        48,
+        49,
+        46,
+        47
+      ],
+      "start": 16094.219000000001,
+      "end": 17631.719
+    },
+    {
+      "tour_id": 13,
+      "picker_id": 0,
+      "order_ids": [
+        50,
+        51,
+        52,
+        53
+      ],
+      "start": 17631.719,
+      "end": 19219.219
+    },
+    {
+      "tour_id": 14,
+      "picker_id": 0,
+      "order_ids": [
+        54,
+        55,
+        56,
+        57,
+        58
+      ],
+      "start": 19219.219,
+      "end": 20806.719
+    },
+    {
+      "tour_id": 15,
+      "picker_id": 0,
+      "order_ids": [
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "start": 20806.719,
+      "end": 22364.219
+    },
+    {
+      "tour_id": 16,
+      "picker_id": 0,
+      "order_ids": [
+        64,
+        65,
+        66,
+        67,
+        68,
+        69
+      ],
+      "start": 22364.219,
+      "end": 23931.719
+    },
+    {
+      "tour_id": 17,
+      "picker_id": 0,
+      "order_ids": [
+        70,
+        71,
+        72,
+        73,
+        74,
+        75
+      ],
+      "start": 23931.719,
+      "end": 25549.219
+    },
+    {
+      "tour_id": 18,
+      "picker_id": 0,
+      "order_ids": [
+        76,
+        77,
+        78,
+        79
+      ],
+      "start": 25549.219,
+      "end": 27106.719
+    }
+  ],
+  "trace_digest": "2aab535520f626e6eca7409367ef255ad9b84d59d9ae1390b3778fa786c38e2a",
+  "event_count": 20438,
+  "violations": {
+    "check_plan": {
+      "overlap": 22
+    },
+    "check_progress": {}
+  },
+  "first_violations": {
+    "check_plan": {
+      "overlap": {
+        "at": "decision:OBRSP",
+        "time": 1126.094,
+        "tour_id": 2,
+        "message": "Picker 0 has overlapping tours"
+      }
+    },
+    "check_progress": {}
+  },
+  "kpi_differences": {},
+  "status": "inconsistent"
+}

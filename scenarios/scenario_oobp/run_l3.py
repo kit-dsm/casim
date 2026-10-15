@@ -15,6 +15,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 import time
 
@@ -22,6 +23,7 @@ import pandas as pd
 from hydra import compose, initialize_config_dir
 
 from casim.runner import apply_decision
+from tests.verification.kpi_recomputation import recompute_kpis
 from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
 from scenarios.scenario_oobp.experiment_oobp import add_orders_hook, picker_arrival_hook
 
@@ -31,6 +33,7 @@ INSTANCES = ROOT / "scenarios" / "scenario_henn_online" / "data" / "oobp"
 RUNLIST = ROOT / "docs" / "literature_benchmarks" / "l3_instances.csv"
 REFERENCE = ROOT / "scenarios" / "scenario_henn_online" / "data" / "oobp_reference.csv"
 OUTPUT = Path(__file__).resolve().parent / "outputs"
+BASELINES = ROOT / "tests" / "baseline" / "benchmarks" / "l3"
 REL_TOL = 1e-9
 
 HENN_GROUP = "Henn"
@@ -100,7 +103,32 @@ def run_case(row: pd.Series, depot: str, output: Path) -> OobpResult:
                 break
             decisions += 1
             apply_decision(sim, engine, engine.on_trigger(snapshot), snapshot)
-        audit_violations = violations(out / "audit.json")
+        audit_path = out / "audit.json"
+        audit_violations = violations(audit_path)
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        kpis = json.loads((out / "kpis" / "kpis.json").read_text(encoding="utf-8"))
+        record = {
+            "instance": row.instance, "stratum": row.stratum, "depot": depot,
+            "command": ("python -m scenarios.scenario_oobp.run_l3 full "
+                        f"# {row.stratum}/{row.instance} depot={depot}"),
+            "kpis": kpis, "decisions": audit["decisions"],
+            "casim_commit": subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+            "ware_ops_algos_commit": subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=ROOT.parent / "ware_ops_algos",
+                text=True).strip(),
+            "committed_tours": audit["committed_tours"],
+            "trace_digest": audit["trace_digest"],
+            "event_count": audit["event_count"],
+            "violations": audit["violations"],
+            "first_violations": audit["first_violations"],
+            "kpi_differences": recompute_kpis(audit, kpis),
+        }
+        record["status"] = ("inconsistent" if record["kpi_differences"] or
+                            audit_violations else "consistent")
+        baseline_path = BASELINES / f"{row.stratum.replace('/', '_')}__{row.instance}__{depot}.json"
+        baseline_path.parent.mkdir(parents=True, exist_ok=True)
+        baseline_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
     return _result(sim, decisions, audit_violations)
 
 
@@ -128,6 +156,8 @@ def main() -> None:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("stage", choices=["smoke", "full"])
     parser.add_argument("--groups", nargs="*")
+    parser.add_argument("--strata", nargs="*")
+    parser.add_argument("--exclude-results", type=Path)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     rows = pd.read_csv(RUNLIST, dtype={"instance": str, "stratum": str})
@@ -144,16 +174,24 @@ def main() -> None:
                      in zip(rows.stratum, rows.instance)]]
     if args.groups:
         rows = rows[rows.group.isin(args.groups)]
+    if args.strata:
+        rows = rows[rows.stratum.isin(args.strata)]
     reference = pd.read_csv(REFERENCE).set_index("instance")
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    path = OUTPUT / f"l3_{args.stage}.csv"
+    suffix = "" if not args.strata else "_" + "_".join(
+        stratum.replace("/", "-") for stratum in args.strata)
+    path = OUTPUT / f"l3_{args.stage}{suffix}.csv"
     records = pd.read_csv(path, dtype={"depot": str}).to_dict("records") \
         if args.resume and path.exists() else []
     done_keys = {(record["stratum"], record["instance"], record["depot"])
                  for record in records}
+    if args.exclude_results:
+        prior = pd.read_csv(args.exclude_results, dtype={"depot": str})
+        done_keys.update((item.stratum, item.instance, item.depot)
+                         for item in prior.itertuples())
     for _, row in rows.iterrows():
         for depot in depot_of(row):
-            key = (row.group, row.instance, depot)
+            key = (row.stratum, row.instance, depot)
             if key in done_keys:
                 continue
             started = time.perf_counter()
@@ -178,6 +216,10 @@ def main() -> None:
                 record[f"below_best_known_{objective}"] = (
                     record[f"max_{objective}_s"]
                     < record[f"best_known_{objective}_s"] * (1 - REL_TOL))
+            record["protocol_status"] = (
+                "protocol not reproduced" if
+                record["below_best_known_completion"] or
+                record["below_best_known_turnover"] else "comparator only")
             records.append(record)
             pd.DataFrame(records).to_csv(path, index=False)
             print(f"{row.group} {row.instance} {depot}: completion "

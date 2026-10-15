@@ -330,6 +330,19 @@ list.
 
 ### B.5 smoke stage (L3), 15 October 2026
 
+Protocol recheck against Gil-Borrás et al. (2020), pp. 301-302, 304 and
+311-312: capacity is the sum of item counts for W5 and W1-W3, and of item
+weights for W4; one setup of three minutes belongs to each batch's service
+time; the next batch selected contains the oldest order. The paper's published
+method repeatedly forms batches with GRASP and VND while the picker is away.
+CASIM's FCFS batching is a comparator, so its tours are not expected to equal
+the published tours. The paper gives no alternate capacity or setup unit that
+removes the below-best-known smoke values. The W3 archive field `Tiempo de giro
+(fuera y dentro) 20 0` specifies a turning time, but the paper's service-time
+formula and Table 4 do not say how to charge it. The current runner omits it.
+Every value below best known is labelled **protocol not reproduced** in the
+full-run comparison, including turnover values affected by W3.
+
 New scenario `scenarios/scenario_oobp` (runners `experiment_oobp.py` and
 `run_l3.py`). The decision is FCFS batching, the oldest-order batch selection
 (`FiFo` + `FIFOScheduler` under `SchedulingCommitmentPolicy(n_jobs=1)`),
@@ -391,7 +404,8 @@ Findings, each with its evidence:
    (Section 3.3), which the implementation follows. The completion gap to the
    best known 15,707 s corresponds to about two additional tours at the same
    per-tour work, or to a systematically longer tour, neither of which the
-   protocol text states. Section 9 applies; see the phase report.
+   protocol text states. Per the 15 October user direction, the full run
+   proceeds and these gaps are labelled **protocol not reproduced**.
 2. W3 (25 aisles) has `Tiempo de giro (fuera y dentro) 20 0` in its layout
    files, a turning time the protocol tables do not mention and CASIM cannot
    charge. Its turnover beats the best known on both smoke instances while
@@ -403,3 +417,53 @@ Findings, each with its evidence:
    files (for example W1: paper aisle length 50 and centre distance 4.3, file
    86.917 and 7.167). The runs use the files, which the published values
    correspond to; the discrepancy is recorded in the register's L3 row.
+
+### B.5 full stage (L3), 15 October 2026
+
+The full run covers 64 Henn instances under both centre and corner depots
+(128 runs) and 64 Albareda-Sambola instances with the archive's depot
+(192 runs total). The
+per-instance numbers, flags and protocol status are in
+[`l3_full_results.csv`](literature_benchmarks/l3_full_results.csv). Every
+comparison has kind **bound**: CASIM runs a different batching method from the
+published GRASP/VND search. The table gives means in seconds and counts of
+individual results below the published best-known completion/turnover. A row
+with either count above zero has status **protocol not reproduced** even if its
+mean is above the best-known mean.
+
+| Case | n | Completion CASIM / best known (s) | Turnover CASIM / best known (s) | Below best known C/T | Status |
+|---|---:|---:|---:|---:|---|
+| W1/100 | 4 | 23,057 / 20,167 | 11,435 / 8,331 | 0/0 | comparator only |
+| W1/150 | 4 | 33,102 / 26,967 | 20,661 / 15,736 | 0/0 | comparator only |
+| W1/200 | 4 | 43,988 / 35,698 | 31,292 / 23,909 | 0/0 | comparator only |
+| W1/250 | 4 | 56,925 / 45,863 | 43,945 / 34,615 | 0/0 | comparator only |
+| W2/100 | 4 | 15,777 / 16,235 | 4,562 / 4,138 | 3/1 | protocol not reproduced |
+| W2/150 | 4 | 25,260 / 22,709 | 12,823 / 11,620 | 0/0 | comparator only |
+| W2/200 | 4 | 33,021 / 29,240 | 20,474 / 18,613 | 0/0 | comparator only |
+| W2/250 | 4 | 42,051 / 36,735 | 29,113 / 25,932 | 0/0 | comparator only |
+| W3/100 | 4 | 38,704 / 37,039 | 27,653 / 28,471 | 0/3 | protocol not reproduced |
+| W3/150 | 4 | 55,709 / 51,302 | 43,321 / 43,305 | 0/2 | protocol not reproduced |
+| W3/200 | 4 | 74,418 / 67,579 | 62,086 / 60,692 | 0/1 | protocol not reproduced |
+| W3/250 | 4 | 95,631 / 85,858 | 82,898 / 79,158 | 0/0 | comparator only |
+| W4/100 | 4 | 110,178 / 93,861 | 98,522 / 80,852 | 0/0 | comparator only |
+| W4/150 | 4 | 166,511 / 137,587 | 154,057 / 124,006 | 0/0 | comparator only |
+| W4/200 | 4 | 218,712 / 180,012 | 206,017 / 166,726 | 0/0 | comparator only |
+| W4/250 | 4 | 265,637 / 220,200 | 252,639 / 206,660 | 0/0 | comparator only |
+| abc1/centre | 16 | 28,827 / 26,791 | 18,957 / 15,099 | 4/0 | protocol not reproduced |
+| abc1/corner | 16 | 29,245 / 26,791 | 19,371 / 15,099 | 4/0 | protocol not reproduced |
+| abc2/centre | 16 | 29,349 / 26,768 | 19,390 / 15,424 | 3/1 | protocol not reproduced |
+| abc2/corner | 16 | 29,765 / 26,768 | 19,802 / 15,424 | 3/1 | protocol not reproduced |
+| ran1/centre | 16 | 33,248 / 30,369 | 23,310 / 18,705 | 3/0 | protocol not reproduced |
+| ran1/corner | 16 | 33,627 / 30,369 | 23,689 / 18,705 | 3/0 | protocol not reproduced |
+| ran2/centre | 16 | 33,531 / 30,489 | 23,569 / 19,070 | 4/1 | protocol not reproduced |
+| ran2/corner | 16 | 33,912 / 30,489 | 23,951 / 19,070 | 3/1 | protocol not reproduced |
+
+Forty of 192 runs are below at least one best-known value: 30 below for
+completion and 11 for turnover, with one run below on both. The largest
+relative gaps are 21.02% for completion and 13.97% for turnover. These are
+**protocol not reproduced**, as directed by the user; no documented
+interpretation of capacity, setup, batch selection or W3 turning time removes
+the smoke gaps. All 192 audit files have zero KPI recomputation differences.
+The 118 files with violations contain only the previously documented
+`check_plan overlap` issue (Task 4.14). Seven duplicate runs made while
+partitioning the full sweep agreed on every result field except wall time.
