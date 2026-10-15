@@ -1,0 +1,4 @@
+kpi,published,kind,source
+total_distance,38,exact,hand derivation in README.md
+makespan,39,exact,hand derivation in README.md
+mean_order_completion_time,39,exact,hand derivation in README.md

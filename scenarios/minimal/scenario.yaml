@@ -1,0 +1,18 @@
+defaults:
+  - _self_
+  - data_card: minimal
+  - decisions: obrsp
+  - cosy_repo: fifo_sshape
+
+name: minimal
+source:
+  name: local
+  shift_start_s: 0.0
+  capacity_orders: 4
+  n_aisles: 8
+  n_pick_locations: 16
+  depot_aisle: 1
+  walking_speed: 1.0
+  pick_time_s: 1.0
+  orders:
+    - {arrival_s: 0.0, due_s: 400.0, picks: [[2, 3]]}

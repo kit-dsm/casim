@@ -9,7 +9,6 @@ modifies state or the event queue.
 from __future__ import annotations
 
 from collections import Counter
-from hashlib import sha256
 import json
 from math import isclose
 from pathlib import Path
@@ -20,18 +19,18 @@ from ware_ops_algos.planning.lifecycle import TourStates
 from casim.events.operational_events import (
     NodeArrival, OrderArrival, TravelEvent,
 )
-from casim.loggers import EventLogger
+from casim.trace import TraceRecorder
 
 
 AISLE_TOLERANCE = 1e-9
 
 
-class BaselineCapture(EventLogger):
+class BaselineCapture(TraceRecorder):
     """Observe a run without changing its state or event queue."""
 
     def __init__(self, path: Path):
+        super().__init__()
         self.path = path
-        self.trace: list[tuple] = []
         self.commits: list[dict] = []
         self.decisions: Counter = Counter()
         self.legs: list[dict] = []
@@ -75,8 +74,7 @@ class BaselineCapture(EventLogger):
         if picker_id is None and tour_id is not None:
             tour = state.tour_manager.get_tour(tour_id)
             picker_id = tour.assigned_resource
-        self.trace.append((type(event).__name__, round(event.time, 9),
-                           tour_id, picker_id))
+        super().on_event(event, sim)
         if isinstance(event, OrderArrival):
             self.order_arrivals[str(event.order.order_id)] = event.order.order_date
         elif isinstance(event, TravelEvent):
@@ -139,8 +137,7 @@ class BaselineCapture(EventLogger):
                 "tour_setup_time": picker.tour_setup_time or 0.0,
             })
         payload = {
-            "trace_digest": sha256(json.dumps(self.trace,
-                                               separators=(",", ":")).encode()).hexdigest(),
+            "trace_digest": self.digest(),
             "event_count": len(self.trace),
             "committed_tours": self.commits,
             "decisions": dict(self.decisions),

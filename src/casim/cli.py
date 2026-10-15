@@ -18,6 +18,8 @@ from ware_ops_algos.planning.lifecycle import (
 
 from casim.config.schema import DecisionDefinitions
 from casim.config.data_card import load_and_flatten_data_card
+from casim.run import SCENARIO_FILE, compose_scenario, run, sweep_overrides
+from casim.scenario_check import check_all
 from casim.setup import resolve
 
 
@@ -46,11 +48,18 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("schema")
     commands.add_parser("catalog")
+    run_parser = commands.add_parser("run")
+    run_parser.add_argument("scenario_dir", type=Path, nargs="?", default=Path("."))
+    run_parser.add_argument("overrides", nargs="*")
+    run_parser.add_argument("--audit", action="store_true")
+    run_parser.add_argument("--output-dir", type=Path)
     check = commands.add_parser("check")
-    check.add_argument("config_dir", type=Path)
-    check.add_argument("config_name")
-    check.add_argument("overrides", nargs="*")
+    check.add_argument("config_dir", type=Path, nargs="?", default=Path("."),
+                       help="a scenario directory, or a legacy config directory")
+    check.add_argument("arguments", nargs="*",
+                       help="overrides; for a legacy config directory, its config name first")
     check.add_argument("--json", action="store_true", dest="as_json")
+    check.add_argument("--all", action="store_true", dest="check_all")
     args = parser.parse_args(argv)
     if args.command == "schema":
         print(json.dumps(DecisionDefinitions.model_json_schema(), indent=2))
@@ -58,13 +67,50 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "catalog":
         print(json.dumps(catalog(), indent=2))
         return 0
+    if args.command == "run":
+        base = compose_scenario(args.scenario_dir, args.overrides, args.output_dir)
+        combinations = sweep_overrides(base)
+        if not combinations:
+            base.experiment.audit = args.audit
+            result = run(base)
+            print(f"outputs: {result.output_dir}; trace digest {result.trace_digest} "
+                  f"({result.event_count} events)")
+            return 0
+        failures = 0
+        for combination in combinations:
+            output_dir = Path(base.experiment.output_dir) / ",".join(
+                item.replace("/", "_") for item in combination)
+            cfg = compose_scenario(args.scenario_dir, [*args.overrides, *combination],
+                                   output_dir)
+            cfg.experiment.audit = args.audit
+            # A failed combination is a result of the sweep; the others still run.
+            try:
+                result = run(cfg)
+            except ValueError as error:
+                failures += 1
+                output_dir.mkdir(parents=True, exist_ok=True)
+                (output_dir / "error.txt").write_text(str(error), encoding="utf-8")
+                print(f"failed: {output_dir}: {error}")
+                continue
+            print(f"outputs: {result.output_dir}; trace digest {result.trace_digest} "
+                  f"({result.event_count} events)")
+        print(f"{len(combinations) - failures} of {len(combinations)} runs completed")
+        return 1 if failures else 0
+    if args.check_all:
+        findings = check_all(Path.cwd())
+        for finding in findings:
+            print(finding)
+        return 1 if findings else 0
 
-    with initialize_config_dir(config_dir=str(args.config_dir.resolve()),
-                               version_base="1.3"):
-        cfg = compose(config_name=args.config_name, overrides=args.overrides,
-                      return_hydra_config=True)
-        cfg.hydra.runtime.output_dir = str(Path.cwd() / "tmp_output" / "check")
-        HydraConfig.instance().set_config(cfg)
+    if (args.config_dir / SCENARIO_FILE).exists():
+        cfg = compose_scenario(args.config_dir, args.arguments)
+    else:
+        with initialize_config_dir(config_dir=str(args.config_dir.resolve()),
+                                   version_base="1.3"):
+            cfg = compose(config_name=args.arguments[0], overrides=args.arguments[1:],
+                          return_hydra_config=True)
+            cfg.hydra.runtime.output_dir = str(Path.cwd() / "tmp_output" / "check")
+            HydraConfig.instance().set_config(cfg)
     data_card = load_and_flatten_data_card(cfg.data_card)
     if args.as_json:
         with redirect_stdout(StringIO()):

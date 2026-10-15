@@ -22,8 +22,12 @@ sys.path.insert(0, str(ROOT))
 from tests.verification.kpi_recomputation import recompute_kpis  # noqa: E402
 
 
-def cases() -> dict[str, tuple[str, str, tuple[str, ...]]]:
-    """Inventory defaults, sweeps and documented configuration selections."""
+def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
+    """Inventory defaults, sweeps and documented configuration selections.
+
+    A case without a module is a scenario of the Phase S structure and runs
+    with ``casim run``; the others still run their own entry point.
+    """
     result = {}
 
     def add(name, scenario, module, overrides=()):
@@ -120,25 +124,34 @@ def _relative_command(command: list[str]) -> str:
 def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
     """Check and run one configuration, retaining only diagnostic outputs."""
     scenario, module, overrides = definition
-    check = [str(PYTHON), "-m", "casim", "check",
-             str(ROOT / "scenarios" / scenario / "config"),
-             _config_name(scenario), *overrides, "--json"]
-    check_code, check_tail = _run(check)
     out_dir = RUNS / f"{name}-{uuid4().hex[:8]}"
     out_dir.mkdir(parents=True, exist_ok=True)
     capture = out_dir / "audit.json"
-    command = [str(PYTHON), "-m", module, *overrides,
-               "viz.launch=false", "+experiment.audit=true",
-               f"hydra.run.dir={out_dir}"]
+    if module is None:
+        directory = str(ROOT / "scenarios" / scenario)
+        check = [str(PYTHON), "-m", "casim", "check", directory, *overrides, "--json"]
+        command = [str(PYTHON), "-m", "casim", "run", directory, *overrides, "--audit",
+                   "--output-dir", str(out_dir)]
+        recorded_command = command[:-2]
+        kpi_path = out_dir / "kpis.json"
+    else:
+        check = [str(PYTHON), "-m", "casim", "check",
+                 str(ROOT / "scenarios" / scenario / "config"),
+                 _config_name(scenario), *overrides, "--json"]
+        command = [str(PYTHON), "-m", module, *overrides,
+                   "viz.launch=false", "+experiment.audit=true",
+                   f"hydra.run.dir={out_dir}"]
+        recorded_command = command[:-1]
+        kpi_path = out_dir / "kpis" / "kpis.json"
+    check_code, check_tail = _run(check)
     run_code, run_tail = _run(command)
     result = {
         "name": name, "scenario": scenario,
-        "command": _relative_command(command[:-1]),
+        "command": _relative_command(recorded_command),
         "check_command": _relative_command(check),
         "check_exit": check_code, "check_output": check_tail if check_code else "ok",
         "run_exit": run_code, "run_output": run_tail if run_code else "ok",
     }
-    kpi_path = out_dir / "kpis" / "kpis.json"
     if run_code != 0 or not capture.exists() or not kpi_path.exists():
         result["status"] = "not_runnable"
         return result

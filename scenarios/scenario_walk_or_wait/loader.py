@@ -16,7 +16,7 @@ from ware_ops_algos.domain_models import (
     LayoutData, LayoutNetwork, LayoutParameters, LayoutType,
 )
 
-from scenarios.scenario_stochastic_waiting.loader import StochasticWaitingDataLoader
+from casim.sources.layout import conventional_layout
 
 
 class WalkOrWaitDataLoader(DataLoader):
@@ -34,7 +34,7 @@ class WalkOrWaitDataLoader(DataLoader):
             n_aisles = int(sim.n_aisles)
             n_locations = int(sim.n_pick_locations)
             depot_aisle = int(sim.depot_aisle)
-            layout = StochasticWaitingDataLoader._layout(
+            layout = conventional_layout(
                 n_aisles=n_aisles,
                 n_pick_locations=n_locations,
                 start_connection_point=(depot_aisle, 0),
