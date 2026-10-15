@@ -1,14 +1,14 @@
 {
   "name": "henn__40s-60-75-0__henn_waiting",
   "scenario": "scenario_henn_online",
-  "command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m scenarios.scenario_henn_online.experiment_henn data_card.source.filepath=40s-60-75-0.txt decisions=henn_waiting viz.launch=false +experiment.audit=true",
-  "check_command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m casim check C:\\Users\\zm0714\\Documents\\Projekte\\casim\\scenarios\\scenario_henn_online\\config henn_online_config data_card.source.filepath=40s-60-75-0.txt decisions=henn_waiting --json",
+  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_henn_online.experiment_henn data_card.source.filepath=40s-60-75-0.txt decisions=henn_waiting viz.launch=false +experiment.audit=true",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_henn_online\\config henn_online_config data_card.source.filepath=40s-60-75-0.txt decisions=henn_waiting --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "46353f7606b1f7db9785359fd5dfaebf288fcfcd",
-  "ware_ops_algos_commit": "dd4ffc98fa29e9317d38ddf111d36a448a351896",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
   "kpis": {
     "makespan": 17460.25,
     "mean_order_completion_time": 5475.554116666666,
@@ -242,13 +242,6 @@
     "check_plan": {},
     "check_progress": {}
   },
-  "kpi_differences": {
-    "occupation_including_setup": {
-      "independent": 17309.0,
-      "recorded_tour_times": 14609.0,
-      "setup_gap": 2700,
-      "note": "Tracker total_tour_times excludes setup (start is TourStart time, after setup). occupation_including_setup adds tour_setup_time per tour. Difference is a definition mismatch, not an inconsistency. Documented for Task 4.14."
-    }
-  },
-  "status": "inconsistent"
+  "kpi_differences": {},
+  "status": "consistent"
 }

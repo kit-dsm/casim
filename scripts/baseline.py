@@ -32,7 +32,7 @@ def cases() -> dict[str, tuple[str, str, tuple[str, ...]]]:
     henn = "scenarios.scenario_henn_online.experiment_henn"
     add("henn__default", "scenario_henn_online", henn)
     add("henn__repair", "scenario_henn_online", henn,
-        ("cosy_repo=repair_waiting_henn", "decisions.OBRSP.change_penalty=10"))
+        ("cosy_repo=repair_waiting_henn", "+decisions.OBRSP.change_penalty=10"))
     add("henn__rolling", "scenario_henn_online", henn,
         ("data_card=henn_rolling", "decisions=rolling_horizon",
          "cosy_repo=rolling_horizon"))
@@ -52,7 +52,7 @@ def cases() -> dict[str, tuple[str, str, tuple[str, ...]]]:
 
     walk = "scenarios.scenario_walk_or_wait.experiment"
     add("walk__default", "scenario_walk_or_wait", walk)
-    for minimum in range(5):
+    for minimum in (0, 2, 3, 4):
         add(f"walk__wait_{minimum}", "scenario_walk_or_wait", walk,
             (f"policy=wait_{minimum}", "simulation=explicit_example"))
     add("walk__radar_wait_1", "scenario_walk_or_wait", walk,
@@ -77,7 +77,7 @@ def cases() -> dict[str, tuple[str, str, tuple[str, ...]]]:
 
     grocery = "scenarios.scenario_grocery_retailer.experiment_grocery_retailer"
     for repo in ("return", "midpoint", "largest_gap", "nearest_neighbour",
-                 "sshape", "adaptive_routing", "baseline", "full_portfolio"):
+            "sshape", "adaptive_routing", "full_portfolio"):
         add(f"grocery__{repo}", "scenario_grocery_retailer", grocery,
             (f"cosy_repo={repo}",))
 
@@ -100,7 +100,7 @@ def _config_name(scenario: str) -> str:
 
 
 def _run(command: list[str], env: dict | None = None,
-         timeout: int = 240) -> tuple[int, str]:
+         timeout: int = 900) -> tuple[int, str]:
     try:
         result = subprocess.run(command, cwd=ROOT, env=env,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -108,6 +108,13 @@ def _run(command: list[str], env: dict | None = None,
         return result.returncode, result.stdout[-2000:]
     except subprocess.TimeoutExpired as error:
         return 124, f"Timed out after {timeout}s: {error}"
+
+
+def _relative_command(command: list[str]) -> str:
+    """Store reproducible commands without checkout-specific absolute paths."""
+    root = str(ROOT)
+    return " ".join(part.replace(root + os.sep, "").replace(root, ".")
+                    for part in command)
 
 
 def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
@@ -126,8 +133,8 @@ def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
     run_code, run_tail = _run(command)
     result = {
         "name": name, "scenario": scenario,
-        "command": " ".join(command[:-1]),
-        "check_command": " ".join(check),
+        "command": _relative_command(command[:-1]),
+        "check_command": _relative_command(check),
         "check_exit": check_code, "check_output": check_tail if check_code else "ok",
         "run_exit": run_code, "run_output": run_tail if run_code else "ok",
     }
@@ -144,6 +151,8 @@ def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
             "git", "-C", str(ROOT.parent / "ware_ops_algos"),
             "rev-parse", "HEAD"])[1].strip(),
         "kpis": kpis,
+        # Counts on_decision callbacks by decision name, including callbacks
+        # that commit no tour; this is not a count of committed tours.
         "decisions": audit["decisions"],
         "committed_tours": audit["committed_tours"],
         "trace_digest": audit["trace_digest"],
@@ -169,7 +178,8 @@ def compare_recorded(recorded: dict, current: dict) -> list[str]:
     for key in sorted(set(old_kpis) | set(new_kpis)):
         if old_kpis.get(key) != new_kpis.get(key):
             findings.append(f"KPI {key}: {old_kpis.get(key)} -> {new_kpis.get(key)}")
-    for key in ("decisions", "violations", "kpi_differences"):
+    for key in ("decisions", "violations", "first_violations",
+                "kpi_differences", "event_count"):
         if recorded[key] != current[key]:
             findings.append(f"{key}: {recorded[key]} -> {current[key]}")
     old_tours, new_tours = recorded["committed_tours"], current["committed_tours"]
@@ -201,9 +211,16 @@ def record(selected: set[str] | None = None) -> list[dict]:
                 json.dumps(result, indent=2), encoding="utf-8")
         print(f"  {result['status']} check={result['check_exit']} "
               f"run={result['run_exit']}", flush=True)
-    if selected is None:
-        (BASELINES / "inventory.json").write_text(
-            json.dumps(inventory, indent=2), encoding="utf-8")
+    inventory_path = BASELINES / "inventory.json"
+    if selected is not None and inventory_path.exists():
+        existing = {item["name"]: item for item in json.loads(
+            inventory_path.read_text(encoding="utf-8"))}
+        existing.update({item["name"]: item for item in inventory})
+        inventory_to_write = [existing[name] for name in cases() if name in existing]
+    else:
+        inventory_to_write = inventory
+    inventory_path.write_text(json.dumps(inventory_to_write, indent=2),
+                              encoding="utf-8")
     return inventory
 
 

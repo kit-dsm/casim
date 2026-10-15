@@ -3,9 +3,8 @@
 The tracker records ``process_times[i] = end - start`` where ``start`` is the
 TourStart event time (after setup, per ``tour_manager.start_tour`` line 105).
 So ``total_tour_times`` and ``avg_tour_makespan`` exclude setup time.  This
-module mirrors that definition and also reports ``occupation_including_setup``
-separately, so the setup gap is visible without being flagged as an
-inconsistency.
+module mirrors that definition. The setup gap is a difference in KPI
+definitions, not an inconsistency.
 
 Distance is recomputed from the independently recorded route legs.  When a
 leg's distance is ``None`` (marked not recomputable by the capture), the
@@ -19,7 +18,7 @@ Time model (from the design document, Section 7.3)::
 where *s* is ``tour_setup_time``, *d* the route distance, *v* the picker speed
 and *n* the number of picks.  The tracker's ``end - start`` excludes *s*
 because ``start`` is the TourStart time (after setup), so the recomputation
-also excludes it.  ``occupation_including_setup`` adds it back.
+also excludes it.
 """
 
 from __future__ import annotations
@@ -52,11 +51,6 @@ def recompute_kpis(capture: dict, tracker: dict) -> dict[str, dict[str, object]]
             if arrival is not None:
                 completion.append(tour["end"] - arrival)
     durations = [tour["end"] - tour["start"] for tour in tours]
-    occupation = [
-        tour["tour_setup_time"] + by_tour[tour["tour_id"]] / tour["speed"]
-        + tour["picks"] * tour["time_per_pick"]
-        for tour in tours
-    ]
 
     distance_recomputable = not not_recomputable
     computed = {
@@ -90,20 +84,6 @@ def recompute_kpis(capture: dict, tracker: dict) -> dict[str, dict[str, object]]
             equal = isclose(independent, reported, abs_tol=1e-6, rel_tol=1e-9)
         if not equal:
             differences[name] = {"independent": independent, "tracker": reported}
-
-    if distance_recomputable and isclose(sum(occupation), computed["total_tour_times"],
-                                          abs_tol=1e-6, rel_tol=1e-9):
-        pass
-    else:
-        differences["occupation_including_setup"] = {
-            "independent": sum(occupation),
-            "recorded_tour_times": computed["total_tour_times"],
-            "setup_gap": sum(tour["tour_setup_time"] for tour in tours),
-            "note": ("Tracker total_tour_times excludes setup (start is "
-                     "TourStart time, after setup). occupation_including_setup "
-                     "adds tour_setup_time per tour. Difference is a definition "
-                     "mismatch, not an inconsistency. Documented for Task 4.14."),
-        }
 
     if not_recomputable:
         differences["distance_not_recomputable"] = {

@@ -1,14 +1,14 @@
 {
   "name": "walk__no_intervention_largest_gap",
   "scenario": "scenario_walk_or_wait",
-  "command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment decisions=paper_no_intervention routing=largest_gap viz.launch=false",
-  "check_command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m casim check C:\\Users\\zm0714\\Documents\\Projekte\\casim\\scenarios\\scenario_walk_or_wait\\config walk_or_wait_config decisions=paper_no_intervention routing=largest_gap --json",
+  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment decisions=paper_no_intervention routing=largest_gap viz.launch=false +experiment.audit=true",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_walk_or_wait\\config walk_or_wait_config decisions=paper_no_intervention routing=largest_gap --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "a9dadffc240774a29f4bf940be2a67dc42b1a6b8",
-  "ware_ops_algos_commit": "dd4ffc98fa29e9317d38ddf111d36a448a351896",
+  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
+  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
   "kpis": {
     "makespan": 125.0,
     "mean_order_completion_time": 77.83333333333333,

@@ -38,7 +38,7 @@ def _ladder():
     lengths = dict(nx.all_pairs_dijkstra_path_length(graph))
     matrix = pd.DataFrame([[lengths[a][b] for b in nodes] for a in nodes],
                           index=nodes, columns=nodes)
-    network = SimpleNamespace(distance_matrix=matrix)
+    network = SimpleNamespace(distance_matrix=matrix, graph=graph)
     return SimpleNamespace(
         get_layout=lambda: SimpleNamespace(layout_network=network))
 
@@ -48,6 +48,8 @@ def _ladder():
     ((1.0 + 1e-12, 1.4), (2, 1.6), 4.0),
     ((1, 1.2), (1, 1.7), 0.5),
     ((1, 0.5), (1, 2.5), 2.0),
+    ((1.25, 0), (1.75, 0), 0.5),
+    ((1.25, 0), (2, 1), 1.75),
 ])
 def test_position_distance_uses_both_aisle_neighbours(pa, pb, expected):
     distance, reason = BaselineCapture._position_distance(_ladder(), pa, pb)

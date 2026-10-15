@@ -175,6 +175,21 @@ class BaselineCapture(EventLogger):
         graph_nodes = set(dm.index)
         if pa in graph_nodes and pb in graph_nodes:
             return (float(dm.at[pa, pb]), None)
+        graph = getattr(layout.layout_network, "graph", None)
+        if graph is not None:
+            anchors_a, edges_a = _edge_anchors(pa, graph)
+            anchors_b, edges_b = _edge_anchors(pb, graph)
+            if pa in graph_nodes:
+                anchors_a = [(pa, 0.0)]
+            if pb in graph_nodes:
+                anchors_b = [(pb, 0.0)]
+            if anchors_a and anchors_b:
+                candidates = [da + float(dm.at[na, nb]) + db
+                              for na, da in anchors_a for nb, db in anchors_b]
+                candidates.extend(abs(ta - tb) * weight
+                                  for edge_a, ta, weight in edges_a
+                                  for edge_b, tb, _ in edges_b if edge_a == edge_b)
+                return (min(candidates), None)
         aisle_a = _aisle_nodes(pa, graph_nodes)
         if not aisle_a:
             return (None, f"position {pa} not in any aisle")
@@ -189,6 +204,38 @@ class BaselineCapture(EventLogger):
             for nb in _neighbours(pb, aisle_b)
         )
         return (total, None)
+
+
+def _edge_anchors(pos, graph) -> tuple[list[tuple], list[tuple]]:
+    """End nodes and walked distances for a point inside a straight graph edge."""
+    anchors = []
+    edges = []
+    for start, end, data in graph.edges(data=True):
+        if not (isinstance(start, tuple) and isinstance(end, tuple)
+                and len(start) == len(end) == 2):
+            continue
+        if isclose(start[0], end[0], abs_tol=AISLE_TOLERANCE):
+            axis = 1
+            if not isclose(pos[0], start[0], abs_tol=AISLE_TOLERANCE):
+                continue
+        elif isclose(start[1], end[1], abs_tol=AISLE_TOLERANCE):
+            axis = 0
+            if not isclose(pos[1], start[1], abs_tol=AISLE_TOLERANCE):
+                continue
+        else:
+            continue
+        span = end[axis] - start[axis]
+        if isclose(span, 0.0, abs_tol=AISLE_TOLERANCE):
+            continue
+        fraction = (pos[axis] - start[axis]) / span
+        if not -AISLE_TOLERANCE <= fraction <= 1 + AISLE_TOLERANCE:
+            continue
+        fraction = max(0.0, min(1.0, fraction))
+        weight = float(data["weight"])
+        anchors.extend(((start, fraction * weight),
+                        (end, (1.0 - fraction) * weight)))
+        edges.append((frozenset((start, end)), fraction, weight))
+    return anchors, edges
 
 
 def _aisle_nodes(pos, graph_nodes) -> list[tuple]:

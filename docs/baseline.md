@@ -1,9 +1,15 @@
 # Phase B baseline inventory
 
 Recorded at casim commit `50c1a00` and ware_ops_algos commit `dd4ffc9` on 14 October 2026.
-This file is the scenario inventory of Task B.1. Task B.6 records the full baselines;
-Task B.5 adds the earlier-results comparison; Task B.8 replaces `docs/revision_scopes_baseline.md`
-with a pointer here.
+This file is the scenario inventory of Task B.1. Task B.7 records the runnable
+configurations in `tests/baseline/`; `docs/revision_scopes_baseline.md` points here.
+
+In each recorded JSON, `decisions` counts calls to the audit recorder's
+`on_decision` callback by decision name. A callback may commit no tour, so this
+is not a tour count. `total_tour_times` excludes setup because tour `start` is
+the `TourStart` time after setup. The independently computed setup-inclusive
+occupation is a different definition and is not a KPI inconsistency. Stored
+commands use paths relative to the repository root.
 
 ## Summary
 
