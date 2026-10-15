@@ -4,7 +4,7 @@ from ware_ops_algos.algorithms import (
 )
 from ware_ops_algos.algorithms.routing.routing import Routing
 
-from casim.pipelines.problem_based_template import AbstractScheduling
+from casim.pipelines.problem_based_template import AbstractScheduling, load_pickle
 
 
 class EDDScheduler(AbstractScheduling):
@@ -46,8 +46,6 @@ class SAVScheduler(AbstractScheduling):
     routing_class: type[Routing] | None = None
 
     def _load_layout(self):
-        from ware_ops_algos.domain_models import LayoutData
-        from casim.pipelines.problem_based_template import load_pickle
         return load_pickle(self.input()["instance"]["layout"].path)
 
     def _get_inited_scheduler(self, available_from: dict[int, float]):

@@ -15,6 +15,16 @@ import pandas as pd
 from scenarios.scenario_henn2012.run_l2 import OUTPUT, ROOT, run_case
 
 
+def validation_cells(arrival_mode):
+    """The reduced set: S-shape, FIRST and SAV, both targets, every class."""
+    for target in ("journal", "working"):
+        storages = ("C", "U") if target == "journal" else ("C",)
+        for storage, orders, capacity, selection in product(
+            storages, (30, 60, 90, 120), (45, 75), ("FIRST", "SAV")
+        ):
+            yield target, storage, orders, capacity, "SShape", selection, arrival_mode
+
+
 def cells(arrival_mode):
     for target in ("journal", "working"):
         storages = ("C", "U") if target == "journal" else ("C",)
@@ -34,7 +44,7 @@ def run_cell(cell, stage):
     label = cell_name(cell)
     path = OUTPUT / f"{label}__{stage}.csv"
     prior = pd.read_csv(path).to_dict("records") if path.exists() else []
-    count = 10 if stage == "pilot" else 50
+    count = {"pilot": 10, "full": 50, "validation": 20}[stage]
     if stage == "pilot" and not prior:
         full_path = OUTPUT / f"{label}__full.csv"
         if full_path.exists():
@@ -61,7 +71,8 @@ def run_cell(cell, stage):
 
 
 def worker(stage, shard, shards, arrival_mode):
-    selected = [cell for index, cell in enumerate(cells(arrival_mode))
+    source = validation_cells if stage == "validation" else cells
+    selected = [cell for index, cell in enumerate(source(arrival_mode))
                 if index % shards == shard]
     for index, cell in enumerate(selected, 1):
         run_cell(cell, stage)
@@ -71,7 +82,7 @@ def worker(stage, shard, shards, arrival_mode):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workers", type=int, default=6)
-    parser.add_argument("--stage", choices=("pilot", "full", "both"), default="both")
+    parser.add_argument("--stage", choices=("pilot", "full", "both", "validation"), default="both")
     parser.add_argument("--worker", type=int)
     parser.add_argument("--arrival-mode", choices=("truncated", "conditioned"), required=True)
     args = parser.parse_args()
@@ -82,6 +93,8 @@ def main():
         parser.error("workers must be between 1 and 8")
     if len(list(cells(args.arrival_mode))) != 224:
         raise AssertionError("L2 matrix must have 224 cells")
+    if len(list(validation_cells(args.arrival_mode))) != 48:
+        raise AssertionError("L2 validation set must have 48 cells")
     for stage in (("pilot", "full") if args.stage == "both" else (args.stage,)):
         processes = [subprocess.Popen(
             [sys.executable, "-m", "scenarios.scenario_henn2012.run_l2_matrix",

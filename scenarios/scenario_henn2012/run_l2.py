@@ -31,24 +31,13 @@ CONFIG = Path(__file__).resolve().parent / "config"
 OUTPUT = ROOT / "scenarios" / "scenario_henn2012" / "outputs"
 BASELINES = ROOT / "tests" / "baseline" / "benchmarks" / "l2"
 
-REPO = {
-    ("SShape", "FIRST"): "journal_sshape_first",
-    ("SShape", "SHORT"): None,
-    ("SShape", "LONG"): "journal_sshape_long",
-    ("SShape", "SAV"): "journal_sshape_sav",
-    ("SShape", "IGNORE"): "journal_sshape_ignore",
-    ("LargestGap", "FIRST"): "journal_lg_first",
-    ("LargestGap", "SHORT"): None,
-    ("LargestGap", "LONG"): "journal_lg_long",
-    ("LargestGap", "SAV"): "journal_lg_sav",
-    ("LargestGap", "IGNORE"): "journal_lg_ignore",
-}
-DECISIONS = {"l2_journal", "l2_ignore", "l2_long"}
-WAITING_TARGETS = {
-    "journal": {"FIRST": "l2_journal", "SHORT": "l2_journal", "LONG": "l2_long",
-                "SAV": "l2_journal", "IGNORE": "l2_ignore"},
-    "working": {"FIRST": None, "SHORT": None, "LONG": None, "SAV": None,
-                "IGNORE": None},
+ROUTING_KEYS = {"SShape": "sshape", "LargestGap": "lg"}
+# Working-paper cells use a decision without NbrOrdersCondition, as Henn's
+# Algorithm 4.1 has no order-count gate; the gate keeps a stale wait (F67).
+DECISIONS = {
+    "journal": {"FIRST": "l2_journal", "LONG": "l2_long", "SAV": "l2_journal",
+                "IGNORE": "l2_ignore"},
+    "working": {"FIRST": "l2_working", "SAV": "l2_working"},
 }
 
 
@@ -57,18 +46,12 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
              arrival_mode: str) -> dict:
     if target == "working" and storage != "C":
         raise ValueError("working paper has only class-based storage")
-    if target == "working" and selection == "IGNORE":
-        raise ValueError("IGNORE is a journal benchmark only")
-
-    repo_name = REPO.get((routing, selection))
-    if repo_name is None and target == "working":
-        repo_name = f"working_{routing.lower()}_{'first' if selection == 'FIRST' else selection.lower()}"
-    if repo_name is None:
-        raise ValueError(f"no cosy_repo for {routing}/{selection}")
-
-    decisions_name = WAITING_TARGETS[target][selection]
-    if target == "working" and selection != "IGNORE":
-        decisions_name = "l2_journal"
+    decisions_name = DECISIONS[target].get(selection)
+    if decisions_name is None:
+        raise ValueError(f"no L2 decision for {target}/{selection}")
+    repo_name = f"{target}_{ROUTING_KEYS[routing]}_{selection.lower()}"
+    if not (CONFIG / "cosy_repo" / f"{repo_name}.yaml").exists():
+        raise ValueError(f"no cosy_repo {repo_name}")
 
     data_root = OUTPUT / "generated"
     relative = generate_instance(
@@ -165,7 +148,7 @@ def run_case(target: str, storage: str, n_orders: int, capacity: int,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("stage", choices=("pilot", "full", "validation"))
-    parser.add_argument("--target", choices=tuple(WAITING_TARGETS), required=True)
+    parser.add_argument("--target", choices=tuple(DECISIONS), required=True)
     parser.add_argument("--storage", choices=("C", "U"), default="C")
     parser.add_argument("--orders", type=int, choices=(30, 60, 90, 120), required=True)
     parser.add_argument("--capacity", type=int, choices=(45, 75), required=True)
