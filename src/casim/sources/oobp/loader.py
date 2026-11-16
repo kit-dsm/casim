@@ -231,7 +231,9 @@ class OobpHennLoader(DataLoader):
         articles = Articles(tpe=ArticleType.STANDARD, articles=[
             Article(article_id=index) for index in range(len(article_of))])
         storage = StorageLocations(tpe=StorageType.SCATTERED, locations=[
-            Location(x=key[0] + 1, y=key[2], article_id=article_of[key], amount=amount)
+            # The files number locations 0 to 44; the protocol's cells lie 1 to 45 LU
+            # from the front cross aisle (F68).
+            Location(x=key[0] + 1, y=key[2] + 1, article_id=article_of[key], amount=amount)
             for key, amount in sorted(demand.items())])
         storage.build_article_location_mapping()
 

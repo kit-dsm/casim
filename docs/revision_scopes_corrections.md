@@ -461,7 +461,7 @@ Leave these as they are on the branch and list them in each phase report until t
 
 ## Appendix A: findings
 
-Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 from the reviews during Phases 3 and 4, F60 and F61 from the review of the benchmarks on 14 October 2026, F62 from Task B.2, F63 from a review of unused code on 14 October 2026, F64 and F65 from the smoke stage of Task B.4, F66 from a review of the scenarios on 15 October 2026, F67 from Task B.5.
+Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 from the reviews during Phases 3 and 4, F60 and F61 from the review of the benchmarks on 14 October 2026, F62 from Task B.2, F63 from a review of unused code on 14 October 2026, F64 and F65 from the smoke stage of Task B.4, F66 from a review of the scenarios on 15 October 2026, F67 from Task B.5, F68 from the route-length check of Task B.5 on 16 November 2026.
 
 | # | Finding | Fixed by | Status |
 |---|---|---|---|
@@ -532,3 +532,4 @@ Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 fro
 | F65 | `RatliffRosenthalRouting` returns no node sequence, so its tours cannot be executed | Return the reconstructed route | B.4a |
 | F66 | `scenarios/` mixes data sources, studies and main loops; every new one differs (five entry-point styles, three hook styles, two loaders for Henn's instances); "scenario" has three meanings | One defined scenario structure, library sources, `casim run`, checks | S.1 to S.4 |
 | F67 | `NbrOrdersCondition` ignores orders in planned tours, so a wait set before the stream's end is never cleared | Condition counts open work | 4.15 |
+| F68 | The OOBP loader uses the Henn files' location indices 0 to 44 as depths in cells, while the protocol puts the 45 cells 1 to 45 LU from the front cross aisle, so location 0 lies on the cross aisle (the published archive is 0-based as well) | Loader maps location l to cell l + 1; L2 and L3 rerun | B.5 |
