@@ -1,6 +1,6 @@
-# Revision scopes status: Phase S in progress
+# Revision scopes status: Phase S done
 
-Last pushed code commit: casim `d12fb02` (`S.4: port the Henn 2012 benchmark as henn2012`); ware_ops_algos `0bd0a7e`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Task in progress: Phase S, its last step (the full test suite, `casim check --all`, the Phase S report).
+Last pushed code commit: casim `d12fb02` (`S.4: port the Henn 2012 benchmark as henn2012`); ware_ops_algos `0bd0a7e`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Phase S is done and reported (`docs/phase_s_report.md`): the full suite passes in one process (574 tests) and `casim check --all` has no finding for any tracked scenario.
 
 The two stashes of 15 October are applied and committed; they are kept as the local branches `wip/s4-henn2012` and `wip/s3-s4-docs` and remain in `git stash list`.
 
@@ -8,8 +8,8 @@ Waiting for the user: the 16 working-paper `truncated` L2 pilot baselines record
 
 Next steps, in order:
 
-1. The test suite in one process and `casim check --all` on the final tree; the Phase S report.
-2. The route-length check.
+1. The route-length check.
+2. Task 4.13, unless the answers to the Phase B and Phase S reports change the order.
 
 F64 is resolved (`docs/kris_f64_report.md`). The Kris instance files are consistent; ware_ops_pipes' `IBRSPLoader` moves every intersection to the nearest x with a product, so in instances where an aisle has no product several vertices become one coordinate node and the distance matrix keeps the entry of the vertex written last (166 of 243 small instances, 103,278 wrong entries). NearestNeighbourhood's reported distance is the shortest-path distance of its sequence and correct; CASIM's executed matrix-leg distance and the aisle-based routers' reported distances are inflated. The loader fix lives in ware_ops_pipes and is the user's decision; casim neither changes ware_ops_pipes nor works around it. Until then, a Kris CASIM/direct difference that this defect explains stays exempt from the B.4 stop rule; the exemption covers nothing else.
 
