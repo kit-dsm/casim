@@ -1,19 +1,15 @@
 # Revision scopes status: Phase S in progress
 
-Last pushed code commit: casim `85a06c5` (`S.4: delete the grocery scenario`); ware_ops_algos `0bd0a7e`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Task in progress: Phase S. Work stopped on the user's request on 15 October 2026; no run is in progress.
+Last pushed code commit: casim `d12fb02` (`S.4: port the Henn 2012 benchmark as henn2012`); ware_ops_algos `0bd0a7e`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Task in progress: Phase S, its last step (the full test suite, `casim check --all`, the Phase S report).
 
-Stashed, not committed (`git stash list`):
+The two stashes of 15 October are applied and committed; they are kept as the local branches `wip/s4-henn2012` and `wip/s3-s4-docs` and remain in `git stash list`.
 
-- `S.4 WIP henn2012`: the port of `scenarios/scenario_henn2012` as `scenarios/henn2012` (own `source.py` from the generator, the four validation sweeps, `reference.csv` in the generic format, `metrics.py`, `plots.py` replacing `run_l2.py`, `run_l2_matrix.py` and `summarize_validation.py`; Henn's LONG files to `docs/deferred/henn2012_long/`; the L2 cases of `scripts/baseline.py compare-benchmark`; test imports; `.gitignore` for `data/generated/`). Its default run reproduces `journal__C__30__45__SShape__FIRST__0__conditioned` exactly, but the comparison of the 714 recorded L2 runs has not run, so it is not committed. Until it is, `scenarios/scenario_henn2012/run_l2.py` at HEAD does not run, because it imports the OOBP hook and loader that the `oobp` port removed.
-- `S.3/S.4 WIP docs`: `AGENTS.md` and `CLAUDE.md` (S.3), the Phase S notes in `docs/literature_benchmarks.md` and `docs/baseline.md`, and a longer Phase S section of this file. They describe the state with `henn2012` ported, so they wait for it.
-
-Untracked: the L2 instances that the stopped comparison generated below `scenarios/henn2012/data/generated/` (regenerable; ignored once the henn2012 stash is applied).
+Waiting for the user: the 16 working-paper `truncated` L2 pilot baselines recorded at `cf2d4a8` before those cells moved to `l2_working` (F67) are to be re-recorded once the user accepts that difference.
 
 Next steps, in order:
 
-1. Apply `S.4 WIP henn2012`, run `python scripts/baseline.py compare-benchmark --benchmark l2 --workers 8` (714 runs, about 45 to 60 minutes), and commit the port if every run is equal; then apply the docs stash and commit it.
-2. The remaining Phase S work: the test suite in one process and `casim check --all` on the final tree, the Phase S report.
-3. The route-length check.
+1. The test suite in one process and `casim check --all` on the final tree; the Phase S report.
+2. The route-length check.
 
 F64 is resolved (`docs/kris_f64_report.md`). The Kris instance files are consistent; ware_ops_pipes' `IBRSPLoader` moves every intersection to the nearest x with a product, so in instances where an aisle has no product several vertices become one coordinate node and the distance matrix keeps the entry of the vertex written last (166 of 243 small instances, 103,278 wrong entries). NearestNeighbourhood's reported distance is the shortest-path distance of its sequence and correct; CASIM's executed matrix-leg distance and the aisle-based routers' reported distances are inflated. The loader fix lives in ware_ops_pipes and is the user's decision; casim neither changes ware_ops_pipes nor works around it. Until then, a Kris CASIM/direct difference that this defect explains stays exempt from the B.4 stop rule; the exemption covers nothing else.
 
@@ -42,8 +38,8 @@ This is an audit against the current `revision_scopes_corrections.md`, through P
 |---|---|---|
 | S.1 | done | `793d765`: `casim.sources` with the `Source` protocol (`initial_state()`, `events()`), the library sources and `local` for a scenario's `source.py`. A source creates its initial events in the order of the old hooks and yields them sorted by time with a stable sort, so equal-time ties are unchanged. |
 | S.2 | done | `793d765`: `casim run` (outputs `kpis.json`, `decisions.json`, `tours.csv`, `orders.csv`, `trace.json`; `audit.json` with `--audit`; `comparison.csv` with `reference.csv`; sweeps), `casim check <dir>`, `scenarios/minimal/`; `scripts/baseline.py` runs ported scenarios with `casim run`. |
-| S.3 | partly | `793d765`, `6dc732b`: `casim check --all` and its test. `AGENTS.md` and `CLAUDE.md` are in the docs stash. |
-| S.4 | partly | `henn_waiting` `74c520a` (31 baselines equal), `walk_or_wait` `03f642f` (11 equal), `analytic_waiting` `16768e9` (3 equal), `oobp` `74f0214` (192 L3 runs equal), `casop_static` `6dc732b` (415 L1 runs equal), grocery deleted `85a06c5`. `henn2012` stashed until its L2 comparison. |
+| S.3 | done | `793d765`, `6dc732b`: `casim check --all` and its test on every tracked scenario; `AGENTS.md` and `CLAUDE.md`. |
+| S.4 | done | `henn_waiting` `74c520a` (31 baselines equal), `walk_or_wait` `03f642f` (11 equal), `analytic_waiting` `16768e9` (3 equal), `oobp` `74f0214` (192 L3 runs equal), `casop_static` `6dc732b` (415 L1 runs equal; Kris rows carry the loader defect F64 until the user fixes the loader), grocery deleted `85a06c5`, `henn2012` `d12fb02` (738 of 754 L2 runs equal: all 714 validation runs and the 20 journal pilot runs; the 16 working-paper truncated pilot runs differ as named for F67). `scenarios/experiment_commons.py` stays for IJPE until Task 6b.6. |
 
 ## Phase 4 progress
 

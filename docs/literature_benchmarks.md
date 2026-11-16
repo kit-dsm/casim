@@ -2,13 +2,19 @@
 
 Register of Section 7.4 of `docs/revision_scopes_corrections.md`, written in Task B.3 on 14 October 2026 at casim `fbc7223` and ware_ops_algos `dd4ffc9`. Every number below was checked against the source named next to it; where a source could not be read, the entry says so and the number is marked unverified. The register's summary in Section 7.4 was second-hand; the differences found are listed first.
 
+Since Phase S (15 October 2026) the benchmarks are scenarios of the one structure:
+L1 `scenarios/casop_static` with `scripts/l1/`, L2 `scenarios/henn2012`, L3
+`scenarios/oobp`, L5 `scenarios/walk_or_wait`. Their recorded runs are rerun with
+`python scripts/baseline.py compare-benchmark --benchmark l1|l2|l3`. Dated
+sections below keep the commands and paths of their time.
+
 Kinds, as defined in Section 7.4: *exact* (same instances, deterministic method, per-instance values; CASIM must reproduce them), *statistical* (published generator and averages; CASIM must reproduce them within sampling error), *bound* (values of a method CASIM does not have; CASIM must not be better than a proven optimum and should not be better than a best-known value), *reproduction* (L5: rerun of the original simulator, then a decision-by-decision comparison).
 
 ## Summary
 
 | # | Benchmark | Kind | Instances here | Published values here | CASIM needs | Status |
 |---|---|---|---|---|---|---|
-| L1 | Seven CASOP sets, static | exact | all, in ware_ops_pipes `data/instances/` (not redistributable) | ware_ops_pipes `data/reference/`; CASOP results `experiments/evaluation/df_results.parquet` | `scenario_static_benchmarks` with the ware_ops_pipes loader (B.4) | ready for B.4; subset proposed |
+| L1 | Seven CASOP sets, static | exact | all, in ware_ops_pipes `data/instances/` (not redistributable) | ware_ops_pipes `data/reference/`; CASOP results `experiments/evaluation/df_results.parquet` | `scenarios/casop_static` (source `casop`) and `scripts/l1/` (B.4) | run (B.4, B.4a) |
 | L2 | Henn (2012), online FCFS with four selection rules | statistical | generator in the papers; no files | journal Tables 2 to 7 (α = 0, class-based and uniform storage) and working-paper Tables 7.1 to 7.4 (α = 1, class-based), transcribed below | seeded generator, Henn layout and both storage policies, selection rules as scheduling cards, the waiting rule with α, IGNORE, `announced` stream closure, both turnover definitions (B.5) | reduced validation set run (S-shape, FIRST and SAV, 20 replications, both targets); SAV mostly blocked by F62; the rest deferred (see "B.5 L2 validation set") |
 | L3 | OOBP, Gil-Borrás et al. (2020) | bound | 64 Henn and 64 Albareda, `scripts/fetch_data.py oobp` | `experiments.xlsx` (128 rows), `data/oobp_reference.csv` | archive loader for both formats, weight capacity, depot per warehouse, maximum completion and turnover time (B.5) | sources verified; Henn instances run with both depots; subset approved |
 | L4 | D'Haen, Braekers and Ramaekers (2023) | bound | OSF online instances (960), `scripts/fetch_data.py dhaen` | OSF results workbook (5,760 rows) | loader, two-block layout, trucks and due dates as departures, tardiness and pick time | protocol verified (correction 9); subset approved |
@@ -52,8 +58,9 @@ Found and not added as benchmarks, because no published values exist for them: a
 | Published values | ware_ops_pipes `data/reference/processed/reference_values.csv` (`reference_value`, `reference_is_opt`, `reference_policy`) and Kris tables under `data/reference/raw/briant_et_al/`; with references: SPRP 2,400 (all optimal), SPRP-SS 14,300 (all optimal), BahceciOencan 1,350 (all optimal), HennWaescher 5,759 (5,457 optimal), MuterOencanWG 270 (234), Foodmart 42 (42), Kris 295 (242) |
 | CASOP values | `experiments/evaluation/df_results.parquet` (1,114,430 rows; objective and `total_cpu_time` per instance and pipeline) |
 | Protocol | as CASOP: one decision at t = 0 with all orders, `CommitAllPolicy`; distance for the routing and batching sets, total picking time (setup, picking, travel) for Kris (Section 7.4) |
-| CASIM needs | `scenario_static_benchmarks` with the ware_ops_pipes loader and ware_ops_pipes as development dependency (B.4) |
+| CASIM needs | `scenarios/casop_static` (source `casop`, ware_ops_pipes' loaders, ware_ops_pipes as development dependency) and `scripts/l1/run_benchmark.py` (B.4) |
 | Status | sources as recorded by CASOP; the original papers of Wahlen and Gschwind, Wahlen and Heßler and Irnich were not read here, only their machine-readable result files through CASOP |
+| Kris | Reference metric: the shortest paths over the instance file's arcs between consecutive pick locations, from the departure to the arrival depot; all 1,110 batch distances of the published small solutions reproduce exactly with it (`docs/kris_f64_report.md`). Objective: total picking time under hard due dates (Briant et al. 2023); only deadline-feasible results are compared with the best-known solution, as in the CASOP paper. ware_ops_pipes' `IBRSPLoader` merges intersections of aisles without products and leaves wrong matrix entries (F64), so CASIM's executed Kris distances are inflated until the user fixes the loader |
 
 Pipelines per set, chosen from CASOP's results over all instances with a reference value (`docs/literature_benchmarks/select_l1_subset.py`, run in ware_ops_pipes): the pipeline with the smallest mean gap to the reference, and the best S-shape pipeline.
 
@@ -360,7 +367,7 @@ journal cells, where it changes nothing measurable.
 | Field | Value |
 |---|---|
 | Citation | Gil-Borrás, S., Pardo, E. G., Alonso-Ayuso, A., Duarte, A. (2020), GRASP with Variable Neighborhood Descent for the online order batching problem, Journal of Global Optimization 78, 295-325, doi [10.1007/s10898-020-00910-2](https://doi.org/10.1007/s10898-020-00910-2); local copy in `docs/research/gil/` |
-| Instances | [oobp_instances.zip](https://grafo.etsii.urjc.es/optsicom/oobp/oobp-files/oobp_instances.zip) (SHA-256 `c8c7e109...e20d`), restored by `scripts/fetch_data.py oobp` into `scenarios/scenario_henn_online/data/oobp/` (Henn groups at the top level, Albareda below `albareda/`) |
+| Instances | [oobp_instances.zip](https://grafo.etsii.urjc.es/optsicom/oobp/oobp-files/oobp_instances.zip) (SHA-256 `c8c7e109...e20d`), restored by `scripts/fetch_data.py oobp` into `scenarios/oobp/data/` (Henn groups at the top level, Albareda below `albareda/`) |
 | Published values | [experiments.xlsx](https://grafo.etsii.urjc.es/optsicom/oobp/oobp-files/experiments.xlsx), converted to `data/oobp_reference.csv` in Phase 3b: per instance GR+VND and best known, maximum completion time and maximum turnover time in seconds; ILS only as aggregates (Tables 11 and 12) |
 | Licence | none stated; citation requested |
 | Status | protocol verified; depot conflict open (correction 7) |
@@ -396,7 +403,7 @@ Times are in seconds (paper, Table 7); the distance matrix is in decimetres (OSF
 | Field | Value |
 |---|---|
 | Citation | Barlang, M., Lehmann, T., Furmans, K., Walking vs. Waiting: Performance Impact of Waiting Strategies in Manual Warehouses (manuscript, `docs/research/walk_or_wait/Walk_or_Wait_orig_with_els_tex.pdf`); dataset: Barlang, Lehmann, Furmans (2026), Benchmark Instances for Manual Warehouse Order Picking, KIT RADAR, doi [10.35097/mwsv59v8sk9sqaan](https://doi.org/10.35097/mwsv59v8sk9sqaan) |
-| Instances | restored by `scripts/fetch_data.py radar` into `scenarios/scenario_walk_or_wait/data/radar/selected/` from the RADAR archive (see its `SOURCE.md`) |
+| Instances | restored by `scripts/fetch_data.py radar` into `scenarios/walk_or_wait/data/radar/selected/` from the RADAR archive (see its `SOURCE.md`) |
 | Published values | `selected/Instances/Results/OFAT/Standard_Case/Results_Standard_Case.csv` (SHA-256 `2d6c085867b72f8a9c86416716d268acfb175c693c4e2e487f85a3b7118e6031`): per waiting rule and routing, mean, standard deviation and 95 % interval of MOCT, TARD, MLPI and utilisation, order and batch counts over 100 instances; further OFAT factors and LHS results in the same tree |
 | Licence | CC BY 4.0 |
 | Original simulator | `project_4D4L/2_Stochastic_Waiting` (gitlab.kit.edu/kit/ifl/forschung/project_4D4L), imported into that repository on 2026-03-03 (`031d6685`); the head `404c2d33` and `bf81a290` are configured for analytic S-shape without waiting and read orders from `U:\Diss\2_Stochastic_Waiting\Orders`. The commit that produced the published CSV is not recorded |
@@ -423,7 +430,7 @@ Published standard-case values (MOCT and TARD in seconds, MLPI in length units p
 | WOC_3 | 150.73 [148.12, 153.35] | 94.67 | 146.42 | 152.61 | 17.75 | 0.47 |
 | W | 180.34 [177.76, 182.93] | 118.53 | 174.76 | 178.75 | 17.65 | 0.62 |
 
-CASIM supports intervention with S-shape and one picker only (`scenario_walk_or_wait/README.md`), so the CASIM side covers the S-shape column; the original simulator covers all four.
+CASIM supports intervention with S-shape and one picker only (`scenarios/walk_or_wait/README.md`), so the CASIM side covers the S-shape column; the original simulator covers all four.
 
 ## L6: Lorenz, Otto and Gendreau (2025)
 

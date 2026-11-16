@@ -11,6 +11,13 @@ the `TourStart` time after setup. The independently computed setup-inclusive
 occupation is a different definition and is not a KPI inconsistency. Stored
 commands use paths relative to the repository root.
 
+Since Phase S (15 October 2026) the runnable scenarios are `scenarios/henn_waiting`,
+`walk_or_wait` and `analytic_waiting`, run with `python -m casim run`; the case
+definitions and their overrides are in `scripts/baseline.py` (`cases()`), and every
+recorded case reproduces its file exactly. The inventory below keeps the entry points
+of its time. `henn__rolling` moved with its files to `docs/deferred/task_6_1_henn_rolling/`
+(Task 6.1), and the grocery scenario was deleted in Task S.4.
+
 ## Summary
 
 | | Configurations | Run | Fail |
