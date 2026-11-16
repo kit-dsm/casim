@@ -18,6 +18,15 @@ The B.4 measurements stand as measurements: at Kris `instances_31_1_small`, the 
 
 This is an audit against the current `revision_scopes_corrections.md`, through Phase 3b. Evidence names are casim commits unless prefixed `ware:`. A row marked “moved to a later task” records an explicit phase boundary or user-approved sequencing deviation, not a completed check. The historical base results are diagnostics; Phase 5 establishes correctness.
 
+## Baseline tiers and reruns
+
+User direction of 16 November 2026, effective from then on:
+
+- `scripts/baseline.py` runs `casim check` once per sweep, not before every run. A sweep is a case's scenario, entry point and overrides without the `source.*` overrides, which select instance data only (`sweep_key`); the 30 Henn instance cases share 2 checks, the 415 L1 runs 13, the 754 L2 runs 4 and the 192 L3 runs 2.
+- A rerun covers only what a change can affect. Before each rerun the report states which scenarios and benchmark cells the change touches; `compare-benchmark --match <glob>` and `record-benchmark --match <glob>` restrict a benchmark to those cells. Example: the F68 fix touches the Henn instance format only, so L1, the L3 Albareda strata (W1 to W4) and the scenario baselines are not rerun for it.
+- **Fast tier**, after every commit: `python scripts/baseline.py compare-fast --workers 4` reruns a fixed subset (`FAST` in `scripts/baseline.py`), one or two cases per scenario and benchmark set: `henn__default`, `henn__29s-40-30-0__order_window`, `walk__default`, `walk__patrol`, `stochastic__henn_waiting`; L1 `HennWaescher__21s-20-30-1_u__GIA+SavingsSShape+SShape` and `BahceciOencan__Pr_20_1_20_Store1_13__GIA+LSBatchingSShapeFiFoOrderNr+SShape`; L2 `journal__C__30__45__SShape__FIRST__0__conditioned` and `working__C__30__45__SShape__SAV__0__conditioned`; L3 `W1_100__wsrp_input_pedido_01_000__0` and `abc1__29s-40-30-0__centre`. Sequential run times 5 to 28 s, 128 s in total; 52 s on four workers.
+- **Full tier**, at the end of a task only: `compare` (all scenario baselines) and `compare-benchmark --benchmark l1`, `l2`, `l3`.
+
 ## Phase B progress
 
 | Task | Status | Evidence and remaining work |

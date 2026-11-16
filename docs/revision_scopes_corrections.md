@@ -178,7 +178,8 @@ To be removed, by task:
 |---|---|
 | 4.13 | `AdmissionTour`, `to_admission_tour`, `ActiveTourBatch`, `ActiveTourBatchingSolution`, `InvariantViolation`, `AbstractBatchProvider`, `_ActiveTourRoutingNode` |
 | 4.14 | `SequencingDone`, `PickerTourQuery`, `BreakStart`, `BreakEnd`, `ShiftStart`, `BreakCondition`, casim's use of `Resource.occupied`, `mark_picker_occupied`, `mark_picker_free`, `_busy_until`, `State.available_for_planning` (unused, a second definition of idle), `state.is_break`, `state.break_duration`, `TourPlanningState.start_time` and `end_time_planned`, the `picker_available` argument |
-| 4.15 | `FlushRemainingOrders`, `WMSRun`, `OrderIngestion`, `VolumeShiftAcrossDay`, `TruckArrival`, the `simulation`, `policy` and `routing` config groups, the duplicate `BaseTourEvent` in `events/base_events.py`, `warehouse_info: {type: online}` in data cards |
+| 4.15 | `FlushRemainingOrders` |
+| 4.17 | `WMSRun`, `OrderIngestion`, `VolumeShiftAcrossDay`, `TruckArrival`, the `simulation`, `policy` and `routing` config groups, the duplicate `BaseTourEvent` in `events/base_events.py`, `warehouse_info: {type: online}` in data cards |
 | 6b | `OperationsView`, the scenario hooks, the five experiment scripts, the grocery scenario (unless the user decides otherwise) |
 
 ## 7. Verification
@@ -349,17 +350,12 @@ Each task report includes the baseline comparison (7.6) and lists the difference
     - Times: `TourPlanningState` gets `earliest_start` (binding, optional), `planned_start`, `planned_end` and `actual_start`, `actual_end`; `start_tour` no longer overwrites the plan. `TourView.start_time` and `end_time` hold the planned times, and `TourView` gains `earliest_start`. `CreateTour` and `Reschedule` get `earliest_start: float | None`, set by the decision engine from the decision key `start_times: binding | forecast` (default `binding`, today's behaviour). The engine projects a resource's queue after every start, end, queue or availability change (first tour at the later of its earliest start and the time the resource becomes free, each later tour at the later of its earliest start and its predecessor's planned end); the projection never reorders the queue. `StateAdapter` reads `available_from` from it. The tracker records planned times at commit.
     - `TruckDeparture` no longer emits `PickerArrival`; configurations that need a decision at a departure name `TruckDeparture` as trigger. Triggers on `ShiftStart` or `BreakEnd` become `PickerArrival`. The tracker computes idle, busy and absent time from the log of state changes; idle means present and not busy.
     - The resource checks of 7.2, and tests with two pickers each: a tour rescheduled earlier; a tour moved to another idle picker; an earlier commit while the picker waits for a later tour; a break with one picker busy and one idle; a shift end with queued tours; a departure and arrival at one timestamp; a tour that ends early under `binding` and under `forecast`; a tour that ends late.
-- [ ] **4.15** Hidden rules (F57). Apply in this order, with a baseline comparison after each step; each step names its expected difference.
+- [ ] **4.15** Hidden rules that affect replanning and cancellation (F57, F67): when a decision runs, what it sees of open and started work, and what it may revise. Apply in this order, with a baseline comparison after each step; each step names its expected difference. The other hidden rules of F57 move to Task 4.17, after the IJPE revision (user decision, 16 November 2026).
     - `FlushRemainingOrders` is a trigger in five decisions, no code emits it, and the engine lets it bypass the conditions. Delete the event, the engine clause and the trigger entries. Expected: none. (At `aaa8333` the engine emitted it when the event heap ran empty with orders buffered; Task 6.5 restores that behaviour as `stream_closure: at_exhaustion`.)
     - The engine lets `ReconsiderReason.WAIT` bypass the conditions. Keep it until Task 6.4. Expected: none.
     - `NbrOrdersCondition` counts only buffered orders. Once a waiting decision has put its batch into a planned tour, the condition reports no work, so the decision at the stream's end does not solve, the wait of the earlier decision persists, and the picker idles until the stale `reconsider_at` (F67; 443 min in an L2 replication). The condition counts the work open to the decision: buffered orders and the orders of its planned, uncommitted tours. Expected: changes in every configuration whose last batch waits at the stream's end, the Henn scenario among them; list them.
     - `StateAdapter` switches the due-date window off once the stream is closed. Remove the exception; `casim check` rejects a window `by: due_date` when the data card declares no `due_date`. Expected: differences only in configurations with a due-date window; list them.
     - `StateAdapter` adds the pickers of exposed started tours to the snapshot even when `state_information.resources` excludes them. They stay reachable through the tour view and leave `snapshot.resources`; components that need them read `TourView.picker_id`. Expected: none.
-    - `StateAdapter` hard-codes `ResourceType.HUMAN` and `OrderType.STANDARD`; take both from the state. Expected: none.
-    - The stochastic waiting decision encodes the precondition of `AnalyticStochasticWaiting` (q − 1 known orders) as `NbrOrdersCondition(threshold=3, allow_when_done=true)`, so its no-waiting and Henn variants also wait for three orders. Remove the condition; the analytic algorithm returns `wait` until its precondition holds. Expected: the analytic variant unchanged, the two other variants changed; report them.
-    - Timer events with empty handlers (`WMSRun`, `OrderIngestion`, `VolumeShiftAcrossDay`, `TruckArrival`) become one event `Timer(name)` and one trigger form `{timer: <name>}`. A scenario declares fixed timers once as `timers: {<name>: {every_s, offset_s, until_s} | {at_s: [...]}}`; a hook may add `Timer(name)` at a computed time. The IJPE `t + 1e-6` markers go: `OBP` gets a precedence below `RORSP`'s 20. Expected: none for the runnable scenarios.
-    - Instance values in the `simulation` groups move into the data card's `source` section; the `routing` and `policy` groups of walk-or-wait go, because a repository file now lists its components and configured cards; `warehouse_info: {type: online}` leaves the data cards. Expected: none.
-    - The schema rule "scheduling decision" derives from `variant()` instead of naming `ORSP` and `OBRSP`; `DecisionTracker` records decision name and problem class separately; the duplicate `BaseTourEvent` goes. Expected: none.
 
 - [ ] **4.16** Remove what nothing uses (F63). Expected baseline difference: none. Found by reading the branch at `b44fd8a`; check each item again before deleting it, and keep it if anything references it.
     - Delete: the empty `pipelines/subproblems/assignment.py`; `tests/verification/reference/center_before_task44.json`, which no test reads; the committed cache `tests/data/instances/caches/vis_input/inital_domain.pkl`; `tests/data/instances/29s-40-30-0.txt` and its arrival file, which no configuration names; `tests/test_henn_offline.py`, which asserts nothing and is covered by the baseline; `tests/test_tour_model.py`, which only constructs a `TourPlanningState`; the unused functions `io_helpers.load_json`, `io_helpers.dump_json`, `viz.app.picker_pos`, `viz.gantt_chart.plot_gantt_from_jobs` and `viz.kpis.active_picklist_order_ids`; the committed plots and table of the Henn study (`scripts/plots/waiting_strategy/*.png`, `summary_table.tex`), keeping `summary.csv` as the reference of Task B.6.
@@ -369,6 +365,16 @@ Each task report includes the baseline comparison (7.6) and lists the difference
     - Keep the CoSy components that no scenario repository names (the batching components generated from cards in B.4, `TSPRouting`, `RatliffRosenthal`, `ERDScheduler`): they are the portfolio the static benchmarks run. Each must be run by B.4 or by a smoke test; report any that is not.
 
 Phase 4 is done when the tests pass, the name sweep test passes, and the Phase 4 report lists every baseline difference with its cause, every card whose CASOP applicability differs from `main` (none expected), and the type counts of Task 4.13.
+
+
+### 8.3b Deferred until after the IJPE revision
+
+- [ ] **4.17** Remaining hidden rules (F57, F5), moved out of Task 4.15 on 16 November 2026 because they do not affect replanning or cancellation. Same procedure as 4.15: in this order, a baseline comparison after each step, each step names its expected difference.
+    - `StateAdapter` hard-codes `ResourceType.HUMAN` and `OrderType.STANDARD`; take both from the state. Expected: none.
+    - The stochastic waiting decision encodes the precondition of `AnalyticStochasticWaiting` (q − 1 known orders) as `NbrOrdersCondition(threshold=3, allow_when_done=true)`, so its no-waiting and Henn variants also wait for three orders. Remove the condition; the analytic algorithm returns `wait` until its precondition holds. Expected: the analytic variant unchanged, the two other variants changed; report them.
+    - Timer events with empty handlers (`WMSRun`, `OrderIngestion`, `VolumeShiftAcrossDay`, `TruckArrival`) become one event `Timer(name)` and one trigger form `{timer: <name>}`. A scenario declares fixed timers once as `timers: {<name>: {every_s, offset_s, until_s} | {at_s: [...]}}`; a hook may add `Timer(name)` at a computed time. The IJPE `t + 1e-6` markers go: `OBP` gets a precedence below `RORSP`'s 20. Expected: none for the runnable scenarios.
+    - Instance values in the `simulation` groups move into the data card's `source` section; the `routing` and `policy` groups of walk-or-wait go, because a repository file now lists its components and configured cards; `warehouse_info: {type: online}` leaves the data cards. Expected: none.
+    - The schema rule "scheduling decision" derives from `variant()` instead of naming `ORSP` and `OBRSP`; `DecisionTracker` records decision name and problem class separately; the duplicate `BaseTourEvent` goes. Expected: none.
 
 ### 8.4 Phase 5: verification gate
 
@@ -469,7 +475,7 @@ Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 fro
 | F2 | Problem class derived from solver output, selection and component names | Declared `problem_class`, `variant()` | done |
 | F3 | Setup filtered mapper reasons, mapped waiting names, special-cased conditions | Removed | done |
 | F4 | Waiting received one candidate; the engine duplicated Henn's rule | Whole schedule | done |
-| F5 | Analytical waiting turned its precondition into a silent wait | Error restored; precondition in the algorithm (4.15) | 4.15 |
+| F5 | Analytical waiting turned its precondition into a silent wait | Error restored; precondition in the algorithm (4.17) | 4.17 |
 | F6 | Ranker with invented weights, no feasibility filter, last key wins for batching | `changed`, feasibility, check error | done |
 | F7 | `SShapeRouting` hard-coded, `resources[0].pick_cart` | Router injection; configured router (4.12) | done |
 | F8 | Dead operational types, pipeline executor, loose fields, capability path | Deleted | done |
@@ -521,7 +527,7 @@ Findings F1 to F41 come from the review of `6cd1705` / `90c9364`, F42 to F59 fro
 | F54 | Dead sequencing stage, invalid rolling configuration, committed outputs | Removal, check | done (4.11); 6.1 |
 | F55 | Picker dispatch defects | Derived resource state, availability, `Dispatch` | 4.14 |
 | F56 | Henn sweep emptied, stale sweep path and README, group files never composed | Restore, corrections, `casim check --all` | done (4.11); 5.0 |
-| F57 | Hidden rules outside the decision model | Removal | 4.15 |
+| F57 | Hidden rules outside the decision model | Removal | 4.15 (replanning and cancellation), 4.17 (the rest) |
 | F58 | No common scenario structure; exogenous events that change the plan | Phase 6b | 6b |
 | F59 | IJPE never checked against paper and data | Reintegration | 6b.6 |
 | F60 | The Henn online scenario and the waiting-strategy study of `aaa8333` use converted Heßler-Irnich files whose item positions differ from the published OOBP instances (`docs/oobp_source_comparison.md`); only the arrival files are identical, so their results are not comparable with published OOBP values | Archive loader and OOBP protocol; decision on the study after Phase B | B.5 |
