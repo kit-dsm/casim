@@ -353,6 +353,72 @@ F62 blocks (after Task 4.13); the working paper's α = 1 cells with LONG and SHO
 keeps their configurations (`journal_sshape_long`, `journal_sshape_ignore`, `l2_long`,
 `l2_ignore`).
 
+**Route-length check of the high-load gap, 16 November 2026** (casim `bf11628`; journal and
+working paper, C/30/45, C/90/45 and C/120/45, FIRST, S-shape, the 20 recorded replications each;
+no new simulation). It explains most of the journal's high-load gap without changing the
+protocol: the gap matches a different reading of FCFS batching, which neither paper fixes.
+
+1. *α.* The instances do not depend on α, by construction and correctly: α is the waiting
+   parameter of Algorithm 1 (journal, Section 4.1 and Table 1, where it is printed as "a"),
+   not a storage parameter, and the generator's seed is
+   `BASE_SEED + storage + 100 n + replication` for both targets
+   (`scenarios/henn2012/source.py`, `generate_instance`), so both targets read the same file. The
+   pick distribution of C/120/45 is 51.2 / 12.3 / 12.2 / 12.1 % in aisles 1 to 4 and 1.9 to
+   2.2 % in each of aisles 5 to 10 (stated: 52 / 36 / 12 %), and uniform in depth (19.8 to
+   20.2 % in each fifth of the aisle). α is applied through the decision: α = 0 is
+   `NoWaitingNode` (`decisions/l2_journal.yaml`, `cosy_repo/journal_sshape_*`), α = 1 is
+   `HennWaitingNode` (`decisions/l2_working.yaml`, `cosy_repo/working_sshape_*`). At low load
+   it changes the batches: C/30/45 has 24.3 tours of 1.24 orders under α = 0 and 12.7 tours of
+   2.38 orders under α = 1 (321 against 410 LU per tour). At high load the picker never waits
+   and α changes nothing measurable: C/120/45 has 50.4 against 50.1 tours of 408 against 409 LU.
+   Not a finding.
+2. *Tours.* An independent S-shape computation from the protocol's layout (every aisle with a
+   pick traversed, 46 LU from cross aisle to cross aisle; an odd last aisle entered and left from
+   the front to its deepest pick; 2 × 5 LU per aisle to the farthest aisle and back; 2 × 0.5 LU
+   to the depot), applied to the committed tours of all 120 runs, equals CASIM's executed
+   distance exactly on every run. Setups equal tours on every run. One geometry defect turns up:
+   the OOBP loader (`casim/sources/oobp/loader.py`, `_build`) uses the file's location index
+   0 to 44 as the depth in cells, so every pick lies one cell nearer the front cross aisle than
+   the protocol's cells 1 to 45, and location 0 lies on the cross aisle itself. The published
+   OOBP archive is 0-based too (locations 0 to 44), so L3 has the same offset. It shortens tours
+   by about 1 LU per tour (409.1 instead of 408.0 LU at C/120/45 with cells 1 to 45), so it
+   cannot explain a CASIM value that is too high. Not fixed; reported for a task.
+3. *Batches.* CASIM's tours follow FCFS next-fit on the arrival sequence: 50.4 tours against
+   49.8 next-fit batches at C/120/45 and 38.9 against 37.7 at C/90/45 (the extra 0.6 to 1.2
+   tours are partial batches released while the picker was idle early on), 2.4 orders and
+   36.2 items per tour, 80 % of the capacity of 45. First-fit FCFS, which puts each order, in
+   arrival order, into the first batch with room, gives 42.9 and 32.4 batches.
+4. *Bound.* At C/120/45 CASIM's picker is busy 883 of 887 min from the first arrival
+   (4.5 min): picking 303.4 min (1,820.7 items), setup 151.2 min (50.4 tours), travel 428.3 min
+   (408 LU per tour). Subtracting picking, these setups and the first arrival, the published
+   values leave travel of 312 LU per tour (journal, 787 min) and 378 LU per tour (working
+   paper, 856 min). Batches of 36 items need 408 LU (observed) or 440 LU (Chew and Tang's
+   expected S-shape length, journal Eq. 8, which with this geometry reproduces the journal's
+   12.5 min for a 15-item order exactly); a single order alone needs 297 LU. So 787 min is
+   **not reachable with next-fit batches** under the stated protocol: with 408 LU tours it
+   allows at most 41.7 tours (2.88 orders, 43.7 items, 97 % of the capacity per tour). The same
+   holds at C/90/45 (598 min allows at most 31.8 tours; next-fit gives 37.7). The working
+   paper's values allow 47.7 and 36.5 tours, close to next-fit. The journal's implied tour
+   counts equal the first-fit counts (41.7 against 42.9, 31.8 against 32.4). An offline
+   estimate with the picker never idle reproduces CASIM under next-fit (882.8 against
+   887.4 min) and gives 820.5 min at C/120/45 and 623.5 min at C/90/45 under first-fit,
+   +4.3 % above the journal in both cells, the size of CASIM's gap to the working paper at high
+   load (+3.9 to +7.6 %).
+
+   Neither paper reports tour counts, batch sizes or tour lengths. Both describe FCFS only as
+   "ranked according to their arrival time. With respect to the capacity constraint and this
+   list the customer orders are assigned to batches"; the working paper lists next-fit
+   (sequential) and first-fit (simultaneous) assignment as alternatives (p. 6) without saying
+   which FCFS uses. The journal reports the average number of open orders per decision point
+   (1.0, 3.7, 13.6, 22.2 for n = 30 to 120), which was not compared here.
+
+   Conclusion: the journal's high-load values are consistent with first-fit FCFS batching and
+   not reachable with next-fit, which CASIM's FiFo implements; the working paper's are
+   consistent with next-fit. First-fit closes about two thirds of the journal gap; the
+   remaining about 4 %, common to both papers at high load, has no demonstrated cause. Whether
+   to add a first-fit FCFS batching option for the journal target is a decision for the user;
+   nothing was changed.
+
 **The Henn scenario and F67.** `scenarios/scenario_henn_online` (`henn_waiting` after Phase S)
 uses the same gate, `NbrOrdersCondition(threshold=1)`, together with `HennWaitingNode`
 (`decisions/henn_waiting.yaml`). It closes the stream at the last arrival, where the last order

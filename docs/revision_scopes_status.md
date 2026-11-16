@@ -8,8 +8,9 @@ Waiting for the user: the 16 working-paper `truncated` L2 pilot baselines record
 
 Next steps, in order:
 
-1. The route-length check.
-2. Task 4.13, unless the answers to the Phase B and Phase S reports change the order.
+1. Task 4.13, unless the answers to the Phase B and Phase S reports change the order.
+
+The route-length check is done (16 November 2026, `docs/literature_benchmarks.md`, "Route-length check of the high-load gap"): CASIM's executed tours equal an independent S-shape computation on all 120 runs; α is applied through the waiting component and correctly leaves the instances unchanged; the journal's high-load values are not reachable with next-fit FCFS batches and match first-fit batches, which close about two thirds of the gap, leaving about 4 % common to both papers. Open for the user: whether the journal target gets a first-fit FCFS option, and the OOBP loader's off-by-one depth (locations 0 to 44 used as cells 0 to 44 instead of 1 to 45, in L2 and L3; it shortens tours by about 1 LU), which no task fixes yet.
 
 F64 is resolved (`docs/kris_f64_report.md`). The Kris instance files are consistent; ware_ops_pipes' `IBRSPLoader` moves every intersection to the nearest x with a product, so in instances where an aisle has no product several vertices become one coordinate node and the distance matrix keeps the entry of the vertex written last (166 of 243 small instances, 103,278 wrong entries). NearestNeighbourhood's reported distance is the shortest-path distance of its sequence and correct; CASIM's executed matrix-leg distance and the aisle-based routers' reported distances are inflated. The loader fix lives in ware_ops_pipes and is the user's decision; casim neither changes ware_ops_pipes nor works around it. Until then, a Kris CASIM/direct difference that this defect explains stays exempt from the B.4 stop rule; the exemption covers nothing else.
 
