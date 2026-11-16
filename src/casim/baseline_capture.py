@@ -59,7 +59,7 @@ class BaselineCapture(TraceRecorder):
             ("check_progress", check_progress(self._before, after)),
         ):
             for finding in findings:
-                code = str(finding.code)
+                code = finding.code.value
                 self.violations[kind][code] += 1
                 self.first_violations[kind].setdefault(code, {
                     "at": source, "time": after.time,

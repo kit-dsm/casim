@@ -237,7 +237,7 @@ ware_ops_algos/src/ware_ops_algos/
     commands.py               commands, Violation, ViolationCode (moved from casim/decision_engine)
     conversion.py             to_commands (moved from casim/decision_engine)
     validation.py             check, check_scope (the admissibility of a scope)
-    invariants.py             check_plan, check_progress, InvariantViolation
+    invariants.py             check_plan, check_progress (return `Violation`)
   taxonomy/taxonomy.py        CASOP taxonomy, as at the base commit
 
 casim/src/casim/
@@ -457,7 +457,7 @@ Correctness is established from the model, not from the output of an earlier ver
 | KPI recomputation and verification scenarios | KPIs recomputed from the tour records and the time model, independently of the trackers; nine scenarios small enough to derive every expected value by hand | `casim/tests/verification/` |
 | Comparison with the base | Per decision, where the new code and the base diverge, and why | `scripts/compare_with_base.py` |
 
-`invariants.check_plan(plan)` and `invariants.check_progress(before, after)` read plan views taken with full state information and return `InvariantViolation` objects. They need no simulator, so a researcher who brings their own can run them too.
+`invariants.check_plan(plan)` and `invariants.check_progress(before, after)` read plan views taken with full state information and return `Violation` objects with the invariant codes of `ViolationCode`. They need no simulator, so a researcher who brings their own can run them too.
 
 The time model follows the resource parameters of the paper (speed, pick time, setup time), and plan and execution each count the setup exactly once:
 
