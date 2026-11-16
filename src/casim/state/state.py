@@ -123,9 +123,10 @@ class State:
         self.tour_manager.get_tour(tour_id).cart_bins = bins
         return tour_id
 
-    def commit_active_route(self, route: Route, admitted_order_ids: tuple[int, ...]) -> int:
+    def commit_active_route(self, tour_id: int, route: Route,
+                            admitted_order_ids: tuple[int, ...]) -> int:
         """Apply a routed admission decision to the running tour."""
-        tour = self.tour_manager.get_tour(route.batch.tour_id)
+        tour = self.tour_manager.get_tour(tour_id)
         picker_id = tour.assigned_resource
         origin = tour.position_at(self.current_time)
         tour.executed_prefix = list(tour.pinned_prefix(

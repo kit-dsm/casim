@@ -31,7 +31,9 @@ class InvariantLogger(EventLogger):
                 old = before_by_id.get(view.tour_id)
                 if old is None:
                     continue
-                left, right = old.pinned_prefix, view.pinned_prefix
+                if old.progress is None or view.progress is None:
+                    continue
+                left, right = old.progress.pinned_prefix, view.progress.pinned_prefix
                 if right[:len(left)] != left:
                     mismatch = next((i for i, (a, b) in enumerate(zip(left, right))
                                      if a != b), min(len(left), len(right)))

@@ -54,7 +54,7 @@ def test_two_admissions_keep_cumulative_prefix_and_distance(tmp_path, invariant_
             view = next(view for view in snapshot.dynamic_warehouse_info.plan.tours
                         if view.tour_id == 1)
             assert replacements[0].route.routing_origin.edge_destination is not None
-            admissions.append((view.pinned_prefix, replacements[0].route.distance))
+            admissions.append((view.progress.pinned_prefix, replacements[0].route.distance))
         apply_decision(sim, engine, result, snapshot)
         if len(admissions) == 2 and distance_at_second is None:
             distance_at_second = sim.state.tracker.distance_by_picker[0]
@@ -90,7 +90,7 @@ def test_partly_picked_tour_can_admit_order(tmp_path, invariant_logger,
                         for command in result.commands)):
             old = next(tour for tour in plan.tours
                        if tour.status is TourStates.STARTED)
-            admitted_after_pick |= bool(old.batch.order_numbers - old.active_order_ids)
+            admitted_after_pick |= bool(old.batch.order_numbers - old.progress.active_order_ids)
         apply_decision(sim, engine, result, snapshot)
     assert admitted_after_pick
     tracker = sim.state.tracker

@@ -8,45 +8,34 @@ from cosy_luigi import CoSyLuigiTaskParameter
 from casim.pipelines.problem_based_template import (
     AbstractAdmission, AbstractItemAssignment, dump_pickle, load_pickle,
 )
-from casim.pipelines.admission_view import to_admission_tour
+from casim.pipelines.admission_view import admitting_tours
 
 
-class RemainingRouteAdmissionNode(AbstractAdmission):
+class _AdmissionNode(AbstractAdmission):
     item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
 
-    def run(self):
+    def _admission_input(self) -> AdmissionInput:
         plan = load_pickle(self.input()["instance"]["plan"].path)
         memory = load_pickle(self.input()["instance"]["memory"].path)
+        context = load_pickle(self.input()["instance"]["context"].path)
         assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
-        orders = tuple(assigned.resolved_orders)
-        decision = RemainingRouteAdmission().solve(AdmissionInput(
-            orders=orders,
-            tours=tuple(to_admission_tour(view) for view in plan.tours
-                        if view.status.value == "started"
-                        and view.accepts.value in ("insert", "revise")),
-            candidate_order_ids=frozenset(order.order_id
-                                          for order in plan.order_buffer),
+        return AdmissionInput(
+            orders=tuple(assigned.resolved_orders),
+            tours=admitting_tours(plan),
+            candidate_order_ids=frozenset(order.order_id for order in plan.order_buffer),
             considered_pairs=memory.considered_active_orders,
-        ))
+            input_closed=context.input_closed,
+        )
+
+
+class RemainingRouteAdmissionNode(_AdmissionNode):
+    def run(self):
+        decision = RemainingRouteAdmission().solve(self._admission_input())
         dump_pickle(self.output()["admission_sol"].path, decision)
 
 
-class CenterPositionAdmissionNode(AbstractAdmission):
-    item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
-
+class CenterPositionAdmissionNode(_AdmissionNode):
     def run(self):
-        plan = load_pickle(self.input()["instance"]["plan"].path)
-        memory = load_pickle(self.input()["instance"]["memory"].path)
         articles = load_pickle(self.input()["instance"]["articles"].path)
-        assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
-        decision = CenterPositionAdmission(articles).solve(AdmissionInput(
-            orders=tuple(assigned.resolved_orders),
-            tours=tuple(to_admission_tour(view) for view in plan.tours
-                        if view.status.value == "started"
-                        and not view.batch.order_numbers
-                        and not view.active_order_ids),
-            candidate_order_ids=frozenset(order.order_id
-                                          for order in plan.order_buffer),
-            considered_pairs=memory.considered_active_orders,
-        ))
+        decision = CenterPositionAdmission(articles).solve(self._admission_input())
         dump_pickle(self.output()["admission_sol"].path, decision)

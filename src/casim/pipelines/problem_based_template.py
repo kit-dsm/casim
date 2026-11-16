@@ -10,6 +10,7 @@ from ware_ops_algos.algorithms import (
     Routing,
     WarehouseOrder,
     AdmissionSolution,
+    BatchObject,
     BatchingSolution,
     Batching,
     CombinedRoutingSolution,
@@ -29,12 +30,9 @@ from ware_ops_algos.domain_models import (
 )
 from ware_ops_algos.algorithms.algorithm_cards import AlgorithmCard
 
-from ware_ops_algos.algorithms import (
-    ActiveTourBatch, ActiveTourBatchingSolution,
-)
 from casim.pipelines.taxonomy import TAXONOMY
 from casim.pipelines.card_components import card_matches_component
-from casim.pipelines.admission_view import to_admission_tour
+from casim.pipelines.admission_view import admitting_tours
 from casim.domain_objects.sim_domain import ReconsiderReason
 from casim.domain_objects.sim_domain import DecisionContext, SimWarehouseDomain
 from ware_ops_algos.planning.models import PlanView
@@ -235,40 +233,40 @@ class AbstractBatching(AbstractBatchProvider):
 
 
 class AdmittedTourBatch(AbstractBatchProvider):
-    """Assemble route input from an admission decision; make no selection."""
+    """Assemble route input from an admission decision; make no selection.
+
+    One batch per tour that admission gave orders or returns, in plan order,
+    with ``batch_id`` the tour's ID: its unpicked orders, then the admitted
+    ones. The admission decision is passed on unchanged as ``admission_sol``.
+    """
 
     admission_sol = CoSyLuigiTaskParameter(AbstractAdmission)
     item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
 
+    def output(self):
+        return {**super().output(),
+                "admission_sol": self.get_luigi_local_target_with_task_id("admission_sol.pkl")}
+
     def run(self):
         decision: AdmissionSolution = load_pickle(self.input()["admission_sol"]["admission_sol"].path)
         plan: PlanView = load_pickle(self.input()["instance"]["plan"].path)
-        context: DecisionContext = load_pickle(self.input()["instance"]["context"].path)
         assigned = load_pickle(self.input()["item_assignment_sol"]["item_assignment_sol"].path)
-        orders = assigned.resolved_orders
-        by_id = {order.order_id: order for order in orders}
+        by_id = {order.order_id: order for order in assigned.resolved_orders}
         accepted_by_tour = {}
         for tour_id, order_id in decision.assignments:
             accepted_by_tour.setdefault(tour_id, []).append(order_id)
+        returned = set(decision.return_tour_ids)
         batches = []
-        for view in plan.tours:
-            if view.status.value != "started" or view.accepts.value not in ("insert", "revise"):
-                continue
-            tour = to_admission_tour(view)
-            accepted = accepted_by_tour.get(tour.tour_id, [])
-            if accepted or (context.input_closed and view.holding
-                            and not view.batch.order_numbers):
-                active = [by_id[order_id] for order_id in sorted(tour.active_order_ids)]
-                batches.append(ActiveTourBatch(
-                    batch_id=tour.tour_id,
+        for view in admitting_tours(plan):
+            accepted = accepted_by_tour.get(view.tour_id, [])
+            if accepted or view.tour_id in returned:
+                active = [by_id[order_id] for order_id in sorted(view.progress.active_order_ids)]
+                batches.append(BatchObject(
+                    batch_id=view.tour_id,
                     orders=active + [by_id[order_id] for order_id in accepted],
-                    tour_id=tour.tour_id,
                 ))
-        dump_pickle(self.output()["batching_sol"].path, ActiveTourBatchingSolution(
-            batches=batches,
-            assignments=decision.assignments,
-            considered_pairs=decision.considered_pairs,
-        ))
+        dump_pickle(self.output()["batching_sol"].path, BatchingSolution(batches=batches))
+        dump_pickle(self.output()["admission_sol"].path, decision)
 
 
 class PickListProvider(AbstractBatching):

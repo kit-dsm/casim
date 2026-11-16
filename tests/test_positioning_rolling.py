@@ -2,12 +2,13 @@
 
 
 from ware_ops_algos.algorithms import (
-    AdmissionInput, AdmissionTour, Job, PickPosition, RoutingOrigin,
+    AdmissionInput, BatchObject, Job, PickPosition, RoutingOrigin,
     ScheduledJob, WarehouseOrder,
 )
 from ware_ops_algos.algorithms.admission import CenterPositionAdmission
 from ware_ops_algos.algorithms.routing.patrol import all_aisles_patrol_route
 from ware_ops_algos.planning.lifecycle import Accepts, ResourceStates, TimeAttribute, TourStates
+from ware_ops_algos.planning.models import TourProgress, TourView
 from ware_ops_algos.planning.scope import RevisionScope, StateInformation, Window
 from ware_ops_algos.planning.commands import CancelTour, CommitTour, ReplaceSuffix, ViolationCode
 from ware_ops_algos.planning.validation import check as validate_commands
@@ -68,10 +69,11 @@ def test_center_admission_respects_cart_capacity(tmp_path):
                                       order_number=index, article_id=0,
                                       amount=1, pick_node=(2, 3), in_store=1),))
                    for index in (1, 2))
-    tour = AdmissionTour(tour_id=1, picker_id=0,
-                         pick_cart=cart, active_order_ids=frozenset(),
-                         remaining_route=(), occupied_bins=0,
-                         routing_origin=RoutingOrigin((4, 8)))
+    tour = TourView(tour_id=1, picker_id=0, status=TourStates.STARTED, accepts=Accepts.INSERT,
+                    batch=BatchObject(1, []), pick_cart=cart,
+                    progress=TourProgress(active_order_ids=frozenset(), cursor=0, pinned_prefix=(),
+                                          remaining_route=(), routing_origin=RoutingOrigin((4, 8)),
+                                          occupied_bins=0))
     decision = CenterPositionAdmission(domain.articles).solve(AdmissionInput(
         orders=orders, tours=(tour,), candidate_order_ids=frozenset({1, 2})))
     assert decision.assignments == ((1, 1),)

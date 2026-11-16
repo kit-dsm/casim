@@ -146,7 +146,7 @@ def apply(state: State, commands: tuple[Command, ...]):
             tour = state.tour_manager.get_tour(command.tour_id)
             _take_from_pick_lists(state, command.added_order_ids)
             if tour.status is TourStates.STARTED:
-                version = state.commit_active_route(command.route,
+                version = state.commit_active_route(tour.tour_id, command.route,
                                                     command.added_order_ids)
                 events.append(TravelEvent(state.current_time, tour.tour_id, version))
             else:

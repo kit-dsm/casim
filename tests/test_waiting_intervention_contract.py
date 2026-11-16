@@ -7,17 +7,17 @@ import pytest
 from hydra import compose, initialize_config_dir
 
 from ware_ops_algos.algorithms import (
-    AdmissionInput, AdmissionTour, Batching,
+    AdmissionInput, BatchObject, Batching,
     PickPosition, RemainingRouteAdmission, RoutingOrigin, WarehouseOrder,
 )
 from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 from ware_ops_algos.domain_models import DimensionType, PickCart
-from ware_ops_algos.planning.lifecycle import TourStates
+from ware_ops_algos.planning.lifecycle import Accepts, TourStates
+from ware_ops_algos.planning.models import TourProgress, TourView
 from ware_ops_algos.planning.commands import ReplaceSuffix
 
 from casim.events.operational_events import ActiveTourOpportunity, NodeArrival, OrderArrival, TravelEvent
-from casim.pipelines.admission_view import to_admission_tour
 from casim.pipelines.problem_based_template import (
     AbstractAdmission, AbstractBatching, AbstractBatchProvider,
     AdmittedTourBatch, traverse_pipeline,
@@ -27,6 +27,16 @@ from casim.pipelines.taxonomy import TAXONOMY, variant
 from casim.config.data_card import load_and_flatten_data_card
 from casim.run import prepare
 from tests.scenario_configs import analytic_config
+
+
+def _started_tour(tour_id, picker_id, cart, remaining_route, occupied_bins, origin):
+    """A started tour without orders as admission sees it."""
+    return TourView(
+        tour_id=tour_id, picker_id=picker_id, status=TourStates.STARTED,
+        accepts=Accepts.INSERT, batch=BatchObject(tour_id, []), pick_cart=cart,
+        progress=TourProgress(active_order_ids=frozenset(), cursor=0, pinned_prefix=(),
+                              remaining_route=remaining_route, routing_origin=origin,
+                              occupied_bins=occupied_bins))
 
 
 def test_admission_card_matches_the_active_tour_problem():
@@ -109,8 +119,8 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
             sim.step(result, snapshot)
             continue
         if decision_name == "active_tour_admission":
-            admission_tour = to_admission_tour(plan.tours[0])
-            insertion_origins.append(admission_tour.routing_origin)
+            admission_tour = plan.tours[0]
+            insertion_origins.append(admission_tour.progress.routing_origin)
             insertion_times.append(now)
             tour = sim.state.tour_manager.get_tour(admission_tour.tour_id)
             live_before_projection = (tour.cursor, tuple(tour.remaining_picks), tour.route_version)
@@ -202,12 +212,8 @@ def test_remaining_route_admission_respects_path_and_cart_capacity():
     def solve(remaining_route, occupied_bins):
         return RemainingRouteAdmission().solve(AdmissionInput(
             orders=(candidate,),
-            tours=(AdmissionTour(
-                tour_id=1, picker_id=0,
-                pick_cart=cart, active_order_ids=frozenset(),
-                remaining_route=remaining_route, occupied_bins=occupied_bins,
-                routing_origin=RoutingOrigin(position=(0, 0)),
-            ),),
+            tours=(_started_tour(1, 0, cart, remaining_route, occupied_bins,
+                                 RoutingOrigin(position=(0, 0))),),
             candidate_order_ids=frozenset({7}),
         )).assignments
 
@@ -224,12 +230,8 @@ def test_admission_greedily_assigns_orders_across_tours():
         pick_positions=(PickPosition(order_number=order_id, article_id=order_id,
                                      amount=1, pick_node=(2, 1), in_store=1),),
     ) for order_id in (7, 8))
-    tours = tuple(AdmissionTour(
-        tour_id=tour_id, picker_id=tour_id,
-        pick_cart=cart, active_order_ids=frozenset(),
-        remaining_route=((2, 1),), occupied_bins=1,
-        routing_origin=RoutingOrigin(position=(0, 0)),
-    ) for tour_id in (1, 2))
+    tours = tuple(_started_tour(tour_id, tour_id, cart, ((2, 1),), 1,
+                                RoutingOrigin(position=(0, 0))) for tour_id in (1, 2))
     solution = RemainingRouteAdmission().solve(AdmissionInput(
         orders=orders, tours=tours, candidate_order_ids=frozenset({7, 8}),
     ))

@@ -9,7 +9,8 @@ from ware_ops_algos.domain_models import (
     Order, OrderPosition, OrdersDomain, OrderType, ResourceType, Resources,
 )
 from ware_ops_algos.planning import (
-    Accepts, PHYSICAL, PlanView, RevisionScope, StateInformation, TourStates, TourView,
+    Accepts, PHYSICAL, PlanView, RevisionScope, StateInformation, TourProgress, TourStates,
+    TourView,
     check_scope,
 )
 from ware_ops_algos.planning.lifecycle import TimeAttribute
@@ -151,13 +152,7 @@ class StateAdapter:
                         else tour.annotated_route[0].position)
             origin = RoutingOrigin(position=position)
         pinned_end = tour.cursor + int(edge_in_progress)
-        return TourView(
-            tour_id=tour.tour_id, picker_id=picker_id, status=status,
-            accepts=self.scope.accepts(status),
-            batch=tour.batch, route=tour.route,
-            start_time=tour.start_time, end_time=tour.end_time_planned,
-            processing_time=tour.processing_time,
-            pick_cart=picker.pick_cart if picker else None,
+        progress = TourProgress(
             active_order_ids=frozenset(pick.order_number
                                        for pick in tour.remaining_picks),
             cursor=tour.cursor,
@@ -170,6 +165,15 @@ class StateAdapter:
             holding=(status is TourStates.STARTED and tour.at_end()
                      and tour.annotated_route[-1].position !=
                      state.layout_manager.get_layout().layout_network.end_node),
+        ) if status in (TourStates.STARTED, TourStates.DONE) else None
+        return TourView(
+            tour_id=tour.tour_id, picker_id=picker_id, status=status,
+            accepts=self.scope.accepts(status),
+            batch=tour.batch, route=tour.route,
+            start_time=tour.start_time, end_time=tour.end_time_planned,
+            processing_time=tour.processing_time,
+            pick_cart=picker.pick_cart if picker else None,
+            progress=progress,
         )
 
     @staticmethod

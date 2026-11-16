@@ -3,7 +3,7 @@ from ware_ops_algos.algorithms import SShapeRouting, WalkOrWaitSShapeRouting, Re
     NearestNeighbourhoodRouting, ExactTSPRoutingDistance, RatliffRosenthalRouting, UShapeRouting
 
 from ware_ops_algos.algorithms import ActiveTourRoutingSolution
-from casim.pipelines.admission_view import to_admission_tour
+from casim.pipelines.admission_view import admitting_tours
 from casim.pipelines.problem_based_template import PickerRouting, dump_pickle, load_pickle
 
 
@@ -44,18 +44,16 @@ class _ActiveTourRoutingNode:
 
     def run(self):
         batching_sol = load_pickle(self.input()["batching_sol"]["batching_sol"].path)
-        plan = self._load_plan()
-        tours = {view.tour_id: to_admission_tour(view)
-                 for view in plan.tours if view.status.value == "started"
-                 and view.accepts.value in ("insert", "revise")}
+        admission_sol = load_pickle(self.input()["batching_sol"]["admission_sol"].path)
+        tours = {view.tour_id: view for view in admitting_tours(self._load_plan())}
         pickers = {picker.id: picker for picker in self._load_resources().resources}
         routes = []
         execution_time = 0.0
         algo_name = ""
         for batch in batching_sol.batches:
-            tour = tours[batch.tour_id]
+            tour = tours[batch.batch_id]
             router = self._get_inited_router(
-                routing_origin=tour.routing_origin,
+                routing_origin=tour.progress.routing_origin,
                 picker=pickers[tour.picker_id],
             )
             routing_solution = router.solve(batch.pick_positions)
@@ -68,8 +66,8 @@ class _ActiveTourRoutingNode:
             algo_name=algo_name,
             execution_time=execution_time,
             routes=routes,
-            assignments=batching_sol.assignments,
-            considered_pairs=batching_sol.considered_pairs,
+            assignments=admission_sol.assignments,
+            considered_pairs=admission_sol.considered_pairs,
         ))
 
 

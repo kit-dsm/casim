@@ -69,11 +69,11 @@ class ActiveTourReadyCondition(Condition):
         dynamic = state_snapshot.dynamic_warehouse_info
         plan = dynamic.plan
         closure_return = (dynamic.context.input_closed and any(
-            tour.holding and tour.status is TourStates.STARTED
+            tour.status is TourStates.STARTED and tour.progress.holding
             and not tour.batch.order_numbers for tour in plan.tours))
         ready = any(tour.status is TourStates.STARTED
                     and tour.accepts is Accepts.INSERT
-                    and tour.picking_until is None for tour in plan.tours)
+                    and tour.progress.picking_until is None for tour in plan.tours)
         return bool(plan.order_buffer or closure_return) and ready
 
 
