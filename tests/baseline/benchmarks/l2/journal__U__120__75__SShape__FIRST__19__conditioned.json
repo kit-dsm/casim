@@ -1,25 +1,25 @@
 {
   "name": "journal__U__120__75__SShape__FIRST__19__conditioned",
   "stream_closure": "announced_at_480",
-  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
-  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_first source.storage=U source.n_orders=120 source.capacity=75 source.replication=19 source.arrival_mode=conditioned --audit",
+  "casim_commit": "80dbbc7c474cd7ca5c04ded9dde3333ad384f178",
+  "ware_ops_algos_commit": "b6505164346413afee48da04f04b3d6d3bc1a9eb",
   "kpis": {
-    "makespan": 42686.820709437,
-    "mean_order_completion_time": 9337.817270351383,
+    "makespan": 42689.320709437,
+    "mean_order_completion_time": 9337.900603684717,
     "num_tours": 28,
     "num_orders_completed": 120,
-    "avg_tour_makespan": 1335.0,
+    "avg_tour_makespan": 1335.0892857142858,
     "avg_batch_size": 4.285714285714286,
-    "orders_per_hour": 10.120219609245705,
-    "tours_per_hour": 2.3613845754906646,
+    "orders_per_hour": 10.119626942306933,
+    "tours_per_hour": 2.361246286538284,
     "distance_by_picker": {
-      "0": 15408.0
+      "0": 15410.0
     },
     "idle_time_by_picker": {
       "0": 4860.0
     },
-    "total_distance": 15408.0,
+    "total_distance": 15410.0,
     "total_delayed": 0,
     "dock_utilization": {
       "1375.570709437": 1,
@@ -49,11 +49,11 @@
       "38335.570709437": 25,
       "39864.320709437": 26,
       "41413.070709437": 27,
-      "42686.820709437": 28
+      "42689.320709437": 28
     },
-    "total_tour_times": 37380.0,
-    "picks_per_hour": 152.81531609961016,
-    "total_processing_time": 37380.0
+    "total_tour_times": 37382.5,
+    "picks_per_hour": 152.80636682883468,
+    "total_processing_time": 37382.5
   },
   "decisions": {
     "OBRSP": 149
@@ -401,11 +401,11 @@
         119
       ],
       "start": 41413.070709437,
-      "end": 42686.820709437
+      "end": 42689.320709437
     }
   ],
-  "trace_digest": "6e8c67c0b3ce5b00afe4a6d89134b545f2796d0f0157a37b863f2487ec1cda9a",
-  "event_count": 32062,
+  "trace_digest": "28fdcd42814ef823aa3ce15d628001848b20224bbd532bc2fa188c8c69eb63dc",
+  "event_count": 32066,
   "violations": {
     "check_plan": {},
     "check_progress": {}

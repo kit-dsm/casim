@@ -1,25 +1,25 @@
 {
   "name": "journal__U__120__75__SShape__FIRST__5__conditioned",
   "stream_closure": "announced_at_480",
-  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
-  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_first source.storage=U source.n_orders=120 source.capacity=75 source.replication=5 source.arrival_mode=conditioned --audit",
+  "casim_commit": "80dbbc7c474cd7ca5c04ded9dde3333ad384f178",
+  "ware_ops_algos_commit": "b6505164346413afee48da04f04b3d6d3bc1a9eb",
   "kpis": {
-    "makespan": 42124.075948017,
-    "mean_order_completion_time": 7740.488965701968,
+    "makespan": 42126.575948017,
+    "mean_order_completion_time": 7740.5306323686345,
     "num_tours": 28,
     "num_orders_completed": 120,
-    "avg_tour_makespan": 1322.6785714285713,
+    "avg_tour_makespan": 1322.767857142857,
     "avg_batch_size": 4.285714285714286,
-    "orders_per_hour": 10.25541784069299,
-    "tours_per_hour": 2.392930829495031,
+    "orders_per_hour": 10.254809233322826,
+    "tours_per_hour": 2.392788821108659,
     "distance_by_picker": {
-      "0": 15420.0
+      "0": 15422.0
     },
     "idle_time_by_picker": {
       "0": 4860.0
     },
-    "total_distance": 15420.0,
+    "total_distance": 15422.0,
     "total_delayed": 0,
     "dock_utilization": {
       "1127.825948017": 1,
@@ -49,11 +49,11 @@
       "37847.825948017": 25,
       "39396.575948017": 26,
       "40875.325948017": 27,
-      "42124.075948017": 28
+      "42126.575948017": 28
     },
-    "total_tour_times": 37035.0,
-    "picks_per_hour": 151.78018404225625,
-    "total_processing_time": 37035.0
+    "total_tour_times": 37037.5,
+    "picks_per_hour": 151.7711766531778,
+    "total_processing_time": 37037.5
   },
   "decisions": {
     "OBRSP": 149
@@ -401,11 +401,11 @@
         119
       ],
       "start": 40875.325948017,
-      "end": 42124.075948017
+      "end": 42126.575948017
     }
   ],
-  "trace_digest": "1ec965bad5a5c8e54398363954bbd0a902aab03f59f7649c3a7b7c457d2e4d72",
-  "event_count": 31978,
+  "trace_digest": "de3a5320117df4ac5a7411a2448ed9e5904a3c496cc8b360962095d66e5cbe37",
+  "event_count": 31982,
   "violations": {
     "check_plan": {},
     "check_progress": {}

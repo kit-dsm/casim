@@ -1,25 +1,25 @@
 {
   "name": "journal__U__90__75__SShape__FIRST__15__conditioned",
   "stream_closure": "announced_at_480",
-  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
-  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_first source.storage=U source.n_orders=90 source.capacity=75 source.replication=15 source.arrival_mode=conditioned --audit",
+  "casim_commit": "80dbbc7c474cd7ca5c04ded9dde3333ad384f178",
+  "ware_ops_algos_commit": "b6505164346413afee48da04f04b3d6d3bc1a9eb",
   "kpis": {
-    "makespan": 32558.901364177,
-    "mean_order_completion_time": 4028.069619725133,
+    "makespan": 32561.401364177,
+    "mean_order_completion_time": 4028.1251752806884,
     "num_tours": 21,
     "num_orders_completed": 90,
-    "avg_tour_makespan": 1327.9166666666667,
+    "avg_tour_makespan": 1328.0357142857142,
     "avg_batch_size": 4.285714285714286,
-    "orders_per_hour": 9.951195722976134,
-    "tours_per_hour": 2.3219456686944313,
+    "orders_per_hour": 9.950431689849022,
+    "tours_per_hour": 2.321767394298105,
     "distance_by_picker": {
-      "0": 11429.0
+      "0": 11431.0
     },
     "idle_time_by_picker": {
       "0": 3600.0
     },
-    "total_distance": 11429.0,
+    "total_distance": 11431.0,
     "total_delayed": 0,
     "dock_utilization": {
       "1863.901364177": 1,
@@ -42,11 +42,11 @@
       "28272.651364177": 18,
       "29891.401364177": 19,
       "31500.151364177": 20,
-      "32558.901364177": 21
+      "32561.401364177": 21
     },
-    "total_tour_times": 27886.25,
-    "picks_per_hour": 150.37362425830605,
-    "total_processing_time": 27886.25
+    "total_tour_times": 27888.75,
+    "picks_per_hour": 150.36207886882966,
+    "total_processing_time": 27888.75
   },
   "decisions": {
     "OBRSP": 112
@@ -308,11 +308,11 @@
         89
       ],
       "start": 31500.151364177,
-      "end": 32558.901364177
+      "end": 32561.401364177
     }
   ],
-  "trace_digest": "84a49a38cec1b28b8c6d48ce041273f699df1d9cfd24f7df6712a583ead397c9",
-  "event_count": 23814,
+  "trace_digest": "923cd2411a9b018009d318ef68e76dba2621a688010eb1456f018f6672cc50af",
+  "event_count": 23818,
   "violations": {
     "check_plan": {},
     "check_progress": {}

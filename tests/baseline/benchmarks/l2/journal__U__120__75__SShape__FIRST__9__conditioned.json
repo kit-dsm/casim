@@ -1,9 +1,9 @@
 {
   "name": "journal__U__120__75__SShape__FIRST__9__conditioned",
   "stream_closure": "announced_at_480",
-  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
-  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_first source.storage=U source.n_orders=120 source.capacity=75 source.replication=9 source.arrival_mode=conditioned --audit",
+  "casim_commit": "80dbbc7c474cd7ca5c04ded9dde3333ad384f178",
+  "ware_ops_algos_commit": "b6505164346413afee48da04f04b3d6d3bc1a9eb",
   "kpis": {
     "makespan": 42520.980944213,
     "mean_order_completion_time": 8380.632655928166,
@@ -404,7 +404,7 @@
       "end": 42520.980944213
     }
   ],
-  "trace_digest": "89cf503a619a805d473f0f00c12db7f686670a9d0cf330a9ef8ea2f005f6add2",
+  "trace_digest": "6fae1bbeffa3fe4b00d07af5b5f1e89e66e14a5b4eb931d451de6f7d25e51b95",
   "event_count": 32018,
   "violations": {
     "check_plan": {},

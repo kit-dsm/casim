@@ -1,25 +1,25 @@
 {
   "name": "journal__U__120__75__SShape__FIRST__16__conditioned",
   "stream_closure": "announced_at_480",
-  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
-  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_first source.storage=U source.n_orders=120 source.capacity=75 source.replication=16 source.arrival_mode=conditioned --audit",
+  "casim_commit": "80dbbc7c474cd7ca5c04ded9dde3333ad384f178",
+  "ware_ops_algos_commit": "b6505164346413afee48da04f04b3d6d3bc1a9eb",
   "kpis": {
-    "makespan": 43727.36181131,
-    "mean_order_completion_time": 7388.083316525618,
+    "makespan": 43729.86181131,
+    "mean_order_completion_time": 7388.104149858951,
     "num_tours": 29,
     "num_orders_completed": 120,
-    "avg_tour_makespan": 1316.25,
+    "avg_tour_makespan": 1316.3362068965516,
     "avg_batch_size": 4.137931034482759,
-    "orders_per_hour": 9.879397752467746,
-    "tours_per_hour": 2.3875211235130385,
+    "orders_per_hour": 9.878832955476442,
+    "tours_per_hour": 2.3873846309068067,
     "distance_by_picker": {
-      "0": 15753.0
+      "0": 15755.0
     },
     "idle_time_by_picker": {
       "0": 5040.0
     },
-    "total_distance": 15753.0,
+    "total_distance": 15755.0,
     "total_delayed": 0,
     "dock_utilization": {
       "1072.3618113100001": 1,
@@ -50,11 +50,11 @@
       "39651.11181131": 26,
       "41129.86181131": 27,
       "42708.61181131": 28,
-      "43727.36181131": 29
+      "43729.86181131": 29
     },
-    "total_tour_times": 38171.25,
-    "picks_per_hour": 152.1427253880033,
-    "total_processing_time": 38171.25
+    "total_tour_times": 38173.75,
+    "picks_per_hour": 152.1340275143372,
+    "total_processing_time": 38173.75
   },
   "decisions": {
     "OBRSP": 150
@@ -410,11 +410,11 @@
         119
       ],
       "start": 42708.61181131,
-      "end": 43727.36181131
+      "end": 43729.86181131
     }
   ],
-  "trace_digest": "77f33314dd5b3965c1566de108a5192330d58a588b5de17eb3c711d2b96ad7ae",
-  "event_count": 32724,
+  "trace_digest": "2fb4bb77215fc8a4e960331c547e0145e6196068179ec12ee397a06db387e6fe",
+  "event_count": 32728,
   "violations": {
     "check_plan": {},
     "check_progress": {}
