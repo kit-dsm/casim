@@ -27,6 +27,23 @@ def _fail(message: str, code: ViolationCode = ViolationCode.STATE_INFORMATION):
     raise CommandViolation(code, message)
 
 
+def _take_from_pick_lists(state: State, order_ids) -> None:
+    """Unpack every buffered pick list that holds a taken order into the order buffer.
+
+    Orders are free whether they wait in the order buffer or in a buffered pick list
+    (F62: one rule for released work). A command that takes orders of a pick list
+    without taking it whole dissolves the pick list: its orders return to the order
+    buffer, from which the command then takes its own.
+    """
+    taken = set(order_ids)
+    for batch in state.order_manager.get_pick_list_buffer():
+        if taken & set(batch.order_numbers):
+            state.order_manager.clear_pick_list_buffer([batch])
+            for order_id in batch.order_numbers:
+                state.order_manager.add_order_to_buffer(
+                    state.order_manager.get_order_from_history(order_id))
+
+
 def check(state: State, commands: tuple[Command, ...]) -> None:
     """Check all live references before making any mutation."""
     buffered = {order.order_id for order in state.order_manager.get_order_buffer()}
@@ -65,8 +82,8 @@ def check(state: State, commands: tuple[Command, ...]) -> None:
             if not state.tour_manager.has_tour(command.tour_id):
                 _fail(f"Tour {command.tour_id} no longer exists")
             ids = set(command.added_order_ids)
-            if not ids <= buffered:
-                _fail(f"Added orders are not buffered: {sorted(ids - buffered)}")
+            if not ids <= free:
+                _fail(f"Added orders are not free: {sorted(ids - free)}")
             tour = state.tour_manager.get_tour(command.tour_id)
             if tour.status is TourStates.STARTED and (
                     command.route.routing_origin.position !=
@@ -110,6 +127,7 @@ def apply(state: State, commands: tuple[Command, ...]):
                 state.order_manager.clear_pick_list_buffer([batch])
                 source = "pick_list"
             else:
+                _take_from_pick_lists(state, command.job.order_numbers)
                 state.order_manager.clear_order_buffer_by_ids(
                     list(command.job.order_numbers))
                 source = "orders"
@@ -126,6 +144,7 @@ def apply(state: State, commands: tuple[Command, ...]):
                         state.order_manager.get_order_from_history(order_id))
         elif isinstance(command, ReplaceSuffix):
             tour = state.tour_manager.get_tour(command.tour_id)
+            _take_from_pick_lists(state, command.added_order_ids)
             if tour.status is TourStates.STARTED:
                 version = state.commit_active_route(command.route,
                                                     command.added_order_ids)
