@@ -250,12 +250,24 @@ def _l3_overrides(record: dict) -> tuple[str, ...]:
             f"source.depot={record['depot']}")
 
 
+def _l2_overrides(record: dict) -> tuple[str, ...]:
+    target, storage, orders, capacity, routing, rule, replication, mode = \
+        record["name"].split("__")
+    if routing != "SShape":
+        raise ValueError(f"{record['name']}: only S-shape runs are recorded")
+    return (f"decisions=l2_{'journal' if target == 'journal' else 'working'}",
+            f"cosy_repo={target}_sshape_{rule.lower()}", f"source.storage={storage}",
+            f"source.n_orders={orders}", f"source.capacity={capacity}",
+            f"source.replication={replication}", f"source.arrival_mode={mode}")
+
+
 def _l1_overrides(record: dict) -> tuple[str, ...]:
     instance_set, instance = raw_instance(record["instance_set"], record["instance"])
     return tuple(scenario_overrides(instance_set, instance, record["pipeline"]))
 
 
-BENCHMARKS = {"l1": ("casop_static", _l1_overrides), "l3": ("oobp", _l3_overrides)}
+BENCHMARKS = {"l1": ("casop_static", _l1_overrides), "l2": ("henn2012", _l2_overrides),
+              "l3": ("oobp", _l3_overrides)}
 
 
 def benchmark_cases(kind: str) -> dict[str, tuple[Path, tuple[str, str | None, tuple[str, ...]]]]:
@@ -295,7 +307,6 @@ def main() -> int:
     if args.action == "compare-benchmark":
         return 1 if compare_benchmark(args.benchmark, args.workers) else 0
     return 1 if compare(selected) else 0
-
 
 
 if __name__ == "__main__":

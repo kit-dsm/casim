@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from scenarios.scenario_henn2012.generator import generate_instance
+from scenarios.henn2012.source import generate_instance
 
 
 def test_henn_generator_shares_orders_across_capacity(tmp_path: Path):

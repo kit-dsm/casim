@@ -21,7 +21,7 @@ import json
 
 import pytest
 
-from scenarios.scenario_henn2012.generator import generate_instance
+from scenarios.henn2012.source import generate_instance
 
 BASELINES = Path(__file__).resolve().parents[1] / "baseline" / "benchmarks" / "l2"
 FIRST_RUNS = sorted(BASELINES.glob("*__SShape__FIRST__*__conditioned.json"))

@@ -32,5 +32,5 @@ the template for a new one.
 - [henn_waiting](scenarios/henn_waiting/README.md): Henn's (2012) waiting rule and an order window on converted Henn instances.
 - [walk_or_wait](scenarios/walk_or_wait/README.md): the wait-k and intervention rules of *Walking vs. Waiting*, with the RADAR standard case.
 - [analytic_waiting](scenarios/analytic_waiting/README.md): the analytical stochastic waiting example.
-- [oobp](scenarios/oobp/README.md), [casop_static](scenarios/casop_static/README.md): the literature benchmarks L3 and L1 (`docs/literature_benchmarks.md`); `scenario_henn2012/` (L2) is ported next.
+- [oobp](scenarios/oobp/README.md), [henn2012](scenarios/henn2012/README.md), [casop_static](scenarios/casop_static/README.md): the literature benchmarks L3, L2 and L1 (`docs/literature_benchmarks.md`).
 - `scenario_ijpe/`: the IJPE study, ported in Task 6b.6.

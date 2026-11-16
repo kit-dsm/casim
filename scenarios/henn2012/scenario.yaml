@@ -1,0 +1,18 @@
+defaults:
+  - _self_
+  - data_card: henn_w5
+  - decisions: l2_journal
+  - cosy_repo: journal_sshape_first
+
+name: Henn2012
+problem_type: OBRSP
+# One replication of one Henn class: storage C (class-based) or U (uniform),
+# n orders over eight hours, capacity W items. The decisions select the
+# target: l2_journal (alpha = 0) or l2_working (alpha = 1, Henn waiting).
+source:
+  name: local
+  storage: C
+  n_orders: 30
+  capacity: 45
+  replication: 0
+  arrival_mode: conditioned

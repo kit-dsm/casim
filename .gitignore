@@ -54,3 +54,13 @@ scenarios/casop_static/outputs/
 scenarios/henn_waiting/data/*
 !scenarios/henn_waiting/data/SOURCE.md
 !scenarios/henn_waiting/data/SHA256SUMS.txt
+scenarios/henn2012/data/generated/
+
+# IJPE revision: WMS data and anything derived from it at order, line or picker level are confidential (docs/ijpe_revision_plan.md, Section 1)
+scenarios/ijpe/data/*
+!scenarios/ijpe/data/SOURCE.md
+!scenarios/ijpe/data/SHA256SUMS.txt
+scenarios/ijpe/outputs/
+scenarios/scenario_ijpe/data/*.xlsx
+scenarios/scenario_ijpe/generator/private/
+docs/ijpe/private/

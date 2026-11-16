@@ -2,10 +2,6 @@ name: "HennOOBP"
 problem_type: OBRSP
 
 objective: makespan
-source:
-  data_loader: scenarios.scenario_oobp.loader.OobpHennLoader
-  filepath: "abc1/29s-40-30-0.txt"
-  depot: corner
 
 layout:
   type: conventional

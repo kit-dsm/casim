@@ -1,14 +1,23 @@
-"""Seeded Henn (2009/2012) instance generator for the L2 statistical benchmark.
+"""The L2 source: seeded Henn (2009/2012) instances, generated, then read as OOBP files.
 
 The papers describe distributions but do not publish the original random seeds
 or individual instances. Generated files use the OOBP Henn text format so the
-same archive loader and warehouse geometry can be exercised.
+same archive loader and warehouse geometry can be exercised. Each run writes
+its instance below ``data/generated/`` (ignored), reads it with the library
+source ``oobp`` and closes the stream at 480 min (``announced``).
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 import random
 from pathlib import Path
+
+from casim.domain_objects.sim_domain import SimWarehouseDomain
+from casim.events.base_events import Event
+from casim.sources.oobp import OobpSource
+
+HORIZON_S = 480 * 60
 
 
 AISLE_WEIGHTS_CLASS = (0.52, 0.12, 0.12, 0.12,
@@ -77,3 +86,22 @@ def generate_instance(root: Path, *, storage: str, n_orders: int,
     (directory / f"Arrival_Time_{stem}.csv").write_text(
         "\n".join(arrivals) + "\n", encoding="ascii")
     return (directory / f"{stem}.txt").relative_to(root / "HennOOBP").as_posix()
+
+
+class ScenarioSource:
+    """One generated Henn instance; the picker arrives with the first order."""
+
+    def __init__(self, data_dir: Path, *, storage: str, n_orders: int, capacity: int,
+                 replication: int, arrival_mode: str = "conditioned"):
+        root = Path(data_dir) / "generated"
+        relative = generate_instance(root, storage=storage, n_orders=int(n_orders),
+                                     capacity=int(capacity), replication=int(replication),
+                                     arrival_mode=arrival_mode)
+        self.oobp = OobpSource(root / "HennOOBP", relative, format="henn", depot="corner",
+                               closure_s=HORIZON_S)
+
+    def initial_state(self) -> SimWarehouseDomain:
+        return self.oobp.initial_state()
+
+    def events(self) -> Iterator[Event]:
+        return self.oobp.events()
