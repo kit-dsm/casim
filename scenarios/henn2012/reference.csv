@@ -63,3 +63,11 @@ l2_journal,journal_sshape_first,U,120,45,completion_min,985,statistical,Henn 201
 l2_journal,journal_sshape_sav,U,120,45,completion_min,956,statistical,Henn 2012 Table 2
 l2_journal,journal_sshape_first,U,120,75,completion_min,700,statistical,Henn 2012 Table 2
 l2_journal,journal_sshape_sav,U,120,75,completion_min,691,statistical,Henn 2012 Table 2
+l2_journal,journal_sshape_first_fit,C,90,45,completion_min,598,statistical,Henn 2012 Table 2; FIRST values for the first-fit variant
+l2_journal,journal_sshape_first_fit,C,90,75,completion_min,509,statistical,Henn 2012 Table 2; FIRST values for the first-fit variant
+l2_journal,journal_sshape_first_fit,C,120,45,completion_min,787,statistical,Henn 2012 Table 2; FIRST values for the first-fit variant
+l2_journal,journal_sshape_first_fit,C,120,75,completion_min,618,statistical,Henn 2012 Table 2; FIRST values for the first-fit variant
+l2_journal,journal_sshape_first_fit,U,90,45,completion_min,744,statistical,Henn 2012 Table 2; FIRST values for the first-fit variant
+l2_journal,journal_sshape_first_fit,U,90,75,completion_min,548,statistical,Henn 2012 Table 2; FIRST values for the first-fit variant
+l2_journal,journal_sshape_first_fit,U,120,45,completion_min,985,statistical,Henn 2012 Table 2; FIRST values for the first-fit variant
+l2_journal,journal_sshape_first_fit,U,120,75,completion_min,700,statistical,Henn 2012 Table 2; FIRST values for the first-fit variant

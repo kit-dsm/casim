@@ -1,0 +1,11 @@
+# Declared variant, journal target only: FCFS with the first-fit fill rule.
+# Fill rule inferred from the bound, not stated in the paper (docs/literature_benchmarks.md,
+# "Route-length check of the high-load gap"); the paper's FCFS is cosy_repo/journal_sshape_first.
+components:
+- casim.pipelines.problem_based_template.InstanceLoader
+- casim.pipelines.problem_based_template.OrdersProvider
+- casim.pipelines.subproblems.item_assingment.GreedyIA
+- casim.pipelines.subproblems.batching.FirstFitFiFo
+- casim.pipelines.subproblems.picker_routing.SShape
+- casim.pipelines.subproblems.scheduling.FIFOScheduler
+- casim.pipelines.subproblems.waiting.NoWaitingNode

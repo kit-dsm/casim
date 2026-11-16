@@ -1,6 +1,6 @@
 from ware_ops_algos.algorithms import (
-    Batching, ClarkAndWrightBatching, DueDateBatching, FifoBatching, LocalSearchBatching,
-    OrderNrFifoBatching, RatliffRosenthalRouting, ShiftNeighborhood, SwapNeighborhood,
+    Batching, ClarkAndWrightBatching, DueDateBatching, FifoBatching, FirstFitFifoBatching,
+    LocalSearchBatching, OrderNrFifoBatching, RatliffRosenthalRouting, ShiftNeighborhood, SwapNeighborhood,
 )
 from ware_ops_algos.algorithms.batching import IncumbentStartBatching
 from ware_ops_algos.algorithms.batching.moves import Neighborhood
@@ -64,6 +64,14 @@ class FiFo(BatchingNode):
         articles = self._get_articles()
         resources = self._get_resources()
         return FifoBatching(pick_cart=resources.resources[0].pick_cart, articles=articles)
+
+
+class FirstFitFiFo(BatchingNode):
+    def _get_inited_batcher(self):
+        articles = self._get_articles()
+        resources = self._get_resources()
+        return FirstFitFifoBatching(pick_cart=resources.resources[0].pick_cart,
+                                    articles=articles)
 
 
 class DueDate(BatchingNode):

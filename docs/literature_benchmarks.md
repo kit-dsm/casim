@@ -419,6 +419,47 @@ protocol: the gap matches a different reading of FCFS batching, which neither pa
    to add a first-fit FCFS batching option for the journal target is a decision for the user;
    nothing was changed.
 
+**First-fit variant of the journal target, 16 November 2026.** On the user's decision,
+first-fit FCFS is a new batching algorithm (ware_ops_algos `b650516`: `FirstFitFifoBatching`,
+card `FirstFitFiFo`, a test where next-fit gives three and first-fit two batches) with the CASIM
+component `FirstFitFiFo`. FCFS next-fit (`FiFo`) and every recorded baseline are unchanged. The
+declared variant `sweep/variant_journal_first_fit.yaml` of `scenarios/henn2012` runs the journal
+FIRST cells with n = 90 and 120, 20 replications each, labelled **fill rule inferred from the
+bound, not stated in the paper**; the working paper stays on next-fit. Completion in minutes,
+95 % intervals; next-fit from the validation set above:
+
+| Class | Tours first-fit / next-fit | First-fit [95 % CI] | Next-fit | Published | First-fit gap | Next-fit gap |
+|---|---|---:|---:|---:|---:|---:|
+| C/90/45 | 34.8 / 38.9 | 642.6 [632.3, 652.8] | 680.0 | 598 | +7.5 % | +13.7 % |
+| C/90/75 | 23.9 / 24.5 | 533.9 [524.4, 543.4] | 540.8 | 509 | +4.9 % | +6.3 % |
+| C/120/45 | 44.3 / 50.4 | 832.2 [812.4, 851.9] | 887.4 | 787 | +5.7 % | +12.8 % |
+| C/120/75 | 27.3 / 29.1 | 658.1 [642.7, 673.4] | 679.0 | 618 | +6.5 % | +9.9 % |
+| U/90/45 | 33.6 / 38.0 | 714.7 [695.4, 734.1] | 773.6 | 744 | −3.9 % | +4.0 % |
+| U/90/75 | 22.1 / 23.1 | 549.2 [537.9, 560.4] | 562.7 | 548 | +0.2 % | +2.7 % |
+| U/120/45 | 43.9 / 50.2 | 937.0 [925.2, 948.9] | 1023.4 | 985 | −4.9 % | +3.9 % |
+| U/120/75 | 26.9 / 29.0 | 692.9 [684.2, 701.6] | 724.1 | 700 | −1.0 % | +3.4 % |
+
+The gap does **not** close to the estimated residual of +4.3 %, for two reasons:
+
+1. In the simulation first-fit saves less than the offline estimate. Each decision batches
+   only the orders known at that moment and commits one batch, so first-fit runs over a short
+   queue instead of the whole arrival sequence: 44.3 tours instead of 42.9 at C/120/45 and 34.8
+   instead of 32.4 at C/90/45. Completion is 832.2 and 642.6 min against the estimates of 820.5
+   and 623.5 min, +5.7 % and +7.5 % above the journal instead of +4.3 %.
+2. No single fill rule fits every journal class. On uniform storage, first-fit puts CASIM
+   below the published values at W = 45 (U/90/45 −3.9 %, U/120/45 −4.9 %, both intervals below
+   the published value), where next-fit was 3.9 to 4.0 % above. On class-based storage first-fit
+   still leaves CASIM 4.9 to 7.5 % above. A fill rule that fits the class-based cells
+   overshoots the uniform ones.
+
+So first-fit is not supported as the journal's batching rule. It halves the class-based gap at
+W = 45 but reverses the sign on uniform storage, and the bound argument of step 4 no longer
+singles out one cause. The journal's high-load values stay a statistical non-reproduction with
+no demonstrated cause: next-fit, the rule both papers' text fits and the working paper's values
+match, leaves CASIM 2.7 to 13.7 % above the journal at n = 90 and 120, largest on class-based
+storage with W = 45. The variant remains in the scenario as declared; its runs are not
+baselines.
+
 **The Henn scenario and F67.** `scenarios/scenario_henn_online` (`henn_waiting` after Phase S)
 uses the same gate, `NbrOrdersCondition(threshold=1)`, together with `HennWaitingNode`
 (`decisions/henn_waiting.yaml`). It closes the stream at the last arrival, where the last order

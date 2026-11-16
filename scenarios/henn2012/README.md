@@ -23,7 +23,11 @@ which has no order-count gate because Algorithm 4.1 has none, F67).
   `journal_sshape_sav` or `journal_sshape_ignore` (with `l2_ignore`);
   `l2_working` with `working_sshape_first` or `working_sshape_sav`.
 - Runs: `sweep/validation_<target>_<rule>.yaml`, the reduced validation set
-  of Phase B. `reference.csv` holds the published values; `metrics.py` the
+  of Phase B. `sweep/variant_journal_first_fit.yaml` is a declared variant of
+  the journal target at n = 90 and 120: FCFS with the first-fit fill rule
+  (`cosy_repo/journal_sshape_first_fit.yaml`, card `FirstFitFiFo`), a fill
+  rule inferred from the bound, not stated in the paper; the working paper
+  stays on next-fit (`FiFo`). `reference.csv` holds the published values; `metrics.py` the
   completion and both turnover definitions in minutes; `plots.py` the table
   with 95 % intervals.
 

@@ -1,0 +1,8 @@
+# Declared variant: journal FIRST with first-fit FCFS at n = 90 and 120, 20 replications.
+# Fill rule inferred from the bound, not stated in the paper.
+decisions: l2_journal
+cosy_repo: journal_sshape_first_fit
+source.storage: [C, U]
+source.n_orders: [90, 120]
+source.capacity: [45, 75]
+source.replication: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
