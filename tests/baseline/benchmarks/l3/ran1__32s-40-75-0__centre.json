@@ -2,13 +2,13 @@
   "instance": "32s-40-75-0",
   "stratum": "ran1",
   "depot": "centre",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # ran1/32s-40-75-0 depot=centre",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp source.filepath=ran1/32s-40-75-0.txt source.depot=centre --audit",
   "kpis": {
     "makespan": 14353.437,
-    "mean_order_completion_time": 4040.6016249999993,
+    "mean_order_completion_time": 4041.8516249999993,
     "num_tours": 10,
     "num_orders_completed": 40,
-    "avg_tour_makespan": 1237.375,
+    "avg_tour_makespan": 1238.375,
     "avg_batch_size": 4.0,
     "orders_per_hour": 10.03244031377293,
     "tours_per_hour": 2.5081100784432326,
@@ -16,7 +16,7 @@
       "0": 5091.0
     },
     "idle_time_by_picker": {
-      "0": 1686.25
+      "0": 1676.25
     },
     "total_distance": 5091.0,
     "total_delayed": 0,
@@ -29,18 +29,18 @@
       "8219.687": 6,
       "9709.062": 7,
       "11268.437": 8,
-      "12845.937": 9,
+      "12855.937": 9,
       "14353.437": 10
     },
-    "total_tour_times": 12373.75,
-    "picks_per_hour": 150.7374157144383,
-    "total_processing_time": 12373.75
+    "total_tour_times": 12383.75,
+    "picks_per_hour": 150.9882267222826,
+    "total_processing_time": 12383.75
   },
   "decisions": {
     "OBRSP": 50
   },
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
+  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -163,8 +163,8 @@
       "end": 14381.562
     }
   ],
-  "trace_digest": "76653a2f350eda7e443c9ae910427cb47bba118736c16fef154ad2b2723d5570",
-  "event_count": 10841,
+  "trace_digest": "c8732a9c6843abec9ff0ec625d8d257efdfd2b00f047f34dd6170f884ded8cf1",
+  "event_count": 10842,
   "violations": {
     "check_plan": {
       "overlap": 18

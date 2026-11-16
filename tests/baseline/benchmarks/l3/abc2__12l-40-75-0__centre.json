@@ -2,45 +2,45 @@
   "instance": "12l-40-75-0",
   "stratum": "abc2",
   "depot": "centre",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # abc2/12l-40-75-0 depot=centre",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp source.filepath=abc2/12l-40-75-0.txt source.depot=centre --audit",
   "kpis": {
-    "makespan": 12702.812,
-    "mean_order_completion_time": 2919.86725,
+    "makespan": 12747.812,
+    "mean_order_completion_time": 2945.17975,
     "num_tours": 10,
     "num_orders_completed": 40,
-    "avg_tour_makespan": 1075.125,
+    "avg_tour_makespan": 1080.625,
     "avg_batch_size": 4.0,
-    "orders_per_hour": 11.33607267430235,
-    "tours_per_hour": 2.8340181685755876,
+    "orders_per_hour": 11.296056138888776,
+    "tours_per_hour": 2.824014034722194,
     "distance_by_picker": {
-      "0": 4041.0
+      "0": 4045.0
     },
     "idle_time_by_picker": {
-      "0": 1658.125
+      "0": 1648.125
     },
-    "total_distance": 4041.0,
+    "total_distance": 4045.0,
     "total_delayed": 0,
     "dock_utilization": {
-      "557.812": 1,
-      "1812.187": 2,
-      "3226.562": 3,
-      "4640.937": 4,
-      "5982.812": 5,
-      "7407.187": 6,
-      "8841.562": 7,
-      "10145.937": 8,
-      "11600.312": 9,
-      "12702.812": 10
+      "560.312": 1,
+      "1814.687": 2,
+      "3239.062": 3,
+      "4663.437": 4,
+      "6007.812": 5,
+      "7432.187": 6,
+      "8866.562": 7,
+      "10180.937": 8,
+      "11645.312": 9,
+      "12747.812": 10
     },
-    "total_tour_times": 10751.25,
-    "picks_per_hour": 161.5390356088085,
-    "total_processing_time": 10751.25
+    "total_tour_times": 10806.25,
+    "picks_per_hour": 162.38080699652616,
+    "total_processing_time": 10806.25
   },
   "decisions": {
     "OBRSP": 50
   },
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
+  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -49,7 +49,7 @@
         0
       ],
       "start": 113.437,
-      "end": 585.937
+      "end": 588.437
     },
     {
       "tour_id": 2,
@@ -59,8 +59,8 @@
         2,
         3
       ],
-      "start": 557.812,
-      "end": 1840.312
+      "start": 560.312,
+      "end": 1842.812
     },
     {
       "tour_id": 3,
@@ -73,8 +73,8 @@
         8,
         9
       ],
-      "start": 1812.187,
-      "end": 3264.687
+      "start": 1814.687,
+      "end": 3267.187
     },
     {
       "tour_id": 4,
@@ -86,8 +86,8 @@
         13,
         14
       ],
-      "start": 3226.562,
-      "end": 4679.062
+      "start": 3239.062,
+      "end": 4691.562
     },
     {
       "tour_id": 5,
@@ -98,8 +98,8 @@
         18,
         15
       ],
-      "start": 4640.937,
-      "end": 6010.937
+      "start": 4663.437,
+      "end": 6035.937
     },
     {
       "tour_id": 6,
@@ -110,8 +110,8 @@
         21,
         22
       ],
-      "start": 5982.812,
-      "end": 7435.312
+      "start": 6007.812,
+      "end": 7460.312
     },
     {
       "tour_id": 7,
@@ -123,8 +123,8 @@
         26,
         27
       ],
-      "start": 7407.187,
-      "end": 8869.687
+      "start": 7432.187,
+      "end": 8894.687
     },
     {
       "tour_id": 8,
@@ -136,8 +136,8 @@
         30,
         31
       ],
-      "start": 8841.562,
-      "end": 10184.062
+      "start": 8866.562,
+      "end": 10209.062
     },
     {
       "tour_id": 9,
@@ -148,8 +148,8 @@
         35,
         36
       ],
-      "start": 10145.937,
-      "end": 11638.437
+      "start": 10180.937,
+      "end": 11673.437
     },
     {
       "tour_id": 10,
@@ -159,12 +159,12 @@
         38,
         39
       ],
-      "start": 11638.437,
-      "end": 12740.937
+      "start": 11673.437,
+      "end": 12775.937
     }
   ],
-  "trace_digest": "9ab11fa0d5ac6f7c1eba114c1f483aa459d5ca12d5c650fc1f48a45706adc81c",
-  "event_count": 8691,
+  "trace_digest": "92502da02b66387b6987c6d0ec69fafba67eadd48a5d9e1982cad182ce0c2213",
+  "event_count": 8704,
   "violations": {
     "check_plan": {
       "overlap": 24
@@ -175,7 +175,7 @@
     "check_plan": {
       "overlap": {
         "at": "decision:OBRSP",
-        "time": 557.812,
+        "time": 560.312,
         "tour_id": 2,
         "message": "Picker 0 has overlapping tours"
       }

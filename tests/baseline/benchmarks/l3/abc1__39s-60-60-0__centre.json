@@ -2,52 +2,52 @@
   "instance": "39s-60-60-0",
   "stratum": "abc1",
   "depot": "centre",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # abc1/39s-60-60-0 depot=centre",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp source.filepath=abc1/39s-60-60-0.txt source.depot=centre --audit",
   "kpis": {
-    "makespan": 21372.5,
-    "mean_order_completion_time": 7064.108283333335,
+    "makespan": 21415.0,
+    "mean_order_completion_time": 7092.441616666668,
     "num_tours": 17,
     "num_orders_completed": 60,
-    "avg_tour_makespan": 1056.5808823529412,
+    "avg_tour_makespan": 1062.0220588235295,
     "avg_batch_size": 3.5294117647058822,
-    "orders_per_hour": 10.106445198268803,
-    "tours_per_hour": 2.863492806176161,
+    "orders_per_hour": 10.086388045762316,
+    "tours_per_hour": 2.857809946299323,
     "distance_by_picker": {
-      "0": 7289.5
+      "0": 7291.5
     },
     "idle_time_by_picker": {
-      "0": 3155.0
+      "0": 3105.0
     },
-    "total_distance": 7289.5,
+    "total_distance": 7291.5,
     "total_delayed": 0,
     "dock_utilization": {
-      "837.5": 1,
-      "2081.875": 2,
-      "3356.25": 3,
-      "4680.625": 4,
-      "5815.0": 5,
-      "7109.375": 6,
-      "8323.75": 7,
-      "9638.125": 8,
-      "10942.5": 9,
-      "12235.0": 10,
-      "13507.5": 11,
-      "14810.0": 12,
-      "16152.5": 13,
-      "17455.0": 14,
-      "18717.5": 15,
-      "20060.0": 16,
-      "21372.5": 17
+      "840.0": 1,
+      "2084.375": 2,
+      "3368.75": 3,
+      "4693.125": 4,
+      "5827.5": 5,
+      "7121.875": 6,
+      "8346.25": 7,
+      "9670.625": 8,
+      "10975.0": 9,
+      "12267.5": 10,
+      "13550.0": 11,
+      "14852.5": 12,
+      "16195.0": 13,
+      "17497.5": 14,
+      "18760.0": 15,
+      "20092.5": 16,
+      "21415.0": 17
     },
-    "total_tour_times": 17961.875,
-    "picks_per_hour": 149.07006667446484,
-    "total_processing_time": 17961.875
+    "total_tour_times": 18054.375,
+    "picks_per_hour": 150.28718188185852,
+    "total_processing_time": 18054.375
   },
   "decisions": {
     "OBRSP": 77
   },
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
+  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -56,7 +56,7 @@
         0
       ],
       "start": 75.625,
-      "end": 865.625
+      "end": 868.125
     },
     {
       "tour_id": 2,
@@ -66,8 +66,8 @@
         2,
         3
       ],
-      "start": 837.5,
-      "end": 2110.0
+      "start": 840.0,
+      "end": 2112.5
     },
     {
       "tour_id": 3,
@@ -78,8 +78,8 @@
         6,
         7
       ],
-      "start": 2081.875,
-      "end": 3394.375
+      "start": 2084.375,
+      "end": 3396.875
     },
     {
       "tour_id": 4,
@@ -90,8 +90,8 @@
         10,
         11
       ],
-      "start": 3356.25,
-      "end": 4708.75
+      "start": 3368.75,
+      "end": 4721.25
     },
     {
       "tour_id": 5,
@@ -102,8 +102,8 @@
         14,
         15
       ],
-      "start": 4680.625,
-      "end": 5843.125
+      "start": 4693.125,
+      "end": 5855.625
     },
     {
       "tour_id": 6,
@@ -113,8 +113,8 @@
         17,
         18
       ],
-      "start": 5815.0,
-      "end": 7137.5
+      "start": 5827.5,
+      "end": 7150.0
     },
     {
       "tour_id": 7,
@@ -125,8 +125,8 @@
         21,
         22
       ],
-      "start": 7109.375,
-      "end": 8361.875
+      "start": 7121.875,
+      "end": 8374.375
     },
     {
       "tour_id": 8,
@@ -137,8 +137,8 @@
         25,
         26
       ],
-      "start": 8323.75,
-      "end": 9676.25
+      "start": 8346.25,
+      "end": 9698.75
     },
     {
       "tour_id": 9,
@@ -148,8 +148,8 @@
         28,
         29
       ],
-      "start": 9638.125,
-      "end": 10970.625
+      "start": 9670.625,
+      "end": 11003.125
     },
     {
       "tour_id": 10,
@@ -161,8 +161,8 @@
         33,
         34
       ],
-      "start": 10970.625,
-      "end": 12263.125
+      "start": 11003.125,
+      "end": 12295.625
     },
     {
       "tour_id": 11,
@@ -172,8 +172,8 @@
         36,
         37
       ],
-      "start": 12263.125,
-      "end": 13545.625
+      "start": 12295.625,
+      "end": 13578.125
     },
     {
       "tour_id": 12,
@@ -184,8 +184,8 @@
         38,
         39
       ],
-      "start": 13545.625,
-      "end": 14848.125
+      "start": 13578.125,
+      "end": 14880.625
     },
     {
       "tour_id": 13,
@@ -196,8 +196,8 @@
         44,
         45
       ],
-      "start": 14848.125,
-      "end": 16190.625
+      "start": 14880.625,
+      "end": 16223.125
     },
     {
       "tour_id": 14,
@@ -208,8 +208,8 @@
         48,
         49
       ],
-      "start": 16190.625,
-      "end": 17493.125
+      "start": 16223.125,
+      "end": 17525.625
     },
     {
       "tour_id": 15,
@@ -219,8 +219,8 @@
         51,
         52
       ],
-      "start": 17493.125,
-      "end": 18755.625
+      "start": 17525.625,
+      "end": 18788.125
     },
     {
       "tour_id": 16,
@@ -231,8 +231,8 @@
         55,
         56
       ],
-      "start": 18755.625,
-      "end": 20088.125
+      "start": 18788.125,
+      "end": 20120.625
     },
     {
       "tour_id": 17,
@@ -242,15 +242,15 @@
         58,
         59
       ],
-      "start": 20088.125,
-      "end": 21410.625
+      "start": 20120.625,
+      "end": 21443.125
     }
   ],
-  "trace_digest": "81bb48fe044a645da1ed8e7d8042e9625f04a750174a031fc43055364cac5893",
-  "event_count": 15317,
+  "trace_digest": "1e054a30694835bef19cbe7d0aa3271dd94804ad2d5d96a376c5cef404167af4",
+  "event_count": 15330,
   "violations": {
     "check_plan": {
-      "overlap": 35
+      "overlap": 37
     },
     "check_progress": {}
   },
@@ -258,7 +258,7 @@
     "check_plan": {
       "overlap": {
         "at": "decision:OBRSP",
-        "time": 837.5,
+        "time": 840.0,
         "tour_id": 2,
         "message": "Picker 0 has overlapping tours"
       }

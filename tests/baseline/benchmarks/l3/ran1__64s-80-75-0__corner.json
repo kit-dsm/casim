@@ -2,23 +2,23 @@
   "instance": "64s-80-75-0",
   "stratum": "ran1",
   "depot": "corner",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # ran1/64s-80-75-0 depot=corner",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp source.filepath=ran1/64s-80-75-0.txt source.depot=corner --audit",
   "kpis": {
-    "makespan": 28059.219,
-    "mean_order_completion_time": 10174.6764,
+    "makespan": 28061.719,
+    "mean_order_completion_time": 10174.70765,
     "num_tours": 19,
     "num_orders_completed": 80,
-    "avg_tour_makespan": 1293.8157894736842,
+    "avg_tour_makespan": 1293.9473684210527,
     "avg_batch_size": 4.2105263157894735,
-    "orders_per_hour": 10.26400627900584,
-    "tours_per_hour": 2.4377014912638875,
+    "orders_per_hour": 10.263091865469823,
+    "tours_per_hour": 2.437484318049083,
     "distance_by_picker": {
-      "0": 10290.0
+      "0": 10292.0
     },
     "idle_time_by_picker": {
       "0": 3240.0
     },
-    "total_distance": 10290.0,
+    "total_distance": 10292.0,
     "total_delayed": 0,
     "dock_utilization": {
       "1029.219": 1,
@@ -39,17 +39,17 @@
       "24059.219": 16,
       "25619.219": 17,
       "27229.219": 18,
-      "28059.219": 19
+      "28061.719": 19
     },
-    "total_tour_times": 24582.5,
-    "picks_per_hour": 150.36769198743556,
-    "total_processing_time": 24582.5
+    "total_tour_times": 24585.0,
+    "picks_per_hour": 150.35429582913292,
+    "total_processing_time": 24585.0
   },
   "decisions": {
     "OBRSP": 99
   },
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
+  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -281,11 +281,11 @@
         79
       ],
       "start": 27229.219,
-      "end": 28059.219
+      "end": 28061.719
     }
   ],
-  "trace_digest": "202266f042b52610123ae23cc464d9def116c99e11000b074f934dd6adb4bd90",
-  "event_count": 21232,
+  "trace_digest": "6d3ba8c95702fec6b96e847bf50fc1774bb533dfbddf9f0aea101ac25d1dc879",
+  "event_count": 21236,
   "violations": {
     "check_plan": {},
     "check_progress": {}

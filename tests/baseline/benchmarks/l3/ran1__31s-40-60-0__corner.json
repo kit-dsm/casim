@@ -2,7 +2,7 @@
   "instance": "31s-40-60-0",
   "stratum": "ran1",
   "depot": "corner",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # ran1/31s-40-60-0 depot=corner",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp source.filepath=ran1/31s-40-60-0.txt source.depot=corner --audit",
   "kpis": {
     "makespan": 17748.436999999998,
     "mean_order_completion_time": 5497.664125,
@@ -42,8 +42,8 @@
   "decisions": {
     "OBRSP": 53
   },
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
+  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -190,7 +190,7 @@
       "end": 17748.436999999998
     }
   ],
-  "trace_digest": "fb0818e2d646f50a95d3ae498c8a880b5001479154c53ed562c1df6b37671b91",
+  "trace_digest": "d6e6496cd66cd6d7e86fd732b9ae8c409069c311f069baa7f2f4f1380f0edd02",
   "event_count": 14114,
   "violations": {
     "check_plan": {},

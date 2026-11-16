@@ -2,23 +2,23 @@
   "instance": "10l-40-45-0",
   "stratum": "ran2",
   "depot": "centre",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # ran2/10l-40-45-0 depot=centre",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp source.filepath=ran2/10l-40-45-0.txt source.depot=centre --audit",
   "kpis": {
-    "makespan": 21440.311999999998,
-    "mean_order_completion_time": 7421.007874999998,
+    "makespan": 21447.811999999998,
+    "mean_order_completion_time": 7423.882874999998,
     "num_tours": 18,
     "num_orders_completed": 40,
-    "avg_tour_makespan": 990.2083333333334,
+    "avg_tour_makespan": 991.1805555555555,
     "avg_batch_size": 2.2222222222222223,
-    "orders_per_hour": 6.716320172952707,
-    "tours_per_hour": 3.022344077828718,
+    "orders_per_hour": 6.713971569687389,
+    "tours_per_hour": 3.021287206359325,
     "distance_by_picker": {
-      "0": 9131.0
+      "0": 9137.0
     },
     "idle_time_by_picker": {
-      "0": 3323.125
+      "0": 3313.125
     },
-    "total_distance": 9131.0,
+    "total_distance": 9137.0,
     "total_delayed": 0,
     "dock_utilization": {
       "1055.312": 1,
@@ -29,26 +29,26 @@
       "7142.187": 6,
       "8321.562": 7,
       "9580.937": 8,
-      "10765.312": 9,
-      "11972.812": 10,
-      "13290.312": 11,
-      "14527.812": 12,
-      "15845.312": 13,
-      "16940.311999999998": 14,
-      "18217.811999999998": 15,
-      "19465.311999999998": 16,
-      "20762.811999999998": 17,
-      "21440.311999999998": 18
+      "10767.812": 9,
+      "11975.312": 10,
+      "13292.812": 11,
+      "14530.312": 12,
+      "15847.812": 13,
+      "16945.311999999998": 14,
+      "18222.811999999998": 15,
+      "19480.311999999998": 16,
+      "20767.811999999998": 17,
+      "21447.811999999998": 18
     },
-    "total_tour_times": 17823.75,
-    "picks_per_hour": 107.62903077156713,
-    "total_processing_time": 17823.75
+    "total_tour_times": 17841.25,
+    "picks_per_hour": 107.75924369348259,
+    "total_processing_time": 17841.25
   },
   "decisions": {
     "OBRSP": 58
   },
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
+  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -140,7 +140,7 @@
         19
       ],
       "start": 9580.937,
-      "end": 10793.437
+      "end": 10795.937
     },
     {
       "tour_id": 10,
@@ -149,8 +149,8 @@
         20,
         21
       ],
-      "start": 10793.437,
-      "end": 12000.937
+      "start": 10795.937,
+      "end": 12003.437
     },
     {
       "tour_id": 11,
@@ -160,8 +160,8 @@
         23,
         24
       ],
-      "start": 12000.937,
-      "end": 13318.437
+      "start": 12003.437,
+      "end": 13320.937
     },
     {
       "tour_id": 12,
@@ -170,8 +170,8 @@
         25,
         26
       ],
-      "start": 13318.437,
-      "end": 14555.937
+      "start": 13320.937,
+      "end": 14558.437
     },
     {
       "tour_id": 13,
@@ -180,8 +180,8 @@
         27,
         28
       ],
-      "start": 14555.937,
-      "end": 15873.437
+      "start": 14558.437,
+      "end": 15875.937
     },
     {
       "tour_id": 14,
@@ -189,8 +189,8 @@
       "order_ids": [
         29
       ],
-      "start": 15873.437,
-      "end": 16968.436999999998
+      "start": 15875.937,
+      "end": 16973.436999999998
     },
     {
       "tour_id": 15,
@@ -199,8 +199,8 @@
         30,
         31
       ],
-      "start": 16968.436999999998,
-      "end": 18245.936999999998
+      "start": 16973.436999999998,
+      "end": 18250.936999999998
     },
     {
       "tour_id": 16,
@@ -210,8 +210,8 @@
         33,
         34
       ],
-      "start": 18245.936999999998,
-      "end": 19503.436999999998
+      "start": 18250.936999999998,
+      "end": 19508.436999999998
     },
     {
       "tour_id": 17,
@@ -222,8 +222,8 @@
         37,
         38
       ],
-      "start": 19503.436999999998,
-      "end": 20790.936999999998
+      "start": 19508.436999999998,
+      "end": 20795.936999999998
     },
     {
       "tour_id": 18,
@@ -231,12 +231,12 @@
       "order_ids": [
         39
       ],
-      "start": 20790.936999999998,
-      "end": 21455.936999999998
+      "start": 20795.936999999998,
+      "end": 21463.436999999998
     }
   ],
-  "trace_digest": "2fd452f281bf0f97be102451b3c7a98bc4c7d1f57011b87e784b35206de7a0c3",
-  "event_count": 18134,
+  "trace_digest": "bba01f92d478e7c5b1c2dff658452a4b4f5af33551dcf58c780a551063efb8a4",
+  "event_count": 18147,
   "violations": {
     "check_plan": {
       "overlap": 32

@@ -2,47 +2,47 @@
   "instance": "11l-40-60-0",
   "stratum": "abc2",
   "depot": "centre",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # abc2/11l-40-60-0 depot=centre",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp source.filepath=abc2/11l-40-60-0.txt source.depot=centre --audit",
   "kpis": {
-    "makespan": 14345.312,
-    "mean_order_completion_time": 3688.1641249999993,
+    "makespan": 14397.812,
+    "mean_order_completion_time": 3719.4141249999993,
     "num_tours": 12,
     "num_orders_completed": 40,
-    "avg_tour_makespan": 997.2916666666666,
+    "avg_tour_makespan": 1003.3333333333334,
     "avg_batch_size": 3.3333333333333335,
-    "orders_per_hour": 10.03812255878436,
-    "tours_per_hour": 3.0114367676353084,
+    "orders_per_hour": 10.001519675350671,
+    "tours_per_hour": 3.0004559026052013,
     "distance_by_picker": {
-      "0": 5078.0
+      "0": 5080.0
     },
     "idle_time_by_picker": {
-      "0": 2084.375
+      "0": 2064.375
     },
-    "total_distance": 5078.0,
+    "total_distance": 5080.0,
     "total_delayed": 0,
     "dock_utilization": {
       "892.812": 1,
       "2087.187": 2,
-      "3351.562": 3,
-      "4605.937": 4,
-      "5800.312": 5,
-      "6954.687": 6,
-      "8219.062": 7,
-      "9413.437": 8,
-      "10697.812": 9,
-      "11930.312": 10,
-      "13252.812": 11,
-      "14345.312": 12
+      "3361.562": 3,
+      "4618.437": 4,
+      "5822.812": 5,
+      "6987.187": 6,
+      "8261.562": 7,
+      "9455.937": 8,
+      "10750.312": 9,
+      "11982.812": 10,
+      "13295.312": 11,
+      "14397.812": 12
     },
-    "total_tour_times": 11967.5,
-    "picks_per_hour": 141.03562195092027,
-    "total_processing_time": 11967.5
+    "total_tour_times": 12040.0,
+    "picks_per_hour": 142.2716173818633,
+    "total_processing_time": 12040.0
   },
   "decisions": {
     "OBRSP": 52
   },
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
+  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -85,8 +85,8 @@
         10,
         11
       ],
-      "start": 3351.562,
-      "end": 4634.062
+      "start": 3361.562,
+      "end": 4646.562
     },
     {
       "tour_id": 5,
@@ -96,8 +96,8 @@
         13,
         14
       ],
-      "start": 4605.937,
-      "end": 5838.437
+      "start": 4618.437,
+      "end": 5850.937
     },
     {
       "tour_id": 6,
@@ -109,8 +109,8 @@
         18,
         19
       ],
-      "start": 5800.312,
-      "end": 6992.812
+      "start": 5822.812,
+      "end": 7015.312
     },
     {
       "tour_id": 7,
@@ -120,8 +120,8 @@
         21,
         22
       ],
-      "start": 6954.687,
-      "end": 8257.187
+      "start": 6987.187,
+      "end": 8289.687
     },
     {
       "tour_id": 8,
@@ -133,8 +133,8 @@
         26,
         27
       ],
-      "start": 8219.062,
-      "end": 9441.562
+      "start": 8261.562,
+      "end": 9484.062
     },
     {
       "tour_id": 9,
@@ -144,8 +144,8 @@
         29,
         30
       ],
-      "start": 9413.437,
-      "end": 10735.937
+      "start": 9455.937,
+      "end": 10778.437
     },
     {
       "tour_id": 10,
@@ -155,8 +155,8 @@
         33,
         31
       ],
-      "start": 10735.937,
-      "end": 11968.437
+      "start": 10778.437,
+      "end": 12010.937
     },
     {
       "tour_id": 11,
@@ -166,8 +166,8 @@
         35,
         36
       ],
-      "start": 11968.437,
-      "end": 13280.937
+      "start": 12010.937,
+      "end": 13323.437
     },
     {
       "tour_id": 12,
@@ -177,12 +177,12 @@
         38,
         39
       ],
-      "start": 13280.937,
-      "end": 14383.437
+      "start": 13323.437,
+      "end": 14425.937
     }
   ],
-  "trace_digest": "f9d45956bdfa232094585615c260e3f269ccb42f50f49aa16ed2662c5f628f68",
-  "event_count": 10473,
+  "trace_digest": "681aa1316954e3de6da9321213775a6bfa99befe79e12d245a07f9ef1c94f053",
+  "event_count": 10484,
   "violations": {
     "check_plan": {
       "overlap": 21
