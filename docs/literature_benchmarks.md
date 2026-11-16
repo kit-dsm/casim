@@ -382,7 +382,8 @@ protocol: the gap matches a different reading of FCFS batching, which neither pa
    the protocol's cells 1 to 45, and location 0 lies on the cross aisle itself. The published
    OOBP archive is 0-based too (locations 0 to 44), so L3 has the same offset. It shortens tours
    by about 1 LU per tour (409.1 instead of 408.0 LU at C/120/45 with cells 1 to 45), so it
-   cannot explain a CASIM value that is too high. Not fixed; reported for a task.
+   cannot explain a CASIM value that is too high. Recorded as F68 and fixed on the user's
+   decision; see "F68: depth offset of the OOBP loader" below.
 3. *Batches.* CASIM's tours follow FCFS next-fit on the arrival sequence: 50.4 tours against
    49.8 next-fit batches at C/120/45 and 38.9 against 37.7 at C/90/45 (the extra 0.6 to 1.2
    tours are partial batches released while the picker was idle early on), 2.4 orders and
@@ -459,6 +460,34 @@ no demonstrated cause: next-fit, the rule both papers' text fits and the working
 match, leaves CASIM 2.7 to 13.7 % above the journal at n = 90 and 120, largest on class-based
 storage with W = 45. The variant remains in the scenario as declared; its runs are not
 baselines.
+
+**F68: depth offset of the OOBP loader, 16 November 2026.** The Henn files of the OOBP
+archive and of the L2 generator number the locations of an aisle 0 to 44; the protocol puts the
+45 cells 1 to 45 LU from the front cross aisle. The loader used the index as the depth, so every
+pick lay one cell too near the front and location 0 on the cross aisle. Since casim `80dbbc7` it
+maps location l to cell l + 1 (`tests/test_oobp_loader_depth.py`, a hand-checked item at
+location 0 and one at 44). Rerun on the journal FIRST cells with n = 90 and 120, 20 replications,
+both fill rules (completion in minutes):
+
+| Class | Published | Next-fit before → after | Gap after | First-fit before → after | Gap after | LU per tour, next-fit |
+|---|---:|---|---:|---|---:|---|
+| C/90/45 | 598 | 680.0 → 680.7 | +13.8 % | 642.6 → 643.2 | +7.6 % | 405.3 → 406.3 |
+| C/90/75 | 509 | 540.8 → 541.2 | +6.3 % | 533.9 → 534.6 | +5.0 % | 453.9 → 454.7 |
+| C/120/45 | 787 | 887.4 → 888.5 | +12.9 % | 832.2 → 833.1 | +5.9 % | 408.0 → 409.1 |
+| C/120/75 | 618 | 679.0 → 679.6 | +10.0 % | 658.1 → 658.7 | +6.6 % | 466.9 → 467.9 |
+| U/90/45 | 744 | 773.6 → 773.9 | +4.0 % | 714.7 → 714.9 | −3.9 % | 539.4 → 539.8 |
+| U/90/75 | 548 | 562.7 → 561.5 | +2.5 % | 549.2 → 549.2 | +0.2 % | 542.2 → 542.7 |
+| U/120/45 | 985 | 1023.4 → 1023.8 | +3.9 % | 937.0 → 937.3 | −4.8 % | 539.9 → 540.3 |
+| U/120/75 | 700 | 724.1 → 724.1 | +3.4 % | 692.9 → 693.0 | −1.0 % | 545.6 → 545.7 |
+
+As expected, tours grow by 0.1 to 1.6 LU and completion by at most 1.1 min; U/90/75 next-fit
+falls by 1.2 min because one longer tour changes later batches. Every journal residual changes by
+at most 0.2 percentage points with either fill rule, so the conclusions above stand: the
+journal's high-load cells remain a statistical non-reproduction without demonstrated cause. The
+160 next-fit runs are recorded again (`a35bb41`, all `consistent`). Not yet rerun after F68: the
+other L2 baselines and the 192 L3 runs, whose count of runs below a best-known value (40) may
+change slightly; rerunning both would take well over an hour (the 320 L2 runs above took about
+85 minutes on 8 workers), so the L3 rerun is listed as open in the status.
 
 **The Henn scenario and F67.** `scenarios/scenario_henn_online` (`henn_waiting` after Phase S)
 uses the same gate, `NbrOrdersCondition(threshold=1)`, together with `HennWaitingNode`
