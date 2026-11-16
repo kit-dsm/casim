@@ -21,8 +21,9 @@
    (the printed λ = 0.08625 scaled to other n, a different item-count distribution, the
    aisle-exit geometry) as diagnostics, without changing the protocol; (c) contact the author
    for instances or seeds.
-2. **F64** (NearestNeighbourhood reported against walked distance on Kris) stays outstanding by
-   your earlier direction.
+2. **F64** is resolved (`docs/kris_f64_report.md`): ware_ops_pipes' Kris loader merges the
+   intersections of aisles without products and leaves wrong distance-matrix entries. Its fix in
+   ware_ops_pipes is yours; the Kris L1 baselines are recorded again afterwards.
 3. **The decisions of Section 9.1** remain untouched: F46 (`spt_scheduling.yaml` due date),
    F49 (`Resources.get_features()`), F34 (per-picker processing time), the cards' objective
    vocabulary, the grocery scenario (S.4 deletes it unless you decide otherwise), order splitting,
@@ -46,16 +47,21 @@
 Three comparisons per run ("B.4 full stage", "B.4a"):
 
 1. CASIM against the direct algorithm calls: equal on 310 rows (260 non-RR, 50 RR). The other
-   105 rows are Kris NearestNeighbourhood rows whose difference equals the measured F64 gap.
+   105 rows are Kris rows whose difference the loader defect F64 explains: CASIM executes the
+   inflated matrix distance, while NearestNeighbourhood reports the correct one.
 2. Direct calls against CASOP v0.1.0: equal on all 415 rows; ware_ops_algos still computes what
    the published release computes.
 3. Against the literature: no CASIM result below a proven optimum. The one direct result below
-   a marked optimum (`instances_207_1_small`, 128,700 < 132,420) is F64; CASIM gives 133,020.
+   a marked optimum (`instances_207_1_small`, 128,700 < 132,420) violates a due date; it is not
+   F64. Kris results are compared with the best-known solution only when deadline-feasible.
 
-F64: across 3,672 Kris NN routes, 202 matrix-leg sums differ from the router's report (71,904
-distance units in total), and 566 graph-edge sums differ. The literature gap of Kris total time
-is 0.45 to 48.70 % with the walked distance, −2.81 to 48.70 % with the reported one. B.4a: RR now
-returns its node sequence; on all 65 RR rows walked distance, graph-edge sum and reported
+F64: on Kris the loader defect makes CASIM's executed distance differ from the router's report
+on 202 of 3,672 NN routes; the report is the correct distance. Negative Kris gaps to the
+literature come from deadline violations, not from F64, so the earlier range of −2.81 to 48.70 %
+with the reported distance does not compare like with like; only deadline-feasible results are
+compared with the best-known solution.
+
+B.4a: RR now returns its node sequence; on all 65 RR rows walked distance, graph-edge sum and reported
 distance are equal, CASIM equals direct, direct equals CASOP, and the applicability sets of the
 seven CASOP data cards equal `main`.
 
