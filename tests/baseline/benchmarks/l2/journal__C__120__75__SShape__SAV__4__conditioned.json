@@ -2,30 +2,30 @@
   "name": "journal__C__120__75__SShape__SAV__4__conditioned",
   "stream_closure": "announced_at_480",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_sav source.storage=C source.n_orders=120 source.capacity=75 source.replication=4 source.arrival_mode=conditioned --audit",
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
   "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
-    "makespan": 39623.750848854004,
-    "mean_order_completion_time": 6259.798149056168,
+    "makespan": 39558.750848854004,
+    "mean_order_completion_time": 6241.433565722835,
     "num_tours": 28,
     "num_orders_completed": 120,
-    "avg_tour_makespan": 1229.017857142857,
+    "avg_tour_makespan": 1226.6964285714287,
     "avg_batch_size": 4.285714285714286,
-    "orders_per_hour": 10.902551897418219,
-    "tours_per_hour": 2.5439287760642513,
+    "orders_per_hour": 10.920466160586939,
+    "tours_per_hour": 2.548108770803619,
     "distance_by_picker": {
-      "0": 12938.0
+      "0": 12886.0
     },
     "idle_time_by_picker": {
       "0": 0.0
     },
     "busy_time_by_picker": {
-      "0": 39452.5
+      "0": 39387.5
     },
     "absent_time_by_picker": {
       "0": 171.250848854
     },
-    "total_distance": 12938.0,
+    "total_distance": 12886.0,
     "total_delayed": 0,
     "dock_utilization": {
       "1030.000848854": 1,
@@ -51,15 +51,15 @@
       "29882.500848854": 21,
       "31356.250848854": 22,
       "32900.000848854004": 23,
-      "34383.750848854004": 24,
-      "35725.000848854004": 25,
-      "37118.750848854004": 26,
-      "38512.500848854004": 27,
-      "39623.750848854004": 28
+      "34233.750848854004": 24,
+      "35717.500848854004": 25,
+      "37111.250848854004": 26,
+      "38505.000848854004": 27,
+      "39558.750848854004": 28
     },
-    "total_tour_times": 34412.5,
-    "picks_per_hour": 165.71878884075693,
-    "total_processing_time": 34412.5
+    "total_tour_times": 34347.5,
+    "picks_per_hour": 165.99108564092148,
+    "total_processing_time": 34347.5
   },
   "decisions": {
     "OBRSP": 149
@@ -354,6 +354,18 @@
       "end": 32900.000848854004
     },
     {
+      "tour_id": 23,
+      "picker_id": 0,
+      "order_ids": [
+        92,
+        93,
+        94,
+        112
+      ],
+      "start": 32900.000848854004,
+      "end": 34233.750848854004
+    },
+    {
       "tour_id": 22,
       "picker_id": 0,
       "order_ids": [
@@ -361,20 +373,8 @@
         90,
         91
       ],
-      "start": 32900.000848854004,
-      "end": 34383.750848854004
-    },
-    {
-      "tour_id": 28,
-      "picker_id": 0,
-      "order_ids": [
-        112,
-        113,
-        114,
-        115
-      ],
-      "start": 34383.750848854004,
-      "end": 35725.000848854004
+      "start": 34233.750848854004,
+      "end": 35717.500848854004
     },
     {
       "tour_id": 20,
@@ -384,8 +384,8 @@
         83,
         84
       ],
-      "start": 35725.000848854004,
-      "end": 37118.750848854004
+      "start": 35717.500848854004,
+      "end": 37111.250848854004
     },
     {
       "tour_id": 15,
@@ -395,23 +395,23 @@
         60,
         61
       ],
-      "start": 37118.750848854004,
-      "end": 38512.500848854004
+      "start": 37111.250848854004,
+      "end": 38505.000848854004
     },
     {
-      "tour_id": 23,
+      "tour_id": 30,
       "picker_id": 0,
       "order_ids": [
-        92,
-        93,
-        94
+        113,
+        114,
+        115
       ],
-      "start": 38512.500848854004,
-      "end": 39623.750848854004
+      "start": 38505.000848854004,
+      "end": 39558.750848854004
     }
   ],
-  "trace_digest": "cd38a9b271b6f53aa008a78779005fa9a435724809245dfa4f5bd45e8c8cf513",
-  "event_count": 27366,
+  "trace_digest": "8b262b392139cabe18c789520f0349633f6c67073fcbf0e7821b61bf7df41bff",
+  "event_count": 27244,
   "violations": {
     "check_plan": {},
     "check_progress": {},

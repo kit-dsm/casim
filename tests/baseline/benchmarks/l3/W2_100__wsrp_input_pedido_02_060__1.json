@@ -4,19 +4,19 @@
   "depot": "1",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp variants=albareda source.filepath=albareda/W2/100/wsrp_input_pedido_02_060.txt --audit",
   "kpis": {
-    "makespan": 15745.375084999889,
-    "mean_order_completion_time": 2614.0264088499684,
+    "makespan": 15637.875084999798,
+    "mean_order_completion_time": 2603.451408849958,
     "num_tours": 24,
     "num_orders_completed": 100,
     "avg_tour_makespan": 469.68750354165826,
     "avg_batch_size": 4.166666666666667,
-    "orders_per_hour": 22.863856723423527,
-    "tours_per_hour": 5.487325613621647,
+    "orders_per_hour": 23.021030545596318,
+    "tours_per_hour": 5.525047330943116,
     "distance_by_picker": {
       "0": 5074.000067999959
     },
     "idle_time_by_picker": {
-      "0": 107.50000000009095
+      "0": 0.0
     },
     "busy_time_by_picker": {
       "0": 15592.500084999798
@@ -46,20 +46,20 @@
       "11060.791727499922": 17,
       "11730.583397499906": 18,
       "12355.37506749989": 19,
-      "13052.666737499885": 20,
-      "13727.875074999887": 21,
-      "14440.166744999891": 22,
-      "15096.833414999892": 23,
-      "15745.375084999889": 24
+      "13035.166737499869": 20,
+      "13687.875074999849": 21,
+      "14377.666744999833": 22,
+      "15011.833414999817": 23,
+      "15637.875084999798": 24
     },
     "total_tour_times": 11272.500084999798,
-    "picks_per_hour": 112.718813646478,
+    "picks_per_hour": 113.49368058978985,
     "total_processing_time": 11272.500084999798
   },
   "decisions": {
     "OBRSP": 124
   },
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
   "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
@@ -306,8 +306,8 @@
         85,
         86
       ],
-      "start": 12372.875067499906,
-      "end": 13075.166737499907
+      "start": 12355.37506749989,
+      "end": 13057.66673749989
     },
     {
       "tour_id": 21,
@@ -317,8 +317,8 @@
         89,
         87
       ],
-      "start": 13075.166737499907,
-      "end": 13750.375074999907
+      "start": 13035.166737499869,
+      "end": 13710.375074999869
     },
     {
       "tour_id": 22,
@@ -328,8 +328,8 @@
         91,
         92
       ],
-      "start": 13750.375074999907,
-      "end": 14462.666744999908
+      "start": 13687.875074999849,
+      "end": 14400.16674499985
     },
     {
       "tour_id": 23,
@@ -340,8 +340,8 @@
         95,
         96
       ],
-      "start": 14462.666744999908,
-      "end": 15119.333414999908
+      "start": 14377.666744999833,
+      "end": 15034.333414999834
     },
     {
       "tour_id": 24,
@@ -351,12 +351,12 @@
         98,
         99
       ],
-      "start": 15119.333414999908,
-      "end": 15767.875084999909
+      "start": 15011.833414999817,
+      "end": 15660.375084999818
     }
   ],
-  "trace_digest": "d90d9a2ed8da6a899643c4030eafb412eed3238343a986c343cfbd8d177b5e85",
-  "event_count": 7854,
+  "trace_digest": "f4158e3d57a44d20bc8eb1a94a21819757877c938ae473be1dd9b1678add0828",
+  "event_count": 7849,
   "violations": {
     "check_plan": {},
     "check_progress": {},

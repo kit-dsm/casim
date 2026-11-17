@@ -2,11 +2,11 @@
   "name": "journal__U__90__75__SShape__SAV__10__conditioned",
   "stream_closure": "announced_at_480",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_sav source.storage=U source.n_orders=90 source.capacity=75 source.replication=10 source.arrival_mode=conditioned --audit",
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
   "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 33252.047115545,
-    "mean_order_completion_time": 4353.835824167755,
+    "mean_order_completion_time": 4356.058046389977,
     "num_tours": 22,
     "num_orders_completed": 90,
     "avg_tour_makespan": 1328.6363636363637,
@@ -48,7 +48,7 @@
       "27207.047115545": 18,
       "28705.797115545": 19,
       "30244.547115545": 20,
-      "31783.297115545": 21,
+      "31833.297115545": 21,
       "33252.047115545": 22
     },
     "total_tour_times": 29230.0,
@@ -303,30 +303,30 @@
       "end": 30244.547115545
     },
     {
-      "tour_id": 23,
-      "picker_id": 0,
-      "order_ids": [
-        88,
-        89,
-        86,
-        87
-      ],
-      "start": 30244.547115545,
-      "end": 31783.297115545
-    },
-    {
       "tour_id": 21,
       "picker_id": 0,
       "order_ids": [
         78,
         79,
-        80
+        80,
+        86
       ],
-      "start": 31783.297115545,
+      "start": 30244.547115545,
+      "end": 31833.297115545
+    },
+    {
+      "tour_id": 24,
+      "picker_id": 0,
+      "order_ids": [
+        88,
+        89,
+        87
+      ],
+      "start": 31833.297115545,
       "end": 33252.047115545
     }
   ],
-  "trace_digest": "7a21524704ca46c2d89e6f934c93069fdd8cb522ce6390a06f3a6757fd409c6e",
+  "trace_digest": "68fbbbca65766a7165bcade728cad8634c05030213afa74f630751b96da9c8ab",
   "event_count": 25122,
   "violations": {
     "check_plan": {},

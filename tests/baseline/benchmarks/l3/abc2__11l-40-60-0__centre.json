@@ -4,19 +4,19 @@
   "depot": "centre",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp source.filepath=abc2/11l-40-60-0.txt source.depot=centre --audit",
   "kpis": {
-    "makespan": 14397.812,
-    "mean_order_completion_time": 3719.4141249999993,
+    "makespan": 14313.437,
+    "mean_order_completion_time": 3706.7578750000002,
     "num_tours": 12,
     "num_orders_completed": 40,
     "avg_tour_makespan": 1003.3333333333334,
     "avg_batch_size": 3.3333333333333335,
-    "orders_per_hour": 10.001519675350671,
-    "tours_per_hour": 3.0004559026052013,
+    "orders_per_hour": 10.060476739444201,
+    "tours_per_hour": 3.0181430218332608,
     "distance_by_picker": {
       "0": 5080.0
     },
     "idle_time_by_picker": {
-      "0": 84.375
+      "0": 0.0
     },
     "busy_time_by_picker": {
       "0": 14200.0
@@ -36,18 +36,18 @@
       "8261.562": 7,
       "9455.937": 8,
       "10750.312": 9,
-      "11982.812": 10,
-      "13295.312": 11,
-      "14397.812": 12
+      "11954.687": 10,
+      "13239.062": 11,
+      "14313.437": 12
     },
     "total_tour_times": 12040.0,
-    "picks_per_hour": 142.2716173818633,
+    "picks_per_hour": 143.11028161859377,
     "total_processing_time": 12040.0
   },
   "decisions": {
     "OBRSP": 52
   },
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
   "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
@@ -161,8 +161,8 @@
         33,
         31
       ],
-      "start": 10778.437,
-      "end": 12010.937
+      "start": 10750.312,
+      "end": 11982.812
     },
     {
       "tour_id": 11,
@@ -172,8 +172,8 @@
         35,
         36
       ],
-      "start": 12010.937,
-      "end": 13323.437
+      "start": 11954.687,
+      "end": 13267.187
     },
     {
       "tour_id": 12,
@@ -183,12 +183,12 @@
         38,
         39
       ],
-      "start": 13323.437,
-      "end": 14425.937
+      "start": 13239.062,
+      "end": 14341.562
     }
   ],
-  "trace_digest": "afaa8b30a9fd78dff4027679797f9903f219d84cba4e7310e064ba7e18536886",
-  "event_count": 10474,
+  "trace_digest": "a4bf6f4297eaf699bd1a365238ca92467d06bac8e21bfb0cb49de8a2552ff1a4",
+  "event_count": 10471,
   "violations": {
     "check_plan": {},
     "check_progress": {},

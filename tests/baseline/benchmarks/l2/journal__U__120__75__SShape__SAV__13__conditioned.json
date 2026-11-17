@@ -2,11 +2,11 @@
   "name": "journal__U__120__75__SShape__SAV__13__conditioned",
   "stream_closure": "announced_at_480",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_sav source.storage=U source.n_orders=120 source.capacity=75 source.replication=13 source.arrival_mode=conditioned --audit",
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
   "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 43244.921962331,
-    "mean_order_completion_time": 7546.441296038582,
+    "mean_order_completion_time": 7548.274629371915,
     "num_tours": 28,
     "num_orders_completed": 120,
     "avg_tour_makespan": 1354.8214285714287,
@@ -53,8 +53,8 @@
       "35641.171962331": 23,
       "37199.921962331": 24,
       "38718.671962331": 25,
-      "40297.421962331": 26,
-      "41816.171962331": 27,
+      "40337.421962331": 26,
+      "41836.171962331": 27,
       "43244.921962331": 28
     },
     "total_tour_times": 37935.0,
@@ -376,41 +376,41 @@
       "end": 38718.671962331
     },
     {
-      "tour_id": 28,
-      "picker_id": 0,
-      "order_ids": [
-        104,
-        105,
-        106,
-        107
-      ],
-      "start": 38718.671962331,
-      "end": 40297.421962331
-    },
-    {
-      "tour_id": 21,
-      "picker_id": 0,
-      "order_ids": [
-        77,
-        78,
-        79
-      ],
-      "start": 40297.421962331,
-      "end": 41816.171962331
-    },
-    {
       "tour_id": 15,
       "picker_id": 0,
       "order_ids": [
         51,
         52,
-        53
+        53,
+        77
       ],
-      "start": 41816.171962331,
+      "start": 38718.671962331,
+      "end": 40337.421962331
+    },
+    {
+      "tour_id": 32,
+      "picker_id": 0,
+      "order_ids": [
+        104,
+        78,
+        79
+      ],
+      "start": 40337.421962331,
+      "end": 41836.171962331
+    },
+    {
+      "tour_id": 33,
+      "picker_id": 0,
+      "order_ids": [
+        105,
+        106,
+        107
+      ],
+      "start": 41836.171962331,
       "end": 43244.921962331
     }
   ],
-  "trace_digest": "4857091faeeba8aad134729e93ce1e8bf9394227cc979471fe5d5d3ca77f8c5b",
+  "trace_digest": "8342ac3428db6a227c2cfb68342710bf85e399342915187d39aa3194275e8eff",
   "event_count": 32235,
   "violations": {
     "check_plan": {},

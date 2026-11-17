@@ -2,11 +2,11 @@
   "name": "journal__C__90__45__SShape__SAV__10__conditioned",
   "stream_closure": "announced_at_480",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_sav source.storage=C source.n_orders=90 source.capacity=45 source.replication=10 source.arrival_mode=conditioned --audit",
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
   "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 38269.031714234,
-    "mean_order_completion_time": 4440.970107491288,
+    "mean_order_completion_time": 4422.7478852690665,
     "num_tours": 38,
     "num_orders_completed": 90,
     "avg_tour_makespan": 808.0263157894736,
@@ -62,8 +62,8 @@
       "32074.031714234": 32,
       "33235.281714234": 33,
       "34314.031714234": 34,
-      "35260.281714234": 35,
-      "36379.031714234": 36,
+      "35400.281714234": 35,
+      "36396.531714234": 36,
       "37355.281714234": 37,
       "38269.031714234": 38
     },
@@ -431,33 +431,33 @@
       "end": 34314.031714234
     },
     {
-      "tour_id": 40,
-      "picker_id": 0,
-      "order_ids": [
-        85,
-        86
-      ],
-      "start": 34314.031714234,
-      "end": 35260.281714234
-    },
-    {
-      "tour_id": 41,
-      "picker_id": 0,
-      "order_ids": [
-        88,
-        87
-      ],
-      "start": 35260.281714234,
-      "end": 36379.031714234
-    },
-    {
       "tour_id": 17,
       "picker_id": 0,
       "order_ids": [
         32,
-        33
+        33,
+        85
       ],
-      "start": 36379.031714234,
+      "start": 34314.031714234,
+      "end": 35400.281714234
+    },
+    {
+      "tour_id": 43,
+      "picker_id": 0,
+      "order_ids": [
+        86,
+        87
+      ],
+      "start": 35400.281714234,
+      "end": 36396.531714234
+    },
+    {
+      "tour_id": 44,
+      "picker_id": 0,
+      "order_ids": [
+        88
+      ],
+      "start": 36396.531714234,
       "end": 37355.281714234
     },
     {
@@ -470,7 +470,7 @@
       "end": 38269.031714234
     }
   ],
-  "trace_digest": "583dfb5df587e28e19b84e6d6765ac1edacfe37096e98b894460bb2172f95b03",
+  "trace_digest": "ea358259a96f71c35760be9bc4e6e4702a2f83841864abc534d9a3bbf43f1ff4",
   "event_count": 27571,
   "violations": {
     "check_plan": {},

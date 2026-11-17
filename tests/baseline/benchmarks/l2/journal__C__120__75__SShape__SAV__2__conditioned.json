@@ -2,30 +2,30 @@
   "name": "journal__C__120__75__SShape__SAV__2__conditioned",
   "stream_closure": "announced_at_480",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_sav source.storage=C source.n_orders=120 source.capacity=75 source.replication=2 source.arrival_mode=conditioned --audit",
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
   "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
-    "makespan": 38031.096077634,
-    "mean_order_completion_time": 5903.916914133966,
+    "makespan": 38018.596077634,
+    "mean_order_completion_time": 5896.948164133966,
     "num_tours": 26,
     "num_orders_completed": 120,
-    "avg_tour_makespan": 1257.5961538461538,
+    "avg_tour_makespan": 1257.1153846153845,
     "avg_batch_size": 4.615384615384615,
-    "orders_per_hour": 11.359125677528349,
-    "tours_per_hour": 2.4611438967978088,
+    "orders_per_hour": 11.36286040436253,
+    "tours_per_hour": 2.4619530876118816,
     "distance_by_picker": {
-      "0": 12390.0
+      "0": 12380.0
     },
     "idle_time_by_picker": {
       "0": 0.0
     },
     "busy_time_by_picker": {
-      "0": 37377.5
+      "0": 37365.0
     },
     "absent_time_by_picker": {
       "0": 653.596077634
     },
-    "total_distance": 12390.0,
+    "total_distance": 12380.0,
     "total_delayed": 0,
     "dock_utilization": {
       "1414.846077634": 1,
@@ -52,12 +52,12 @@
       "32373.596077634": 22,
       "33912.346077634": 23,
       "35436.096077634": 24,
-      "36769.846077634": 25,
-      "38031.096077634": 26
+      "36859.846077634": 25,
+      "38018.596077634": 26
     },
-    "total_tour_times": 32697.5,
-    "picks_per_hour": 162.90879409188574,
-    "total_processing_time": 32697.5
+    "total_tour_times": 32685.0,
+    "picks_per_hour": 162.96235629923262,
+    "total_processing_time": 32685.0
   },
   "decisions": {
     "OBRSP": 147
@@ -375,25 +375,25 @@
         18,
         19,
         20,
-        21
+        21,
+        117
       ],
       "start": 35436.096077634,
-      "end": 36769.846077634
+      "end": 36859.846077634
     },
     {
-      "tour_id": 30,
+      "tour_id": 31,
       "picker_id": 0,
       "order_ids": [
-        117,
         118,
         119
       ],
-      "start": 36769.846077634,
-      "end": 38031.096077634
+      "start": 36859.846077634,
+      "end": 38018.596077634
     }
   ],
-  "trace_digest": "c4b8ffa44c8c75d408b126da835045c4bcb2427621a0e5d58bf3aeb627c5d446",
-  "event_count": 26091,
+  "trace_digest": "7429c0c5f1a63350b77cfc96f407dcabe56cb10fcb11fc8d9db12314f57db92e",
+  "event_count": 26071,
   "violations": {
     "check_plan": {},
     "check_progress": {},

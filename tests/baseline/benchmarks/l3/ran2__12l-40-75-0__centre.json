@@ -4,19 +4,19 @@
   "depot": "centre",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp source.filepath=ran2/12l-40-75-0.txt source.depot=centre --audit",
   "kpis": {
-    "makespan": 14040.937,
-    "mean_order_completion_time": 3680.0391249999993,
+    "makespan": 13984.687,
+    "mean_order_completion_time": 3672.3047500000002,
     "num_tours": 10,
     "num_orders_completed": 40,
     "avg_tour_makespan": 1207.125,
     "avg_batch_size": 4.0,
-    "orders_per_hour": 10.255725810891395,
-    "tours_per_hour": 2.5639314527228487,
+    "orders_per_hour": 10.296976972026616,
+    "tours_per_hour": 2.574244243006654,
     "distance_by_picker": {
       "0": 5001.0
     },
     "idle_time_by_picker": {
-      "0": 56.25
+      "0": 0.0
     },
     "busy_time_by_picker": {
       "0": 13871.25
@@ -35,17 +35,17 @@
       "8207.187": 6,
       "9746.562": 7,
       "11185.937": 8,
-      "12623.437": 9,
-      "14040.937": 10
+      "12595.312": 9,
+      "13984.687": 10
     },
     "total_tour_times": 12071.25,
-    "picks_per_hour": 149.2208105484698,
+    "picks_per_hour": 149.8210149429873,
     "total_processing_time": 12071.25
   },
   "decisions": {
     "OBRSP": 50
   },
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
   "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
@@ -153,8 +153,8 @@
         34,
         35
       ],
-      "start": 11214.062,
-      "end": 12651.562
+      "start": 11185.937,
+      "end": 12623.437
     },
     {
       "tour_id": 10,
@@ -165,12 +165,12 @@
         38,
         39
       ],
-      "start": 12651.562,
-      "end": 14069.062
+      "start": 12595.312,
+      "end": 14012.812
     }
   ],
-  "trace_digest": "0e0ab7d245493405bef6197eaf905bb3b3ce95bf8f422205a111294deb8d8113",
-  "event_count": 10614,
+  "trace_digest": "c19e2b97a481c1d7448052f46c7ca60b6111ab87d0781eae36afbc65ff33e55a",
+  "event_count": 10612,
   "violations": {
     "check_plan": {},
     "check_progress": {},

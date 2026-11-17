@@ -4,19 +4,19 @@
   "depot": "1",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp variants=albareda source.filepath=albareda/W3/150/wsrp_input_pedido_03_090.txt --audit",
   "kpis": {
-    "makespan": 52344.3125,
-    "mean_order_completion_time": 22052.57687333334,
+    "makespan": 51686.1875,
+    "mean_order_completion_time": 21829.26437333333,
     "num_tours": 16,
     "num_orders_completed": 150,
     "avg_tour_makespan": 3048.49609375,
     "avg_batch_size": 9.375,
-    "orders_per_hour": 10.316307048640672,
-    "tours_per_hour": 1.1004060851883384,
+    "orders_per_hour": 10.44766553927004,
+    "tours_per_hour": 1.1144176575221378,
     "distance_by_picker": {
       "0": 22132.75
     },
     "idle_time_by_picker": {
-      "0": 658.125
+      "0": 0.0
     },
     "busy_time_by_picker": {
       "0": 51655.9375
@@ -33,25 +33,25 @@
       "11578.0625": 4,
       "15018.375": 5,
       "18654.0": 6,
-      "22166.8125": 7,
-      "25478.375": 8,
-      "29062.75": 9,
-      "32755.875": 10,
-      "36430.25": 11,
-      "39533.6875": 12,
-      "43089.9375": 13,
-      "46502.125": 14,
-      "49828.6875": 15,
-      "52344.3125": 16
+      "22099.3125": 7,
+      "25343.375": 8,
+      "28860.25": 9,
+      "32485.875": 10,
+      "36092.75": 11,
+      "39128.6875": 12,
+      "42617.4375": 13,
+      "45967.75": 14,
+      "49226.8125": 15,
+      "51686.1875": 16
     },
     "total_tour_times": 48775.9375,
-    "picks_per_hour": 145.18482786453637,
+    "picks_per_hour": 147.03347968932704,
     "total_processing_time": 48775.9375
   },
   "decisions": {
     "OBRSP": 166
   },
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
   "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
@@ -174,8 +174,8 @@
         62,
         63
       ],
-      "start": 18721.5,
-      "end": 22234.3125
+      "start": 18654.0,
+      "end": 22166.8125
     },
     {
       "tour_id": 8,
@@ -190,8 +190,8 @@
         73,
         74
       ],
-      "start": 22234.3125,
-      "end": 25545.875
+      "start": 22099.3125,
+      "end": 25410.875
     },
     {
       "tour_id": 9,
@@ -206,8 +206,8 @@
         81,
         82
       ],
-      "start": 25545.875,
-      "end": 29130.25
+      "start": 25343.375,
+      "end": 28927.75
     },
     {
       "tour_id": 10,
@@ -225,8 +225,8 @@
         92,
         93
       ],
-      "start": 29130.25,
-      "end": 32823.375
+      "start": 28860.25,
+      "end": 32553.375
     },
     {
       "tour_id": 11,
@@ -244,8 +244,8 @@
         103,
         104
       ],
-      "start": 32823.375,
-      "end": 36497.75
+      "start": 32485.875,
+      "end": 36160.25
     },
     {
       "tour_id": 12,
@@ -263,8 +263,8 @@
         114,
         115
       ],
-      "start": 36497.75,
-      "end": 39601.1875
+      "start": 36092.75,
+      "end": 39196.1875
     },
     {
       "tour_id": 13,
@@ -280,8 +280,8 @@
         123,
         124
       ],
-      "start": 39601.1875,
-      "end": 43151.8125
+      "start": 39128.6875,
+      "end": 42679.3125
     },
     {
       "tour_id": 14,
@@ -298,8 +298,8 @@
         126,
         127
       ],
-      "start": 43151.8125,
-      "end": 46569.625
+      "start": 42617.4375,
+      "end": 46035.25
     },
     {
       "tour_id": 15,
@@ -317,8 +317,8 @@
         144,
         145
       ],
-      "start": 46569.625,
-      "end": 49884.9375
+      "start": 45967.75,
+      "end": 49283.0625
     },
     {
       "tour_id": 16,
@@ -329,12 +329,12 @@
         148,
         149
       ],
-      "start": 49884.9375,
-      "end": 52406.1875
+      "start": 49226.8125,
+      "end": 51748.0625
     }
   ],
-  "trace_digest": "781a2d3bf6f640366992f0c9f6d23ebb8a9ef194241c424199b0122b81e31a91",
-  "event_count": 17971,
+  "trace_digest": "0c0d640d40d8cc2cb96cba6e57777bd269d3dcbbfe60b71538df43e503983cec",
+  "event_count": 17961,
   "violations": {
     "check_plan": {},
     "check_progress": {},
