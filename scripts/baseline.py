@@ -9,6 +9,7 @@ from fnmatch import fnmatch
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import threading
@@ -136,7 +137,7 @@ def _check_once(definition, check: list[str]) -> tuple[int, str]:
 
 
 def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
-    """Check the case's sweep once and run the configuration, retaining only diagnostic outputs."""
+    """Check the case's sweep once and run the configuration; only a failed run keeps its outputs."""
     scenario, module, overrides = definition
     out_dir = RUNS / f"{name}-{uuid4().hex[:8]}"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -171,6 +172,9 @@ def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
         return result
     audit = json.loads(capture.read_text(encoding="utf-8"))
     kpis = json.loads(kpi_path.read_text(encoding="utf-8"))
+    # The record holds everything the comparison needs; a failed run keeps its
+    # folder for diagnosis, a successful one does not.
+    shutil.rmtree(out_dir, ignore_errors=True)
     differences = recompute_kpis(audit, kpis)
     result.update({
         "casim_commit": _run(["git", "rev-parse", "HEAD"])[1].strip(),
