@@ -4,17 +4,39 @@
 This repository contains the implementation of CASIM as described in the paper "CASIM: Context Aware Simulation for Warehouse Operations" submitted to the Winter Simulation Conference 2026. 
 ## Setup
 
-This project depends on `ware_ops_algos`, which must be cloned adjacent:
+This project depends on `ware_ops_algos`, which must be cloned adjacent and
+checked out on the branch that matches casim's branch (currently
+`codex/revision-scopes`, not `main`):
 
 ```bash
 git clone https://github.com/kit-dsm/casim.git
-git clone https://github.com/kit-dsm/ware_ops_algos.git
+git clone -b codex/revision-scopes https://github.com/kit-dsm/ware_ops_algos.git
 cd casim
+git checkout codex/revision-scopes
 uv sync --locked --extra dev
+uv run --locked python scripts/fetch_data.py all
 uv run --locked pytest
 ```
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.13 (installed automatically by uv).
+
+Benchmark data is not committed. `scripts/fetch_data.py all` downloads every
+dataset into the ignored `data/` directories and checks each file against the
+committed `SHA256SUMS.txt`; one dataset is fetched with its name
+(`henn_waiting`, `oobp`, `dhaen`, `casop`, `casop_instances`, `radar`), and
+`--check` only verifies the files already present. `henn_waiting` is restored
+from the git history, so it needs a full (not shallow) clone.
+
+Optional extras: `--extra viz` installs `dash`, `plotly` and `seaborn` for
+`casim.viz` and the scenario plots, `--extra rl` installs `gymnasium` for
+`casim.envs`.
+
+`pytest` skips the slow `baseline` tests by default (every
+scenario against its recorded baseline). Run them with
+
+```bash
+uv run --locked pytest -m baseline
+```
 
 ## Scenarios
 

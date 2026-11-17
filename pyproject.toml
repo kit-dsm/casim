@@ -58,7 +58,7 @@ where = ["src"]
 pythonpath = ["."]
 testpaths = ["tests"]
 markers = ["baseline: compares every scenario run against its recorded baseline"]
-# The baseline tests run every scenario (about 15 minutes); run them with `pytest -m baseline`.
+# The baseline tests run every scenario and are slow; run them with `pytest -m baseline`.
 addopts = "-m 'not baseline'"
 
 [dependency-groups]

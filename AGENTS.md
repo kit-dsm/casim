@@ -39,7 +39,9 @@ the outputs and the comparison with `reference.csv`.
 
 ## Before every commit
 
-- `python -m pytest -q` passes in one process.
+- `python -m pytest -q` passes in one process. It skips the `baseline` marker
+  (every scenario against its recorded baseline, slow); run those
+  with `python -m pytest -m baseline` at the end of a task.
 - `python -m casim check --all` passes.
 - `python scripts/baseline.py compare` (and `compare-benchmark` for a change
   that can touch a benchmark) shows only the differences the task names.
