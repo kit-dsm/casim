@@ -56,7 +56,7 @@ class StateAdapter:
                               if batch.earliest_due_date <= end]
             if info.window.by is TimeAttribute.START_TIME:
                 tours = [tour for tour in tours
-                         if tour.start_time is None or now <= tour.start_time <= end]
+                         if tour.planned_start is None or now <= tour.planned_start <= end]
 
         resources = state.resource_manager.get_resources().resources
         selected = [resource for resource in resources
@@ -73,7 +73,7 @@ class StateAdapter:
         tour_views = tuple(self._tour_view(state, tour) for tour in tours)
         residual = self._residual_orders(state, tours, tour_views)
         available_from = {
-            resource.id: max([now, *(tour.end_time_planned or now for tour in tours
+            resource.id: max([now, *(tour.planned_end or now for tour in tours
                                      if tour.assigned_resource == resource.id
                                      and tour.status in (TourStates.SCHEDULED,
                                                          TourStates.PENDING,
@@ -168,7 +168,8 @@ class StateAdapter:
             tour_id=tour.tour_id, picker_id=picker_id, status=status,
             accepts=self.scope.accepts(status),
             batch=tour.batch, route=tour.route,
-            start_time=tour.start_time, end_time=tour.end_time_planned,
+            start_time=tour.planned_start, end_time=tour.planned_end,
+            earliest_start=tour.earliest_start,
             processing_time=tour.processing_time,
             pick_cart=picker.pick_cart if picker else None,
             progress=progress,

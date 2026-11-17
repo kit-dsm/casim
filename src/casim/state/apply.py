@@ -137,7 +137,8 @@ def apply(state: State, commands: tuple[Command, ...]):
                 state.order_manager.clear_order_buffer_by_ids(
                     list(command.job.order_numbers))
                 source = "orders"
-            tour_id = state.add_sequencing_to_planning_state(command.job)
+            tour_id = state.add_sequencing_to_planning_state(command.job,
+                                                             command.earliest_start)
             state.tour_source[tour_id] = source
             created_ids.append(tour_id)
         elif isinstance(command, CancelTour):
@@ -167,7 +168,8 @@ def apply(state: State, commands: tuple[Command, ...]):
             tour = state.tour_manager.get_tour(command.tour_id)
             old_picker = tour.assigned_resource
             state.tour_manager.reschedule(command.tour_id, command.picker_id,
-                                          command.start_time, command.end_time)
+                                          command.start_time, command.end_time,
+                                          command.earliest_start)
             if tour.status is TourStates.SCHEDULED:
                 for picker_id in dict.fromkeys((old_picker, command.picker_id)):
                     queue_changed(picker_id)
@@ -176,6 +178,7 @@ def apply(state: State, commands: tuple[Command, ...]):
                        if command.creation_index is not None else command.tour_id)
             tour = state.tour_manager.get_tour(tour_id)
             state.tour_manager.advance(tour_id, TourStates.SCHEDULED)
+            state.tracker.on_commit(tour_id, tour.planned_start, tour.planned_end)
             queue_changed(tour.assigned_resource)
     events.extend(Dispatch(state.current_time, picker_id,
                            state.resource_manager.version(picker_id), priority=0)

@@ -147,12 +147,17 @@ class Dispatch(Event):
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
+        events = self._dispatch(state)
+        state.project_queue(self.picker_id)
+        return events
+
+    def _dispatch(self, state: 'State') -> list['Event']:
         resources, tours = state.resource_manager, state.tour_manager
         picker_id = self.picker_id
         if tours.current_tour(picker_id) is not None:
             return []
         if resources.has_pending_departure(picker_id):
-            duration = resources.make_departure_effective(picker_id)
+            duration = resources.make_departure_effective(picker_id, self.time)
             return ([] if duration is None
                     else [PickerArrival(self.time + duration, picker_id)])
         if not resources.is_present(picker_id):
@@ -163,11 +168,14 @@ class Dispatch(Event):
                 return [PickerIdle(self.time, picker_id)]
             return []
         tour = tours.get_tour(queue[0])
-        if tour.start_time is not None and tour.start_time > self.time:
+        if tour.earliest_start is not None and tour.earliest_start > self.time:
             # The binding start is later; another decision may revise it first.
-            return [Dispatch(tour.start_time, picker_id, self.version)]
+            return [Dispatch(tour.earliest_start, picker_id, self.version)]
         resources.leave_idle(picker_id)
         tours.advance(tour.tour_id, TourStates.PENDING)
+        # The setup begins now: the pending tour's planned times move here.
+        duration = tour.planned_end - tour.planned_start
+        tour.planned_start, tour.planned_end = self.time, self.time + duration
         picker = resources.get_resource(picker_id)
         return [TourStart(self.time + (picker.tour_setup_time or 0), tour.tour_id)]
 
@@ -297,7 +305,7 @@ class TruckDeparture(Event):
                 ts_in_progress.append(t_id)
                 if t.batch.earliest_due_date == self.time:
                     ts_delayed.append(t_id)
-                    ts_expected_finish.append(t.end_time_planned)
+                    ts_expected_finish.append(t.planned_end)
 
         state.tracker.on_truck_departure_delays(self.time, ts_delayed, ts_expected_finish)
         if self.capacity:
@@ -363,6 +371,7 @@ class TourStart(BaseTourEvent):
         if tour.status == TourStates.CANCELLED:
             print(f"{tour.tour_id} cancelled at {self.time}")
         state.tour_manager.start_tour(tour_id, self.time)
+        state.project_queue(tour.assigned_resource)
         logger.info("resource %d started tour %d at t=%s", tour.assigned_resource, tour.tour_id, self.time)
         state.tracker.on_tour_start(self.time)
         if tour.at_end() and res.current_location == (0, -1):
@@ -490,9 +499,10 @@ class TourEnd(BaseTourEvent):
 
         assert here.position == state.layout_manager.get_layout().graph_data.end_location, f"TourEnd at non-depot {here} on tour {tour.tour_id}"
         logger.info("resource %d: Tour %d completed at depot. Start time: %s Planned end: %s, actual end: %s Makespan: %s",
-                    res.id, tour.tour_id, tour.start_time, tour.end_time_planned, self.time, self.time - tour.start_time)
+                    res.id, tour.tour_id, tour.actual_start, tour.planned_end, self.time, self.time - tour.actual_start)
         # finalize tour and free picker
         state.tour_manager.finish_tour(tour.tour_id, self.time)
+        state.project_queue(tour.assigned_resource)
         om = state.order_manager
         on_time = []
         delayed = []
@@ -508,7 +518,7 @@ class TourEnd(BaseTourEvent):
         n_pallets_dock = state.dock_manager.n_staged_pallets
         n_lines = len(tour.completed_picks)
         state.tracker.on_tour_end(tour.tour_id,
-                                  tour.start_time,
+                                  tour.actual_start,
                                   self.time,
                                   tour.order_numbers,
                                   tour.assigned_resource,

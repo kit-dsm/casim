@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -38,6 +38,10 @@ class DecisionConfig(StrictModel):
     commitment_policy: Policy | None = None
     change_penalty: float = Field(default=0.0, ge=0)
     precedence: int | None = Field(default=None, ge=0)
+    # binding: a committed tour's scheduled start is its earliest start (a
+    # timetable); forecast: no earliest start, the next tour starts as soon as
+    # its resource is free (a sequence per resource).
+    start_times: Literal["binding", "forecast"] = "binding"
     solver: dict[str, Any] | None = None
     triggers: tuple[str | PeriodicTrigger, ...] = ()
     conditions: tuple[dict[str, Any], ...] = ()

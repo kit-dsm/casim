@@ -98,7 +98,8 @@ class State:
         if picker_id is not None:
             self.tour_manager.assign_tour(tour_id, picker_id)
 
-    def add_sequencing_to_planning_state(self, scheduled_job: ScheduledJob) -> int:
+    def add_sequencing_to_planning_state(self, scheduled_job: ScheduledJob,
+                                         earliest_start: float | None = None) -> int:
         picker = self.resource_manager.get_resource(scheduled_job.picker_id)
         cart = picker.pick_cart
         order_ids = sorted(scheduled_job.order_numbers)
@@ -112,9 +113,32 @@ class State:
         self.tour_manager.assign_tour(tour_id, scheduled_job.picker_id)
         self.tour_manager.schedule_tour(tour_id,
                                         scheduled_job.start_time,
-                                        scheduled_job.end_time)
+                                        scheduled_job.end_time,
+                                        earliest_start)
         self.tour_manager.get_tour(tour_id).cart_bins = bins
         return tour_id
+
+    def project_queue(self, picker_id: int) -> None:
+        """Project the planned times of a resource's committed tours.
+
+        The first tour is planned at the later of its earliest start and the
+        time the resource becomes free (now, the planned end of its current
+        tour, or the end of its absence), every later tour at the later of its
+        earliest start and its predecessor's planned end; each keeps its
+        planned duration. The projection never reorders the queue. For a
+        resource absent without a known return the times stay as they are.
+        """
+        free_at = self.resource_manager.free_at(
+            picker_id, self.current_time, self.tour_manager)
+        if free_at is None:
+            return
+        for tour_id in self.tour_manager.queue(picker_id):
+            tour = self.tour_manager.get_tour(tour_id)
+            duration = tour.planned_end - tour.planned_start
+            start = (free_at if tour.earliest_start is None
+                     else max(free_at, tour.earliest_start))
+            tour.planned_start, tour.planned_end = start, start + duration
+            free_at = tour.planned_end
 
     def commit_active_route(self, tour_id: int, route: Route,
                             admitted_order_ids: tuple[int, ...]) -> int:
@@ -150,11 +174,12 @@ class State:
         tour.edge_origin = tour.edge_destination = None
         tour.edge_start_time = tour.edge_end_time = tour.edge_distance = None
         tour.route_version += 1
-        tour.end_time_planned = (self.current_time + route.distance / picker.speed
+        tour.planned_end = (self.current_time + route.distance / picker.speed
                                  + len(tour.remaining_picks) * picker.time_per_pick)
         self.resource_manager.update_resource_location(
             picker_id, RouteNode(origin, NodeType.ROUTE)
         )
+        self.project_queue(picker_id)
         return tour.route_version
 
 

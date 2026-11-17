@@ -54,8 +54,8 @@ class TourManager:
         """Insert a committed tour into its resource's queue by planned start."""
         queue = self._picker_tour_queues[self.get_tour(tour_id).assigned_resource]
         queue.append(tour_id)
-        queue.sort(key=lambda tid: (self.get_tour(tid).start_time
-                                    if self.get_tour(tid).start_time is not None
+        queue.sort(key=lambda tid: (self.get_tour(tid).planned_start
+                                    if self.get_tour(tid).planned_start is not None
                                     else float("inf")))
 
     def create_tour(self, route_plan: Route, processing_time: float) -> int:
@@ -100,10 +100,12 @@ class TourManager:
 
     def schedule_tour(self, tour_id: int,
                       start_time: float,
-                      end_time: float):
+                      end_time: float,
+                      earliest_start: float | None = None):
         tour = self.get_tour(tour_id)
-        tour.start_time = start_time
-        tour.end_time_planned = end_time
+        tour.planned_start = start_time
+        tour.planned_end = end_time
+        tour.earliest_start = earliest_start
         if tour.status is TourStates.SCHEDULED:
             self._picker_tour_queues[tour.assigned_resource].remove(tour_id)
             self._enqueue(tour_id)
@@ -116,9 +118,9 @@ class TourManager:
         tour = self.get_tour(tour_id)
         if tour.status is not TourStates.PENDING:
             raise ValueError(f"Tour {tour_id} must be pending to start, got {tour.status}")
-        # todo seperate between planned and actual start time
-        tour.start_time = time
-        tour.end_time_planned = time + tour.processing_time
+        # The plan keeps its start; the running tour's planned end is its forecast.
+        tour.actual_start = time
+        tour.planned_end = time + tour.processing_time
         self.advance(tour_id, TourStates.STARTED)
 
     def finish_tour(self, tour_id: int, time: float):
@@ -127,7 +129,9 @@ class TourManager:
         assert tour.status == TourStates.STARTED
         active_tour_id = self._active_picker_tour[picker_id]
         self.advance(tour_id, TourStates.DONE)
-        tour.end_time = time
+        tour.actual_end = time
+        # The forecast is resolved: a done tour is planned to end when it ended.
+        tour.planned_end = time
 
         assert active_tour_id == tour_id, (f"Missmatch in active tour on tour finish: "
                                            f"active tour id should be {tour_id} but is {active_tour_id}")
@@ -165,13 +169,14 @@ class TourManager:
         tour.route_version += 1
 
     def reschedule(self, tour_id: int, picker_id: int,
-                   start_time: float, end_time: float) -> None:
+                   start_time: float, end_time: float,
+                   earliest_start: float | None = None) -> None:
         tour = self.get_tour(tour_id)
         if tour.assigned_resource != picker_id and tour.status is TourStates.SCHEDULED:
             self._picker_tour_queues[tour.assigned_resource].remove(tour_id)
             self._picker_tour_queues[picker_id].append(tour_id)
         tour.assigned_resource = picker_id
-        self.schedule_tour(tour_id, start_time, end_time)
+        self.schedule_tour(tour_id, start_time, end_time, earliest_start)
 
     def get_all_tours(self) -> tuple[TourPlanningState, ...]:
         """Return tours in stable creation order for projection."""

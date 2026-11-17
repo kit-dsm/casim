@@ -65,6 +65,15 @@
           "default": null,
           "title": "Precedence"
         },
+        "start_times": {
+          "default": "binding",
+          "enum": [
+            "binding",
+            "forecast"
+          ],
+          "title": "Start Times",
+          "type": "string"
+        },
         "solver": {
           "anyOf": [
             {
@@ -127,6 +136,7 @@
       "type": "object"
     },
     "ResourceStates": {
+      "description": "The vocabulary of ``state_information.resources``.\n\nA classification the simulator derives from a resource's tours and\npresence, never stored and without transitions (only ``TourStates`` has\nthem): busy with a pending or started tour, otherwise off shift if absent,\notherwise reserved if it has committed tours, otherwise idle.",
       "enum": [
         "off_shift",
         "idle",

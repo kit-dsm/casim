@@ -11,7 +11,7 @@ from ware_ops_algos.algorithms.algorithm_interfaces import (
     AlgorithmSolution, BatchingSolution, CombinedRoutingSolution,
     SchedulingSolution, WaitingSolution,
 )
-from ware_ops_algos.planning.commands import Command
+from ware_ops_algos.planning.commands import Command, CreateTour, Reschedule
 from ware_ops_algos.planning.conversion import decision_effects, to_commands
 from ware_ops_algos.planning.validation import check as validate_commands
 
@@ -63,15 +63,34 @@ class DecisionResult:
     conversion_seconds: float = 0.0
 
 
+def bind_start_times(commands: tuple[Command, ...], mode: str) -> tuple[Command, ...]:
+    """Set each new or rescheduled tour's earliest start by the decision's ``start_times``.
+
+    ``binding``: the scheduled start is the earliest start; ``forecast``: none.
+    """
+    bound = []
+    for command in commands:
+        if isinstance(command, CreateTour):
+            command = replace(command, earliest_start=(
+                command.job.start_time if mode == "binding" else None))
+        elif isinstance(command, Reschedule):
+            command = replace(command, earliest_start=(
+                command.start_time if mode == "binding" else None))
+        bound.append(command)
+    return tuple(bound)
+
+
 class DecisionEngine:
     def __init__(self, solver_map: dict[str, DecisionSolver],
                  solution_rankers: dict[str, SolutionRanker],
-                 commitment_policies: dict[str, CommitmentPolicy]):
+                 commitment_policies: dict[str, CommitmentPolicy],
+                 start_times: dict[str, str] | None = None):
         if set(solver_map) != set(solution_rankers):
             raise ValueError("solver_map and solution_rankers must have the same decision names")
         self.solver_map = solver_map
         self.solution_rankers = solution_rankers
         self.commitment_policies = commitment_policies
+        self.start_times = start_times or {}
         self.decision_tracker = DecisionTracker()
         self._accepted_choices: dict[str, tuple[AlgorithmSolution, str]] = {}
 
@@ -137,6 +156,7 @@ class DecisionEngine:
             commands = (*commands, *commits)
             if policy_reconsider is not None:
                 reconsider_at = policy_reconsider
+        commands = bind_start_times(commands, self.start_times.get(decision, "binding"))
         return DecisionResult(
             commands=commands, waiting=waiting, reconsider_at=reconsider_at,
             considered_active_orders=considered, solver_name=chosen_name,

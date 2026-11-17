@@ -22,6 +22,8 @@ class ResourceManager:
         self._present = {r.id: False for r in resources.resources}
         # picker_id -> requested absence: a duration (a break) or None (a shift end)
         self._departure: dict[int, float | None] = {}
+        # picker_id -> the end of its current absence, when it is known (a break)
+        self._return_at: dict[int, float] = {}
         self._version = {r.id: 0 for r in resources.resources}
         self._idle = {r.id: False for r in resources.resources}
         self._aisle_count: dict[int, int] = defaultdict(int)  # aisle_id -> picker count
@@ -50,6 +52,7 @@ class ResourceManager:
         """Make the resource present; cancels a pending departure."""
         self._present[picker_id] = True
         self._departure.pop(picker_id, None)
+        self._return_at.pop(picker_id, None)
         return self.bump_version(picker_id)
 
     def request_departure(self, picker_id: int, duration: float | None) -> int:
@@ -59,13 +62,27 @@ class ResourceManager:
     def has_pending_departure(self, picker_id: int) -> bool:
         return picker_id in self._departure
 
-    def make_departure_effective(self, picker_id: int) -> float | None:
+    def make_departure_effective(self, picker_id: int, now: float) -> float | None:
         """Make the resource absent; return the duration of its absence, if known."""
         duration = self._departure.pop(picker_id)
+        if duration is not None:
+            self._return_at[picker_id] = now + duration
         self._present[picker_id] = False
         self._idle[picker_id] = False
         self.bump_version(picker_id)
         return duration
+
+    def free_at(self, picker_id: int, now: float, tour_manager) -> float | None:
+        """When the resource can begin its next tour; None if absent without known return."""
+        current = tour_manager.current_tour(picker_id)
+        free = now if current is None else max(
+            now, tour_manager.get_tour(current).planned_end)
+        if picker_id in self._departure:
+            duration = self._departure[picker_id]
+            return None if duration is None else free + duration
+        if not self._present[picker_id]:
+            return self._return_at.get(picker_id)
+        return free
 
     def version(self, picker_id: int) -> int:
         return self._version[picker_id]

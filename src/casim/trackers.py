@@ -4,6 +4,7 @@ from collections import defaultdict
 class ExperimentTracker:
     def __init__(self, n_pickers):
         self.first_tour_start = None
+        self.committed_times: dict[int, tuple[float, float]] = {}
         self.distance_by_picker: dict[int, float] = defaultdict(float)
         self.idle_time_by_picker: dict[int, float] = defaultdict(float)
         self._idle_start: dict[int, float] = {}
@@ -26,6 +27,10 @@ class ExperimentTracker:
         # ingested orders [(order_id, due_at)]
         self.ingested_orders: list[tuple[int, float]] = []
         # (tour_id, start_time, end_time, list[order_ids], picker_id)
+
+    def on_commit(self, tour_id, planned_start, planned_end):
+        """Keep the planned times at commit, to report deviations of execution."""
+        self.committed_times[tour_id] = (planned_start, planned_end)
 
     def on_travel(self, picker_id, distance):
         self.distance_by_picker[picker_id] += distance

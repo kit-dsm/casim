@@ -25,7 +25,7 @@ def test_setup_begins_at_scheduled_start_and_occurs_once(tmp_path):
     assert scheduled.start_time == 10
     assert scheduled.end_time == 10 + 3 + route.distance / picker.speed
 
-    tour_id = state.add_sequencing_to_planning_state(scheduled)
+    tour_id = state.add_sequencing_to_planning_state(scheduled, scheduled.start_time)
     state.tour_manager.advance(tour_id, TourStates.SCHEDULED)
     version = state.resource_manager.bump_version(0)
     state.current_time = 0

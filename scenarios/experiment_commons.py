@@ -54,6 +54,7 @@ def setup_experiment(cfg: DictConfig, data_card: DataCard):
         commitment_policies={name: setup.commitment_policy
                              for name, setup in setups.items()
                              if setup.commitment_policy is not None},
+        start_times={name: setup.config.start_times for name, setup in setups.items()},
     )
     loggers[0].decision_tracker = decision.decision_tracker
     return simulation, decision

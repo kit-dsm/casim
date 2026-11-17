@@ -80,7 +80,7 @@ class DashLogger(EventLogger):
                     "status": t.status,
                     "picker_id": t.assigned_resource,
                     "order_ids": list(t.order_numbers),
-                    "start_time": t.start_time,
+                    "start_time": t.planned_start,
                 }
                 for t_id, t in tm.all_tours.items()
             },

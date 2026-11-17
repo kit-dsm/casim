@@ -136,6 +136,6 @@ def test_waiting_release_starts_no_earlier_than_reconsideration(tmp_path):
         if done:
             break
         sim.step(engine.on_trigger(next_snapshot), next_snapshot)
-    assert all(tour.start_time >= deadline
+    assert all(tour.actual_start >= deadline
                for tour in sim.state.tour_manager.all_tours.values()
                if tour.status is TourStates.DONE)

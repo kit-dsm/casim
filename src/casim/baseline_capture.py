@@ -117,7 +117,7 @@ class BaselineCapture(TraceRecorder):
                     "tour_id": tour.tour_id,
                     "picker_id": tour.assigned_resource,
                     "order_ids": list(tour.order_numbers),
-                    "start": tour.start_time, "end": tour.end_time_planned,
+                    "start": tour.planned_start, "end": tour.planned_end,
                 })
         self._check(sim, f"decision:{decision}")
 
@@ -131,7 +131,7 @@ class BaselineCapture(TraceRecorder):
             tours.append({
                 "tour_id": tour.tour_id, "picker_id": tour.assigned_resource,
                 "order_ids": list(tour.order_numbers),
-                "start": tour.start_time, "end": tour.end_time,
+                "start": tour.actual_start, "end": tour.actual_end,
                 "picks": len(tour.completed_picks),
                 "speed": picker.speed, "time_per_pick": picker.time_per_pick,
                 "tour_setup_time": picker.tour_setup_time or 0.0,

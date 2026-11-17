@@ -32,11 +32,15 @@ class TourPlanningState:
     executed_prefix: list[RouteNode] = field(default_factory=list)
 
     assigned_resource: Optional[int] = None
-    start_time: Optional[float] = None
     processing_time: Optional[float] = None
-    # planning_plan: Optional[TourPlanningState] = None
-    end_time: Optional[float] = None
-    end_time_planned: Optional[float] = None
+    # Times: the binding earliest start (optional); the planned start and end,
+    # which the simulator projects from the resource's queue and which later
+    # decisions read; the actual start (of the route, after the setup) and end.
+    earliest_start: Optional[float] = None
+    planned_start: Optional[float] = None
+    planned_end: Optional[float] = None
+    actual_start: Optional[float] = None
+    actual_end: Optional[float] = None
     # execution state, mutable during picking
     cursor: int = 0                 # index into route_nodes
     status: str = TourStates.PLANNED

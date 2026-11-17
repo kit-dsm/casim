@@ -118,6 +118,7 @@ def _engines(cfg: DictConfig, setups: dict[str, DecisionSetup], source,
         commitment_policies={name: setup.commitment_policy
                              for name, setup in setups.items()
                              if setup.commitment_policy is not None},
+        start_times={name: setup.config.start_times for name, setup in setups.items()},
     )
     loggers[0].decision_tracker = decision.decision_tracker
     return simulation, decision
@@ -144,11 +145,13 @@ def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
             setup = (resources.get_resource(tour.assigned_resource).tour_setup_time or 0.0
                      if tour.assigned_resource is not None else None)
             writer.writerow((tour.tour_id, tour.assigned_resource, tour.status.value,
-                             tour.start_time, tour.end_time, setup, tour.route.distance,
+                             (tour.actual_start if tour.actual_start is not None
+                              else tour.planned_start),
+                             tour.actual_end, setup, tour.route.distance,
                              len(tour.completed_picks), len(tour.original_route.batch.orders),
                              " ".join(map(str, tour.order_numbers))))
     manager = sim.state.order_manager
-    completions = {order_id: tour.end_time
+    completions = {order_id: tour.actual_end
                    for tour in sim.state.tour_manager.get_all_tours()
                    if tour.status is TourStates.DONE for order_id in tour.order_numbers}
     orders = {order.order_id: order for order in manager.get_order_buffer()}
