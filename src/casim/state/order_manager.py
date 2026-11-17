@@ -1,8 +1,12 @@
+import logging
 import copy
 
 from ware_ops_algos.algorithms import BatchObject
 from ware_ops_algos.domain_models import Order
 from ware_ops_algos.planning.lifecycle import OrderStates, TourStates
+
+
+logger = logging.getLogger(__name__)
 
 
 class OrderManager:
@@ -83,7 +87,7 @@ class OrderManager:
             try:
                 assert isinstance(order, Order)
             except AssertionError:
-                print(f"Order with id {o_id} not found in buffer, cannot clear")
+                logger.warning("order %s not in the buffer, cannot clear it", o_id)
             if order is not None:
                 self.add_order_to_history(order)
 
@@ -98,7 +102,7 @@ class OrderManager:
             try:
                 assert isinstance(order, Order)
             except AssertionError:
-                print(f"Order with id {o_id} not found in buffer, cannot clear")
+                logger.warning("order %s not in the buffer, cannot clear it", o_id)
             if order is not None:
                 self.add_order_to_history(order)
 

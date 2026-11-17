@@ -120,7 +120,6 @@ class ExperimentTracker:
         util = self.current_utilization(end_time)
         self.picker_utilization.append((end_time, util))
         self.process_times.append(end_time - start_time)
-        # print(f"tour_id:  {tour_id} with order_ids: {order_ids} completed at time {end_time:.0f} with makespan {end_time - start_time:.1f} and picker utilization {util:.2%} and dock utilization {n_pallets_dock} pallets")
 
     def on_truck_departure(self, time, capacity):
         self.truck_departures.append((time, capacity))

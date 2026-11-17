@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -29,6 +30,8 @@ PLAN_SOURCES = {
     "waiting": WaitingPlanCandidate,
     "positioning": PositioningPlanCandidate,
 }
+
+logger = logging.getLogger(__name__)
 
 
 class CoSySolver:
@@ -67,7 +70,7 @@ class CoSySolver:
 
         self.algorithm_cards = load_packaged_algo_cards()
         if self.verbose:
-            print(f"Loaded {len(self.algorithm_cards)} model cards")
+            logger.debug("loaded %d model cards", len(self.algorithm_cards))
 
     def dump_domain(self, dynamic_domain: BaseWarehouseDomain):
         dump_pickle(str(self.cache_path), dynamic_domain)
@@ -99,7 +102,7 @@ class CoSySolver:
 
         if not self.pipelines:
             if self.verbose:
-                print("Building pipelines")
+                logger.debug("building pipelines")
             repo_classes.extend((PLAN_SOURCES[terminal], PlanCandidateEndpoint))
             repo = CoSyLuigiRepo(*repo_classes)
             maestro = Maestro(repo.cls_repo, repo.taxonomy)
@@ -114,10 +117,10 @@ class CoSySolver:
                     "and their algorithm-card requirements"
                 )
             if self.verbose:
-                print(f"Found {len(self.pipelines)} pipelines")
+                logger.debug("found %d pipelines", len(self.pipelines))
         else:
             if self.verbose:
-                print("Using cached pipelines")
+                logger.debug("using cached pipelines")
 
     def solve(self, dynamic_domain: BaseWarehouseDomain) -> dict[str, AlgorithmSolution]:
         self.dump_domain(dynamic_domain)

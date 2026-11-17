@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import pickle
 from typing import TYPE_CHECKING
 
@@ -15,6 +16,8 @@ from casim.trackers import ExperimentTracker
 
 if TYPE_CHECKING:
     from casim.simulation_engine import SimulationEngine
+
+logger = logging.getLogger(__name__)
 
 
 class EventLogger:
@@ -121,7 +124,7 @@ class KPILogger(EventLogger):
     def on_done(self, sim: SimulationEngine) -> None:
         state = sim.state
         summary = self._summary(state)
-        self._print_summary(summary)
+        logger.info("%s", format_summary(summary))
         dump_pickle(str(self.out_dir / "kpis.pkl"), summary)
         with open(self.out_dir / "kpis.json", "w") as f:
             json.dump(_jsonable(summary), f, indent=2)
@@ -185,7 +188,7 @@ class KPILogger(EventLogger):
 
     def _print_progress(self, state: State) -> None:
         t = state.tracker
-        print(
+        logger.info(
             f"[t={state.current_time:>10.0f}] "
             f"events={self._event_count:>6d}  "
             f"tours={len(t.completed_tours):>4d}  "
@@ -214,26 +217,26 @@ class KPILogger(EventLogger):
             "total_processing_time": tracker.total_processing_time
         }
 
-    @staticmethod
-    def _print_summary(s: dict) -> None:
-        print("\n" + "=" * 50)
-        print("KPI Summary")
-        print("=" * 50)
-        print(f"  makespan:            {s['makespan']:.0f}")
-        print(f"  mean order completion time: {s['mean_order_completion_time']:.3f}")
-        print(f"  tours completed:     {s['num_tours']}")
-        print(f"  orders completed:    {s['num_orders_completed']}")
-        print(f"  avg tour makespan:   {s['avg_tour_makespan']:.1f}")
-        print(f"  avg batch size:      {s['avg_batch_size']:.2f}")
-        print(f"  orders/hour:         {s['orders_per_hour']:.1f}")
-        print(f"  total distance:      {s['total_distance']:.0f}")
-        print(f"  total delayed:      {s['total_delayed']:.0f}")
-        print(f"  total tour times:    {s['total_tour_times']:.0f}")
-        print(f"  total processing time:    {s['total_processing_time']:.0f}")
-        for pid, d in s['distance_by_picker'].items():
-            idle = s['idle_time_by_picker'].get(pid, 0)
-            print(f"    picker {pid}: distance={d:.0f}  idle={idle:.0f}")
-        print("=" * 50 + "\n")
+
+def format_summary(s: dict) -> str:
+    """The KPI summary of one run as text."""
+    lines = ["=" * 50, "KPI Summary", "=" * 50,
+             f"  makespan:            {s['makespan']:.0f}",
+             f"  mean order completion time: {s['mean_order_completion_time']:.3f}",
+             f"  tours completed:     {s['num_tours']}",
+             f"  orders completed:    {s['num_orders_completed']}",
+             f"  avg tour makespan:   {s['avg_tour_makespan']:.1f}",
+             f"  avg batch size:      {s['avg_batch_size']:.2f}",
+             f"  orders/hour:         {s['orders_per_hour']:.1f}",
+             f"  total distance:      {s['total_distance']:.0f}",
+             f"  total delayed:       {s['total_delayed']:.0f}",
+             f"  total tour times:    {s['total_tour_times']:.0f}",
+             f"  total processing time: {s['total_processing_time']:.0f}"]
+    for pid, d in s["distance_by_picker"].items():
+        idle = s["idle_time_by_picker"].get(pid, 0)
+        lines.append(f"    picker {pid}: distance={d:.0f}  idle={idle:.0f}")
+    lines.append("=" * 50)
+    return "\n".join(lines)
 
 
 def _jsonable(obj):

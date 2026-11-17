@@ -83,7 +83,8 @@ class TourManager:
         )
 
         pick_nodes = [n for n in route_plan.annotated_route if n.node_type == NodeType.PICK]
-        assert len(pick_nodes) == len(route_plan.item_sequence), print(pick_nodes)
+        assert len(pick_nodes) == len(route_plan.item_sequence), (
+            f"{len(pick_nodes)} pick nodes for {len(route_plan.item_sequence)} items")
 
         self.all_tours[tour_id] = new_tour
         self._unassigned_tour_ids.add(tour_id)
@@ -194,11 +195,6 @@ class TourManager:
         tour.cursor += 1
 
 
-    # def mark_pick_positions_fulfilled_at(self, tour_id: int, node: Node) -> None:
-    #     tour = self.get_tour(tour_id)
-    #     for pp in tour.batch.pick_positions:
-    #         if pp.pick_node == node:
-    #             pp.fulfilled = True
 
     def add_selected_order(self, order: WarehouseOrder, picker_id: int):
         self._selected_orders[picker_id] = order

@@ -131,7 +131,6 @@ class ResourceManager:
             self._aisle_count[new_aisle] += 1
 
         self._picker_current_aisle[picker_id] = new_aisle
-        # print("Aisle congestion", self._aisle_count)
 
     @staticmethod
     def _get_aisle_id(node: Node) -> int | float | None:

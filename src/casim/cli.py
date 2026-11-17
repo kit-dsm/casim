@@ -18,6 +18,7 @@ from ware_ops_algos.planning.lifecycle import (
 
 from casim.config.schema import DecisionDefinitions
 from casim.config.data_card import load_and_flatten_data_card
+from casim.loggers import format_summary
 from casim.run import SCENARIO_FILE, compose_scenario, run, sweep_overrides
 from casim.scenario_check import check_all
 from casim.setup import resolve
@@ -73,6 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         if not combinations:
             base.experiment.audit = args.audit
             result = run(base)
+            print(format_summary(json.loads(
+                (result.output_dir / "kpis.json").read_text(encoding="utf-8"))))
             print(f"outputs: {result.output_dir}; trace digest {result.trace_digest} "
                   f"({result.event_count} events)")
             return 0

@@ -1,5 +1,6 @@
 import os
 import pickle
+import logging
 from os.path import join as pjoin
 from typing import Sequence, Callable, Iterable, Mapping
 
@@ -37,6 +38,8 @@ from casim.pipelines.subproblems.routers import build_router
 from casim.domain_objects.sim_domain import ReconsiderReason
 from casim.domain_objects.sim_domain import DecisionContext, SimWarehouseDomain
 from ware_ops_algos.planning.models import PlanView
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineParams(luigi.Config):
@@ -632,7 +635,7 @@ def batching_loader_constraint(vs, subproblems, data_card: DataCard, exclusive, 
     problem = data_card.problem_class
     problems = subproblems[problem]["variables"]
     if "batching" in problems and exclusive in classes:
-        print(f"Not valid, {exclusive} in {classes}")
+        logger.debug("not valid: %s in %s", exclusive, classes)
         return False
     return True
 

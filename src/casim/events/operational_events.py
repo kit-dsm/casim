@@ -204,7 +204,7 @@ class TruckDisruption(Event):
         # re-add the orders with new deadlines to the order buffer.
         # orders can be pre-batched or batched
 
-        print(f"Truck disruption at {self.time}: from {self.from_time} to {self.to_time}")
+        logger.info("truck disruption at %s: from %s to %s", self.time, self.from_time, self.to_time)
         # first iterate over already scheduled tours
         orders_pulled = []
         batches_pulled = []
@@ -226,7 +226,7 @@ class TruckDisruption(Event):
                     volume_satisfied = True
                     break
 
-        print("cancelled %d tours", len(tours_to_cancel))
+        logger.info("cancelled %d tours", len(tours_to_cancel))
         # If volume not already satisfied, e.g. because no tours are scheduled collect from batch buffer.
         if not volume_satisfied and len(tours_to_cancel) == 0:
             for b in state.order_manager._pick_list_buffer:
@@ -241,22 +241,7 @@ class TruckDisruption(Event):
                     break
 
 
-        print("pulled %d batches", len(batches_pulled))
-        # if not volume_satisfied:
-        #     orders_pulled = []
-        #     for o_id, o in state.order_manager._order_history.items():
-        #         if o.due_date == self.from_time:
-        #             orders_pulled.append(o)
-        #             if len(orders_pulled) * self.palett_te_factor >= self.te_volume:
-        #                 break
-        #
-        #     for order in orders_pulled:
-        #         reassigned_order = WarehouseOrder(order_id=order.order_id,
-        #               due_date=self.to_time,
-        #               order_date=order.order_date,
-        #               pick_positions=order.pick_positions,
-        #               parent_order_id=order.parent_order_id)
-        #         state.order_manager.add_order_to_buffer(reassigned_order)
+        logger.info("pulled %d batches", len(batches_pulled))
 
         for b in batches_pulled:
             # b.earliest_due_date = self.to_time
@@ -320,7 +305,6 @@ class PickerIdle(Event):
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
-        # print(f"Picker {self.picker_id} arrived at {self.time}")
         return []
 
 class BaseTourEvent(Event):
@@ -345,18 +329,15 @@ class TourStart(BaseTourEvent):
         if self.is_stale(state):
             return []
         tour = self.get_tour(state)
-        # print(f"Tour {tour.tour_id}, picker {tour.assigned_resource} orders {tour.order_numbers}")
         tour_id = tour.tour_id
         res = state.resource_manager.get_resource(tour.assigned_resource)
-        # assert tour.route_nodes and tour.route_nodes[0] == (1, -1), \
-        #     f"Tour {tour.tour_id} does not start at depot (1,-1): {tour.route_nodes[0] if tour.route_nodes else None}"
 
         assert isinstance(tour.annotated_route[0], RouteNode)
 
         state.resource_manager.update_resource_location(tour.assigned_resource,
                                                         tour.annotated_route[0])
         if tour.status == TourStates.CANCELLED:
-            print(f"{tour.tour_id} cancelled at {self.time}")
+            logger.warning("tour %d starts although cancelled, at %s", tour.tour_id, self.time)
         state.tour_manager.start_tour(tour_id, self.time)
         state.project_queue(tour.assigned_resource)
         logger.info("resource %d started tour %d at t=%s", tour.assigned_resource, tour.tour_id, self.time)
