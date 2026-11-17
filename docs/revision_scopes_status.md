@@ -1,6 +1,6 @@
-# Revision scopes status: Task 4.13 done
+# Revision scopes status: Task 4.14 done
 
-Last pushed code commit: casim `7b8d458` (`4.13: typed routing stages, one router builder, one tour filter, single-picker waiting`); ware_ops_algos `f4b4e16`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Phase S is done and reported (`docs/phase_s_report.md`): the full suite passes in one process (574 tests) and `casim check --all` has no finding for any tracked scenario.
+Last pushed code commit: casim `74f2703` (`4.14: projection check skips a tour running past its forecast end`), baseline `55bab7c`; ware_ops_algos `dc8bec6`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Phase S is done and reported (`docs/phase_s_report.md`): the full suite passes in one process (574 tests) and `casim check --all` has no finding for any tracked scenario.
 
 The two stashes of 15 October are applied and committed; they are kept as the local branches `wip/s4-henn2012` and `wip/s3-s4-docs` and remain in `git stash list`.
 
@@ -8,8 +8,7 @@ Waiting for the user: the 16 working-paper `truncated` L2 pilot baselines record
 
 Next steps, in order:
 
-1. Task 4.14, unless the answers to the Phase B and Phase S reports change the order.
-2. Task 4.15, limited to F67 and the rules that affect replanning and cancellation (user decision, 16 November 2026); the other hidden rules are Task 4.17, after the IJPE revision.
+1. Task 4.15, limited to F67 and the rules that affect replanning and cancellation (user decision, 16 November 2026); the other hidden rules are Task 4.17, after the IJPE revision.
 
 The route-length check is done (16 November 2026, `docs/literature_benchmarks.md`, "Route-length check of the high-load gap"): CASIM's executed tours equal an independent S-shape computation on all 120 runs; α is applied through the waiting component and correctly leaves the instances unchanged; the journal's high-load values are not reachable with next-fit FCFS batches and match first-fit batches, which close about two thirds of the gap, leaving about 4 % common to both papers. First-fit FCFS is now a batching algorithm (ware_ops_algos `b650516`, card `FirstFitFiFo`) and a declared variant of the journal target in `scenarios/henn2012`; it does not close the gap to the +4.3 % residual (class-based +4.9 to +7.5 %, uniform −4.9 to +0.2 %), so the journal's high-load cells stay a statistical non-reproduction without demonstrated cause ("First-fit variant of the journal target" in the register). F68 (the OOBP loader's depth offset) is recorded and fixed (`80dbbc7`); the journal FIRST L2 runs with n = 90 and 120 are rerun and recorded again (`a35bb41`): every journal residual changes by at most 0.2 percentage points ("F68" in the register). After F68 all L2 runs and the 128 Henn-format L3 runs are recorded again (`d714c58`, `2ad6e22`); the count of L3 runs below a best-known value is unchanged at 40 of 192, the same runs before and after.
 
@@ -67,7 +66,8 @@ User direction of 16 November 2026, effective from then on:
 | 4.11 | done | Removed dead sequencing, renamed `PickListCreated` and the five decision files, restored alternative Henn strategies as `decisions` files, corrected stale references, and removed tracked outputs. One-instance sweep and 62 casim tests pass; comparison below. |
 | 4.12 | done | Five configured CoSy components are generated from resolved CASOP cards; wait 0–4 and both Henn pipelines keep their KPIs. The seven CASOP applicability sets equal `main` (counts 19, 15, 19, 24, 19, 8, 13); Task 5.0 commits the permanent lock. Module layout, rerouting base, mapper docstrings, and `OrderSplittingSolution` are corrected. Four user decisions remain untouched. |
 | 4.13 | done | Below, "Task 4.13 report". |
-| 4.14–4.15 | not done | 4.15 narrowed, 4.17 deferred until after the IJPE revision (user decision, 16 November 2026). |
+| 4.14 | done | Below, "Task 4.14 report". |
+| 4.15 | not done | 4.15 narrowed, 4.17 deferred until after the IJPE revision (user decision, 16 November 2026). |
 
 Task 4.12 makes `walk_or_wait_sshape_routing` and `fifo_scheduler` inapplicable to CASOP by requiring the `routing_origin` decision feature, which the seven CASOP data cards lack. CASIM's corresponding data cards provide it. A comparison of the applicable card-name sets for each of those seven data cards against `main` shows no additions or removals after this change. `IncumbentStartBatchingSShape` merges the SShape requirements through `configs.yaml`; `OrderCountWaiting1` through `OrderCountWaiting4` resolve the value option. The prechange committed code and current code have byte-identical `kpis.json` for `wait_0` through `wait_4` on `explicit_example` and for `repair_waiting_henn` on `29s-40-30-0.txt`. The baseline Henn pipeline still has makespan 22533.874, 30 tours, mean tour duration 563.566667 and distance 11057, as in Task 4.11. The task generated its components without scenario-data changes.
 
@@ -87,6 +87,42 @@ The `29s-40-30-0.txt` Henn sweep compares as follows against `scripts/plots/wait
 The order-window differences in makespan and total tour duration are both exactly 47 seconds; the tour count is unchanged. This is consistent with the final route changing when `OrderStreamClosed` is emitted at the last order arrival, whereas `aaa8333` flushed at event-heap exhaustion. Task 6.5 restores `at_exhaustion`; no closure rule was changed in 4.11. The dock numbers now count staging in every `State` since Task 4.9, including warehouses without a `Dock`; the historical plot was made before that change.
 
 The Task 4.9 fixture recorded 298 events, 13 decisions, three completed tours, distance 126 and makespan 86 in each seeded run, both before and after the change. Dock fill ended at 1 with truck capacity 2 and at 3 with `capacity: null`; the full fill trace and tour records are locked in `tests/verification/dock_baseline.json`. Neither scenario config triggers a decision directly on `TruckDeparture`. The departure's emitted `PickerArrival` triggers grocery `ORSP` through `triggers_map`; IJPE has no `PickerArrival` trigger, so it triggers no decision there.
+
+## Task 4.14 report
+
+Commits, in order: ware `c98ef22` (state docstrings), `dc8bec6` (`earliest_start` on `CreateTour`, `Reschedule` and `TourView`); casim `936ce17` (derived resource state, presence, `Dispatch`, per-picker departures), `c7cbe78` (planned and actual times, queue projection, `start_times`), `00ee83c` (idle, busy and absent time from a state log; resource checks; two-picker tests), `74f2703` (projection check and overrunning tours). Baseline commit: `55bab7c`.
+
+- **Resource state is derived.** `ResourceManager.resource_status` derives `BUSY > OFF_SHIFT > RESERVED > IDLE` from presence, the resource's current tour and its queue; nothing stores it. `ResourceManager` holds presence, a pending departure and its duration, a dispatch version per resource and the return time of an absence. `Resource.occupied`, `mark_picker_occupied`, `mark_picker_free`, `_busy_until`, `State.available_for_planning`, `state.is_break`, `state.break_duration`, `BreakCondition` and the `picker_available` argument are removed.
+- **Queues hold committed tours only.** A tour enters its resource's queue when it is committed (`SCHEDULED`), ordered by planned start; a planned draft reserves nothing. `TourManager.advance` maintains the queues and validates a transition before changing anything.
+- **One dispatch mechanism.** `Dispatch(picker_id, version, priority)` replaces `PickerTourQuery` and `SequencingDone`: it makes the first queued tour `pending` when the resource is present, free, without a pending departure, and the tour's earliest start is reached. `apply` emits one `Dispatch` per resource whose queue changed; `TourEnd`, `PickerArrival` and `PickerDeparture` emit one, and a `Dispatch` before the first tour's earliest start schedules another at that time; a `Dispatch` with an older version is skipped.
+- **Presence.** `PickerArrival(time, picker_id)` and `PickerDeparture(time, picker_id, duration)` replace `ShiftStart`, `BreakStart` and `BreakEnd`. A departure takes effect at once for a free resource and after the current tour otherwise; with a duration it schedules the return, without one the resource is absent until the next arrival. `TruckDeparture` no longer emits `PickerArrival`. The IJPE configuration and hooks use the two events.
+- **Planned and actual times.** `TourPlanningState` has `earliest_start`, `planned_start`, `planned_end`, `actual_start`, `actual_end` and `dispatched_at` instead of `start_time` and `end_time_planned`. `State.project_queue` moves every queued tour to the later of its earliest start and the time its predecessor (or the resource) is free, keeping its planned duration and the queue order; it runs at `Dispatch`, `TourStart`, `TourEnd` and admission. A running tour's planned end is its forecast; a done tour's is its actual end.
+- **Binding or forecast start times.** The decision key `start_times` (`binding`, default, or `forecast`) decides whether a committed start is an earliest start (a timetable) or only a forecast (a sequence); `DecisionEngine.bind_start_times` sets `earliest_start` accordingly. All shipped configurations use `binding`, the behaviour before the task.
+- **Idle, busy and absent time.** The tracker logs every change of derived state; idle, busy and absent time per resource are read from that log and sum to the horizon. Busy time includes setup.
+- **Resource checks** (Section 7.2), after the last event of every timestamp, counted by the audit as `check_resources`: `concurrent_tours`, `early_dispatch`, `absent_dispatch`, `missed_dispatch`, `projection`, and `time_balance` at the end of the run. The projection check skips a resource whose running tour has passed its forecast end; `TourEnd` projects the queue again.
+- **Tests:** `tests/verification/test_dispatch_two_pickers.py` (11): rescheduling earlier, moving a tour to another idle picker, an earlier commit while the picker waits for a later tour, a break with one picker busy and one idle, a shift end keeping queued tours, departure and arrival at one timestamp, an early tour under binding and forecast times, a late tour, and a tour overrunning its estimate.
+
+Idle time before and after (one picker each; seconds):
+
+| Configuration | Idle before | Idle after | Busy after | Absent after |
+|---|---:|---:|---:|---:|
+| `henn__default` | 4680.0 | 45.4 | 30578.0 | 45.4 |
+| `henn__29s-40-30-0__henn_waiting` | 5220.0 | 113.4 | 22307.0 | 113.4 |
+| `henn__29s-40-30-0__order_window` | 4860.0 | 602.6 | 21723.0 | 113.4 |
+| `henn__release_only` | none | 11638.2 | 26808.0 | 45.4 |
+| `stochastic__henn_waiting` | 4.0 | 6.0 | 12.0 | 0.0 |
+| `stochastic__analytic_waiting` | 0.0 | 11.1 | 76.0 | 0.0 |
+| `walk__default` | 0.0 | 0.0 | 167.0 | 0.0 |
+| `walk__wait_4` | 0.0 | 12.0 | 135.0 | 0.0 |
+| `walk__radar_wait_1` | 1548.6 | 1562.1 | 27300.0 | 0.0 |
+
+The old idle time counted setup (180 s per Henn tour) as idle and missed some waiting before a binding start; the new idle time is the time present without a current tour. Absent time is the span before the pickers arrive at the first order arrival.
+
+Do decisions select a different set of resources now that a draft no longer reserves its picker? In no recorded run: decisions and committed tours are equal in all 1,654 records.
+
+Baseline comparison. Expected differences: idle time (redefined); busy and absent time (new KPIs); the new audit kind `check_resources`; event counts and trace digests (`Dispatch` replaces `PickerTourQuery` and `SequencingDone`, `PickerIdle` at arrival); runs turning `consistent` where the old reservation model produced overlap findings. Decisions, committed tours and every other KPI unchanged. Found, full tier over all 47 scenario configurations and 415 L1, 1,000 L2 and 192 L3 runs: decisions, committed tours and all other KPIs equal everywhere; 133 runs turn from `inconsistent` to `consistent`; no run has a resource finding. The first pass reported 47 Kris EDD L1 cells turning `inconsistent` with `projection` findings: a tour there runs 2,880 s past its estimated processing time (pre-existing; committed tours equal), so its forecast end lies in the past until it ends. The check now skips such a resource (`74f2703`, with a regression test); the Kris EDD cells were rerun and are `consistent`. The dock fixture (`tests/verification/dock_baseline.json`) is recorded again: one OBRSP decision fewer per run, at the second truck departure, which no longer emits `PickerArrival`. Tests: casim 591 passed, ware 99 passed.
+
+Open for the user: Section 9.1 item 8, whether `Resource.available` and `Resource.occupied` are removed from ware's shared domain model; casim no longer uses either. The overrun of the Kris EDD tours (actual duration above the estimated processing time) is pre-existing and not investigated here.
 
 ## Task 4.13 report
 
