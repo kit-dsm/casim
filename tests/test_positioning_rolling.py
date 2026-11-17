@@ -193,3 +193,25 @@ def test_fixed_tour_availability_changes_with_actual_completion(tmp_path):
     sim.state.tour_manager.advance(running_id, TourStates.STARTED)
     sim.state.current_time = 700
     assert adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.available_from[0] == 700
+
+
+def test_admission_reaches_a_started_tours_picker_through_its_view(tmp_path):
+    # Task 4.15: resources: [] exposes no resource; the started tour's view
+    # carries its picker, and admission routes with it.
+    sim, engine = _walk_sim(tmp_path)
+    sim.reset(hooks=[lambda sim, _: sim.add_event(PickerArrival(0, 0))])
+    admissions = 0
+    while True:
+        done, snapshot = sim.run()
+        if done:
+            break
+        dynamic = snapshot.dynamic_warehouse_info
+        if dynamic.context.decision == "active_tour_admission":
+            admissions += 1
+            assert snapshot.resources.resources == []
+            started = [view for view in dynamic.plan.tours
+                       if view.status is TourStates.STARTED]
+            assert started and all(view.picker is not None
+                                   and view.picker.id == view.picker_id for view in started)
+        sim.step(engine.on_trigger(snapshot), snapshot)
+    assert admissions > 0

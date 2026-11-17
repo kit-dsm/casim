@@ -377,15 +377,15 @@ class AbstractActiveTourRouting(_RoutingStage):
     def run(self):
         batching_sol = load_pickle(self.input()["batching_sol"]["batching_sol"].path)
         admission_sol = load_pickle(self.input()["batching_sol"]["admission_sol"].path)
+        # A started tour's picker comes with its tour view, not the decision's resources.
         tours = {view.tour_id: view for view in admitting_tours(self._load_plan())}
-        pickers = {picker.id: picker for picker in self._load_resources().resources}
         routes = []
         execution_time = 0.0
         algo_name = ""
         for batch in batching_sol.batches:
             tour = tours[batch.batch_id]
             router = self._get_inited_router(
-                pickers=[pickers[tour.picker_id]],
+                pickers=[tour.picker],
                 routing_origin=tour.progress.routing_origin,
             )
             routing_solution = router.solve(batch.pick_positions)

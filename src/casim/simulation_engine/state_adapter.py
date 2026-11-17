@@ -62,13 +62,6 @@ class StateAdapter:
         selected = [resource for resource in resources
                     if state.resource_manager.resource_status(
                         resource.id, state.tour_manager) in info.resources]
-        selected_ids = {resource.id for resource in selected}
-        for tour in tours:
-            if (tour.status is TourStates.STARTED
-                    and tour.assigned_resource not in selected_ids):
-                selected.append(state.resource_manager.get_resource(
-                    tour.assigned_resource))
-                selected_ids.add(tour.assigned_resource)
 
         tour_views = tuple(self._tour_view(state, tour) for tour in tours)
         residual = self._residual_orders(state, tours, tour_views)
@@ -172,6 +165,7 @@ class StateAdapter:
             earliest_start=tour.earliest_start,
             processing_time=tour.processing_time,
             pick_cart=picker.pick_cart if picker else None,
+            picker=picker,
             progress=progress,
         )
 
