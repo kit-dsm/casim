@@ -61,6 +61,8 @@ resources:
     - name: Resource
       type: human
       features:
+        - name: n_resources
+          value: 1
         - name: speed
         - name: time_per_pick
 

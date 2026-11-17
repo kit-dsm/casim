@@ -9,6 +9,7 @@ from cosy_luigi import CoSyLuigiTask, CoSyLuigiTaskParameter
 from ware_ops_algos.algorithms import (
     Routing,
     WarehouseOrder,
+    ActiveTourRoutingSolution,
     AdmissionSolution,
     BatchObject,
     BatchingSolution,
@@ -32,7 +33,8 @@ from ware_ops_algos.algorithms.algorithm_cards import AlgorithmCard
 
 from casim.pipelines.taxonomy import TAXONOMY
 from casim.pipelines.card_components import card_matches_component
-from casim.pipelines.admission_view import admitting_tours
+from casim.pipelines.tour_filters import admitting_tours, rebuildable_tours
+from casim.pipelines.subproblems.routers import build_router
 from casim.domain_objects.sim_domain import ReconsiderReason
 from casim.domain_objects.sim_domain import DecisionContext, SimWarehouseDomain
 from ware_ops_algos.planning.models import PlanView
@@ -131,8 +133,7 @@ class IncumbentProvider(BaseComponent):
 
     def run(self):
         domain: SimWarehouseDomain = load_pickle(self.input()["instance"]["domain"].path)
-        drafts = tuple(tour for tour in domain.dynamic_warehouse_info.plan.tours
-                       if tour.accepts.value == "rebuild")
+        drafts = rebuildable_tours(domain.dynamic_warehouse_info.plan)
         dump_pickle(self.output()["incumbent_tours"].path, drafts)
 
 
@@ -205,8 +206,8 @@ class AbstractAdmission(BaseComponent):
 
 # ─────────────────────────── Batching ───────────────────────────────────────
 
-class AbstractBatchProvider(BaseComponent):
-    """Supply routeable batches, whether produced by batching or admission."""
+class AbstractBatching(BaseComponent):
+    """The ordinary order-batching decision stage."""
 
     instance = CoSyLuigiTaskParameter(InstanceLoader)
 
@@ -228,11 +229,7 @@ class AbstractBatchProvider(BaseComponent):
         return layout
 
 
-class AbstractBatching(AbstractBatchProvider):
-    """The ordinary order-batching decision stage."""
-
-
-class AdmittedTourBatch(AbstractBatchProvider):
+class AdmittedTourBatch(BaseComponent):
     """Assemble route input from an admission decision; make no selection.
 
     One batch per tour that admission gave orders or returns, in plan order,
@@ -240,11 +237,12 @@ class AdmittedTourBatch(AbstractBatchProvider):
     ones. The admission decision is passed on unchanged as ``admission_sol``.
     """
 
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
     admission_sol = CoSyLuigiTaskParameter(AbstractAdmission)
     item_assignment_sol = CoSyLuigiTaskParameter(AbstractItemAssignment)
 
     def output(self):
-        return {**super().output(),
+        return {"batching_sol": self.get_luigi_local_target_with_task_id("batching_sol.pkl"),
                 "admission_sol": self.get_luigi_local_target_with_task_id("admission_sol.pkl")}
 
     def run(self):
@@ -275,8 +273,7 @@ class PickListProvider(AbstractBatching):
     def run(self):
         plan: PlanView = load_pickle(self.input()["instance"]["plan"].path)
         batches = [*plan.pick_list_buffer,
-                   *(view.batch for view in plan.tours
-                     if view.accepts.value == "rebuild")]
+                   *(view.batch for view in rebuildable_tours(plan))]
         batching_sol = BatchingSolution(batches=batches)
         dump_pickle(self.output()["batching_sol"].path, batching_sol)
 
@@ -309,12 +306,19 @@ class BatchingNode(AbstractBatching):
 
 # ─────────────────────────── Routing ────────────────────────────────────────
 
-class AbstractPickerRouting(BaseComponent):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    batching_sol = CoSyLuigiTaskParameter(AbstractBatchProvider)
+class _RoutingStage(BaseComponent):
+    """Inputs, output and router of the two routing stages."""
 
-    def _get_inited_router(self) -> Routing:
-        pass
+    instance = CoSyLuigiTaskParameter(InstanceLoader)
+    router_class: type[Routing] | None = None
+
+    def _get_inited_router(self, pickers=None, **options) -> Routing:
+        """A router of ``router_class`` for ``pickers`` (default: all resources)."""
+        if self.router_class is None:
+            raise ValueError(f"{type(self).__name__} has no router_class")
+        return build_router(self.router_class, self._load_layout(),
+                            pickers if pickers is not None else self._load_resources().resources,
+                            **options)
 
     def _load_resources(self) -> Resources:
         return load_pickle(self.input()["instance"]["resources"].path)
@@ -334,10 +338,13 @@ class AbstractPickerRouting(BaseComponent):
         }
 
 
-class PickerRouting(AbstractPickerRouting):
-    instance = CoSyLuigiTaskParameter(InstanceLoader)
-    batching_sol = CoSyLuigiTaskParameter(AbstractBatchProvider)
+class AbstractPickerRouting(_RoutingStage):
+    """Route the batches of the batching stage from the depot."""
 
+    batching_sol = CoSyLuigiTaskParameter(AbstractBatching)
+
+
+class PickerRouting(AbstractPickerRouting):
     def run(self):
         router: Routing = self._get_inited_router()
         batching_sol: BatchingSolution = load_pickle(
@@ -360,6 +367,40 @@ class PickerRouting(AbstractPickerRouting):
             routes=routes
         )
         dump_pickle(self.output()["routing_sol"].path, combined_sol)
+
+
+class AbstractActiveTourRouting(_RoutingStage):
+    """Route each admitted tour from its own projected origin."""
+
+    batching_sol = CoSyLuigiTaskParameter(AdmittedTourBatch)
+
+    def run(self):
+        batching_sol = load_pickle(self.input()["batching_sol"]["batching_sol"].path)
+        admission_sol = load_pickle(self.input()["batching_sol"]["admission_sol"].path)
+        tours = {view.tour_id: view for view in admitting_tours(self._load_plan())}
+        pickers = {picker.id: picker for picker in self._load_resources().resources}
+        routes = []
+        execution_time = 0.0
+        algo_name = ""
+        for batch in batching_sol.batches:
+            tour = tours[batch.batch_id]
+            router = self._get_inited_router(
+                pickers=[pickers[tour.picker_id]],
+                routing_origin=tour.progress.routing_origin,
+            )
+            routing_solution = router.solve(batch.pick_positions)
+            route = routing_solution.route
+            route.batch = batch
+            routes.append(route)
+            algo_name = routing_solution.algo_name
+            execution_time += routing_solution.execution_time
+        dump_pickle(self.output()["routing_sol"].path, ActiveTourRoutingSolution(
+            algo_name=algo_name,
+            execution_time=execution_time,
+            routes=routes,
+            assignments=admission_sol.assignments,
+            considered_pairs=admission_sol.considered_pairs,
+        ))
 
 
 class AbstractScheduling(BaseComponent):
@@ -445,6 +486,10 @@ class AbstractWaiting(BaseComponent):
         return {"waiting_sol":
                 self.get_luigi_local_target_with_task_id("waiting_sol.pkl")}
 
+    # A waiter whose card requires one picker (n_resources = 1) times the
+    # schedule with that picker's speed and pick time.
+    single_picker: bool = False
+
     def _get_inited_waiter(self) -> Waiting:
         raise NotImplementedError
 
@@ -454,6 +499,9 @@ class AbstractWaiting(BaseComponent):
         schedule = load_pickle(inputs["scheduling_sol"]["scheduling_sol"].path)
         dynamic = domain.dynamic_warehouse_info
         pickers = {picker.id: picker for picker in domain.resources.resources}
+        if self.single_picker and len(pickers) != 1:
+            raise ValueError(f"{type(self).__name__} requires exactly one picker, "
+                             f"the decision sees {len(pickers)}")
         if not schedule.jobs:
             if not pickers:
                 raise ValueError("Waiting requires a picker")
@@ -491,6 +539,14 @@ class BatchingPlanCandidate(AbstractPlanCandidate):
 
 class RoutingPlanCandidate(AbstractPlanCandidate):
     source = CoSyLuigiTaskParameter(AbstractPickerRouting)
+
+    def run(self):
+        dump_pickle(self.output()["plan_candidate"].path,
+                    load_pickle(self.input()["source"]["routing_sol"].path))
+
+
+class ActiveTourRoutingPlanCandidate(AbstractPlanCandidate):
+    source = CoSyLuigiTaskParameter(AbstractActiveTourRouting)
 
     def run(self):
         dump_pickle(self.output()["plan_candidate"].path,

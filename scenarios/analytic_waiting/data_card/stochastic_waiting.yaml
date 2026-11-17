@@ -40,7 +40,7 @@ resources:
   type: human
   objects:
     - name: Resource
-      features: [{name: speed}, {name: time_per_pick}]
+      features: [{name: n_resources, value: 1}, {name: speed}, {name: time_per_pick}]
       objects:
         - name: PickCart
           features: [{name: capacities, value: [1]}, {name: dimensions_type, value: [orders]}, {name: n_boxes, value: 4}, {name: box_can_mix_orders, value: false}]

@@ -1,6 +1,6 @@
 from ware_ops_algos.algorithms import (
     Batching, ClarkAndWrightBatching, DueDateBatching, FifoBatching, FirstFitFifoBatching,
-    LocalSearchBatching, OrderNrFifoBatching, RatliffRosenthalRouting, ShiftNeighborhood, SwapNeighborhood,
+    LocalSearchBatching, OrderNrFifoBatching, ShiftNeighborhood, SwapNeighborhood,
 )
 from ware_ops_algos.algorithms.batching import IncumbentStartBatching
 from ware_ops_algos.algorithms.batching.moves import Neighborhood
@@ -11,6 +11,7 @@ from cosy_luigi import CoSyLuigiTaskParameter
 from casim.pipelines.problem_based_template import (
     BatchingNode, IncumbentProvider, load_pickle,
 )
+from casim.pipelines.subproblems.routers import build_router, router_arguments
 
 
 class IncumbentBatchingNode(BatchingNode):
@@ -21,27 +22,13 @@ class IncumbentBatchingNode(BatchingNode):
 
     def _get_inited_batcher(self):
         resources = self._get_resources()
-        layout = self._get_layout().layout_network
         router_class = self.routing_class
         if router_class is None:
             raise ValueError("Incumbent batching needs a configured routing class")
         carts = [resource.pick_cart for resource in resources.resources]
         if not carts or carts[0] is None or any(cart != carts[0] for cart in carts):
             raise ValueError("IncumbentStartBatching requires homogeneous pick carts")
-        router = router_class(
-            start_node=layout.start_node, end_node=layout.end_node,
-            closest_node_to_start=layout.closest_node_to_start,
-            min_aisle_position=layout.min_aisle_position,
-            max_aisle_position=layout.max_aisle_position,
-            distance_matrix=layout.distance_matrix,
-            predecessor_matrix=layout.predecessor_matrix,
-            picker=resources.resources, gen_tour=True,
-            gen_item_sequence=True, node_list=layout.node_list,
-            node_to_idx={node: index for index, node in
-                         enumerate(layout.graph.nodes)},
-            idx_to_node={index: node for index, node in
-                         enumerate(layout.graph.nodes)},
-        )
+        router = build_router(router_class, self._get_layout(), resources.resources)
 
         views = load_pickle(self.input()["incumbent"]["incumbent_tours"].path)
         drafts = tuple(view.batch for view in views)
@@ -88,37 +75,9 @@ class ConfiguredBatchingNode(BatchingNode):
 
     def _routing_kwargs(self) -> dict:
         """Router arguments as ware_ops_pipes' configured batching passes them."""
-        resources = self._get_resources()
-        layout = self._get_layout()
-        network = layout.layout_network
-        nodes = list(network.graph.nodes)
-        kwargs = {
-            "start_node": network.start_node,
-            "end_node": network.end_node,
-            "closest_node_to_start": network.closest_node_to_start,
-            "min_aisle_position": network.min_aisle_position,
-            "max_aisle_position": network.max_aisle_position,
-            "distance_matrix": network.distance_matrix,
-            "predecessor_matrix": network.predecessor_matrix,
-            "picker": resources.resources,
-            "gen_tour": False,
-            "gen_item_sequence": False,
-            "node_list": network.node_list,
-            "node_to_idx": {node: index for index, node in enumerate(nodes)},
-            "idx_to_node": dict(enumerate(nodes)),
-        }
-        if self.routing_class is RatliffRosenthalRouting:
-            graph = layout.graph_data
-            kwargs.update({
-                "n_aisles": graph.n_aisles,
-                "n_pick_locations": graph.n_pick_locations,
-                "dist_aisle": graph.dist_aisle,
-                "dist_pick_locations": graph.dist_pick_locations,
-                "dist_aisle_location": graph.dist_bottom_to_pick_location,
-                "dist_start": graph.dist_start,
-                "dist_end": graph.dist_end,
-            })
-        return kwargs
+        return router_arguments(self.routing_class, self._get_layout(),
+                                self._get_resources().resources,
+                                gen_tour=False, gen_item_sequence=False)
 
 
 class ConfiguredLocalSearchNode(ConfiguredBatchingNode):

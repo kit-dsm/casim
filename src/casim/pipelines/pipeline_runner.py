@@ -12,6 +12,7 @@ from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 from casim.pipelines.in_memory_dag import InMemoryDagExecutor
 from casim.pipelines.problem_based_template import (
     PlanCandidateEndpoint, BatchingPlanCandidate, RoutingPlanCandidate,
+    ActiveTourRoutingPlanCandidate, AbstractActiveTourRouting,
     SchedulingPlanCandidate, PositioningPlanCandidate,
     WaitingPlanCandidate,
     AbstractBatching, AbstractPickerRouting, AbstractScheduling,
@@ -23,6 +24,7 @@ from casim.pipelines.taxonomy import variant
 PLAN_SOURCES = {
     "batching": BatchingPlanCandidate,
     "routing": RoutingPlanCandidate,
+    "active_tour_routing": ActiveTourRoutingPlanCandidate,
     "scheduling": SchedulingPlanCandidate,
     "waiting": WaitingPlanCandidate,
     "positioning": PositioningPlanCandidate,
@@ -79,7 +81,7 @@ class CoSySolver:
         stage_classes = {
             "batching": AbstractBatching,
             "routing": AbstractPickerRouting,
-            "active_tour_routing": AbstractPickerRouting,
+            "active_tour_routing": AbstractActiveTourRouting,
             "scheduling": AbstractScheduling,
             "waiting": AbstractWaiting,
             "positioning": AbstractPositioning,
@@ -92,7 +94,7 @@ class CoSySolver:
         if not available:
             raise ValueError(f"No configured terminal subproblem for {problem}")
         self.output = available[-1]
-        terminal = "routing" if self.output == "active_tour_routing" else self.output
+        terminal = self.output
         PlanCandidateEndpoint.configure(data_card, self.algorithm_cards)
 
         if not self.pipelines:

@@ -19,10 +19,11 @@ from ware_ops_algos.planning.commands import ReplaceSuffix
 
 from casim.events.operational_events import ActiveTourOpportunity, NodeArrival, OrderArrival, TravelEvent
 from casim.pipelines.problem_based_template import (
-    AbstractAdmission, AbstractBatching, AbstractBatchProvider,
+    AbstractAdmission, AbstractBatching, AbstractPickerRouting,
     AdmittedTourBatch, traverse_pipeline,
 )
 from casim.pipelines.subproblems.admission import RemainingRouteAdmissionNode
+from casim.pipelines.subproblems.picker_routing import ReroutableSShape
 from casim.pipelines.taxonomy import TAXONOMY, variant
 from casim.config.data_card import load_and_flatten_data_card
 from casim.run import prepare
@@ -90,8 +91,8 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
     assert any(isinstance(task, AdmittedTourBatch) for task in active_tasks)
     assert issubclass(RemainingRouteAdmissionNode, AbstractAdmission)
     assert not issubclass(RemainingRouteAdmissionNode, AbstractBatching)
-    assert issubclass(AdmittedTourBatch, AbstractBatchProvider)
     assert not issubclass(AdmittedTourBatch, AbstractBatching)
+    assert not issubclass(ReroutableSShape, AbstractPickerRouting)
     prepared.reset()
 
     insertion_origins = []

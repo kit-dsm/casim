@@ -23,11 +23,15 @@ class OrderCountWaitingNode(AbstractWaiting):
 
 
 class HennWaitingNode(AbstractWaiting):
+    single_picker = True
+
     def _get_inited_waiter(self) -> Waiting:
         routing_task = self.requires()["scheduling_sol"].requires()["routing_sol"]
         return HennWaiting(routing_task._get_inited_router())
 
 
 class AnalyticWaitingNode(AbstractWaiting):
+    single_picker = True
+
     def _get_inited_waiter(self) -> Waiting:
         return AnalyticStochasticWaiting()

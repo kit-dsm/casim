@@ -5,6 +5,7 @@ from ware_ops_algos.algorithms import (
 from ware_ops_algos.algorithms.routing.routing import Routing
 
 from casim.pipelines.problem_based_template import AbstractScheduling, load_pickle
+from casim.pipelines.subproblems.routers import build_router
 
 
 class EDDScheduler(AbstractScheduling):
@@ -50,20 +51,8 @@ class SAVScheduler(AbstractScheduling):
 
     def _get_inited_scheduler(self, available_from: dict[int, float]):
         resources = self._load_resources()
-        network = self._load_layout().layout_network
         if self.routing_class is None:
             raise ValueError("SAVScheduler needs a configured routing_class")
-        router = self.routing_class(
-            start_node=network.start_node, end_node=network.end_node,
-            closest_node_to_start=network.closest_node_to_start,
-            min_aisle_position=network.min_aisle_position,
-            max_aisle_position=network.max_aisle_position,
-            distance_matrix=network.distance_matrix,
-            predecessor_matrix=network.predecessor_matrix,
-            picker=resources.resources, gen_tour=True, gen_item_sequence=True,
-            node_list=network.node_list,
-            node_to_idx={node: index for index, node in enumerate(network.graph.nodes)},
-            idx_to_node=dict(enumerate(network.graph.nodes)),
-        )
+        router = build_router(self.routing_class, self._load_layout(), resources.resources)
         return SAVScheduling(resources, router=router,
                              available_from=available_from)
