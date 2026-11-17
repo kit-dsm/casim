@@ -3,8 +3,8 @@
   "instance": "unit_F1_m10_C180_a15_39",
   "pipeline": "GIA+SingleOrderBatching+RR",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=sprp source.instance_set=SPRP source.instance='unit_F1_m10_C180_a15_39' cosy_repo='GIA+SingleOrderBatching+RR' --audit",
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
-  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
+  "casim_commit": "02353cb8ee90b14129580981691dfb6c394bbc0e",
+  "ware_ops_algos_commit": "c7950f4b15b53788e68f954ce594ce2e3dd88297",
   "kpis": {
     "makespan": 1002.0,
     "mean_order_completion_time": 1002.0,
@@ -62,5 +62,6 @@
     "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "consistent"
+  "status": "consistent",
+  "open_orders": {}
 }

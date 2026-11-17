@@ -3,8 +3,8 @@
   "instance": "10l-40-45-15_cb",
   "pipeline": "GIA+LSBatchingRROrderNrFiFo+RR",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=henn_waescher source.instance_set=HennWaescherClassBased source.instance='10l-40-45-15' cosy_repo='GIA+LSBatchingRROrderNrFiFo+RR' --audit",
-  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
-  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
+  "casim_commit": "02353cb8ee90b14129580981691dfb6c394bbc0e",
+  "ware_ops_algos_commit": "c7950f4b15b53788e68f954ce594ce2e3dd88297",
   "kpis": {
     "makespan": 4942.0,
     "mean_order_completion_time": 2521.65,
@@ -218,5 +218,6 @@
     "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "consistent"
+  "status": "consistent",
+  "open_orders": {}
 }

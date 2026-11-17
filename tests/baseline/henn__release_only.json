@@ -7,8 +7,8 @@
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "57a6da1b9a3af41891a5526ef725356de44bc79c",
-  "ware_ops_algos_commit": "d5d7a4605328d625a44e64b5b27fd4c1db5b7e72",
+  "casim_commit": "02353cb8ee90b14129580981691dfb6c394bbc0e",
+  "ware_ops_algos_commit": "c7950f4b15b53788e68f954ce594ce2e3dd88297",
   "kpis": {
     "makespan": 29015.75,
     "mean_order_completion_time": 10895.462200000002,
@@ -381,6 +381,7 @@
     "check_progress": {},
     "check_resources": {}
   },
+  "open_orders": {},
   "kpi_differences": {},
   "status": "inconsistent"
 }
