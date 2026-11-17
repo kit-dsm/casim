@@ -1,4 +1,4 @@
-# Revision scopes status: Task 4.16 done
+# Revision scopes status: Phase 4 done
 
 Last pushed code commit: casim `c9d0207` (`4.16 (2): commented-out code out, library prints to logging`); ware_ops_algos `c7950f4`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Phase S is done and reported (`docs/phase_s_report.md`): the full suite passes in one process (574 tests) and `casim check --all` has no finding for any tracked scenario.
 
@@ -8,7 +8,7 @@ Waiting for the user: the 16 working-paper `truncated` L2 pilot baselines record
 
 Next steps, in order:
 
-1. The Phase 4 report (every baseline difference with its cause, CASOP applicability, type counts); Task 4.17 follows the IJPE revision.
+1. Phase 5, starting with Task 5.0 (the permanent CASOP applicability lock); the Phase 4 report is `docs/phase_4_report.md`. Task 4.17 follows the IJPE revision.
 2. The two decisions of the Task 4.15 report: draft times after a delay, and a terminal check for orders still open.
 
 The route-length check is done (16 November 2026, `docs/literature_benchmarks.md`, "Route-length check of the high-load gap"): CASIM's executed tours equal an independent S-shape computation on all 120 runs; α is applied through the waiting component and correctly leaves the instances unchanged; the journal's high-load values are not reachable with next-fit FCFS batches and match first-fit batches, which close about two thirds of the gap, leaving about 4 % common to both papers. First-fit FCFS is now a batching algorithm (ware_ops_algos `b650516`, card `FirstFitFiFo`) and a declared variant of the journal target in `scenarios/henn2012`; it does not close the gap to the +4.3 % residual (class-based +4.9 to +7.5 %, uniform −4.9 to +0.2 %), so the journal's high-load cells stay a statistical non-reproduction without demonstrated cause ("First-fit variant of the journal target" in the register). F68 (the OOBP loader's depth offset) is recorded and fixed (`80dbbc7`); the journal FIRST L2 runs with n = 90 and 120 are rerun and recorded again (`a35bb41`): every journal residual changes by at most 0.2 percentage points ("F68" in the register). After F68 all L2 runs and the 128 Henn-format L3 runs are recorded again (`d714c58`, `2ad6e22`); the count of L3 runs below a best-known value is unchanged at 40 of 192, the same runs before and after.
