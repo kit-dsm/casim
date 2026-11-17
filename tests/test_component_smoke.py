@@ -50,17 +50,6 @@ CASES = {
 }
 
 
-# No shipped data card has both orders.due_date and the aisle geometry of
-# Ratliff-Rosenthal routing, so no configuration can apply this component.
-INAPPLICABLE = {"LSBatchingRRDueDate": "needs orders.due_date and Ratliff-Rosenthal "
-                                        "aisle geometry; no shipped data card has both"}
-
-
-@pytest.mark.parametrize("name", sorted(INAPPLICABLE))
-def test_inapplicable_component(name):
-    pytest.skip(INAPPLICABLE[name])
-
-
 @pytest.mark.parametrize("name", sorted(CASES))
 def test_component_runs_a_static_instance(name, tmp_path):
     slot, component, overrides = CASES[name]

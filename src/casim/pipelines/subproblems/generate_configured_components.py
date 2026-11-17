@@ -20,6 +20,11 @@ from ware_ops_algos.algorithms.routing.routing import Routing
 OUTPUT_DIR = Path(__file__).parent / "generated"
 BASES = {"IncumbentStartBatching", "OrderCountWaiting", "LocalSearchBatching",
           "ClarkAndWrightBatching", "SAVScheduling"}
+# Cards CASIM generates no component for (the card stays in ware_ops_algos for CASOP).
+EXCLUDED = {
+    # needs due dates and Ratliff-Rosenthal aisle geometry; no CASIM data card has both
+    "LSBatchingRRDueDate",
+}
 
 
 def _module_name(name: str) -> str:
@@ -87,7 +92,7 @@ def generate_configured_components() -> dict[str, str]:
     paths = {}
     for card in load_packaged_algo_cards():
         implementation = card.implementation
-        if implementation.get("class_name") not in BASES:
+        if implementation.get("class_name") not in BASES or card.algo_name in EXCLUDED:
             continue
         name = implementation["component_name"]
         if name != card.algo_name or not name.isidentifier():
