@@ -484,10 +484,47 @@ As expected, tours grow by 0.1 to 1.6 LU and completion by at most 1.1 min; U/90
 falls by 1.2 min because one longer tour changes later batches. Every journal residual changes by
 at most 0.2 percentage points with either fill rule, so the conclusions above stand: the
 journal's high-load cells remain a statistical non-reproduction without demonstrated cause. The
-160 next-fit runs are recorded again (`a35bb41`, all `consistent`). Not yet rerun after F68: the
-other L2 baselines and the 192 L3 runs, whose count of runs below a best-known value (40) may
-change slightly; rerunning both would take well over an hour (the 320 L2 runs above took about
-85 minutes on 8 workers), so the L3 rerun is listed as open in the status.
+160 next-fit runs are recorded again (`a35bb41`, all `consistent`).
+
+The remaining baselines followed on 17 November 2026, rerunning only what F68 touches (the Henn
+instance format). L3: the 128 Henn-format runs (abc1, abc2, ran1, ran2 at both depots) are
+recorded again (`d714c58`); the Albareda strata W1 to W4 do not read Henn files. The count of
+L3 runs below a best-known value is unchanged at 40 of 192 (30 completion, 11 turnover, one
+both), and the 31 Henn-format runs among them are the same set before and after. L2: the other
+594 recorded runs are recorded again (`2ad6e22`), all `consistent`.
+
+**F62 and the L2 SAV cells, 17 November 2026.** Before F62 (`validation.check` rejected a
+`ReplaceSuffix` adding orders of a draft cancelled by the same candidate), 246 of the 480 SAV
+replications failed with "no feasible candidate solution"; the table of the validation set
+above reports the successful ones only. Since ware_ops_algos `9d1ec4f` and casim `7e91422` all
+480 run and are `consistent` (recorded in `2ad6e22`). F62 cannot change a recorded run: every L2
+sweep has one candidate pipeline, so a rejected candidate failed the run. SAV completion in
+minutes over all 20 replications, at casim `7e91422` (F68 included), mean [95 % CI]:
+
+| Class | Journal SAV (new runs) | Published | Gap | Working paper SAV (new runs) | Published | Gap |
+|---|---|---:|---:|---|---:|---:|
+| C/30/45 | 478.3 [469.8, 486.9] (0) | 473 | +1.1 % | 498.4 [496.2, 500.6] (0) | 467 | +6.7 % |
+| C/30/75 | 478.3 [469.8, 486.9] (0) | 473 | +1.1 % | 500.2 [497.4, 503.0] (0) | 457 | +9.5 % |
+| C/60/45 | 505.7 [497.1, 514.3] (14) | 503 | +0.5 % | 513.7 [506.6, 520.8] (14) | 518 | −0.8 % |
+| C/60/75 | 492.2 [486.6, 497.9] (0) | 497 | −1.0 % | 504.6 [502.1, 507.1] (0) | 499 | +1.1 % |
+| C/90/45 | 670.5 [657.7, 683.2] (20) | 590 | +13.6 % | 669.7 [657.3, 682.1] (20) | 643 | +4.2 % |
+| C/90/75 | 541.9 [531.6, 552.1] (11) | 508 | +6.7 % | 547.1 [536.3, 557.8] (10) | 518 | +5.6 % |
+| C/120/45 | 874.1 [852.8, 895.5] (19) | 773 | +13.1 % | 866.1 [846.7, 885.5] (19) | 847 | +2.3 % |
+| C/120/75 | 673.9 [657.7, 690.1] (17) | 614 | +9.8 % | 676.6 [660.3, 692.8] (18) | 630 | +7.4 % |
+| U/30/45 | 480.7 [473.3, 488.1] (1) | 481 | −0.1 % | | | |
+| U/30/75 | 480.7 [473.3, 488.1] (0) | 479 | +0.4 % | | | |
+| U/60/45 | 546.1 [528.3, 563.8] (13) | 538 | +1.5 % | | | |
+| U/60/75 | 505.6 [498.0, 513.1] (0) | 508 | −0.5 % | | | |
+| U/90/45 | 758.3 [736.2, 780.5] (19) | 724 | +4.7 % | | | |
+| U/90/75 | 560.3 [545.9, 574.8] (13) | 546 | +2.6 % | | | |
+| U/120/45 | 1011.3 [999.2, 1023.4] (20) | 956 | +5.8 % | | | |
+| U/120/75 | 717.1 [707.0, 727.2] (18) | 691 | +3.8 % | | | |
+
+SAV now behaves like FIRST: the journal cells with n ≤ 60 contain the published value in their
+interval (U/90/75 as well), the cells with n ≥ 90 are 2.6 to 13.6 % high, and SAV completes at
+most 15 minutes earlier than FIRST in the same cell (C/120/45 874.1 against 888.5). The
+selection rule therefore does not explain the high-load gap; it stays the open, statistical
+non-reproduction above.
 
 **The Henn scenario and F67.** `scenarios/scenario_henn_online` (`henn_waiting` after Phase S)
 uses the same gate, `NbrOrdersCondition(threshold=1)`, together with `HennWaitingNode`
