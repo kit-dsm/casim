@@ -62,8 +62,8 @@
   "decisions": {
     "OBRSP": 127
   },
-  "casim_commit": "82ac0cc2fa870927e7dcad0df570c6b1ddbaee5b",
-  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
+  "casim_commit": "57a6da1b9a3af41891a5526ef725356de44bc79c",
+  "ware_ops_algos_commit": "d5d7a4605328d625a44e64b5b27fd4c1db5b7e72",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -385,24 +385,15 @@
   "trace_digest": "7738b7f0aa6db5b4bba3415d5987b40d7ec5594874fe6670ac7aaecd7efdd09d",
   "event_count": 8677,
   "violations": {
-    "check_plan": {
-      "overlap": 18
-    },
+    "check_plan": {},
     "check_progress": {},
     "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "TourEnd",
-        "time": 947.6666700000014,
-        "tour_id": 3,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
+    "check_plan": {},
     "check_progress": {},
     "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }
