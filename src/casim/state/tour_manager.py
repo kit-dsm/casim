@@ -7,7 +7,6 @@ from ware_ops_algos.planning.lifecycle import TOUR_TRANSITIONS, TourStates
 
 from casim.domain_objects.tour_model import TourPlanningState
 
-logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 

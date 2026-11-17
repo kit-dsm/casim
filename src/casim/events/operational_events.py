@@ -14,7 +14,6 @@ from casim.events.base_events import Event
 if TYPE_CHECKING:
     from casim.state import State
 
-logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
