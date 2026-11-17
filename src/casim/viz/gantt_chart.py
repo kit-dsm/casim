@@ -1,8 +1,12 @@
 # casim/viz/plots.py
 from typing import Any, Sequence, Callable
 
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+try:
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+except ImportError as error:
+    raise ImportError("casim.viz needs the optional extra 'viz' "
+                      "(uv sync --extra viz, or pip install casim[viz])") from error
 
 TOUR_COLORS = [
     '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',

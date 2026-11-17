@@ -1,7 +1,12 @@
 import logging
 
-import gymnasium as gym
 import numpy as np
+
+try:
+    import gymnasium as gym
+except ImportError as error:
+    raise ImportError("casim.envs needs the optional extra 'rl' "
+                      "(uv sync --extra rl, or pip install casim[rl])") from error
 
 from ware_ops_algos.algorithms import AlgorithmSolution
 

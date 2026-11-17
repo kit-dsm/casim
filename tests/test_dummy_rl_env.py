@@ -1,6 +1,8 @@
 from pathlib import Path
 
-import gymnasium as gym
+import pytest
+
+gym = pytest.importorskip("gymnasium", reason="needs the optional extra 'rl'")
 
 from casim.envs.base_env import BaseEnv
 from casim.run import compose_scenario, prepare

@@ -1,10 +1,15 @@
 import json
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
+
+try:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+except ImportError as error:
+    raise ImportError("the scenario plots need the optional extra 'viz' "
+                      "(uv sync --extra viz)") from error
 
 SCENARIO_MAP = {
     "henn_waiting": "Henn Waiting",

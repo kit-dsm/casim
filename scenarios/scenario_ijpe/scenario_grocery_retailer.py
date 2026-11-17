@@ -9,7 +9,6 @@ from omegaconf import DictConfig
 from casim.runner import apply_decision
 from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment
 from casim.io_helpers import dump_pickle
-from casim.viz.gantt_chart import gantt_chart
 from scenarios.scenario_ijpe.scenario_specific_hooks import build_sim_hooks
 from scenarios.scenario_ijpe.scripts.make_summary_scenarios_multirun import export_multiday_metrics
 
@@ -66,6 +65,7 @@ def main(cfg: DictConfig):
         print(o.order_id, o.due_date, from_time, to_time)
 
     if cfg.viz.launch:
+        from casim.viz.gantt_chart import gantt_chart  # optional extra 'viz'
         fig = gantt_chart(sim.state.tracker)
         # ensure the viz output directory exists before writing the file
         viz_dir = Path(cfg.experiment.output_dir) / "viz"

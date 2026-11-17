@@ -2,10 +2,15 @@ import argparse
 import pickle
 from pathlib import Path
 
-import dash
 import networkx as nx
-import plotly.graph_objects as go
-from dash import Input, Output, Patch, State, ctx, dcc, html
+
+try:
+    import dash
+    import plotly.graph_objects as go
+    from dash import Input, Output, Patch, State, ctx, dcc, html
+except ImportError as error:
+    raise ImportError("casim.viz needs the optional extra 'viz' "
+                      "(uv sync --extra viz, or pip install casim[viz])") from error
 
 from casim.viz import kpis
 
