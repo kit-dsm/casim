@@ -50,7 +50,6 @@ OBRSP:
   - OrderStreamClosed
   - PickerArrival
   - PickerIdle
-  - FlushRemainingOrders
   conditions:
   - _target_: casim.simulation_engine.conditions.NbrPickersCondition
     threshold: 1

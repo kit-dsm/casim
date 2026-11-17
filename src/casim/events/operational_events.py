@@ -64,17 +64,6 @@ class OrderStreamClosed(Event):
         return [ActiveTourOpportunity(self.time)]
 
 
-class FlushRemainingOrders(Event):
-    priority_score = 0
-
-    def __init__(self, time: float):
-        super().__init__(time)
-
-    def handle(self, state: 'State') -> list['Event']:
-        super().handle(state)
-        return []
-
-
 class Reconsider(Event):
     """Revisit one decision if its plan version is still current."""
 

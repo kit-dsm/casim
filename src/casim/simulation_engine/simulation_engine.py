@@ -135,7 +135,6 @@ class SimulationEngine:
                 conditions = self.conditions_map.get(decision, ())
                 solve = (all(condition.get_decision(snapshot, self._operations())
                              for condition in conditions)
-                         or "FlushRemainingOrders" in causes
                          or ReconsiderReason.WAIT in reasons)
                 snapshot.dynamic_warehouse_info = replace(
                     snapshot.dynamic_warehouse_info,
