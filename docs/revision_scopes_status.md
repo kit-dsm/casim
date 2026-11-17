@@ -1,6 +1,6 @@
-# Revision scopes status: Task 4.15 done
+# Revision scopes status: Task 4.16 done
 
-Last pushed code commit: casim `c02434e` (`Run time: audit once per timestamp, snapshot copies routes once`), baseline `7a7f096`; ware_ops_algos `c7950f4`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Phase S is done and reported (`docs/phase_s_report.md`): the full suite passes in one process (574 tests) and `casim check --all` has no finding for any tracked scenario.
+Last pushed code commit: casim `c9d0207` (`4.16 (2): commented-out code out, library prints to logging`); ware_ops_algos `c7950f4`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Phase S is done and reported (`docs/phase_s_report.md`): the full suite passes in one process (574 tests) and `casim check --all` has no finding for any tracked scenario.
 
 The two stashes of 15 October are applied and committed; they are kept as the local branches `wip/s4-henn2012` and `wip/s3-s4-docs` and remain in `git stash list`.
 
@@ -8,8 +8,8 @@ Waiting for the user: the 16 working-paper `truncated` L2 pilot baselines record
 
 Next steps, in order:
 
-1. Task 4.16 (remove what nothing uses); Task 4.17 (the other hidden rules) follows the IJPE revision.
-2. The two decisions of the Task 4.15 report: draft times after a delay, and a terminal check for orders still open.
+1. The Phase 4 report (every baseline difference with its cause, CASOP applicability, type counts); Task 4.17 follows the IJPE revision.
+2. The two decisions of the Task 4.15 report and the components of the Task 4.16 report: draft times after a delay, and a terminal check for orders still open.
 
 The route-length check is done (16 November 2026, `docs/literature_benchmarks.md`, "Route-length check of the high-load gap"): CASIM's executed tours equal an independent S-shape computation on all 120 runs; α is applied through the waiting component and correctly leaves the instances unchanged; the journal's high-load values are not reachable with next-fit FCFS batches and match first-fit batches, which close about two thirds of the gap, leaving about 4 % common to both papers. First-fit FCFS is now a batching algorithm (ware_ops_algos `b650516`, card `FirstFitFiFo`) and a declared variant of the journal target in `scenarios/henn2012`; it does not close the gap to the +4.3 % residual (class-based +4.9 to +7.5 %, uniform −4.9 to +0.2 %), so the journal's high-load cells stay a statistical non-reproduction without demonstrated cause ("First-fit variant of the journal target" in the register). F68 (the OOBP loader's depth offset) is recorded and fixed (`80dbbc7`); the journal FIRST L2 runs with n = 90 and 120 are rerun and recorded again (`a35bb41`): every journal residual changes by at most 0.2 percentage points ("F68" in the register). After F68 all L2 runs and the 128 Henn-format L3 runs are recorded again (`d714c58`, `2ad6e22`); the count of L3 runs below a best-known value is unchanged at 40 of 192, the same runs before and after.
 
@@ -70,6 +70,7 @@ User directions of 16 and 17 November 2026, effective from then on:
 | 4.12 | done | Five configured CoSy components are generated from resolved CASOP cards; wait 0–4 and both Henn pipelines keep their KPIs. The seven CASOP applicability sets equal `main` (counts 19, 15, 19, 24, 19, 8, 13); Task 5.0 commits the permanent lock. Module layout, rerouting base, mapper docstrings, and `OrderSplittingSolution` are corrected. Four user decisions remain untouched. |
 | 4.13 | done | Below, "Task 4.13 report". |
 | 4.14 | done | Below, "Task 4.14 report". |
+| 4.16 | done | Below, "Task 4.16 report". |
 | 4.15 | done | Below, "Task 4.15 report"; narrowed, 4.17 deferred until after the IJPE revision (user decision, 16 November 2026). |
 
 Task 4.12 makes `walk_or_wait_sshape_routing` and `fifo_scheduler` inapplicable to CASOP by requiring the `routing_origin` decision feature, which the seven CASOP data cards lack. CASIM's corresponding data cards provide it. A comparison of the applicable card-name sets for each of those seven data cards against `main` shows no additions or removals after this change. `IncumbentStartBatchingSShape` merges the SShape requirements through `configs.yaml`; `OrderCountWaiting1` through `OrderCountWaiting4` resolve the value option. The prechange committed code and current code have byte-identical `kpis.json` for `wait_0` through `wait_4` on `explicit_example` and for `repair_waiting_henn` on `29s-40-30-0.txt`. The baseline Henn pipeline still has makespan 22533.874, 30 tours, mean tour duration 563.566667 and distance 11057, as in Task 4.11. The task generated its components without scenario-data changes.
@@ -90,6 +91,18 @@ The `29s-40-30-0.txt` Henn sweep compares as follows against `scripts/plots/wait
 The order-window differences in makespan and total tour duration are both exactly 47 seconds; the tour count is unchanged. This is consistent with the final route changing when `OrderStreamClosed` is emitted at the last order arrival, whereas `aaa8333` flushed at event-heap exhaustion. Task 6.5 restores `at_exhaustion`; no closure rule was changed in 4.11. The dock numbers now count staging in every `State` since Task 4.9, including warehouses without a `Dock`; the historical plot was made before that change.
 
 The Task 4.9 fixture recorded 298 events, 13 decisions, three completed tours, distance 126 and makespan 86 in each seeded run, both before and after the change. Dock fill ended at 1 with truck capacity 2 and at 3 with `capacity: null`; the full fill trace and tour records are locked in `tests/verification/dock_baseline.json`. Neither scenario config triggers a decision directly on `TruckDeparture`. The departure's emitted `PickerArrival` triggers grocery `ORSP` through `triggers_map`; IJPE has no `PickerArrival` trigger, so it triggers no decision there.
+
+## Task 4.16 report
+
+Commits: casim `19146d7` (files, functions, order splitting), `c9d0207` (commented-out code, logging). Each item was checked again for references before it went; the repo-review cleanup (`9a28ff3` to `1d431c7`) had already fixed the dummy-RL test, which now uses `scenarios/minimal` and asserts the value.
+
+- **Deleted:** `pipelines/subproblems/assignment.py` (empty); `tests/verification/reference/center_before_task44.json`; `tests/data` (the committed cache `inital_domain.pkl` and the two Henn instances with their arrival files, read by no test or configuration); `tests/test_tour_model.py`; `io_helpers.load_json` and `dump_json`; `viz.app.picker_pos`; `viz.gantt_chart.plot_gantt_from_jobs`; `viz.kpis.active_picklist_order_ids`. Already gone before this task: `tests/test_henn_offline.py`, the Henn study plots and table under `scripts/plots/` (the reference `summary.csv` is in `docs/history/henn_waiting_strategy_aaa8333/`), and the tracked `tests/config/` (an untracked leftover directory is removed).
+- **Order splitting removed** (`OrderSplitter`, `SimpleSplitter` with its hard-coded pallet size, `orders_provider_constraint`, the `OSBP` entry of `TAXONOMY`): no configuration used it, and the user did not decide that CASIM supports it (Section 9.1).
+- **Commented-out code** in `operational_events`, `tour_manager`, `resource_manager` and `trackers` is gone.
+- **Logging:** library `print` calls became module loggers: debug for pipeline synthesis, info for progress and the KPI summary, warning for an order missing from the buffer. The assertion in `TourManager.create_tour` has a message instead of `print()`. `casim run` prints the KPI summary itself (`casim.loggers.format_summary`). The CLI and the `__main__` entry points (viz launcher, component generator) keep their prints: they are command-line output.
+- **CoSy components no configuration runs.** B.4, the scenarios and the tests name each component by its dotted path; these 14 concrete components appear in none of them, so nothing runs them: `batching.OrderNrFiFo`; the generated `ClarkAndWrightNN`, `ClarkAndWrightRR`, `LSBatchingNNDueDate`, `LSBatchingNNFiFo`, `LSBatchingRRDueDate`, `LSBatchingRRFiFo`, `LSBatchingSShapeDueDate`, `LSBatchingSShapeFiFo` and `SAVSchedulerLargestGap`; `picker_routing.Midpoint` and `TSPRouting`; `scheduling.ERDScheduler` and `HennLongScheduler` (the latter only in the deferred `docs/deferred/henn2012_long/`). They are kept as the plan says; each needs a smoke test or a B.4 pipeline, or the user decides to drop it.
+
+Baseline comparison. Expected: none. Found: all 60 runs of the slim full tier equal (decisions, committed tours, KPIs, audit); `scenarios/minimal` keeps its trace digest. Tests: casim 120 passed (one fewer: `test_tour_model.py`), baseline test deselected by default; `casim check --all` reports only the untracked `scenario_dm`.
 
 ## Task 4.15 report
 
