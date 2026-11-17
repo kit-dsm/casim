@@ -4,7 +4,7 @@ from ware_ops_algos.algorithms import FIFOScheduling, Job
 from ware_ops_algos.algorithms.routing.patrol import all_aisles_patrol_route
 from ware_ops_algos.planning.lifecycle import ResourceStates, TourStates
 
-from casim.events.operational_events import PickerTourQuery, TourEnd, TourStart
+from casim.events.operational_events import Dispatch, TourEnd, TourStart
 from casim.run import prepare
 from tests.scenario_configs import walk_config
 
@@ -14,7 +14,7 @@ def test_setup_begins_at_scheduled_start_and_occurs_once(tmp_path):
     sim = prepare(cfg).sim
     sim.reset()
     state = sim.state
-    state.resource_manager.set_picker_available(0)
+    state.resource_manager.arrive(0)
     picker = state.resource_manager.get_resource(0)
     picker.tour_setup_time = 3
     route = all_aisles_patrol_route(state.layout_manager.get_layout())
@@ -27,10 +27,11 @@ def test_setup_begins_at_scheduled_start_and_occurs_once(tmp_path):
 
     tour_id = state.add_sequencing_to_planning_state(scheduled)
     state.tour_manager.advance(tour_id, TourStates.SCHEDULED)
+    version = state.resource_manager.bump_version(0)
     state.current_time = 0
-    follow_up = PickerTourQuery(0, 0).handle(state)
+    follow_up = Dispatch(0, 0, version).handle(state)
     assert len(follow_up) == 1
-    assert isinstance(follow_up[0], PickerTourQuery)
+    assert isinstance(follow_up[0], Dispatch)
     assert follow_up[0].time == 10
     assert state.tour_manager.get_tour(tour_id).status is TourStates.SCHEDULED
     assert state.resource_manager.resource_status(0, state.tour_manager) is ResourceStates.RESERVED

@@ -19,14 +19,12 @@ ORSP:
     _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
   precedence: 10
   triggers:
-  - ShiftStart
-  - BreakEnd
+  - PickerArrival
   conditions:
   - _target_: casim.simulation_engine.conditions.NbrPickersCondition
     threshold: 1
   - _target_: casim.simulation_engine.conditions.NbrBatchesCondition
     threshold: 1
-  - _target_: casim.simulation_engine.conditions.BreakCondition
 OBP:
   problem_class: OBP
   state_information:

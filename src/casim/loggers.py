@@ -66,7 +66,7 @@ class DashLogger(EventLogger):
                 {
                     "id": p.id,
                     "position": self._pos(p),
-                    "status": p.occupied,
+                    "status": state.resource_manager.resource_status(p.id, tm).value,
                     "current_tour": getattr(p, "current_tour_id", None),
                 }
                 for p in state.resource_manager.get_resources().resources

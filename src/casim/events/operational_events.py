@@ -64,19 +64,6 @@ class OrderStreamClosed(Event):
         return [ActiveTourOpportunity(self.time)]
 
 
-class ShiftStart(Event):
-    priority_score = 0
-
-    def __init__(self, time: float):
-        super().__init__(time)
-
-    def handle(self, state: 'State') -> list['Event']:
-        super().handle(state)
-        state.is_break = False
-        print(f"{self.time} shift start")
-        return []
-
-
 class FlushRemainingOrders(Event):
     priority_score = 0
 
@@ -103,21 +90,86 @@ class Reconsider(Event):
 
 
 class PickerArrival(Event):
+    """The resource becomes present (shift start, end of a break)."""
 
     priority_score = 1
-    def __init__(self, time: float, picker_id: int, picker_available = False):
+
+    def __init__(self, time: float, picker_id: int):
         super().__init__(time)
         self.picker_id = picker_id
-        self.picker_available = picker_available
 
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
-        if self.picker_available:
-            state.resource_manager.set_picker_available(self.picker_id)
-        elif not self.picker_available:
-            state.resource_manager.set_picker_unavailable(self.picker_id)
+        version = state.resource_manager.arrive(self.picker_id)
         state.information_version += 1
-        return []
+        return [Dispatch(self.time, self.picker_id, version)]
+
+
+class PickerDeparture(Event):
+    """The resource leaves at its next free point: now, or after its current tour.
+
+    With a duration it returns by itself after that time (a break); without
+    one it stays absent until its next arrival (a shift end). A tour is never
+    interrupted.
+    """
+
+    priority_score = 1
+
+    def __init__(self, time: float, picker_id: int, duration: float | None = None):
+        super().__init__(time)
+        self.picker_id = picker_id
+        self.duration = duration
+
+    def handle(self, state: 'State') -> list['Event']:
+        super().handle(state)
+        version = state.resource_manager.request_departure(self.picker_id, self.duration)
+        state.information_version += 1
+        return [Dispatch(self.time, self.picker_id, version)]
+
+
+class Dispatch(Event):
+    """Hand a resource its next committed tour, if it is present and free.
+
+    Emitted for every change of a resource's queue or presence and at the end
+    of its tour, with the resource's queue version then; an older Dispatch is
+    stale. It keeps the priority of the event it replaces: 0 from a decision's
+    commands, 1 otherwise. It is not a decision trigger.
+    """
+
+    def __init__(self, time: float, picker_id: int, version: int, priority: int = 1):
+        super().__init__(time)
+        self.picker_id = picker_id
+        self.version = version
+        self.priority_score = priority
+
+    def is_stale(self, state: 'State') -> bool:
+        return self.version != state.resource_manager.version(self.picker_id)
+
+    def handle(self, state: 'State') -> list['Event']:
+        super().handle(state)
+        resources, tours = state.resource_manager, state.tour_manager
+        picker_id = self.picker_id
+        if tours.current_tour(picker_id) is not None:
+            return []
+        if resources.has_pending_departure(picker_id):
+            duration = resources.make_departure_effective(picker_id)
+            return ([] if duration is None
+                    else [PickerArrival(self.time + duration, picker_id)])
+        if not resources.is_present(picker_id):
+            return []
+        queue = tours.queue(picker_id)
+        if not queue:
+            if resources.enter_idle(picker_id):
+                return [PickerIdle(self.time, picker_id)]
+            return []
+        tour = tours.get_tour(queue[0])
+        if tour.start_time is not None and tour.start_time > self.time:
+            # The binding start is later; another decision may revise it first.
+            return [Dispatch(tour.start_time, picker_id, self.version)]
+        resources.leave_idle(picker_id)
+        tours.advance(tour.tour_id, TourStates.PENDING)
+        picker = resources.get_resource(picker_id)
+        return [TourStart(self.time + (picker.tour_setup_time or 0), tour.tour_id)]
 
 
 class VolumeShiftAcrossDay(Event):
@@ -251,9 +303,7 @@ class TruckDeparture(Event):
         if self.capacity:
             state.dock_manager.release_pallets(self.capacity)
             logger.warning("released %d pallets", self.capacity)
-        resources = state.resource_manager.get_resources().resources
-        idle_pickers = [p for p in resources if not p.occupied]
-        return [PickerArrival(self.time, p.id, p.available) for p in idle_pickers]
+        return []
 
 
 class WMSRun(Event):
@@ -276,73 +326,6 @@ class PickerIdle(Event):
         # print(f"Picker {self.picker_id} arrived at {self.time}")
         state.tracker.on_idle_start(self.picker_id, self.time)
         return []
-
-class BreakStart(Event):
-    priority_score = 0
-    def __init__(self, time: float, break_duration: float):
-        super().__init__(time)
-        self.break_duration = break_duration
-
-    def handle(self, state: State) -> list[Event]:
-        state.is_break = True
-        logger.debug("break start at %s", self.time)
-        state.break_duration = self.break_duration
-        return []
-
-class BreakEnd(Event):
-    priority_score = 0
-    def __init__(self, time: float, picker_id: int):
-        super().__init__(time)
-        self.picker_id = picker_id
-
-    def handle(self, state: State) -> list[Event]:
-        state.is_break = False
-        logger.debug("Picker %d break end at %s", self.picker_id, self.time)
-        return [PickerTourQuery(self.time, self.picker_id)]
-
-
-class PickerTourQuery(Event):
-    def __init__(self, time: float, picker_id: int):
-        super().__init__(time)
-        self.picker_id = picker_id
-
-    def handle(self, state: State) -> list[Event]:
-        # A picker queries a new tour everytime they are forced by e.g. a scheduling result
-        # Or after they finished their last tour to query other scheduled tours.
-        super().handle(state)
-        picker = state.resource_manager.get_resource(
-            self.picker_id)
-        next_tour_id = state.tour_manager.get_next_tour_for_picker(
-            self.picker_id)
-        logger.info("Picker %s has pending tour with id=%s at %s", picker.id, next_tour_id, self.time)
-        if state.is_break:
-            print(f"break scheduled for {self.time + state.break_duration}")
-            return [BreakEnd(self.time + state.break_duration, self.picker_id)]
-
-        if next_tour_id is not None:
-            # There exists an assigned tour for the picker
-            next_tour = state.tour_manager.get_tour(next_tour_id)
-            if next_tour.status == TourStates.CANCELLED:
-                state.tour_manager.remove_canceled_tour_for_picker(picker.id, next_tour_id)
-                # peek_next_tour_id = state.tour_manager.get_next_tour_for_picker(picker.id)
-                logger.debug("Tour %d for picker %d is cancelled at %s.", next_tour_id, picker.id, self.time)
-                # if peek_next_tour_id:
-                #     peek_next_tour = state.tour_manager.get_tour(peek_next_tour_id)
-                #     print(f"Next tour in queue is {peek_next_tour_id} with start time {peek_next_tour.start_time}")
-                return [PickerTourQuery(self.time, self.picker_id)]
-                # return [PickerIdle(state.current_time, picker.id)]
-            if next_tour.start_time is not None and next_tour.start_time > self.time:
-                # Keep the scheduled tour reserved and inspect the plan again
-                # when setup can begin; another decision may revise it first.
-                return [PickerTourQuery(next_tour.start_time, self.picker_id)]
-            state.tour_manager.advance(next_tour_id, TourStates.PENDING)
-            return [TourStart(self.time + (picker.tour_setup_time or 0),
-                              next_tour_id)]
-        else:
-            # Nothing to do right now, picker is idle
-            picker.occupied = False
-            return [PickerIdle(state.current_time, picker.id)]
-
 
 class BaseTourEvent(Event):
     priority_score = 1
@@ -380,8 +363,6 @@ class TourStart(BaseTourEvent):
         if tour.status == TourStates.CANCELLED:
             print(f"{tour.tour_id} cancelled at {self.time}")
         state.tour_manager.start_tour(tour_id, self.time)
-        state.resource_manager.mark_picker_occupied(tour.assigned_resource)
-        state.resource_manager.get_resource(tour.assigned_resource)
         logger.info("resource %d started tour %d at t=%s", tour.assigned_resource, tour.tour_id, self.time)
         state.tracker.on_tour_start(self.time)
         if tour.at_end() and res.current_location == (0, -1):
@@ -523,10 +504,6 @@ class TourEnd(BaseTourEvent):
                 else:
                     on_time.append(o_id)
 
-        # state.tracker.update_on_tour_end(tour_start=tour.start_time, tour_finish=self.time, order_manager=om)
-        if self.tour_id == state.tour_manager.get_next_tour_for_picker(res.id):
-            logger.error("Tour ID %d matches next tour for picker (queues: %s)", self.tour_id, state.tour_manager._picker_tour_queues)
-            raise AssertionError(f"Tour {self.tour_id} should not be next tour for picker {res.id}")
         state.dock_manager.stage_pallets(state.dock_manager.pallets_per_tour)
         n_pallets_dock = state.dock_manager.n_staged_pallets
         n_lines = len(tour.completed_picks)
@@ -539,5 +516,5 @@ class TourEnd(BaseTourEvent):
                                   delayed,
                                   n_pallets_dock,
                                   n_lines)
-        return [PickerTourQuery(self.time, res.id)]
+        return [Dispatch(self.time, res.id, state.resource_manager.version(res.id))]
 

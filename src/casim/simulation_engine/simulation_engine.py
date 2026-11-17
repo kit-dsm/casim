@@ -94,7 +94,6 @@ class SimulationEngine:
 
     def _operations(self) -> OperationsView:
         return OperationsView(
-            is_break=self.state.is_break,
             n_staged_pallets=self.state.dock_manager.n_staged_pallets,
             dock_capacity=self.state.dock_manager.capacity,
         )

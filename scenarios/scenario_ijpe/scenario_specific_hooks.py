@@ -9,10 +9,9 @@ import pandas as pd
 from ware_ops_algos.domain_models import OrderPosition, Order
 
 from casim.events.operational_events import (
-    BreakStart,
     OrderArrival,
     PickerArrival,
-    ShiftStart,
+    PickerDeparture,
     TruckDeparture,
     TruckDisruption,
     WMSRun, VolumeShiftAcrossDay, OrderIngestion,
@@ -52,26 +51,12 @@ def make_picker_arrival_hook(n_days: int, arrival_hour: float, day_sec: int, n_p
 
             assert n_available <= max_pickers, print(n_available, max_pickers)
 
+            # The pickers working that day arrive; the others leave for the day.
             for idx, resource in enumerate(resources):
-                sim.add_event(
-                    PickerArrival(
-                        time=arrival_time,
-                        picker_id=resource.id,
-                        picker_available=idx < n_available,
-                    )
-                )
-
-    return hook
-
-
-def make_shift_start_hook(n_days: int, shift_start_hour: float, day_sec: int):
-    def hook(sim, domain) -> None:
-        for day in range(n_days):
-            sim.add_event(
-                ShiftStart(
-                    time=t(day, shift_start_hour, day_sec)
-                )
-            )
+                if idx < n_available:
+                    sim.add_event(PickerArrival(time=arrival_time, picker_id=resource.id))
+                else:
+                    sim.add_event(PickerDeparture(time=arrival_time, picker_id=resource.id))
 
     return hook
 
@@ -93,13 +78,17 @@ def make_break_hook(n_days: int, breaks, day_sec: int):
         for day in range(n_days):
             base = day * day_sec
 
+            # Every picker leaves for the break at its next free point and
+            # returns by itself after the break's duration.
             for break_cfg in breaks:
-                sim.add_event(
-                    BreakStart(
-                        time=base + h(break_cfg.start_hour),
-                        break_duration=int(break_cfg.duration_minutes * 60),
+                for resource in domain.resources.resources:
+                    sim.add_event(
+                        PickerDeparture(
+                            time=base + h(break_cfg.start_hour),
+                            picker_id=resource.id,
+                            duration=int(break_cfg.duration_minutes * 60),
+                        )
                     )
-                )
 
     return hook
 
@@ -388,11 +377,6 @@ def build_sim_hooks(cfg):
                 arrival_hour=float(time_model.picker_arrival_hour),
                 day_sec=day_sec,
                 n_pickers_per_day=pickers_per_day
-            ),
-            make_shift_start_hook(
-                n_days=n_days,
-                shift_start_hour=float(time_model.shift_start_hour),
-                day_sec=day_sec,
             ),
             make_truck_schedule_hook(
                 n_days=n_days,

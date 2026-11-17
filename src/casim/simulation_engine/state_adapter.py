@@ -73,14 +73,12 @@ class StateAdapter:
         tour_views = tuple(self._tour_view(state, tour) for tour in tours)
         residual = self._residual_orders(state, tours, tour_views)
         available_from = {
-            resource.id: max(
-                now,
-                state.resource_manager.picker_busy_until(resource.id),
-                *(tour.end_time_planned or now for tour in tours
-                  if tour.assigned_resource == resource.id
-                  and tour.status in (TourStates.SCHEDULED, TourStates.PENDING,
-                                      TourStates.STARTED)),
-            ) for resource in selected
+            resource.id: max([now, *(tour.end_time_planned or now for tour in tours
+                                     if tour.assigned_resource == resource.id
+                                     and tour.status in (TourStates.SCHEDULED,
+                                                         TourStates.PENDING,
+                                                         TourStates.STARTED))])
+            for resource in selected
         }
         plan = PlanView(
             time=now, order_buffer=tuple(buffered),

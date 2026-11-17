@@ -14,7 +14,7 @@ from ware_ops_algos.planning.lifecycle import TourStates
 from casim.config.schema import DecisionDefinitions
 from casim.decision_engine.decision_engine import DecisionResult
 from casim.domain_objects.sim_domain import ReconsiderReason
-from casim.events.operational_events import PickerTourQuery, Reconsider
+from casim.events.operational_events import Dispatch, Reconsider
 from casim.setup import resolve
 from casim.state.apply import CommandViolation
 from casim.config.data_card import load_and_flatten_data_card
@@ -102,7 +102,7 @@ def test_wait_keeps_draft_and_old_reconsider_becomes_stale(tmp_path):
     draft = next(iter(sim.state.tour_manager.all_tours.values()))
     assert draft.status is TourStates.PLANNED
     assert sim.state.decision_waiting["OBRSP"]
-    assert not any(isinstance(event, PickerTourQuery) for event in sim.events)
+    assert not any(isinstance(event, Dispatch) for event in sim.events)
     old = next(event for event in sim.events
                if isinstance(event, Reconsider)
                and event.reason is ReconsiderReason.WAIT)

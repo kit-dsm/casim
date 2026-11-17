@@ -20,11 +20,6 @@ class NewInformationCondition(Condition):
         return memory.current_information_version != memory.last_information_version
 
 
-class BreakCondition(Condition):
-    def get_decision(self, state_snapshot, operations):
-        return not operations.is_break
-
-
 class DockCapacityCondition(Condition):
     def get_decision(self, state_snapshot, operations):
         plan = state_snapshot.dynamic_warehouse_info.plan

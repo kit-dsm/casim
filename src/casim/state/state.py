@@ -28,7 +28,6 @@ class State:
         # time is a float (simulation time units)
         self.current_time: float = 0.0
         self.current_picker_id = None
-        self.break_duration: float = 0.0
         self.resource_manager = ResourceManager(resources=resources)
         self.storage_manager = StorageManager(articles=articles,
                                               storage=storage)
@@ -54,7 +53,6 @@ class State:
         self.decision_waiting: dict[str, bool] = {}
         self.decision_reconsider_at: dict[str, float | None] = {}
         self.tour_source: dict[int, str] = {}
-        self.is_break: bool = False
         self.active_objective = active_objective
         self.warehouse_info = warehouse_info
         self.information = information
@@ -68,11 +66,6 @@ class State:
 
     def get_storage(self) -> StorageLocations:
         return self._storage
-
-    def available_for_planning(self, picker_id: int) -> bool:
-        """Picker is usable by the planner only if not occupied and not reserved by queued tours."""
-        res = self.resource_manager.get_resource(picker_id)
-        return res.available and not res.occupied and not self.tour_manager.has_future_tours(picker_id)
 
     def add_statistic(self, picker_id: int,
                       time_value: float,

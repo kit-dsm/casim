@@ -10,8 +10,8 @@ from ware_ops_algos.planning.commands import (
 )
 from ware_ops_algos.planning.lifecycle import TourStates
 
-from casim.events.decision_events import PickListCreated, SequencingDone
-from casim.events.operational_events import TravelEvent
+from casim.events.decision_events import PickListCreated
+from casim.events.operational_events import Dispatch, TravelEvent
 
 if TYPE_CHECKING:
     from casim.state.state import State
@@ -115,6 +115,12 @@ def apply(state: State, commands: tuple[Command, ...]):
     check(state, commands)
     events = []
     created_ids = []
+    changed_queues: list[int] = []
+
+    def queue_changed(picker_id):
+        state.resource_manager.bump_version(picker_id)
+        if picker_id not in changed_queues:
+            changed_queues.append(picker_id)
     for command in commands:
         if isinstance(command, CreatePickList):
             state.order_manager.clear_order_buffer_by_ids(
@@ -135,7 +141,10 @@ def apply(state: State, commands: tuple[Command, ...]):
             state.tour_source[tour_id] = source
             created_ids.append(tour_id)
         elif isinstance(command, CancelTour):
+            committed = state.tour_manager.get_tour(command.tour_id).status is TourStates.SCHEDULED
             tour = state.tour_manager.cancel_tour(command.tour_id)
+            if committed:
+                queue_changed(tour.assigned_resource)
             if state.tour_source.pop(tour.tour_id, "orders") == "pick_list":
                 state.order_manager.add_pick_list_to_buffer(tour.batch)
             else:
@@ -155,13 +164,20 @@ def apply(state: State, commands: tuple[Command, ...]):
                 state.tour_manager.replace_planned_route(
                     tour.tour_id, command.route, command.added_order_ids)
         elif isinstance(command, Reschedule):
+            tour = state.tour_manager.get_tour(command.tour_id)
+            old_picker = tour.assigned_resource
             state.tour_manager.reschedule(command.tour_id, command.picker_id,
                                           command.start_time, command.end_time)
+            if tour.status is TourStates.SCHEDULED:
+                for picker_id in dict.fromkeys((old_picker, command.picker_id)):
+                    queue_changed(picker_id)
         elif isinstance(command, CommitTour):
             tour_id = (created_ids[command.creation_index]
                        if command.creation_index is not None else command.tour_id)
             tour = state.tour_manager.get_tour(tour_id)
             state.tour_manager.advance(tour_id, TourStates.SCHEDULED)
-            events.append(SequencingDone(state.current_time,
-                                         tour.assigned_resource))
+            queue_changed(tour.assigned_resource)
+    events.extend(Dispatch(state.current_time, picker_id,
+                           state.resource_manager.version(picker_id), priority=0)
+                  for picker_id in changed_queues)
     return events

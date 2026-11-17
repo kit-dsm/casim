@@ -8,9 +8,22 @@ Node = tuple[float, float]
 
 
 class ResourceManager:
+    """Resources, their presence and their queue versions (warehouse state).
+
+    Presence changes only by ``PickerArrival`` and ``PickerDeparture``; a
+    resource is absent until its first arrival. A departure becomes effective
+    at the resource's next free point (``Dispatch``). The queue version grows
+    with every change of the resource's queue or presence; a ``Dispatch``
+    carrying an older version is stale.
+    """
+
     def __init__(self, resources: Resources):
         self._resources = resources
-        self._busy_until = {r.id: 0.0 for r in resources.resources}
+        self._present = {r.id: False for r in resources.resources}
+        # picker_id -> requested absence: a duration (a break) or None (a shift end)
+        self._departure: dict[int, float | None] = {}
+        self._version = {r.id: 0 for r in resources.resources}
+        self._idle = {r.id: False for r in resources.resources}
         self._aisle_count: dict[int, int] = defaultdict(int)  # aisle_id -> picker count
         self._picker_current_aisle: dict[int, int | None] = {}  # picker_id -> aisle_id
 
@@ -21,23 +34,54 @@ class ResourceManager:
         return self._resources.resources[picker_id]
 
     def resource_status(self, picker_id: int, tour_manager) -> ResourceStates:
-        """Derive availability from shift, occupancy and queued tours."""
-        resource = self._get_resource(picker_id)
-        if not resource.available:
-            return ResourceStates.OFF_SHIFT
-        if resource.occupied:
+        """The derived state: busy before off shift, then reserved, then idle."""
+        if tour_manager.current_tour(picker_id) is not None:
             return ResourceStates.BUSY
-        if tour_manager.has_future_tours(picker_id):
+        if not self._present[picker_id]:
+            return ResourceStates.OFF_SHIFT
+        if tour_manager.queue(picker_id):
             return ResourceStates.RESERVED
         return ResourceStates.IDLE
 
-    def mark_picker_occupied(self, picker_id: int) -> None:
-        res = self._get_resource(picker_id)
-        res.occupied = True
+    def is_present(self, picker_id: int) -> bool:
+        return self._present[picker_id]
 
-    def mark_picker_free(self, picker_id: int) -> None:
-        res = self._get_resource(picker_id)
-        res.occupied = False
+    def arrive(self, picker_id: int) -> int:
+        """Make the resource present; cancels a pending departure."""
+        self._present[picker_id] = True
+        self._departure.pop(picker_id, None)
+        return self.bump_version(picker_id)
+
+    def request_departure(self, picker_id: int, duration: float | None) -> int:
+        self._departure[picker_id] = duration
+        return self.bump_version(picker_id)
+
+    def has_pending_departure(self, picker_id: int) -> bool:
+        return picker_id in self._departure
+
+    def make_departure_effective(self, picker_id: int) -> float | None:
+        """Make the resource absent; return the duration of its absence, if known."""
+        duration = self._departure.pop(picker_id)
+        self._present[picker_id] = False
+        self._idle[picker_id] = False
+        self.bump_version(picker_id)
+        return duration
+
+    def version(self, picker_id: int) -> int:
+        return self._version[picker_id]
+
+    def bump_version(self, picker_id: int) -> int:
+        self._version[picker_id] += 1
+        return self._version[picker_id]
+
+    def enter_idle(self, picker_id: int) -> bool:
+        """Record the resource as idle; True on a transition into idle."""
+        entered = not self._idle[picker_id]
+        self._idle[picker_id] = True
+        return entered
+
+    def leave_idle(self, picker_id: int) -> None:
+        self._idle[picker_id] = False
 
     def update_resource_location(self, picker_id: int, node: RouteNode) -> None:
         assert isinstance(node, RouteNode)
@@ -46,22 +90,6 @@ class ResourceManager:
         if isinstance(res, CobotPicker):
             assert isinstance(node.position, tuple)
             self._update_aisle_occupancy(picker_id, node.position)
-
-    def picker_busy_until(self, picker_id: int) -> float:
-        return self._busy_until[picker_id]
-
-    def set_picker_busy_until(self, picker_id: int, t: float) -> None:
-        if t > self._busy_until[picker_id]:
-            self._busy_until[picker_id] = float(t)
-
-    def set_picker_available(self, picker_id: int):
-        self._resources.resources[picker_id].available = True
-
-    def set_picker_unavailable(self, picker_id: int):
-        self._resources.resources[picker_id].available = False
-
-    def clear_picker_busy_until(self, picker_id: int, ) -> None:
-        self._busy_until[picker_id] = float(self.current_time)
 
     def _get_resource(self, picker_id: int) -> Resource:
         return self._resources.resources[picker_id]

@@ -33,7 +33,7 @@ def _walk_sim(tmp_path, policy="center"):
 def test_center_holds_and_returns_unused_cart_at_closure(tmp_path):
     sim, engine = _walk_sim(tmp_path)
     sim.reset(hooks=[lambda sim, _: (
-        sim.add_event(PickerArrival(0, 0, True)),
+        sim.add_event(PickerArrival(0, 0)),
         sim.add_event(OrderStreamClosed(20)),
     )])
     saw_closure_route = False
@@ -101,7 +101,7 @@ def test_due_window_keeps_overdue_and_opens_without_arrival(tmp_path):
 def test_solver_free_decision_releases_existing_draft(tmp_path):
     sim, _ = _walk_sim(tmp_path)
     sim.reset()
-    sim.state.resource_manager.set_picker_available(0)
+    sim.state.resource_manager.arrive(0)
     route = all_aisles_patrol_route(sim.state.layout_manager.get_layout())
     job = Job(job_id=-1, processing_time=route.distance, release_time=0,
               due_date=float("inf"), n_picks=0, route=route, batch=route.batch)
@@ -157,7 +157,7 @@ def test_periodic_grid_opens_horizon_without_another_arrival(tmp_path):
 def test_fixed_tour_availability_changes_with_actual_completion(tmp_path):
     sim, _ = _walk_sim(tmp_path)
     sim.reset()
-    sim.state.resource_manager.set_picker_available(0)
+    sim.state.resource_manager.arrive(0)
     route = all_aisles_patrol_route(sim.state.layout_manager.get_layout())
     job = Job(job_id=-1, processing_time=500, release_time=0,
               due_date=float("inf"), n_picks=0, route=route, batch=route.batch)

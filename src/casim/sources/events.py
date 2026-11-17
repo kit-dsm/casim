@@ -26,7 +26,7 @@ def _orders(domain: SimWarehouseDomain, closure_s: float | None) -> list[Event]:
 
 
 def _pickers(domain: SimWarehouseDomain, time: float) -> list[Event]:
-    return [PickerArrival(time=time, picker_id=resource.id, picker_available=True)
+    return [PickerArrival(time=time, picker_id=resource.id)
             for resource in domain.resources.resources]
 
 

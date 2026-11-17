@@ -13,7 +13,7 @@ from ware_ops_algos.algorithms import (
 from ware_ops_algos.algorithms.algorithm_cards import load_packaged_algo_cards
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 from ware_ops_algos.domain_models import DimensionType, PickCart
-from ware_ops_algos.planning.lifecycle import Accepts, TourStates
+from ware_ops_algos.planning.lifecycle import Accepts, ResourceStates, TourStates
 from ware_ops_algos.planning.models import TourProgress, TourView
 from ware_ops_algos.planning.commands import ReplaceSuffix
 
@@ -155,7 +155,10 @@ def test_configured_active_tour_boundary(tmp_path, arrivals, pick_time,
             if not checked_unstarted_projection and sim.state.tour_manager.all_tours:
                 tour = next(iter(sim.state.tour_manager.all_tours.values()))
                 assert tour.status in (TourStates.PLANNED, TourStates.SCHEDULED)
-                assert not sim.state.available_for_planning(0)
+                # A draft reserves nothing; a committed tour reserves its picker.
+                status = sim.state.resource_manager.resource_status(0, sim.state.tour_manager)
+                assert status is (ResourceStates.IDLE if tour.status is TourStates.PLANNED
+                                  else ResourceStates.RESERVED) or status is ResourceStates.BUSY
                 before_buffer = sim.state.order_manager.get_pick_list_buffer()
                 projected = sim.state_adapters["OBRSP"].transform_state(sim.state, "OBRSP", "OBRSP")
                 assert sim.state.order_manager.get_pick_list_buffer() == before_buffer

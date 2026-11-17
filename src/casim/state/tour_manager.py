@@ -18,9 +18,11 @@ class TourManager:
         self.all_tours: dict[int, TourPlanningState] = {}  # tour_id -> TourExecution
         self.assignable_tours: dict[int, TourPlanningState] = {}
         self._unassigned_tour_ids: set[int] = set()
-        self._active_picker_tour: dict[int, int | None] = {}  # Maps picker_id -> current active tour_id (or None)
+        # picker_id -> its pending or started tour, or None
+        self._active_picker_tour: dict[int, int | None] = {}
+        # picker_id -> its committed (scheduled) tours in planned start order:
+        # the resource's queue. A planned draft is never in a queue.
         self._picker_tour_queues: dict[int, list[int]] = defaultdict(list)
-        # self._scheduled_tours: dict[int, deque[int]] = defaultdict(deque)  # FUTURE WORK: Picker ID -> Queue of Tour IDs
 
         self._picker_history: dict[int, list[int]] = defaultdict(list)
 
@@ -31,6 +33,30 @@ class TourManager:
         if to not in TOUR_TRANSITIONS[source]:
             raise ValueError(f"Tour {tour_id}: {source.value} cannot become {to.value}")
         tour.status = to
+        # Committing enters the tour into its resource's queue; pending takes it
+        # out as the resource's current tour; cancelling a committed tour takes
+        # it out of the queue; done frees the resource.
+        picker_id = tour.assigned_resource
+        if to is TourStates.SCHEDULED:
+            self._enqueue(tour_id)
+        elif to is TourStates.PENDING:
+            self._picker_tour_queues[picker_id].remove(tour_id)
+            if self._active_picker_tour.get(picker_id) is not None:
+                raise ValueError(f"Picker {picker_id} already has tour "
+                                 f"{self._active_picker_tour[picker_id]}")
+            self._active_picker_tour[picker_id] = tour_id
+        elif to is TourStates.CANCELLED and source is TourStates.SCHEDULED:
+            self._picker_tour_queues[picker_id].remove(tour_id)
+        elif to is TourStates.DONE:
+            self._active_picker_tour[picker_id] = None
+
+    def _enqueue(self, tour_id: int) -> None:
+        """Insert a committed tour into its resource's queue by planned start."""
+        queue = self._picker_tour_queues[self.get_tour(tour_id).assigned_resource]
+        queue.append(tour_id)
+        queue.sort(key=lambda tid: (self.get_tour(tid).start_time
+                                    if self.get_tour(tid).start_time is not None
+                                    else float("inf")))
 
     def create_tour(self, route_plan: Route, processing_time: float) -> int:
         """
@@ -67,13 +93,10 @@ class TourManager:
         corresponding picker -> tours queue.
         """
         tour = self.get_tour(tour_id)
-        # print(self._unassigned_tour_ids)
         assert tour_id in self._unassigned_tour_ids
         self._unassigned_tour_ids.remove(tour_id)
-
+        # The tour enters the resource's queue when it is committed.
         tour.assigned_resource = picker_id
-
-        self._picker_tour_queues[picker_id].append(tour_id)
 
     def schedule_tour(self, tour_id: int,
                       start_time: float,
@@ -81,17 +104,9 @@ class TourManager:
         tour = self.get_tour(tour_id)
         tour.start_time = start_time
         tour.end_time_planned = end_time
-        queues = self._picker_tour_queues
-        picker_id = tour.assigned_resource
-        assert tour_id in queues[tour.assigned_resource]
-
-        # Maintain time-sorted queue of tours
-        queue = queues[picker_id]
-        queue.sort(key=lambda tid: self.get_tour(tid).start_time if self.get_tour(tid).start_time is not None else float('inf'))
-        logger.info(f"After scheduling tour {tour_id} tour manager has the following tours scheduled: ")
-        for t_id in queue:
-            t = self.get_tour(t_id)
-            logger.info(f"Tour {t_id} with start time: {t.start_time} end time: {t.end_time_planned}")
+        if tour.status is TourStates.SCHEDULED:
+            self._picker_tour_queues[tour.assigned_resource].remove(tour_id)
+            self._enqueue(tour_id)
 
     def start_tour(self, tour_id: int, time: float):
         """
@@ -99,33 +114,11 @@ class TourManager:
         from the picker_tours_queue to the active picker tour view.
         """
         tour = self.get_tour(tour_id)
-        status = tour.status
-
+        if tour.status is not TourStates.PENDING:
+            raise ValueError(f"Tour {tour_id} must be pending to start, got {tour.status}")
         # todo seperate between planned and actual start time
         tour.start_time = time
         tour.end_time_planned = time + tour.processing_time
-        # clean up queues based on planning state
-        # Tour needs to be at least assigned -> Not picker neutral
-        if status is not TourStates.PENDING:
-            raise ValueError(f"Tour {tour_id} must be pending to start, got {status}")
-        assert tour_id not in self._unassigned_tour_ids
-
-
-        picker_id = tour.assigned_resource
-        # Based on this check, tour should be in picker_tours_queue
-        picker_tour_queue = self._picker_tour_queues[picker_id]
-        logger.info(f"Pre Tour Start: picker {picker_id} has the following tours scheduled: ")
-        for t_id in picker_tour_queue:
-            t = self.get_tour(t_id)
-            logger.info(f"Tour {t_id} with start time: {t.start_time} end time: {t.end_time_planned}")
-
-        picker_tour_queue.remove(tour_id)
-        if picker_id not in self._active_picker_tour.keys():
-            self._active_picker_tour[picker_id] = tour_id
-        else:
-            assert self._active_picker_tour[picker_id] is None, ValueError(f"Picker {picker_id} has active tour,"
-                                                                   f" {self._active_picker_tour[picker_id]}")
-            self._active_picker_tour[picker_id] = tour_id
         self.advance(tour_id, TourStates.STARTED)
 
     def finish_tour(self, tour_id: int, time: float):
@@ -141,20 +134,13 @@ class TourManager:
         self._active_picker_tour[picker_id] = None
         self._picker_history[picker_id].append(tour_id)
 
-    def remove_canceled_tour_for_picker(self, picker_id, tour_id):
-        picker_tour_queue = self._picker_tour_queues[picker_id]
-        picker_tour_queue.remove(tour_id)
+    def queue(self, picker_id: int) -> tuple[int, ...]:
+        """The resource's committed tours in order."""
+        return tuple(self._picker_tour_queues[picker_id])
 
-    def get_next_tour_for_picker(self, picker_id: int):
-        picker_tour_queue = self._picker_tour_queues[picker_id]
-        for tour_id in picker_tour_queue:
-            if self.get_tour(tour_id).status == TourStates.SCHEDULED:
-                return tour_id
-        return None
-
-    def has_future_tours(self, picker_id: int) -> bool:
-        """True if picker has any queued tour (including one that hasn't started yet)."""
-        return bool(self._picker_tour_queues[picker_id])
+    def current_tour(self, picker_id: int) -> int | None:
+        """The resource's pending or started tour."""
+        return self._active_picker_tour.get(picker_id)
 
     def get_tour(self, tour_id: int) -> TourPlanningState:
         return self.all_tours[tour_id]
@@ -165,8 +151,6 @@ class TourManager:
     def cancel_tour(self, tour_id: int) -> TourPlanningState:
         tour = self.get_tour(tour_id)
         self.advance(tour_id, TourStates.CANCELLED)
-        if tour.assigned_resource is not None:
-            self.remove_canceled_tour_for_picker(tour.assigned_resource, tour_id)
         return tour
 
     def replace_planned_route(self, tour_id: int, route, added_order_ids=()) -> None:
@@ -183,12 +167,10 @@ class TourManager:
     def reschedule(self, tour_id: int, picker_id: int,
                    start_time: float, end_time: float) -> None:
         tour = self.get_tour(tour_id)
-        if tour.assigned_resource != picker_id:
-            old_picker = tour.assigned_resource
-            if old_picker is not None:
-                self.remove_canceled_tour_for_picker(old_picker, tour_id)
-            tour.assigned_resource = picker_id
+        if tour.assigned_resource != picker_id and tour.status is TourStates.SCHEDULED:
+            self._picker_tour_queues[tour.assigned_resource].remove(tour_id)
             self._picker_tour_queues[picker_id].append(tour_id)
+        tour.assigned_resource = picker_id
         self.schedule_tour(tour_id, start_time, end_time)
 
     def get_all_tours(self) -> tuple[TourPlanningState, ...]:
