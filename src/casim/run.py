@@ -135,8 +135,10 @@ def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
     }, indent=2), encoding="utf-8")
     with open(output_dir / "tours.csv", "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        # start is the start of the route, after the setup (Task 4.14 separates
-        # planned and actual times); distance is the route's planned distance.
+        # start is the actual start of the route, after the setup; a committed
+        # tour that never started shows its planned start, a draft or a
+        # cancelled tour that never started none. distance is the route's
+        # planned distance.
         writer.writerow(("tour_id", "picker_id", "status", "start", "end", "setup",
                          "distance", "picks", "orders_at_start", "order_ids"))
         resources = sim.state.resource_manager
@@ -146,7 +148,9 @@ def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
                      if tour.assigned_resource is not None else None)
             writer.writerow((tour.tour_id, tour.assigned_resource, tour.status.value,
                              (tour.actual_start if tour.actual_start is not None
-                              else tour.planned_start),
+                              else tour.planned_start
+                              if tour.status in (TourStates.SCHEDULED, TourStates.PENDING)
+                              else None),
                              tour.actual_end, setup, tour.route.distance,
                              len(tour.completed_picks), len(tour.original_route.batch.orders),
                              " ".join(map(str, tour.order_numbers))))
