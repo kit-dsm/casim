@@ -52,6 +52,10 @@ def check_resources(state: State) -> list[tuple[str, int, str]]:
             if first.earliest_start is None or first.earliest_start <= now:
                 findings.append(("missed_dispatch", picker_id,
                                  f"Picker {picker_id} is free but tour {first.tour_id} waits"))
+        # A tour running past its forecast end leaves the projection stale
+        # until it ends: TourEnd projects the queue again.
+        if current is not None and tours.get_tour(current).planned_end < now - TOLERANCE:
+            continue
         free_at = resources.free_at(picker_id, now, tours)
         if free_at is None:
             continue

@@ -67,9 +67,14 @@ class Sim:
         self.run_until(time)
         self.push(*apply(self.state, commands))
 
-    def commit(self, time, picker_id, start, end=None, earliest="start"):
-        """Create and commit one tour; its earliest start defaults to its start."""
-        job = Job(-1, self.d, 0, float("inf"), 0, route=self.route, batch=self.route.batch)
+    def commit(self, time, picker_id, start, end=None, earliest="start", processing=None):
+        """Create and commit one tour; its earliest start defaults to its start.
+
+        ``processing`` is the tour's estimated processing time (default ``d``);
+        the tour still takes ``d`` to run.
+        """
+        processing = self.d if processing is None else processing
+        job = Job(-1, processing, 0, float("inf"), 0, route=self.route, batch=self.route.batch)
         end = start + self.d if end is None else end
         earliest = start if earliest == "start" else earliest
         before = set(self.state.tour_manager.all_tours)
@@ -202,6 +207,19 @@ def test_tour_that_ends_late_delays_the_next_and_its_projection(sim):
     # The running tour's forecast end is its actual end; the next tour is projected after it.
     assert first.status is TourStates.STARTED and first.planned_end == sim.d
     assert second.status is TourStates.SCHEDULED and second.planned_start == sim.d
+    sim.run_until(sim.d)
+    assert second.status is TourStates.STARTED and second.actual_start == sim.d
+    sim.run_until(3 * sim.d)
+    assert sim.findings == []
+
+
+def test_tour_that_overruns_its_forecast_is_projected_when_it_ends(sim):
+    # The estimate is 10 short of the actual duration d: the running tour passes
+    # its forecast end, and the next tour's projection is renewed at TourEnd.
+    first = sim.commit(0, 0, start=0, end=sim.d - 10, processing=sim.d - 10)
+    second = sim.commit(0, 0, start=sim.d - 10, earliest=None)
+    sim.run_until(sim.d - 5)
+    assert first.status is TourStates.STARTED and first.planned_end == sim.d - 10
     sim.run_until(sim.d)
     assert second.status is TourStates.STARTED and second.actual_start == sim.d
     sim.run_until(3 * sim.d)
