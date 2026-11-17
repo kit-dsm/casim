@@ -44,13 +44,9 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
         ("cosy_repo=repair_waiting_henn", "+decisions.OBRSP.change_penalty=10"))
     add("henn__release_only", "henn_waiting", henn,
         ("decisions=release_only_example",))
-    instances = (
-        "29s-40-30-0.txt", "30s-40-45-0.txt", "31s-40-60-0.txt",
-        "32s-40-75-0.txt", "37s-60-30-0.txt", "38s-60-45-0.txt",
-        "39s-60-60-0.txt", "40s-60-75-0.txt", "61s-80-30-0.txt",
-        "62s-80-45-0.txt", "63s-80-60-0.txt", "64s-80-75-0.txt",
-        "69s-100-30-0.txt", "70s-100-45-0.txt", "72s-100-75-0.txt",
-    )
+    # One small and one large instance cover both strategies' code paths; the
+    # sweep over all 15 instances is a study, not a regression test.
+    instances = ("29s-40-30-0.txt", "63s-80-60-0.txt")
     for instance in instances:
         for strategy in ("henn_waiting", "order_window"):
             add(f"henn__{instance[:-4]}__{strategy}", "henn_waiting", henn,
