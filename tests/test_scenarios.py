@@ -48,7 +48,7 @@ def test_default_configuration_runs_without_violations(name, tmp_path):
     run(cfg)
     audit = json.loads((tmp_path / "audit.json").read_text(encoding="utf-8"))
     kpis = json.loads((tmp_path / "kpis.json").read_text(encoding="utf-8"))
-    assert audit["violations"] == {"check_plan": {}, "check_progress": {}}
+    assert audit["violations"] == {"check_plan": {}, "check_progress": {}, "check_resources": {}}
     assert not recompute_kpis(audit, kpis)
     trace = json.loads((tmp_path / "trace.json").read_text(encoding="utf-8"))
     assert trace["trace_digest"] == audit["trace_digest"]

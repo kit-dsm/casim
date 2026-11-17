@@ -174,6 +174,7 @@ class Dispatch(Event):
         resources.leave_idle(picker_id)
         tours.advance(tour.tour_id, TourStates.PENDING)
         # The setup begins now: the pending tour's planned times move here.
+        tour.dispatched_at = self.time
         duration = tour.planned_end - tour.planned_start
         tour.planned_start, tour.planned_end = self.time, self.time + duration
         picker = resources.get_resource(picker_id)
@@ -332,7 +333,6 @@ class PickerIdle(Event):
     def handle(self, state: 'State') -> list['Event']:
         super().handle(state)
         # print(f"Picker {self.picker_id} arrived at {self.time}")
-        state.tracker.on_idle_start(self.picker_id, self.time)
         return []
 
 class BaseTourEvent(Event):
@@ -357,7 +357,6 @@ class TourStart(BaseTourEvent):
         if self.is_stale(state):
             return []
         tour = self.get_tour(state)
-        state.tracker.on_idle_end(tour.assigned_resource, self.time)
         # print(f"Tour {tour.tour_id}, picker {tour.assigned_resource} orders {tour.order_numbers}")
         tour_id = tour.tour_id
         res = state.resource_manager.get_resource(tour.assigned_resource)

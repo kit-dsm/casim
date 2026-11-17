@@ -22,6 +22,8 @@ class EventLogger:
     def on_event(self, event: Event, sim: SimulationEngine) -> None: ...
     def on_decision(self, problem_class, solution, state_snapshot, sim: SimulationEngine) -> None: ...
     def on_done(self, sim: SimulationEngine) -> None: ...
+    def on_time_end(self, sim: SimulationEngine) -> None:
+        """After the last event of a timestamp, before time advances."""
 
 
 class DashLogger(EventLogger):
@@ -170,6 +172,8 @@ class KPILogger(EventLogger):
             "tours_per_hour": len(t.completed_tours) / horizon_h if horizon_h else 0.0,
             "distance_by_picker": dict(t.distance_by_picker),
             "idle_time_by_picker": dict(t.idle_time_by_picker),
+            "busy_time_by_picker": dict(t.busy_time_by_picker),
+            "absent_time_by_picker": dict(t.absent_time_by_picker),
             "total_distance": sum(t.distance_by_picker.values()),
             "total_delayed": t.total_delayed,
             "dock_utilization": dict(t.dock_utilization),

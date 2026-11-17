@@ -19,6 +19,7 @@ from ware_ops_algos.planning.lifecycle import TourStates
 from casim.events.operational_events import (
     NodeArrival, OrderArrival, TravelEvent,
 )
+from casim.state.resource_checks import check_resources, check_time_balance
 from casim.trace import TraceRecorder
 
 
@@ -40,9 +41,10 @@ class BaselineCapture(TraceRecorder):
         self.order_arrivals: dict[str, float] = {}
         self.violations: dict[str, Counter] = {
             "check_plan": Counter(), "check_progress": Counter(),
+            "check_resources": Counter(),
         }
         self.first_violations: dict[str, dict[str, dict]] = {
-            "check_plan": {}, "check_progress": {},
+            "check_plan": {}, "check_progress": {}, "check_resources": {},
         }
 
     def on_reset(self, sim, domain) -> None:
@@ -121,8 +123,20 @@ class BaselineCapture(TraceRecorder):
                 })
         self._check(sim, f"decision:{decision}")
 
+    def on_time_end(self, sim) -> None:
+        self._record_resources(sim, check_resources(sim.state))
+
+    def _record_resources(self, sim, findings) -> None:
+        for code, picker_id, message in findings:
+            self.violations["check_resources"][code] += 1
+            self.first_violations["check_resources"].setdefault(code, {
+                "at": "time_end", "time": sim.state.current_time,
+                "picker_id": picker_id, "message": message,
+            })
+
     def on_done(self, sim) -> None:
         state = sim.state
+        self._record_resources(sim, check_time_balance(state))
         tours = []
         for tour in state.tour_manager.get_all_tours():
             if tour.status is not TourStates.DONE:

@@ -6,9 +6,10 @@ class ExperimentTracker:
         self.first_tour_start = None
         self.committed_times: dict[int, tuple[float, float]] = {}
         self.distance_by_picker: dict[int, float] = defaultdict(float)
-        self.idle_time_by_picker: dict[int, float] = defaultdict(float)
-        self._idle_start: dict[int, float] = {}
-        self.idle_intervals: list[tuple[int, float, float]] = []
+        # picker_id -> [(time, derived resource state)], one entry per change
+        self._state_log: dict[int, list[tuple[float, str]]] = defaultdict(list)
+        self._horizon_start: float | None = None
+        self._horizon_end: float | None = None
         self.pick_durations_by_picker: dict[int, list[float]] = defaultdict(list)
         self.completed_tours: list[tuple[int, float, float, list[int], int, list[int], list[int], int]] = []
         self.truck_departures: list[tuple[float, int]] = []
@@ -35,14 +36,61 @@ class ExperimentTracker:
     def on_travel(self, picker_id, distance):
         self.distance_by_picker[picker_id] += distance
 
-    def on_idle_start(self, picker_id, time):
-        self._idle_start[picker_id] = time
+    def on_resource_state(self, picker_id, time, state: str) -> None:
+        """Log a resource's derived state; only changes are kept."""
+        if self._horizon_start is None:
+            self._horizon_start = time
+        log = self._state_log[picker_id]
+        if not log or log[-1][1] != state:
+            log.append((time, state))
+        self._horizon_end = time
 
-    def on_idle_end(self, picker_id, time):
-        start = self._idle_start.pop(picker_id, None)
-        if start is not None:
-            self.idle_time_by_picker[picker_id] += time - start
-            self.idle_intervals.append((picker_id, start, time))
+    def close(self, time) -> None:
+        """End the horizon at the last event."""
+        self._horizon_end = time
+
+    @property
+    def horizon(self) -> float:
+        if self._horizon_start is None:
+            return 0.0
+        return self._horizon_end - self._horizon_start
+
+    def _intervals(self, states: frozenset[str]):
+        for picker_id, log in self._state_log.items():
+            for (start, state), (end, _) in zip(log, [*log[1:], (self._horizon_end, None)]):
+                if state in states and end > start:
+                    yield picker_id, start, end
+
+    def _time_in(self, states: frozenset[str]) -> dict[int, float]:
+        totals = {picker_id: 0.0 for picker_id in self._state_log}
+        for picker_id, start, end in self._intervals(states):
+            totals[picker_id] += end - start
+        return totals
+
+    @property
+    def idle_time_by_picker(self) -> dict[int, float]:
+        """Present and not busy: idle, or reserved and waiting for a later start."""
+        return self._time_in(frozenset(("idle", "reserved")))
+
+    @property
+    def busy_time_by_picker(self) -> dict[int, float]:
+        """With a pending (setup) or started tour."""
+        return self._time_in(frozenset(("busy",)))
+
+    @property
+    def absent_time_by_picker(self) -> dict[int, float]:
+        return self._time_in(frozenset(("off_shift",)))
+
+    @property
+    def idle_intervals(self) -> list[tuple[int, float, float]]:
+        """Maximal intervals in which a resource is present and not busy."""
+        merged = []
+        for picker_id, start, end in self._intervals(frozenset(("idle", "reserved"))):
+            if merged and merged[-1][0] == picker_id and merged[-1][2] == start:
+                merged[-1] = (picker_id, merged[-1][1], end)
+            else:
+                merged.append((picker_id, start, end))
+        return merged
 
     def on_pick_end(self, tour_id, picker_id, order_id, item_id, start_time, end_time):
         self.pick_durations_by_picker[picker_id].append(end_time - start_time)

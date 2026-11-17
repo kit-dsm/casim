@@ -40,6 +40,7 @@ class TourPlanningState:
     planned_start: Optional[float] = None
     planned_end: Optional[float] = None
     actual_start: Optional[float] = None
+    dispatched_at: Optional[float] = None   # when the tour became pending (setup began)
     actual_end: Optional[float] = None
     # execution state, mutable during picking
     cursor: int = 0                 # index into route_nodes

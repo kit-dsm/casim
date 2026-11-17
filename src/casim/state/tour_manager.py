@@ -32,18 +32,22 @@ class TourManager:
         source = TourStates(tour.status)
         if to not in TOUR_TRANSITIONS[source]:
             raise ValueError(f"Tour {tour_id}: {source.value} cannot become {to.value}")
+        picker_id = tour.assigned_resource
+        if (to is TourStates.PENDING and picker_id is not None
+                and self._active_picker_tour.get(picker_id) is not None):
+            raise ValueError(f"Picker {picker_id} already has tour "
+                             f"{self._active_picker_tour[picker_id]}")
         tour.status = to
         # Committing enters the tour into its resource's queue; pending takes it
         # out as the resource's current tour; cancelling a committed tour takes
-        # it out of the queue; done frees the resource.
-        picker_id = tour.assigned_resource
+        # it out of the queue; done frees the resource. A tour without a
+        # resource is in no queue.
+        if picker_id is None:
+            return
         if to is TourStates.SCHEDULED:
             self._enqueue(tour_id)
         elif to is TourStates.PENDING:
             self._picker_tour_queues[picker_id].remove(tour_id)
-            if self._active_picker_tour.get(picker_id) is not None:
-                raise ValueError(f"Picker {picker_id} already has tour "
-                                 f"{self._active_picker_tour[picker_id]}")
             self._active_picker_tour[picker_id] = tour_id
         elif to is TourStates.CANCELLED and source is TourStates.SCHEDULED:
             self._picker_tour_queues[picker_id].remove(tour_id)

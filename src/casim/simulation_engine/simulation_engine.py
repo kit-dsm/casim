@@ -55,6 +55,7 @@ class SimulationEngine:
         self._pending_decisions: dict[str, tuple[set[str], set[ReconsiderReason]]] = {}
         self._decided_at_time: set[str] = set()
         self._decision_time: float | None = None
+        self._time_ended: float | None = None
         self._period_anchor = 0.0
         self._initial_domain: SimWarehouseDomain | None = None
         self._pbar: tqdm | None = None
@@ -69,6 +70,7 @@ class SimulationEngine:
         self._pending_decisions.clear()
         self._decided_at_time.clear()
         self._decision_time = None
+        self._time_ended = None
         self.state = State(
             layout=domain.layout, articles=domain.articles,
             storage=domain.storage, resources=domain.resources,
@@ -78,6 +80,7 @@ class SimulationEngine:
             dock=domain.dock,
         )
         self._period_anchor = self.state.current_time
+        self._log_resource_states()
         for hook in hooks or ():
             hook(self, domain)
         for decision, every_s in self.periods.items():
@@ -140,6 +143,10 @@ class SimulationEngine:
                 self._decided_at_time.add(decision)
                 return False, snapshot
 
+            if (self.events[0].time > self.state.current_time
+                    and self._time_ended != self.state.current_time):
+                self._time_ended = self.state.current_time
+                self._end_timestamp()
             event = heapq.heappop(self.events)
             if event.is_stale(self.state):
                 continue
@@ -148,6 +155,7 @@ class SimulationEngine:
                 self._decided_at_time.clear()
             self.state.current_time = event.time
             events_to_add = event.handle(self.state)
+            self._log_resource_states()
             self._pbar.update(1)
             if self._pbar.n % 1000 == 0:
                 self._pbar.set_postfix_str(f"{self.state.current_time:.0f}s")
@@ -165,6 +173,10 @@ class SimulationEngine:
                     self._due(decision, type(event).__name__)
 
         logger.info("Simulation complete")
+        if self._time_ended != self.state.current_time:
+            self._time_ended = self.state.current_time
+            self._end_timestamp()
+        self.state.tracker.close(self.state.current_time)
         if self._pbar is not None:
             self._pbar.close()
             self._pbar = None
@@ -176,6 +188,7 @@ class SimulationEngine:
         dynamic = state_snapshot.dynamic_warehouse_info
         decision = dynamic.context.decision
         events = self.state.apply_all(decision, result.commands)
+        self._log_resource_states()
         self.state.decision_waiting[decision] = result.waiting
         self.state.decision_reconsider_at[decision] = result.reconsider_at
         self.state.decision_considered_active_orders[decision] = set(
@@ -194,6 +207,21 @@ class SimulationEngine:
             self.add_event(event)
         for event_logger in self.event_loggers:
             event_logger.on_decision(decision, result, state_snapshot, self)
+
+    def _end_timestamp(self) -> None:
+        """Tell the event loggers that the last event of a timestamp is processed."""
+        for event_logger in self.event_loggers:
+            on_time_end = getattr(event_logger, "on_time_end", None)
+            if on_time_end is not None:
+                on_time_end(self)
+
+    def _log_resource_states(self) -> None:
+        """Log every resource's derived state for idle, busy and absent time."""
+        resources, tours = self.state.resource_manager, self.state.tour_manager
+        for resource in resources.get_resources().resources:
+            self.state.tracker.on_resource_state(
+                resource.id, self.state.current_time,
+                resources.resource_status(resource.id, tours).value)
 
     def _schedule_periodic(self, decision: str) -> None:
         if decision in self.periods and not self.state.done_flag:
