@@ -1,9 +1,10 @@
 """Optional, read-only event and invariant capture for Phase B baselines.
 
 Attaches to SimulationEngine only when the Hydra flag ``experiment.audit`` is
-set.  It observes events and decisions, runs the invariant checks after every
-step and records the data needed for independent KPI recomputation.  It never
-modifies state or the event queue.
+set.  It observes events and decisions, runs the invariant checks after the
+last event of every timestamp and after every decision, and records the data
+needed for independent KPI recomputation.  It never modifies state or the
+event queue.
 """
 
 from __future__ import annotations
@@ -95,7 +96,6 @@ class BaselineCapture(TraceRecorder):
             if leg is not None:
                 leg["completed_fraction"] = 1.0
                 self.legs.append(leg)
-        self._check(sim, type(event).__name__)
 
     def on_decision(self, decision, result, snapshot, sim) -> None:
         state = sim.state
@@ -124,6 +124,7 @@ class BaselineCapture(TraceRecorder):
         self._check(sim, f"decision:{decision}")
 
     def on_time_end(self, sim) -> None:
+        self._check(sim, "time_end")
         self._record_resources(sim, check_resources(sim.state))
 
     def _record_resources(self, sim, findings) -> None:
