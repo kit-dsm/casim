@@ -36,13 +36,23 @@ class NbrPickersCondition(Condition):
 
 
 class NbrOrdersCondition(Condition):
+    """Solve when the work open to the decision has at least ``threshold`` orders.
+
+    Open work is the order buffer and the orders of planned, uncommitted tours
+    the decision may rebuild: a waiting batch put into a planned tour stays
+    open work, so the decision at the stream's end still solves (F67).
+    """
+
     def __init__(self, threshold: int, allow_when_done: bool = False):
         self.threshold = threshold
         self.allow_when_done = allow_when_done
 
     def get_decision(self, state_snapshot, operations):
         dynamic = state_snapshot.dynamic_warehouse_info
-        count = len(dynamic.plan.order_buffer)
+        plan = dynamic.plan
+        count = len(plan.order_buffer) + sum(
+            len(tour.batch.order_numbers) for tour in plan.tours
+            if tour.status is TourStates.PLANNED and tour.accepts is Accepts.REBUILD)
         return (count >= self.threshold or
                 self.allow_when_done and dynamic.context.input_closed and count > 0)
 
