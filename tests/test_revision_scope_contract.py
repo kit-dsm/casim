@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 import pytest
-from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
 
 from ware_ops_algos.planning.commands import CommitTour

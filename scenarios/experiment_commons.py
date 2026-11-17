@@ -6,7 +6,6 @@ from hydra.utils import get_class
 from omegaconf import DictConfig, OmegaConf
 from ware_ops_algos.domain_models import DataCard
 
-from casim.config.data_card import load_and_flatten_data_card
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.loggers import DashLogger, KPILogger
 from casim.setup import resolve

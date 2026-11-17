@@ -569,6 +569,7 @@ def plot_gantt_for_scenario(
     color_late = "#8c4a4a"
     sep_color = "#c7c7c7"
     grid_color = "#d9d9d9"
+    break_color = "#ececec"
 
 
     LABEL_FS = 8

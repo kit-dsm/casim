@@ -1,10 +1,8 @@
 """The reference layout and analytical waiting policy use the same geometry."""
 
-from pathlib import Path
 from copy import deepcopy
 
 import pytest
-from hydra import compose, initialize_config_dir
 
 from ware_ops_algos.algorithms import (
     BatchObject, Job, PickPosition, Route, ScheduledJob, WaitingInput,

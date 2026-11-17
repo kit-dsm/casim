@@ -146,8 +146,6 @@ class WalkOrWaitDataLoader(DataLoader):
     def _benchmark_layout(path: Path) -> LayoutData:
         with path.open("rb") as stream:
             graph = pickle.load(stream)
-        pick_nodes = [node for node, data in graph.nodes(data=True)
-                      if data.get("type") == "pick_node"]
         starts = [node for node, data in graph.nodes(data=True)
                   if data.get("type") == "start_node"]
         ends = [node for node, data in graph.nodes(data=True)
