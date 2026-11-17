@@ -1,39 +1,39 @@
 {
   "name": "working__C__30__75__SShape__SAV__13__conditioned",
   "stream_closure": "announced_at_480",
-  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
-  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
+  "command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_working cosy_repo=working_sshape_sav source.storage=C source.n_orders=30 source.capacity=75 source.replication=13 source.arrival_mode=conditioned --audit",
+  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
+  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
   "kpis": {
     "makespan": 29593.75,
-    "mean_order_completion_time": 3668.7065642682996,
+    "mean_order_completion_time": 3670.2065642682996,
     "num_tours": 8,
     "num_orders_completed": 30,
-    "avg_tour_makespan": 1122.5000000000002,
+    "avg_tour_makespan": 1124.3750000000002,
     "avg_batch_size": 3.75,
     "orders_per_hour": 3.6494192185850056,
     "tours_per_hour": 0.9731784582893348,
     "distance_by_picker": {
-      "0": 3672.0
+      "0": 3684.0
     },
     "idle_time_by_picker": {
-      "0": 18839.647015698
+      "0": 18827.147015698
     },
-    "total_distance": 3672.0,
+    "total_distance": 3684.0,
     "total_delayed": 0,
     "dock_utilization": {
       "2610.3529843019996": 1,
       "5234.659387025999": 2,
-      "12062.713290213": 3,
-      "13885.040690925": 4,
+      "12065.213290213": 3,
+      "13887.540690925": 4,
       "16719.190854405002": 5,
-      "20300.578150675": 6,
-      "26106.028555729": 7,
+      "20303.078150675": 6,
+      "26108.528555729": 7,
       "29593.75": 8
     },
-    "total_tour_times": 8980.000000000002,
+    "total_tour_times": 8995.000000000002,
     "picks_per_hour": 53.403167898627245,
-    "total_processing_time": 8980.000000000002
+    "total_processing_time": 8995.000000000002
   },
   "decisions": {
     "OBRSP": 41
@@ -46,7 +46,7 @@
         0,
         1
       ],
-      "start": 1594.1029843019996,
+      "start": 1591.6029843019996,
       "end": 2610.3529843019996
     },
     {
@@ -58,7 +58,7 @@
         4,
         5
       ],
-      "start": 3928.4093870259994,
+      "start": 3925.9093870259994,
       "end": 5234.659387025999
     },
     {
@@ -72,7 +72,7 @@
         10
       ],
       "start": 10556.463290213,
-      "end": 12062.713290213
+      "end": 12065.213290213
     },
     {
       "tour_id": 4,
@@ -84,7 +84,7 @@
         14
       ],
       "start": 12461.290690925,
-      "end": 13885.040690925
+      "end": 13887.540690925
     },
     {
       "tour_id": 5,
@@ -109,7 +109,7 @@
         23
       ],
       "start": 19014.328150675,
-      "end": 20300.578150675
+      "end": 20303.078150675
     },
     {
       "tour_id": 7,
@@ -122,7 +122,7 @@
         28
       ],
       "start": 24597.278555729,
-      "end": 26106.028555729
+      "end": 26108.528555729
     },
     {
       "tour_id": 8,
@@ -134,8 +134,8 @@
       "end": 29593.75
     }
   ],
-  "trace_digest": "4bd9723fe66cef2ecfe3eda473f52c509680572fa95b1b52866b0e87928bcfbd",
-  "event_count": 7571,
+  "trace_digest": "ab501049645787768c3814170700c6060b719b96a86c0b31a023a12a484481bf",
+  "event_count": 7595,
   "violations": {
     "check_plan": {},
     "check_progress": {}

@@ -1,45 +1,45 @@
 {
   "name": "working__C__30__45__SShape__FIRST__5__conditioned",
   "stream_closure": "announced_at_480",
-  "command": "python -m scenarios.scenario_henn2012.run_l2 pilot",
-  "casim_commit": "7e68bf6e356dd0ded025a643f3b907c43057dfa2",
-  "ware_ops_algos_commit": "0bd0a7ed426d28552c6ed61d7058ace983290b1f",
+  "command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_working cosy_repo=working_sshape_first source.storage=C source.n_orders=30 source.capacity=45 source.replication=5 source.arrival_mode=conditioned --audit",
+  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
+  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
   "kpis": {
     "makespan": 29738.75,
-    "mean_order_completion_time": 2473.2446538247664,
+    "mean_order_completion_time": 2474.9946538247664,
     "num_tours": 14,
     "num_orders_completed": 30,
-    "avg_tour_makespan": 797.6785714285714,
+    "avg_tour_makespan": 799.1071428571429,
     "avg_batch_size": 2.142857142857143,
     "orders_per_hour": 3.6316254045647516,
     "tours_per_hour": 1.6947585221302173,
     "distance_by_picker": {
-      "0": 5286.0
+      "0": 5302.0
     },
     "idle_time_by_picker": {
-      "0": 17924.15361944
+      "0": 17904.15361944
     },
-    "total_distance": 5286.0,
+    "total_distance": 5302.0,
     "total_delayed": 0,
     "dock_utilization": {
-      "1315.84638056": 1,
-      "2329.59638056": 2,
-      "3987.9699529749996": 3,
-      "5026.719952975": 4,
-      "6811.339668776": 5,
+      "1318.34638056": 1,
+      "2334.59638056": 2,
+      "3990.4699529749996": 3,
+      "5031.719952975": 4,
+      "6813.839668776": 5,
       "9426.838978389": 6,
       "13684.269878652001": 7,
       "15310.609524694999": 8,
       "16274.292669908": 9,
-      "17307.518031927997": 10,
-      "18838.118254533": 11,
+      "17310.018031927997": 10,
+      "18840.618254533": 11,
       "22643.242716880002": 12,
-      "27917.68340103": 13,
+      "27920.18340103": 13,
       "29738.75": 14
     },
-    "total_tour_times": 11167.5,
+    "total_tour_times": 11187.5,
     "picks_per_hour": 55.200706149384224,
-    "total_processing_time": 11167.5
+    "total_processing_time": 11187.5
   },
   "decisions": {
     "OBRSP": 46
@@ -52,7 +52,7 @@
         0
       ],
       "start": 467.09638055999994,
-      "end": 1315.84638056
+      "end": 1318.34638056
     },
     {
       "tour_id": 2,
@@ -62,8 +62,8 @@
         2,
         3
       ],
-      "start": 1315.84638056,
-      "end": 2329.59638056
+      "start": 1318.34638056,
+      "end": 2334.59638056
     },
     {
       "tour_id": 3,
@@ -73,7 +73,7 @@
         5
       ],
       "start": 3044.2199529749996,
-      "end": 3987.9699529749996
+      "end": 3990.4699529749996
     },
     {
       "tour_id": 4,
@@ -82,8 +82,8 @@
         6,
         7
       ],
-      "start": 3987.9699529749996,
-      "end": 5026.719952975
+      "start": 3990.4699529749996,
+      "end": 5031.719952975
     },
     {
       "tour_id": 5,
@@ -93,7 +93,7 @@
         9
       ],
       "start": 5982.589668776,
-      "end": 6811.339668776
+      "end": 6813.839668776
     },
     {
       "tour_id": 6,
@@ -145,7 +145,7 @@
         21
       ],
       "start": 16338.768031927999,
-      "end": 17307.518031927997
+      "end": 17310.018031927997
     },
     {
       "tour_id": 11,
@@ -155,7 +155,7 @@
         23
       ],
       "start": 17716.868254533,
-      "end": 18838.118254533
+      "end": 18840.618254533
     },
     {
       "tour_id": 12,
@@ -175,7 +175,7 @@
         27
       ],
       "start": 26788.93340103,
-      "end": 27917.68340103
+      "end": 27920.18340103
     },
     {
       "tour_id": 14,
@@ -188,8 +188,8 @@
       "end": 29738.75
     }
   ],
-  "trace_digest": "2515a1c1cdedcce5938fd0df01f0afce0d0bf3e8339099bb3908c4433685dd96",
-  "event_count": 9979,
+  "trace_digest": "d780ff95b8812c8278f584ebc13c2109bd2e9ff15df351717fc674b5b6d0a021",
+  "event_count": 10011,
   "violations": {
     "check_plan": {},
     "check_progress": {}
