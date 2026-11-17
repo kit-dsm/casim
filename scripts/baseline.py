@@ -185,6 +185,7 @@ def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
         "event_count": audit["event_count"],
         "violations": audit["violations"],
         "first_violations": audit["first_violations"],
+        "open_orders": audit["open_orders"],
         "kpi_differences": differences,
     })
     result["status"] = ("inconsistent" if differences or any(
@@ -205,8 +206,8 @@ def compare_recorded(recorded: dict, current: dict) -> list[str]:
         if old_kpis.get(key) != new_kpis.get(key):
             findings.append(f"KPI {key}: {old_kpis.get(key)} -> {new_kpis.get(key)}")
     for key in ("decisions", "violations", "first_violations",
-                "kpi_differences", "event_count"):
-        if recorded[key] != current[key]:
+                "kpi_differences", "event_count", "open_orders"):
+        if recorded.get(key) != current.get(key):
             findings.append(f"{key}: {recorded[key]} -> {current[key]}")
     old_tours, new_tours = recorded["committed_tours"], current["committed_tours"]
     for index in range(max(len(old_tours), len(new_tours))):
@@ -335,7 +336,7 @@ def _compare_parallel(selected: dict[str, tuple[str, Path, tuple]], workers: int
 
 RECORDED_FIELDS = ("command", "casim_commit", "ware_ops_algos_commit", "kpis", "decisions",
                    "committed_tours", "trace_digest", "event_count", "violations",
-                   "first_violations", "kpi_differences", "status")
+                   "first_violations", "kpi_differences", "open_orders", "status")
 
 
 def record_benchmark(kind: str, workers: int, patterns: list[str]) -> list[str]:

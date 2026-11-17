@@ -135,6 +135,25 @@ class BaselineCapture(TraceRecorder):
                 "picker_id": picker_id, "message": message,
             })
 
+    @staticmethod
+    def _open_orders(state) -> dict[str, list]:
+        """Orders not completed at the end of the run, by status.
+
+        An order still open is a result (for example lateness at the end of
+        a day), not an inconsistency; it is recorded so that a change shows.
+        An order in no collection is reported as ``missing``.
+        """
+        manager, tours = state.order_manager, state.tour_manager
+        open_orders: dict[str, list] = {}
+        for order_id in sorted(manager._order_history, key=str):
+            try:
+                status = manager.order_status(order_id, tours).value
+            except ValueError:
+                status = "missing"
+            if status != "done":
+                open_orders.setdefault(status, []).append(order_id)
+        return open_orders
+
     def on_done(self, sim) -> None:
         state = sim.state
         self._record_resources(sim, check_time_balance(state))
@@ -159,6 +178,7 @@ class BaselineCapture(TraceRecorder):
             "completed_tours": tours,
             "route_legs": self.legs,
             "order_arrivals": self.order_arrivals,
+            "open_orders": self._open_orders(state),
             "violations": {kind: dict(counts)
                            for kind, counts in self.violations.items()},
             "first_violations": self.first_violations,
