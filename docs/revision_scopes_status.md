@@ -1,6 +1,6 @@
-# Revision scopes status: Task 4.14 done
+# Revision scopes status: Task 4.15 done
 
-Last pushed code commit: casim `74f2703` (`4.14: projection check skips a tour running past its forecast end`), baseline `55bab7c`; ware_ops_algos `dc8bec6`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Phase S is done and reported (`docs/phase_s_report.md`): the full suite passes in one process (574 tests) and `casim check --all` has no finding for any tracked scenario.
+Last pushed code commit: casim `c02434e` (`Run time: audit once per timestamp, snapshot copies routes once`), baseline `7a7f096`; ware_ops_algos `c7950f4`. Phase B is done and reported (`docs/phase_b_report.md`, `6789b39`); open for the user from it: the high-load L2 gap to the journal without a demonstrated cause and the decisions of Section 9.1. F64 is resolved by the user (`docs/kris_f64_report.md`): the cause is ware_ops_pipes' Kris loader, whose fix is the user's. Phase S is done and reported (`docs/phase_s_report.md`): the full suite passes in one process (574 tests) and `casim check --all` has no finding for any tracked scenario.
 
 The two stashes of 15 October are applied and committed; they are kept as the local branches `wip/s4-henn2012` and `wip/s3-s4-docs` and remain in `git stash list`.
 
@@ -8,7 +8,8 @@ Waiting for the user: the 16 working-paper `truncated` L2 pilot baselines record
 
 Next steps, in order:
 
-1. Task 4.15, limited to F67 and the rules that affect replanning and cancellation (user decision, 16 November 2026); the other hidden rules are Task 4.17, after the IJPE revision.
+1. Task 4.16 (remove what nothing uses); Task 4.17 (the other hidden rules) follows the IJPE revision.
+2. The two decisions of the Task 4.15 report: draft times after a delay, and a terminal check for orders still open.
 
 The route-length check is done (16 November 2026, `docs/literature_benchmarks.md`, "Route-length check of the high-load gap"): CASIM's executed tours equal an independent S-shape computation on all 120 runs; α is applied through the waiting component and correctly leaves the instances unchanged; the journal's high-load values are not reachable with next-fit FCFS batches and match first-fit batches, which close about two thirds of the gap, leaving about 4 % common to both papers. First-fit FCFS is now a batching algorithm (ware_ops_algos `b650516`, card `FirstFitFiFo`) and a declared variant of the journal target in `scenarios/henn2012`; it does not close the gap to the +4.3 % residual (class-based +4.9 to +7.5 %, uniform −4.9 to +0.2 %), so the journal's high-load cells stay a statistical non-reproduction without demonstrated cause ("First-fit variant of the journal target" in the register). F68 (the OOBP loader's depth offset) is recorded and fixed (`80dbbc7`); the journal FIRST L2 runs with n = 90 and 120 are rerun and recorded again (`a35bb41`): every journal residual changes by at most 0.2 percentage points ("F68" in the register). After F68 all L2 runs and the 128 Henn-format L3 runs are recorded again (`d714c58`, `2ad6e22`); the count of L3 runs below a best-known value is unchanged at 40 of 192, the same runs before and after.
 
@@ -20,12 +21,14 @@ This is an audit against the current `revision_scopes_corrections.md`, through P
 
 ## Baseline tiers and reruns
 
-User direction of 16 November 2026, effective from then on:
+User directions of 16 and 17 November 2026, effective from then on:
 
-- `scripts/baseline.py` runs `casim check` once per sweep, not before every run. A sweep is a case's scenario, entry point and overrides without the `source.*` overrides, which select instance data only (`sweep_key`); the 30 Henn instance cases share 2 checks, the 415 L1 runs 13, the 754 L2 runs 4 and the 192 L3 runs 2.
-- A rerun covers only what a change can affect. Before each rerun the report states which scenarios and benchmark cells the change touches; `compare-benchmark --match <glob>` and `record-benchmark --match <glob>` restrict a benchmark to those cells. Example: the F68 fix touches the Henn instance format only, so L1, the L3 Albareda strata (W1 to W4) and the scenario baselines are not rerun for it.
-- **Fast tier**, after every commit: `python scripts/baseline.py compare-fast --workers 4` reruns a fixed subset (`FAST` in `scripts/baseline.py`), one or two cases per scenario and benchmark set: `henn__default`, `henn__29s-40-30-0__order_window`, `walk__default`, `walk__patrol`, `stochastic__henn_waiting`; L1 `HennWaescher__21s-20-30-1_u__GIA+SavingsSShape+SShape` and `BahceciOencan__Pr_20_1_20_Store1_13__GIA+LSBatchingSShapeFiFoOrderNr+SShape`; L2 `journal__C__30__45__SShape__FIRST__0__conditioned` and `working__C__30__45__SShape__SAV__0__conditioned`; L3 `W1_100__wsrp_input_pedido_01_000__0` and `abc1__29s-40-30-0__centre`. Sequential run times 5 to 28 s, 128 s in total; 52 s on four workers.
-- **Full tier**, at the end of a task only: `compare` (all scenario baselines) and `compare-benchmark --benchmark l1`, `l2`, `l3`. `run_case` stops a run after 900 s; under heavy load (10 workers beside other processes) a C/120 SAV run can exceed that and shows as `not_runnable`. Rerun such runs with fewer workers before reading them as a difference.
+- The baselines are a regression set, not a study (17 November 2026): one run per code path, 65 records instead of 1,654 (`863c8db`). Kept: every scenario configuration except 13 of the 15 Henn instances (26, of which the five IJPE cases are `not_runnable` until Task 6b.6); one L1 run per instance set and pipeline (13; Kris EDD keeps `instances_109_1_small`); one L2 cell per target, storage, rule and arrival mode at n = 30, capacity 45, replication 0, plus journal C/120/45 FIRST and C/60/75 SAV (10); one L3 run per stratum and depot (16). The literature tables keep their own runners (`docs/literature_benchmarks.md`).
+- `scripts/baseline.py` runs `casim check` once per sweep (`sweep_key`), and a successful run no longer keeps its output folder (`aa02c80`).
+- A rerun covers only what a change can affect; the report names the scenarios and benchmark cells first. `compare-benchmark --match <glob>` and `record-benchmark --match <glob>` restrict a benchmark.
+- **Fast tier**, after every commit: `python scripts/baseline.py compare-fast --workers 4`, the 11 cases of `FAST`.
+- **Full tier**, at the end of a task: `compare` and `compare-benchmark --benchmark l1`, `l2`, `l3`; 60 runs in 194 s on six workers (before the slimming and the two speedups below: about two hours).
+- Run time (17 November 2026, idle machine): the audit checks the plan after the last event of every timestamp and after every decision instead of after every event, and a decision snapshot shares the layout, the articles and its freshly built decision data instead of deep-copying them. Henn default 8.6 → 4.0 s plain and 16.7 → 8.9 s with `--audit`; L3 abc1 centre 5.0 → 3.2 s and 11.1 → 6.5 s. About 3 s of a plain run is importing (ware's layout module imports pandas, matplotlib and networkx).
 
 ## Phase B progress
 
@@ -67,7 +70,7 @@ User direction of 16 November 2026, effective from then on:
 | 4.12 | done | Five configured CoSy components are generated from resolved CASOP cards; wait 0–4 and both Henn pipelines keep their KPIs. The seven CASOP applicability sets equal `main` (counts 19, 15, 19, 24, 19, 8, 13); Task 5.0 commits the permanent lock. Module layout, rerouting base, mapper docstrings, and `OrderSplittingSolution` are corrected. Four user decisions remain untouched. |
 | 4.13 | done | Below, "Task 4.13 report". |
 | 4.14 | done | Below, "Task 4.14 report". |
-| 4.15 | not done | 4.15 narrowed, 4.17 deferred until after the IJPE revision (user decision, 16 November 2026). |
+| 4.15 | done | Below, "Task 4.15 report"; narrowed, 4.17 deferred until after the IJPE revision (user decision, 16 November 2026). |
 
 Task 4.12 makes `walk_or_wait_sshape_routing` and `fifo_scheduler` inapplicable to CASOP by requiring the `routing_origin` decision feature, which the seven CASOP data cards lack. CASIM's corresponding data cards provide it. A comparison of the applicable card-name sets for each of those seven data cards against `main` shows no additions or removals after this change. `IncumbentStartBatchingSShape` merges the SShape requirements through `configs.yaml`; `OrderCountWaiting1` through `OrderCountWaiting4` resolve the value option. The prechange committed code and current code have byte-identical `kpis.json` for `wait_0` through `wait_4` on `explicit_example` and for `repair_waiting_henn` on `29s-40-30-0.txt`. The baseline Henn pipeline still has makespan 22533.874, 30 tours, mean tour duration 563.566667 and distance 11057, as in Task 4.11. The task generated its components without scenario-data changes.
 
@@ -87,6 +90,37 @@ The `29s-40-30-0.txt` Henn sweep compares as follows against `scripts/plots/wait
 The order-window differences in makespan and total tour duration are both exactly 47 seconds; the tour count is unchanged. This is consistent with the final route changing when `OrderStreamClosed` is emitted at the last order arrival, whereas `aaa8333` flushed at event-heap exhaustion. Task 6.5 restores `at_exhaustion`; no closure rule was changed in 4.11. The dock numbers now count staging in every `State` since Task 4.9, including warehouses without a `Dock`; the historical plot was made before that change.
 
 The Task 4.9 fixture recorded 298 events, 13 decisions, three completed tours, distance 126 and makespan 86 in each seeded run, both before and after the change. Dock fill ended at 1 with truck capacity 2 and at 3 with `capacity: null`; the full fill trace and tour records are locked in `tests/verification/dock_baseline.json`. Neither scenario config triggers a decision directly on `TruckDeparture`. The departure's emitted `PickerArrival` triggers grocery `ORSP` through `triggers_map`; IJPE has no `PickerArrival` trigger, so it triggers no decision there.
+
+## Task 4.15 report
+
+Scope as narrowed on 16 November 2026: the hidden rules that affect replanning and cancellation (F57, F67); the other rules are Task 4.17. Steps 4 and 5 contradicted `revision_scopes_design.md` (line 134 keeps both rules); the user decided on 17 November 2026 to follow the plan, and the design document is corrected accordingly.
+
+Commits, in order: casim `31caeaf` (step 1), `82ac0cc` (step 3) and baseline `2267134`, `1f91d9d` (step 4) and baseline `0536416`, ware `a5b95c9` and casim `07ea7fd` (step 5), ware `d5d7a46` (`TourView.picker` takes no part in equality: comparing the live picker made `check_progress` report a done tour as changed, `test_positioning_invariants`).
+
+| Step | Change | Expected | Found |
+|---|---|---|---|
+| 1 | `FlushRemainingOrders` deleted with the engine clause that let it bypass the conditions and its trigger entries in seven decisions | none | none: all 47 scenario configurations equal (no benchmark names the event) |
+| 2 | `ReconsiderReason.WAIT` keeps bypassing the conditions until Task 6.4 | none | no change made |
+| 3 | `NbrOrdersCondition` counts the work open to the decision: the order buffer and the orders of planned tours whose scope accepts `rebuild` (F67) | changes wherever a batch waits in a planned tour with an empty buffer | 231 of 888 runs differ (below) |
+| 4 | A due-date window applies after the stream's end; `casim check` rejects a window `by: due_date` unless the data card declares `due_date` on orders | differences only with a due-date window | only `henn__release_only` (below) |
+| 5 | The pickers of exposed started tours leave `snapshot.resources`; `TourView.picker` (ware) carries the picker and active-tour routing builds its router from it | none | none: all 15 configurations exposing started tours equal |
+
+**Step 3 in detail.** Rerun: every configuration with `NbrOrdersCondition`, i.e. the henn and stochastic scenario baselines, the 660 L2 journal runs and the 192 L3 runs (L1, walk-or-wait and the L2 working-paper cells do not use it).
+
+- Henn order window (14 of 15 configurations): before, the last orders of the stream (fewer than the window's 5) sat in a planned tour that the gate never released, so the run ended with orders unpicked: 57 of 60 (`37s-60-30-0`), 56 of 60 (`38s`, `39s`), 76 of 80 (`62s`, `63s`), 39 of 40 (`32s-40-75-0`). Every order is now completed; makespan rises by up to 13.3 % because that work is now done. The old records were `consistent`: no check reports orders still open at the end of a run (proposal below).
+- Henn waiting (2 of 15): makespan −0.05 % and −0.19 %.
+- L3 (116 of 192: every W1 and W2 run, W3 and W4 at depot 1 and partly 0, every centre-depot run of abc and ran): the same tours with the same distance, started earlier; the idle time before a planned tour disappears (e.g. `abc1__29s-40-30-0__centre`: idle 478 s → 0, makespan 24262 → 23784). Makespan −1.3 % on average, at most −4.6 %, never worse. The count of L3 runs below a best-known value (40 of 192 before) is not recomputed here; completion can only have fallen.
+- L2 journal SAV (99 of 480): makespan −1.4 % on average (−5.3 % to +0.3 %, one cell worse); FIRST (180) unchanged.
+- Stochastic scenarios: unchanged.
+
+**Step 4 in detail.** `henn__release_only` (`release_only_example`) used a window `by: due_date` on Henn orders, which have no due dates: it showed no order until the stream closed, and then every order. Henn's data card declares no `due_date`, so the window goes. The run now plans from the first arrival: makespan 38492 → 29016, idle time 11638 → 45 s, 20 → 24 tours. It becomes `inconsistent` with 53 overlap findings: a planned draft keeps the times it was created with, while the projection of Task 4.14 moves the committed tours ahead of it when one runs late (first at 1843.75: draft 6 at 2699.75–3635.75 overlaps tour 4, projected to 1843.75–3149.75). Drafts are in no queue since Task 4.14, so nothing moves them; no other run creates drafts that outlive a delay.
+
+Baseline comparison, full tier at the end of the task, on the slim set (`863c8db`) after the two speedups (`c02434e`, ware `c7950f4`): 60 runs in about 3 minutes; decisions, committed tours and KPIs equal in all of them. Three differ in audit counts only: `W1_100__wsrp_input_pedido_01_000__0` and `W2_100__wsrp_input_pedido_02_000__0` become `consistent`, because their epsilon overlaps existed only between two events of one timestamp, and `henn__release_only` keeps its draft overlaps with another count (re-recorded in `7a7f096`). Tests: casim 121 passed with the baseline test deselected by default (`1d431c7`); `test_l2_first_selection` now checks the FIRST rule on the 4 recorded FIRST runs instead of 480; ware 99 passed.
+
+Open for the user:
+
+1. Draft times after a delay (step 4): either project a resource's planned drafts after its queue, as the committed tours, or leave planned drafts out of `check_plan`'s overlap check, since a draft reserves nothing. Until then `henn__release_only` stays `inconsistent` for this reason.
+2. Orders open at the end of a run: the audit has no terminal check, so runs that strand orders were recorded as `consistent` (step 3). I propose a terminal invariant: at the end of the run every order is completed or reported as open.
 
 ## Task 4.14 report
 
