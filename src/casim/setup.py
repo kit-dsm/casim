@@ -11,7 +11,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
 from ware_ops_algos.planning.decision_features import decision_features
-from ware_ops_algos.planning.lifecycle import Accepts
+from ware_ops_algos.planning.lifecycle import Accepts, TimeAttribute
 
 from casim.config.schema import DecisionConfig, DecisionDefinitions, PeriodicTrigger
 from casim.decision_engine.commitment_policies import CommitmentPolicy
@@ -78,6 +78,11 @@ def resolve(cfg: DictConfig, data_card) -> dict[str, DecisionSetup]:
     mapper = DomainAlgorithmMapper(TAXONOMY)
     for name, raw in cfg.decisions.items():
         model = definitions.decisions[name]
+        window = model.state_information.window
+        if (window is not None and window.by is TimeAttribute.DUE_DATE
+                and not data_card.orders.get("features", {}).get("due_date")):
+            raise ValueError(f"{name}: a window by due_date needs the data card to "
+                             f"declare due_date on orders")
         features = decision_features(model.state_information, model.scope)
         stages = variant(model.problem_class, features)
         if (model.solver is not None and not (

@@ -13,9 +13,6 @@ planning:
     - idle
     - reserved
     - busy
-    window:
-      by: due_date
-      horizon_s: 3600
   scope:
     freeze_from: scheduled
     frozen_accepts: none

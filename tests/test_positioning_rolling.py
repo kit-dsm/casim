@@ -93,9 +93,10 @@ def test_due_window_keeps_overdue_and_opens_without_arrival(tmp_path):
     assert len(adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.order_buffer) == 1
     sim.state.current_time = 6000
     assert len(adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.order_buffer) == 1
+    # The window still applies once the stream is closed (Task 4.15).
     order.due_date = 100000
     sim.state.done_flag = True
-    assert len(adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.order_buffer) == 1
+    assert adapter.transform_state(sim.state, "rolling", "OBRSP").dynamic_warehouse_info.plan.order_buffer == ()
 
 
 def test_solver_free_decision_releases_existing_draft(tmp_path):

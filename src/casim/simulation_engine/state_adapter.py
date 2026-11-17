@@ -49,7 +49,7 @@ class StateAdapter:
                  if tour.status in info.tours]
         if info.window is not None:
             end = now + info.window.horizon_s
-            if info.window.by is TimeAttribute.DUE_DATE and not state.done_flag:
+            if info.window.by is TimeAttribute.DUE_DATE:
                 buffered = [order for order in buffered
                             if order.due_date is not None and order.due_date <= end]
                 pick_lists = [batch for batch in pick_lists
