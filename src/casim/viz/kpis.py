@@ -42,12 +42,6 @@ def active_tour_for_picker(snap, picker_id: int):
     return snap["tours"].get(tour_id)
 
 
-def active_picklist_order_ids(snap, picker_id: int) -> list[int]:
-    """Order ids currently being picked by this picker."""
-    tour = active_tour_for_picker(snap, picker_id)
-    return list(tour["order_ids"]) if tour else []
-
-
 def order_status(snap, order_id: int) -> str:
     """Derived status label for one order at this snapshot."""
     if order_id in snap["buffered_order_ids"]:

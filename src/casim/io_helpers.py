@@ -1,7 +1,6 @@
-import json
 import pickle
 from pathlib import Path
-from typing import Any, Type
+from typing import Any
 
 
 def load_pickle(
@@ -23,22 +22,3 @@ def dump_pickle(
         pickle.dump(data, f)
 
 
-def load_json(
-        path: str,
-        mode: str = "r"
-
-) -> dict:
-    with open(path, mode) as f:
-        return json.load(f)
-
-
-def dump_json(
-        path: str,
-        data: dict,
-        encoder_cls: Type[json.JSONEncoder] | None = None,
-        mode: str = "w",
-        indent: int = 4
-
-) -> None:
-    with open(path, mode) as f:
-        json.dump(data, f, cls=encoder_cls, indent=indent)

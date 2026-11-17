@@ -22,7 +22,6 @@ from ware_ops_algos.algorithms import (
     RoutingSolution,
     ItemAssignment, Scheduler, build_jobs)
 from ware_ops_algos.domain_algo_mapper.domain_algo_mapper import DomainAlgorithmMapper
-from ware_ops_algos.algorithms.order_splitting.order_splitting import OrderSplitting
 from ware_ops_algos.domain_models import (
     Articles,
     Resources,
@@ -156,19 +155,6 @@ class OrdersProvider(AbstractOrderProvider):
         orders_domain: OrdersDomain = load_pickle(self.input()["instance"]["orders"].path)
         dump_pickle(self.output()["orders"].path, orders_domain)
 
-
-class OrderSplitter(AbstractOrderProvider):
-    def _get_order_splitter(self) -> OrderSplitting:
-        ...
-
-    def run(self):
-        order_splitter = self._get_order_splitter()
-        orders_domain: OrdersDomain = load_pickle(self.input()["instance"]["orders"].path)
-        orders = orders_domain.orders
-
-        solution = order_splitter.solve(orders)
-        orders_domain.orders = solution.orders
-        dump_pickle(self.output()["orders"].path, orders_domain)
 
 # ─────────────────────────── Item Assignment ────────────────────────────────
 
@@ -598,7 +584,6 @@ class PlanCandidateEndpoint(BaseComponent):
         return [
             lambda vs: algorithm_applicability_constraint(vs, cls._data_card, cls._models),
             lambda vs: batching_loader_constraint(vs, TAXONOMY, cls._data_card, PickListProvider),
-            lambda vs: orders_provider_constraint(vs, TAXONOMY, cls._data_card, OrdersProvider),
             lambda vs: check_unique(vs, [PlanCandidateEndpoint]),
         ]
 
@@ -647,16 +632,6 @@ def batching_loader_constraint(vs, subproblems, data_card: DataCard, exclusive, 
     problem = data_card.problem_class
     problems = subproblems[problem]["variables"]
     if "batching" in problems and exclusive in classes:
-        print(f"Not valid, {exclusive} in {classes}")
-        return False
-    return True
-
-
-def orders_provider_constraint(vs, subproblems, data_card: DataCard, exclusive, get_classes=None):
-    classes = get_classes(vs) if get_classes else [pc.__class__ for pc in traverse_pipeline(vs.values())]
-    problem = data_card.problem_class
-    problems = subproblems[problem]["variables"]
-    if "order_splitting" in problems and exclusive in classes:
         print(f"Not valid, {exclusive} in {classes}")
         return False
     return True

@@ -47,13 +47,6 @@ def load_bundle(viz_dir: Path):
         static = pickle.load(f)
     return events, static
 
-def picker_pos(p):
-    loc = p.current_location
-    if hasattr(loc, "position"):
-        loc = loc.position
-    return loc[0], loc[1]
-
-
 def build_figure(layout, storage, first_snapshot, colors):
     G = layout.layout_network.graph
     pos = nx.get_node_attributes(G, "pos")

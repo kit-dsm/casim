@@ -8,8 +8,6 @@ TAXONOMY = {
             "endpoint": "ResultAggregationRouting"},
     "OBP": {"variables": ["item_assignment", "batching"],
             "endpoint": "ResultAggregationBatching"},
-    "OSBP": {"variables": ["order_splitting", "item_assignment", "batching"],
-             "endpoint": "ResultAggregationBatching"},
     "BSRP": {"variables": ["batching", "routing"]},
     "OBRSP": {"variables": [
         "item_assignment", "batching", "routing", "scheduling",
