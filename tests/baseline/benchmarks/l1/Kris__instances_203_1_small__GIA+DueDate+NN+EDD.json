@@ -2,9 +2,9 @@
   "instance_set": "Kris",
   "instance": "instances_203_1_small",
   "pipeline": "GIA+DueDate+NN+EDD",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=kris source.instance_set=KrisSmallDataCorrected source.instance='instances_203_1' cosy_repo='GIA+DueDate+NN+EDD' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 86298.0,
     "mean_order_completion_time": 60964.0,
@@ -18,7 +18,18 @@
       "0": 21666.0,
       "1": 15230.0
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 0.0,
+      "1": 25908.0
+    },
+    "busy_time_by_picker": {
+      "0": 86298.0,
+      "1": 60390.0
+    },
+    "absent_time_by_picker": {
+      "0": 0.0,
+      "1": 0.0
+    },
     "total_distance": 36896.0,
     "total_delayed": 0,
     "dock_utilization": {
@@ -89,25 +100,18 @@
       "end": 85146.0
     }
   ],
-  "trace_digest": "d81d34e895dd7ff12c5a52945edbaae9544ecb1f4d9a557a89b2d869bcedea86",
-  "event_count": 499,
+  "trace_digest": "02d63913de8dc817f44bce18dde85c32e32312527f0cf3d9dde7c66fc3d3ff36",
+  "event_count": 498,
   "violations": {
-    "check_plan": {
-      "overlap": 125
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "TourStart",
-        "time": 31266.0,
-        "tour_id": 5,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

@@ -2,9 +2,9 @@
   "instance_set": "HennWaescher",
   "instance": "10l-40-45-15_cb",
   "pipeline": "GIA+SavingsSShape+SShape",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full # HennWaescher/10l-40-45-15_cb/GIA+SavingsSShape+SShape",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=henn_waescher source.instance_set=HennWaescherClassBased source.instance='10l-40-45-15' cosy_repo='GIA+SavingsSShape+SShape' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 5664.0,
     "mean_order_completion_time": 3294.65,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 5664.0
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 5664.0
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 5664.0,
     "total_delayed": 0,
     "dock_utilization": {
@@ -197,15 +205,17 @@
       "end": 5664.0
     }
   ],
-  "trace_digest": "bf46f34c09c47ba31c7d7c77439a33dcf12f888adb46d8a4c6a50c693eec8dba",
-  "event_count": 10858,
+  "trace_digest": "ca94064710527ed3642ae4791f7d337bb932770b3b11553d3a4ef1b59c97f7bb",
+  "event_count": 10846,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

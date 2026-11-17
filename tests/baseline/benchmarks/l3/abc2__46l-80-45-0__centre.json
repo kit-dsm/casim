@@ -16,7 +16,13 @@
       "0": 12610.5
     },
     "idle_time_by_picker": {
-      "0": 5934.375
+      "0": 534.375
+    },
+    "busy_time_by_picker": {
+      "0": 32203.124999999996
+    },
+    "absent_time_by_picker": {
+      "0": 56.719
     },
     "total_distance": 12610.5,
     "total_delayed": 0,
@@ -60,8 +66,8 @@
   "decisions": {
     "OBRSP": 111
   },
-  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
-  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -392,25 +398,18 @@
       "end": 32822.344
     }
   ],
-  "trace_digest": "d3c6bda79cde298970095da593af80eb1148de3f896386c7e844da74eb31224b",
-  "event_count": 24891,
+  "trace_digest": "a76ae488fd388046305b05d8d3d78ff3f33796cf69f31e8c1cd3bb5691b52e06",
+  "event_count": 24862,
   "violations": {
-    "check_plan": {
-      "overlap": 36
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "decision:OBRSP",
-        "time": 878.594,
-        "tour_id": 2,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

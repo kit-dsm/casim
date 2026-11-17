@@ -1,14 +1,14 @@
 {
   "name": "walk__no_intervention_largest_gap",
-  "scenario": "scenario_walk_or_wait",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment decisions=paper_no_intervention routing=largest_gap viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_walk_or_wait\\config walk_or_wait_config decisions=paper_no_intervention routing=largest_gap --json",
+  "scenario": "walk_or_wait",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\walk_or_wait decisions=paper_no_intervention cosy_repo=wait_1_largest_gap --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\walk_or_wait decisions=paper_no_intervention cosy_repo=wait_1_largest_gap --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 125.0,
     "mean_order_completion_time": 77.83333333333333,
@@ -22,6 +22,12 @@
       "0": 118.0
     },
     "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 125.0
+    },
+    "absent_time_by_picker": {
       "0": 0.0
     },
     "total_distance": 118.0,
@@ -70,15 +76,17 @@
       "end": 125.0
     }
   ],
-  "trace_digest": "b4badbe9d9a2ecba1dbd431850107d9eed48629b8a2967e914e5fce64758758a",
-  "event_count": 283,
+  "trace_digest": "a91d3bdd5061b2fdd89bea3c5b43bed237d244e672d2e246ed7e1da75f7d1cd9",
+  "event_count": 282,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

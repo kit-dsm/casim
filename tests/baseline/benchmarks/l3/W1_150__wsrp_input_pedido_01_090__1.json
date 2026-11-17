@@ -2,7 +2,7 @@
   "instance": "wsrp_input_pedido_01_090",
   "stratum": "W1/150",
   "depot": "1",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # W1/150/wsrp_input_pedido_01_090 depot=1",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp variants=albareda source.filepath=albareda/W1/150/wsrp_input_pedido_01_090.txt --audit",
   "kpis": {
     "makespan": 28705.909651249996,
     "mean_order_completion_time": 9101.204614233327,
@@ -16,7 +16,13 @@
       "0": 11401.86106499952
     },
     "idle_time_by_picker": {
-      "0": 9143.333319999909
+      "0": 143.3333199999106
+    },
+    "busy_time_by_picker": {
+      "0": 28532.326331250086
+    },
+    "absent_time_by_picker": {
+      "0": 30.25
     },
     "total_distance": 11401.86106499952,
     "total_delayed": 0,
@@ -80,8 +86,8 @@
   "decisions": {
     "OBRSP": 201
   },
-  "casim_commit": "7cc47cc25ef8a0092cebc305dff622b32aafbfe1",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -642,25 +648,18 @@
       "end": 28710.3888175
     }
   ],
-  "trace_digest": "f0542f58a57fdea7d571d1e42a6c994a13b55262f3bd7cf45ca4cfb9abc19f9f",
-  "event_count": 8396,
+  "trace_digest": "f964a2ae164d13556ff8e685203a848dc381f0b5c83cfdfb344116c72b0d0ab8",
+  "event_count": 8347,
   "violations": {
-    "check_plan": {
-      "overlap": 94
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "decision:OBRSP",
-        "time": 470.97916624999976,
-        "tour_id": 2,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

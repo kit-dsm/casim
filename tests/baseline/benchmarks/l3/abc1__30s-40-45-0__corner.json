@@ -16,7 +16,13 @@
       "0": 6992.0
     },
     "idle_time_by_picker": {
-      "0": 2700.0
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 17200.0
+    },
+    "absent_time_by_picker": {
+      "0": 113.437
     },
     "total_distance": 6992.0,
     "total_delayed": 0,
@@ -45,8 +51,8 @@
   "decisions": {
     "OBRSP": 56
   },
-  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
-  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -217,15 +223,17 @@
       "end": 17313.436999999998
     }
   ],
-  "trace_digest": "cc257b2185408043eb773aa096c0a9564c454b6b5b163aca3bac91e5b146a91c",
-  "event_count": 13222,
+  "trace_digest": "505dc2a812e5acb54e5bf54d5cd2c6091686e96afda7734e09bcc4839c34d632",
+  "event_count": 13208,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

@@ -2,7 +2,7 @@
   "instance": "wsrp_input_pedido_03_030",
   "stratum": "W3/250",
   "depot": "0",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # W3/250/wsrp_input_pedido_03_030 depot=0",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp variants=albareda source.filepath=albareda/W3/250/wsrp_input_pedido_03_030.txt --audit",
   "kpis": {
     "makespan": 87012.525,
     "mean_order_completion_time": 39966.745672,
@@ -16,7 +16,13 @@
       "0": 37443.5
     },
     "idle_time_by_picker": {
-      "0": 4500.0
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 86994.375
+    },
+    "absent_time_by_picker": {
+      "0": 18.15
     },
     "total_distance": 37443.5,
     "total_delayed": 0,
@@ -55,8 +61,8 @@
   "decisions": {
     "OBRSP": 276
   },
-  "casim_commit": "7cc47cc25ef8a0092cebc305dff622b32aafbfe1",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -517,15 +523,17 @@
       "end": 87012.525
     }
   ],
-  "trace_digest": "1887f5567b49f021d66b8e2ca5e95f81ceaca8f116073580a1ee2ac04e5553ca",
-  "event_count": 32539,
+  "trace_digest": "9feb505924139e47ddc06f90aec3b64fd53af5ac14d75878c5049d7e896a6510",
+  "event_count": 32515,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

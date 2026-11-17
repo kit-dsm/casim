@@ -2,9 +2,9 @@
   "instance_set": "BahceciOencan",
   "instance": "Pr_28_4_07_Store4_03",
   "pipeline": "GIA+LSBatchingSShapeFiFoOrderNr+SShape",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full # BahceciOencan/Pr_28_4_07_Store4_03/GIA+LSBatchingSShapeFiFoOrderNr+SShape",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=bahceci_oencan source.instance_set=BahceciOencan source.instance='Pr_28_4_07_Store4_03' cosy_repo='GIA+LSBatchingSShapeFiFoOrderNr+SShape' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 361.9999999999998,
     "mean_order_completion_time": 235.29999999999995,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 361.9999999999997
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 5.684341886080802e-14
+    },
+    "busy_time_by_picker": {
+      "0": 361.9999999999997
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 361.9999999999997,
     "total_delayed": 0,
     "dock_utilization": {
@@ -75,25 +83,18 @@
       "end": 361.99999999999994
     }
   ],
-  "trace_digest": "986b7896b0c4ce6f06d67f8f971eda39ff1b90a1ec84fad5188cb1904741899d",
-  "event_count": 581,
+  "trace_digest": "f8c123bfa0e798ca24db2d58655db7cfe254dbbf766e78909a30869860c12770",
+  "event_count": 579,
   "violations": {
-    "check_plan": {
-      "overlap": 395
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "TourStart",
-        "time": 107.20000000000005,
-        "tour_id": 3,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

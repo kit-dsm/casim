@@ -2,7 +2,7 @@
   "instance": "wsrp_input_pedido_02_000",
   "stratum": "W2/200",
   "depot": "0",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # W2/200/wsrp_input_pedido_02_000 depot=0",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp variants=albareda source.filepath=albareda/W2/200/wsrp_input_pedido_02_000.txt --audit",
   "kpis": {
     "makespan": 37581.0205249996,
     "mean_order_completion_time": 13301.7189207247,
@@ -16,7 +16,13 @@
       "0": 12814.666820000703
     },
     "idle_time_by_picker": {
-      "0": 9760.000000000076
+      "0": 40.00000000007276
+    },
+    "busy_time_by_picker": {
+      "0": 37518.33352499953
+    },
+    "absent_time_by_picker": {
+      "0": 22.687
     },
     "total_distance": 12814.666820000703,
     "total_delayed": 0,
@@ -84,8 +90,8 @@
   "decisions": {
     "OBRSP": 255
   },
-  "casim_commit": "b519ecb431a5186764ab3d4f9ba8ad2f5c974ec1",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -728,24 +734,26 @@
       "end": 37581.020524999556
     }
   ],
-  "trace_digest": "17c511e92b24bf14970c9c6754ac177beee9d8798203131d7532e4d0a040f12c",
-  "event_count": 22304,
+  "trace_digest": "267fddcafcfa45442e67f359e9ab7f513d230126505028426288174bb3622c89",
+  "event_count": 22251,
   "violations": {
     "check_plan": {
-      "overlap": 6561
+      "overlap": 6502
     },
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {
       "overlap": {
-        "at": "decision:OBRSP",
-        "time": 314.35366749999986,
-        "tour_id": 2,
+        "at": "TourEnd",
+        "time": 971.0203375000029,
+        "tour_id": 3,
         "message": "Picker 0 has overlapping tours"
       }
     },
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "inconsistent"

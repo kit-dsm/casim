@@ -2,8 +2,8 @@
   "name": "journal__U__90__45__SShape__FIRST__11__conditioned",
   "stream_closure": "announced_at_480",
   "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_first source.storage=U source.n_orders=90 source.capacity=45 source.replication=11 source.arrival_mode=conditioned --audit",
-  "casim_commit": "80dbbc7c474cd7ca5c04ded9dde3333ad384f178",
-  "ware_ops_algos_commit": "b6505164346413afee48da04f04b3d6d3bc1a9eb",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 47833.232886087004,
     "mean_order_completion_time": 11506.906449181968,
@@ -17,7 +17,13 @@
       "0": 21240.0
     },
     "idle_time_by_picker": {
-      "0": 7020.0
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 47520.0
+    },
+    "absent_time_by_picker": {
+      "0": 313.232886087
     },
     "total_distance": 21240.0,
     "total_delayed": 0,
@@ -482,15 +488,17 @@
       "end": 47833.232886087004
     }
   ],
-  "trace_digest": "5d32a05ba4fb61a186ca02b5ccc46193af0099bca4ec182206f6c174cdf35ab2",
-  "event_count": 40597,
+  "trace_digest": "e6234440bb3fc92c8b959849c3e1b2bad9e692e5ac8af0d566283fb230751bae",
+  "event_count": 40559,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

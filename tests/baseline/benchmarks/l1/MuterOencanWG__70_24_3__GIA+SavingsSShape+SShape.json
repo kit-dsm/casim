@@ -2,9 +2,9 @@
   "instance_set": "MuterOencanWG",
   "instance": "70_24_3",
   "pipeline": "GIA+SavingsSShape+SShape",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=muter_oencan source.instance_set=MuterOencanWG source.instance='70_24_3' cosy_repo='GIA+SavingsSShape+SShape' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 2409.4000000000137,
     "mean_order_completion_time": 1458.8457142857196,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 2409.4000000000115
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 1.9326762412674725e-12
+    },
+    "busy_time_by_picker": {
+      "0": 2409.400000000012
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 2409.4000000000115,
     "total_delayed": 0,
     "dock_utilization": {
@@ -272,25 +280,18 @@
       "end": 2409.4
     }
   ],
-  "trace_digest": "0d7df02347b7efaa8e2ad2a81e9e63528a0ac6d59d6389d6f080529d529a946b",
-  "event_count": 4824,
+  "trace_digest": "6f2f2dd5030572ae4083af7ed8085c3877565478f817aea425f0bfb694ca45a8",
+  "event_count": 4807,
   "violations": {
-    "check_plan": {
-      "overlap": 6814
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "TourStart",
-        "time": 139.20000000000005,
-        "tour_id": 3,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

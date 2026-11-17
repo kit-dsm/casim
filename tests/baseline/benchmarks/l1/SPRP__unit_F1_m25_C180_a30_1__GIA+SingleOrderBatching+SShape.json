@@ -2,9 +2,9 @@
   "instance_set": "SPRP",
   "instance": "unit_F1_m25_C180_a30_1",
   "pipeline": "GIA+SingleOrderBatching+SShape",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full # SPRP/unit_F1_m25_C180_a30_1/GIA+SingleOrderBatching+SShape",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=sprp source.instance_set=SPRP source.instance='unit_F1_m25_C180_a30_1' cosy_repo='GIA+SingleOrderBatching+SShape' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 3022.0,
     "mean_order_completion_time": 3022.0,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 3022.0
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 3022.0
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 3022.0,
     "total_delayed": 0,
     "dock_utilization": {
@@ -41,15 +49,17 @@
       "end": 3022.0
     }
   ],
-  "trace_digest": "92726a2ebf902e9d30da0460e3ab7e924de479388345b48b044ffdcfea6d65c1",
-  "event_count": 5867,
+  "trace_digest": "24eb4f291e0a07c9b10fd66f5026867c27114d1a71d3fcb6b713f763eae2017c",
+  "event_count": 5868,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

@@ -2,9 +2,9 @@
   "instance_set": "Foodmart",
   "instance": "d5_ord10",
   "pipeline": "GIA+LSOrdNrNN+NN",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=foodmart source.instance_set=FoodmartData source.instance='instances_d5_ord10_MAL' cosy_repo='GIA+LSOrdNrNN+NN' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 629.32,
     "mean_order_completion_time": 465.058,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 629.32
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 629.32
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 629.32,
     "total_delayed": 0,
     "dock_utilization": {
@@ -59,15 +67,17 @@
       "end": 629.3199999999999
     }
   ],
-  "trace_digest": "f6370a704c85fefb5f8b35a673c3d5e937a9d740a826d1ae7068beb30a246687",
+  "trace_digest": "5c44ece226066675d51e047cecc55fc8dcb8b32925b20905607da1e2d37abeed",
   "event_count": 679,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

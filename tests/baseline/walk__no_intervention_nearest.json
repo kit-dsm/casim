@@ -1,14 +1,14 @@
 {
   "name": "walk__no_intervention_nearest",
-  "scenario": "scenario_walk_or_wait",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment decisions=paper_no_intervention policy=wait_2 routing=nearest_neighbour viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_walk_or_wait\\config walk_or_wait_config decisions=paper_no_intervention policy=wait_2 routing=nearest_neighbour --json",
+  "scenario": "walk_or_wait",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\walk_or_wait decisions=paper_no_intervention cosy_repo=wait_2_nearest_neighbour --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\walk_or_wait decisions=paper_no_intervention cosy_repo=wait_2_nearest_neighbour --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 114.0,
     "mean_order_completion_time": 79.5,
@@ -22,6 +22,12 @@
       "0": 106.0
     },
     "idle_time_by_picker": {
+      "0": 1.0
+    },
+    "busy_time_by_picker": {
+      "0": 113.0
+    },
+    "absent_time_by_picker": {
       "0": 0.0
     },
     "total_distance": 106.0,
@@ -61,15 +67,17 @@
       "end": 114.0
     }
   ],
-  "trace_digest": "181d11615bd2d7871011d6098ae61323e129d49483b2ad7585cd7a4cd016fb84",
+  "trace_digest": "005a887da018b382850d752987f1c3a6df682de51480c95c9a262655473d88dd",
   "event_count": 253,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

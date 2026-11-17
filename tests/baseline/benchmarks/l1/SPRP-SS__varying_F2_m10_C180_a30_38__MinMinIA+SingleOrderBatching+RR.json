@@ -2,9 +2,9 @@
   "instance_set": "SPRP-SS",
   "instance": "varying_F2_m10_C180_a30_38",
   "pipeline": "MinMinIA+SingleOrderBatching+RR",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full # SPRP-SS/varying_F2_m10_C180_a30_38/MinMinIA+SingleOrderBatching+RR",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=sprp_ss source.instance_set=SPRP-SS source.instance='varying_F2_m10_C180_a30_38' cosy_repo='MinMinIA+SingleOrderBatching+RR' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 1238.0,
     "mean_order_completion_time": 1238.0,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 1238.0
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 1238.0
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 1238.0,
     "total_delayed": 0,
     "dock_utilization": {
@@ -41,15 +49,17 @@
       "end": 1238.0
     }
   ],
-  "trace_digest": "f75a5d48a5574bb4c2f566e648e3e2d02f477652b1ffb592fca65d71c9930d01",
-  "event_count": 2540,
+  "trace_digest": "13b556170f844f037d7dc302c118939ec7a13162a399f3900399b5fdd1513fa0",
+  "event_count": 2541,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

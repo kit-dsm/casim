@@ -1,14 +1,14 @@
 {
   "name": "henn__31s-40-60-0__henn_waiting",
-  "scenario": "scenario_henn_online",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_henn_online.experiment_henn data_card.source.filepath=31s-40-60-0.txt decisions=henn_waiting viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_henn_online\\config henn_online_config data_card.source.filepath=31s-40-60-0.txt decisions=henn_waiting --json",
+  "scenario": "henn_waiting",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn_waiting source.filepath=31s-40-60-0.txt decisions=henn_waiting --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\henn_waiting source.filepath=31s-40-60-0.txt decisions=henn_waiting --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 16827.874,
     "mean_order_completion_time": 5680.151125,
@@ -22,7 +22,13 @@
       "0": 7271.0
     },
     "idle_time_by_picker": {
-      "0": 2880.0
+      "0": 113.43700000000003
+    },
+    "busy_time_by_picker": {
+      "0": 16601.0
+    },
+    "absent_time_by_picker": {
+      "0": 113.437
     },
     "total_distance": 7271.0,
     "total_delayed": 0,
@@ -230,15 +236,17 @@
       "end": 16827.874
     }
   ],
-  "trace_digest": "7b2045e3c6f3cd1bd0d8b537f0372565a02b9da78569fb651205cfd75edb70f6",
-  "event_count": 13676,
+  "trace_digest": "31c917535c680db977e69427b3eb9bef6044ebcc0705cb6614abad0f548313ed",
+  "event_count": 13661,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

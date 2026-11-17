@@ -2,7 +2,7 @@
   "instance": "wsrp_input_pedido_02_060",
   "stratum": "W2/250",
   "depot": "1",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # W2/250/wsrp_input_pedido_02_060 depot=1",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp variants=albareda source.filepath=albareda/W2/250/wsrp_input_pedido_02_060.txt --audit",
   "kpis": {
     "makespan": 46893.35857749952,
     "mean_order_completion_time": 17591.340798789635,
@@ -16,7 +16,13 @@
       "0": 15096.166862001548
     },
     "idle_time_by_picker": {
-      "0": 13294.999999999987
+      "0": 1054.9999999999873
+    },
+    "busy_time_by_picker": {
+      "0": 45820.208577499536
+    },
+    "absent_time_by_picker": {
+      "0": 18.15
     },
     "total_distance": 15096.166862001548,
     "total_delayed": 0,
@@ -98,8 +104,8 @@
   "decisions": {
     "OBRSP": 319
   },
-  "casim_commit": "7cc47cc25ef8a0092cebc305dff622b32aafbfe1",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -904,25 +910,18 @@
       "end": 46915.858577499515
     }
   ],
-  "trace_digest": "696b49506dc4cd6aa032e340805d03e5a4aa75389760f112fd12e0c2e591a044",
-  "event_count": 28791,
+  "trace_digest": "5f3092eb08e0d06c30f02c5fb626104fe4a3c71bb756a2907fce283be1c03c9a",
+  "event_count": 28724,
   "violations": {
-    "check_plan": {
-      "overlap": 156
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "decision:OBRSP",
-        "time": 475.65000249999986,
-        "tour_id": 2,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

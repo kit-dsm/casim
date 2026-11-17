@@ -2,9 +2,9 @@
   "instance_set": "MuterOencanWG",
   "instance": "50_24_8",
   "pipeline": "GIA+SavingsSShape+SShape",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=muter_oencan source.instance_set=MuterOencanWG source.instance='50_24_8' cosy_repo='GIA+SavingsSShape+SShape' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 1578.2000000000055,
     "mean_order_completion_time": 1028.824000000002,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 1578.2000000000032
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 2.0463630789890885e-12
+    },
+    "busy_time_by_picker": {
+      "0": 1578.2000000000035
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 1578.2000000000032,
     "total_delayed": 0,
     "dock_utilization": {
@@ -189,25 +197,18 @@
       "end": 1578.2000000000003
     }
   ],
-  "trace_digest": "0be6f2adf9875155f1380a3b863fab09bde76048b8e057a7d8a90e4752cee874",
-  "event_count": 3194,
+  "trace_digest": "8bf707f61a40fa6a51d969361b25c6b8304eb1e46ac0bf7d655fe6defbc3daea",
+  "event_count": 3184,
   "violations": {
-    "check_plan": {
-      "overlap": 3617
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "TourStart",
-        "time": 139.20000000000005,
-        "tour_id": 3,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

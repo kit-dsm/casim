@@ -2,7 +2,7 @@
   "instance": "wsrp_input_pedido_04_090",
   "stratum": "W4/150",
   "depot": "1",
-  "command": "python -m scenarios.scenario_oobp.run_l3 full # W4/150/wsrp_input_pedido_04_090 depot=1",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\oobp variants=albareda source.filepath=albareda/W4/150/wsrp_input_pedido_04_090.txt --audit",
   "kpis": {
     "makespan": 139171.5,
     "mean_order_completion_time": 65255.739373333345,
@@ -16,7 +16,13 @@
       "0": 70987.5
     },
     "idle_time_by_picker": {
-      "0": 22156.875
+      "0": 5596.875
+    },
+    "busy_time_by_picker": {
+      "0": 133544.375
+    },
+    "absent_time_by_picker": {
+      "0": 30.25
     },
     "total_distance": 70987.5,
     "total_delayed": 0,
@@ -122,8 +128,8 @@
   "decisions": {
     "OBRSP": 243
   },
-  "casim_commit": "7cc47cc25ef8a0092cebc305dff622b32aafbfe1",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "committed_tours": [
     {
       "tour_id": 1,
@@ -1020,25 +1026,18 @@
       "end": 139255.875
     }
   ],
-  "trace_digest": "76fb2bcc930458fed4a8aaa14db38290e841841b39da10c9ce24da141522c9f3",
-  "event_count": 30554,
+  "trace_digest": "f9399e27c6679cdc1295edb9ea2af92c128e4bd96bf8d14291565d47e6957b5f",
+  "event_count": 30463,
   "violations": {
-    "check_plan": {
-      "overlap": 53
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "decision:OBRSP",
-        "time": 657.125,
-        "tour_id": 2,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

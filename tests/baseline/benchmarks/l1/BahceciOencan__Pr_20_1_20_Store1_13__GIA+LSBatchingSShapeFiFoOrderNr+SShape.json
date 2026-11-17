@@ -2,9 +2,9 @@
   "instance_set": "BahceciOencan",
   "instance": "Pr_20_1_20_Store1_13",
   "pipeline": "GIA+LSBatchingSShapeFiFoOrderNr+SShape",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full # BahceciOencan/Pr_20_1_20_Store1_13/GIA+LSBatchingSShapeFiFoOrderNr+SShape",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=bahceci_oencan source.instance_set=BahceciOencan source.instance='Pr_20_1_20_Store1_13' cosy_repo='GIA+LSBatchingSShapeFiFoOrderNr+SShape' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 131.20000000000005,
     "mean_order_completion_time": 131.20000000000005,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 131.20000000000005
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 131.20000000000005
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 131.20000000000005,
     "total_delayed": 0,
     "dock_utilization": {
@@ -48,15 +56,17 @@
       "end": 131.20000000000002
     }
   ],
-  "trace_digest": "6747229c3aa973605a05a5bb3b15a52f2870d6df08d4fe945a074c59b3839fca",
-  "event_count": 274,
+  "trace_digest": "7be69cd2bc6b69c9a8c58b97fdf9982e1372aca569e83a019273c84a3f0f63e5",
+  "event_count": 275,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

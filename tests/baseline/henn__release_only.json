@@ -1,14 +1,14 @@
 {
   "name": "henn__release_only",
-  "scenario": "scenario_henn_online",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_henn_online.experiment_henn decisions=release_only_example viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_henn_online\\config henn_online_config decisions=release_only_example --json",
+  "scenario": "henn_waiting",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn_waiting decisions=release_only_example --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\henn_waiting decisions=release_only_example --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 38491.592000000004,
     "mean_order_completion_time": 20379.644200000002,
@@ -21,7 +21,15 @@
     "distance_by_picker": {
       "0": 9298.0
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 11638.217
+    },
+    "busy_time_by_picker": {
+      "0": 26808.000000000004
+    },
+    "absent_time_by_picker": {
+      "0": 45.375
+    },
     "total_distance": 9298.0,
     "total_delayed": 0,
     "dock_utilization": {
@@ -316,15 +324,17 @@
       "end": 38491.592000000004
     }
   ],
-  "trace_digest": "7892dab320d322343b2b7a91bbb0b6fb6f0c706b2556ea554aec053ad25976a6",
-  "event_count": 19573,
+  "trace_digest": "ddecd3eb8e37a629ed506ad0e080553db746c8b608438317a06c16987a80c9c9",
+  "event_count": 19574,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

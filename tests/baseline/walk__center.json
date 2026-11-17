@@ -1,14 +1,14 @@
 {
   "name": "walk__center",
-  "scenario": "scenario_walk_or_wait",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment policy=center simulation=explicit_wait0 cosy_repo=paper_center insertion_repo=center viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_walk_or_wait\\config walk_or_wait_config policy=center simulation=explicit_wait0 cosy_repo=paper_center insertion_repo=center --json",
+  "scenario": "walk_or_wait",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\walk_or_wait cosy_repo=paper_center decisions=paper_intervention_center variants=explicit_wait0 --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\walk_or_wait cosy_repo=paper_center decisions=paper_intervention_center variants=explicit_wait0 --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 91.0,
     "mean_order_completion_time": 58.333333333333336,
@@ -22,6 +22,12 @@
       "0": 88.0
     },
     "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 91.0
+    },
+    "absent_time_by_picker": {
       "0": 0.0
     },
     "total_distance": 88.0,
@@ -57,15 +63,17 @@
       "end": 91.0
     }
   ],
-  "trace_digest": "bd5c21b4a50b300b201db61e4db9b4301e862dcdbe1e54d4ec2147db24834abb",
+  "trace_digest": "dc9b39383cbe9614e9e8f054315a3dd08801a46cd900c341ccd4881a51757cc8",
   "event_count": 210,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

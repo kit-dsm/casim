@@ -2,9 +2,9 @@
   "instance_set": "Kris",
   "instance": "instances_198_1_large",
   "pipeline": "GIA+DueDate+NN+EDD",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=kris source.instance_set=KrisLargeData source.instance='instances_198_1' cosy_repo='GIA+DueDate+NN+EDD' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 105728.0,
     "mean_order_completion_time": 57170.28,
@@ -23,7 +23,33 @@
       "5": 77452.0,
       "6": 79526.0
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 6466.0,
+      "1": 5100.0,
+      "2": 0.0,
+      "3": 8586.0,
+      "4": 4282.0,
+      "5": 3076.0,
+      "6": 2502.0
+    },
+    "busy_time_by_picker": {
+      "0": 99262.0,
+      "1": 100628.0,
+      "2": 105728.0,
+      "3": 97142.0,
+      "4": 101446.0,
+      "5": 102652.0,
+      "6": 103226.0
+    },
+    "absent_time_by_picker": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0,
+      "5": 0.0,
+      "6": 0.0
+    },
     "total_distance": 546584.0,
     "total_delayed": 3,
     "dock_utilization": {
@@ -632,15 +658,17 @@
       "end": 101446.0
     }
   ],
-  "trace_digest": "b71ae6a14ade477f3380ffaa0ddfd5a8ebde1b0114e1c6736831bfaedb1dbd94",
-  "event_count": 29245,
+  "trace_digest": "209d68e1025298b5e8dc8eaea7e6c7f31210c68fbc7f03c718691e2409c77bc1",
+  "event_count": 29204,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

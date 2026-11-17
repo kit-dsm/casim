@@ -1,14 +1,14 @@
 {
   "name": "walk__wait_3",
-  "scenario": "scenario_walk_or_wait",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment policy=wait_3 simulation=explicit_example viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_walk_or_wait\\config walk_or_wait_config policy=wait_3 simulation=explicit_example --json",
+  "scenario": "walk_or_wait",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\walk_or_wait cosy_repo=wait_3 --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\walk_or_wait cosy_repo=wait_3 --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 137.0,
     "mean_order_completion_time": 92.5,
@@ -22,6 +22,12 @@
       "0": 128.0
     },
     "idle_time_by_picker": {
+      "0": 2.0
+    },
+    "busy_time_by_picker": {
+      "0": 135.0
+    },
+    "absent_time_by_picker": {
       "0": 0.0
     },
     "total_distance": 128.0,
@@ -61,15 +67,17 @@
       "end": 137.0
     }
   ],
-  "trace_digest": "fd9ddf098421936dea67e4b121107d620fe6d71202af2f5038a8ecf2c268f0df",
+  "trace_digest": "2bfef1a5f3105516a547a74f1eaadf1bab127889b515aa249556b50e22e52d99",
   "event_count": 312,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

@@ -2,9 +2,9 @@
   "instance_set": "Kris",
   "instance": "instances_180_1_large",
   "pipeline": "GIA+DueDate+NN+EDD",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=kris source.instance_set=KrisLargeData source.instance='instances_180_1' cosy_repo='GIA+DueDate+NN+EDD' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 135480.0,
     "mean_order_completion_time": 74299.78,
@@ -22,7 +22,30 @@
       "4": 101348.0,
       "5": 98590.0
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 20286.0,
+      "1": 20780.0,
+      "2": 7400.0,
+      "3": 0.0,
+      "4": 9332.0,
+      "5": 15290.0
+    },
+    "busy_time_by_picker": {
+      "0": 115194.0,
+      "1": 114700.0,
+      "2": 128080.0,
+      "3": 135480.0,
+      "4": 126148.0,
+      "5": 120190.0
+    },
+    "absent_time_by_picker": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0,
+      "5": 0.0
+    },
     "total_distance": 601092.0,
     "total_delayed": 48,
     "dock_utilization": {
@@ -433,15 +456,17 @@
       "end": 128080.0
     }
   ],
-  "trace_digest": "a757278278f4fa53a3e656da8628449ebad77819535f66109953fe02b776d5a2",
-  "event_count": 24808,
+  "trace_digest": "fd7f55910635ec9a740cac49f27e92b3b64d88c9a2b4c507f734b37fd212da5f",
+  "event_count": 24787,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

@@ -2,9 +2,9 @@
   "instance_set": "MuterOencanWG",
   "instance": "100_48_9",
   "pipeline": "GIA+SavingsSShape+SShape",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full # MuterOencanWG/100_48_9/GIA+SavingsSShape+SShape",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=muter_oencan source.instance_set=MuterOencanWG source.instance='100_48_9' cosy_repo='GIA+SavingsSShape+SShape' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 1854.200000000008,
     "mean_order_completion_time": 1116.7220000000025,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 1854.200000000006
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 2.2737367544323206e-12
+    },
+    "busy_time_by_picker": {
+      "0": 1854.2000000000057
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 1854.200000000006,
     "total_delayed": 0,
     "dock_utilization": {
@@ -248,25 +256,18 @@
       "end": 1854.2000000000005
     }
   ],
-  "trace_digest": "dff869912835ad37b30261bf05a90754762a72d361ab35b17ad2c8c6a7accde4",
-  "event_count": 4599,
+  "trace_digest": "7a3a158505d3235275f90eba30dc9e15972649a9c267de47c0b2aafdd5fa29a9",
+  "event_count": 4588,
   "violations": {
-    "check_plan": {
-      "overlap": 5458
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "TourStart",
-        "time": 163.20000000000007,
-        "tour_id": 3,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

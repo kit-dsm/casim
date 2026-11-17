@@ -2,9 +2,9 @@
   "instance_set": "MuterOencanWG",
   "instance": "50_48_0",
   "pipeline": "GIA+SavingsSShape+SShape",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=muter_oencan source.instance_set=MuterOencanWG source.instance='50_48_0' cosy_repo='GIA+SavingsSShape+SShape' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 1077.600000000001,
     "mean_order_completion_time": 675.4800000000005,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 1077.5999999999992
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 1.8758328224066645e-12
+    },
+    "busy_time_by_picker": {
+      "0": 1077.599999999999
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 1077.5999999999992,
     "total_delayed": 0,
     "dock_utilization": {
@@ -144,25 +152,18 @@
       "end": 1077.6000000000001
     }
   ],
-  "trace_digest": "e3b9a6c376ed0d76ab46d42b7316bc708e91d552919de785b2f60895442926b0",
-  "event_count": 2574,
+  "trace_digest": "352aad84390c6b9d502df1acf3f8f4ce63947add2fd6a1a9fe7019ac6c3fc2b5",
+  "event_count": 2569,
   "violations": {
-    "check_plan": {
-      "overlap": 2131
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "TourStart",
-        "time": 163.20000000000007,
-        "tour_id": 3,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

@@ -1,9 +1,9 @@
 {
   "name": "journal__C__30__75__SShape__FIRST__8__conditioned",
   "stream_closure": "announced_at_480",
-  "command": "C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_first source.storage=C source.n_orders=30 source.capacity=75 source.replication=8 source.arrival_mode=conditioned --audit",
-  "casim_commit": "7e91422018101ded585e65c982555d45199964f9",
-  "ware_ops_algos_commit": "9d1ec4fdb58ce63e7d9dc7776193bbf30431c8ba",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn2012 decisions=l2_journal cosy_repo=journal_sshape_first source.storage=C source.n_orders=30 source.capacity=75 source.replication=8 source.arrival_mode=conditioned --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 29476.105535508,
     "mean_order_completion_time": 1516.9990277087338,
@@ -17,7 +17,13 @@
       "0": 7216.0
     },
     "idle_time_by_picker": {
-      "0": 12942.282275534999
+      "0": 9522.282275534999
+    },
+    "busy_time_by_picker": {
+      "0": 17560.0
+    },
+    "absent_time_by_picker": {
+      "0": 2393.823259973
     },
     "total_distance": 7216.0,
     "total_delayed": 0,
@@ -242,15 +248,17 @@
       "end": 29476.105535508
     }
   ],
-  "trace_digest": "197eb4ab75be0f1a5839c83eddfb4dec8d1aaf55f12ea74f503e5b38d5dc2fc8",
-  "event_count": 13496,
+  "trace_digest": "f129bc840658d3c49506ef56193046c33037e37dbe11f3a5d8ca09112bacd219",
+  "event_count": 13478,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

@@ -2,9 +2,9 @@
   "instance_set": "MuterOencanWG",
   "instance": "40_24_2",
   "pipeline": "GIA+SavingsSShape+SShape",
-  "command": "python -m scenarios.scenario_static_benchmarks.run_benchmark full # MuterOencanWG/40_24_2/GIA+SavingsSShape+SShape",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\casop_static data_card=muter_oencan source.instance_set=MuterOencanWG source.instance='40_24_2' cosy_repo='GIA+SavingsSShape+SShape' --audit",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 1523.8000000000047,
     "mean_order_completion_time": 888.3200000000012,
@@ -17,7 +17,15 @@
     "distance_by_picker": {
       "0": 1523.800000000003
     },
-    "idle_time_by_picker": {},
+    "idle_time_by_picker": {
+      "0": 1.7621459846850485e-12
+    },
+    "busy_time_by_picker": {
+      "0": 1523.800000000003
+    },
+    "absent_time_by_picker": {
+      "0": 0.0
+    },
     "total_distance": 1523.800000000003,
     "total_delayed": 0,
     "dock_utilization": {
@@ -179,25 +187,18 @@
       "end": 1523.8
     }
   ],
-  "trace_digest": "33ef51e0ed2db53a9a2179f77978d5489733123d7fb4f3abb885abae22fddcc1",
-  "event_count": 3024,
+  "trace_digest": "fffdeca25e1fa93a493a58ba3c3fe04a4fc03b978f90585460e2a8f34ab17d6e",
+  "event_count": 3014,
   "violations": {
-    "check_plan": {
-      "overlap": 3084
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "TourStart",
-        "time": 139.20000000000007,
-        "tour_id": 3,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
-    "check_progress": {}
+    "check_plan": {},
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

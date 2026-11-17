@@ -1,14 +1,14 @@
 {
   "name": "walk__patrol",
-  "scenario": "scenario_walk_or_wait",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment policy=wait_0 simulation=explicit_wait0 cosy_repo=paper_patrol viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_walk_or_wait\\config walk_or_wait_config policy=wait_0 simulation=explicit_wait0 cosy_repo=paper_patrol --json",
+  "scenario": "walk_or_wait",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\walk_or_wait cosy_repo=paper_patrol variants=explicit_wait0 --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\walk_or_wait cosy_repo=paper_patrol variants=explicit_wait0 --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 87.0,
     "mean_order_completion_time": 54.333333333333336,
@@ -22,6 +22,12 @@
       "0": 84.0
     },
     "idle_time_by_picker": {
+      "0": 0.0
+    },
+    "busy_time_by_picker": {
+      "0": 87.0
+    },
+    "absent_time_by_picker": {
       "0": 0.0
     },
     "total_distance": 84.0,
@@ -57,15 +63,17 @@
       "end": 87.0
     }
   ],
-  "trace_digest": "4afee6080636ef8bb7bd09c041d098c07844f1264a0514824e93067e972f217b",
+  "trace_digest": "80d8cbdbf331a51a04cca4553e2f759a468494806d18d78e681335341f06e297",
   "event_count": 202,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

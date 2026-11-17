@@ -1,14 +1,14 @@
 {
   "name": "henn__repair",
-  "scenario": "scenario_henn_online",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_henn_online.experiment_henn cosy_repo=repair_waiting_henn +decisions.OBRSP.change_penalty=10 viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_henn_online\\config henn_online_config cosy_repo=repair_waiting_henn +decisions.OBRSP.change_penalty=10 --json",
+  "scenario": "henn_waiting",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\henn_waiting cosy_repo=repair_waiting_henn +decisions.OBRSP.change_penalty=10 --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\henn_waiting cosy_repo=repair_waiting_henn +decisions.OBRSP.change_penalty=10 --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 29969.75,
     "mean_order_completion_time": 11980.572200000002,
@@ -22,7 +22,13 @@
       "0": 11289.0
     },
     "idle_time_by_picker": {
-      "0": 4500.0
+      "0": 45.375
+    },
+    "busy_time_by_picker": {
+      "0": 29879.0
+    },
+    "absent_time_by_picker": {
+      "0": 45.375
     },
     "total_distance": 11289.0,
     "total_delayed": 0,
@@ -371,15 +377,17 @@
       "end": 29969.75
     }
   ],
-  "trace_digest": "8201e1a9f254ff2113d0ca9f7ae6cf3b068dd9e03b3da783d3f81e0b52216e33",
-  "event_count": 22610,
+  "trace_digest": "30547ce0f7d0b0a5671a8e6d9029140b86b5f56036960e0f9d43fb882ab168a1",
+  "event_count": 22586,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

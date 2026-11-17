@@ -1,14 +1,14 @@
 {
   "name": "walk__no_intervention_return",
-  "scenario": "scenario_walk_or_wait",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_walk_or_wait.experiment decisions=paper_no_intervention policy=wait_4 routing=return viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_walk_or_wait\\config walk_or_wait_config decisions=paper_no_intervention policy=wait_4 routing=return --json",
+  "scenario": "walk_or_wait",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\walk_or_wait decisions=paper_no_intervention cosy_repo=wait_4_return --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\walk_or_wait decisions=paper_no_intervention cosy_repo=wait_4_return --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 157.0,
     "mean_order_completion_time": 112.5,
@@ -22,6 +22,12 @@
       "0": 138.0
     },
     "idle_time_by_picker": {
+      "0": 12.0
+    },
+    "busy_time_by_picker": {
+      "0": 145.0
+    },
+    "absent_time_by_picker": {
       "0": 0.0
     },
     "total_distance": 138.0,
@@ -61,15 +67,17 @@
       "end": 157.0
     }
   ],
-  "trace_digest": "2aa66211d9cbaeec314cadb250638e46a4d63f34cb631b17214085a608e9c591",
+  "trace_digest": "d7df062853678476aad42753eef8b4fe64b59a6c3dc1aeb8366f20a3bb3a50da",
   "event_count": 307,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"

@@ -1,14 +1,14 @@
 {
   "name": "stochastic__analytic_waiting",
-  "scenario": "scenario_stochastic_waiting",
-  "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_stochastic_waiting.experiment_stochastic_waiting cosy_repo=analytic_waiting viz.launch=false +experiment.audit=true",
-  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\scenario_stochastic_waiting\\config stochastic_waiting_config cosy_repo=analytic_waiting --json",
+  "scenario": "analytic_waiting",
+  "command": ".venv\\Scripts\\python.exe -m casim run scenarios\\analytic_waiting cosy_repo=analytic_waiting --audit",
+  "check_command": ".venv\\Scripts\\python.exe -m casim check scenarios\\analytic_waiting cosy_repo=analytic_waiting --json",
   "check_exit": 0,
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "dc525286d308d227050c4b7cffb3850b0e3bd54b",
-  "ware_ops_algos_commit": "8b914193cb4f24885d52cb4b8ebb3f752ecaf648",
+  "casim_commit": "00ee83c586c8196edf68866437f1512de8c19e06",
+  "ware_ops_algos_commit": "dc8bec6cc89df85e78364fe3e27fd60450d585c9",
   "kpis": {
     "makespan": 87.08503484833503,
     "mean_order_completion_time": 54.835034848335034,
@@ -22,6 +22,12 @@
       "0": 76.0
     },
     "idle_time_by_picker": {
+      "0": 11.085034848335033
+    },
+    "busy_time_by_picker": {
+      "0": 76.0
+    },
+    "absent_time_by_picker": {
       "0": 0.0
     },
     "total_distance": 76.0,
@@ -59,15 +65,17 @@
       "end": 87.08503484833503
     }
   ],
-  "trace_digest": "652f168990d22096d43b4782dfd785d936dcb4d05ee2d64563af5d2bdf52bf22",
+  "trace_digest": "5f15cc9d261c19afcadddbb9d67672db04259ae323fdeaf8d9d87d15b61d3bc7",
   "event_count": 183,
   "violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "first_violations": {
     "check_plan": {},
-    "check_progress": {}
+    "check_progress": {},
+    "check_resources": {}
   },
   "kpi_differences": {},
   "status": "consistent"
