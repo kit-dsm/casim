@@ -1,5 +1,6 @@
 from ware_ops_algos.algorithms import Route, RouteNode, NodeType, WarehouseOrder, BatchObject, ScheduledJob
 from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Dock
+from ware_ops_algos.planning.lifecycle import TourStates
 
 from .order_manager import OrderManager
 from .resource_manager import ResourceManager
@@ -125,15 +126,23 @@ class State:
         time the resource becomes free (now, the planned end of its current
         tour, or the end of its absence), every later tour at the later of its
         earliest start and its predecessor's planned end; each keeps its
-        planned duration. The projection never reorders the queue. For a
-        resource absent without a known return the times stay as they are.
+        planned duration. The projection never reorders the queue. The
+        resource's planned drafts follow its queue in planned start order, by
+        the same rule, so a decision that reads their times sees times the
+        resource can keep. For a resource absent without a known return the
+        times stay as they are.
         """
         free_at = self.resource_manager.free_at(
             picker_id, self.current_time, self.tour_manager)
         if free_at is None:
             return
-        for tour_id in self.tour_manager.queue(picker_id):
-            tour = self.tour_manager.get_tour(tour_id)
+        drafts = sorted((tour for tour in self.tour_manager.get_all_tours()
+                         if tour.status is TourStates.PLANNED
+                         and tour.assigned_resource == picker_id
+                         and tour.planned_start is not None),
+                        key=lambda tour: (tour.planned_start, tour.tour_id))
+        for tour in (*map(self.tour_manager.get_tour, self.tour_manager.queue(picker_id)),
+                     *drafts):
             duration = tour.planned_end - tour.planned_start
             start = (free_at if tour.earliest_start is None
                      else max(free_at, tour.earliest_start))

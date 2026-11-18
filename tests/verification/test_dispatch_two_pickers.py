@@ -224,3 +224,21 @@ def test_tour_that_overruns_its_forecast_is_projected_when_it_ends(sim):
     assert second.status is TourStates.STARTED and second.actual_start == sim.d
     sim.run_until(3 * sim.d)
     assert sim.findings == []
+
+
+def test_a_draft_moves_behind_a_tour_that_ends_late(sim):
+    # A draft keeps no reservation, but its times follow the resource's queue:
+    # when the running tour ends late, the draft is projected after it.
+    planned = sim.d - 10
+    first = sim.commit(0, 0, start=0, end=planned, processing=planned)
+    job = Job(-1, sim.d, 0, float("inf"), 0, route=sim.route, batch=sim.route.batch)
+    before = set(sim.state.tour_manager.all_tours)
+    sim.decide(0, CreateTour(ScheduledJob(job=job, picker_id=0, start_time=planned,
+                                          end_time=planned + sim.d), earliest_start=planned))
+    (draft_id,) = set(sim.state.tour_manager.all_tours) - before
+    draft = sim.state.tour_manager.get_tour(draft_id)
+    assert draft.status is TourStates.PLANNED and draft.planned_start == planned
+    sim.run_until(sim.d)
+    assert first.status is TourStates.DONE
+    assert (draft.planned_start, draft.planned_end) == (sim.d, 2 * sim.d)
+    assert sim.findings == []
