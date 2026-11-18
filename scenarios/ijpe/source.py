@@ -16,6 +16,7 @@ from collections.abc import Iterator
 from hashlib import sha256
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from casim.domain_objects.sim_domain import SimWarehouseDomain
@@ -25,6 +26,8 @@ from casim.sources.recorded import RecordedReplay, RecordedRow, TimeModel
 from casim.sources.wms_export import day_lines
 
 
+STUDY_DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15",
+              "2026-04-16", "2026-04-17")
 DEPARTURE_HOURS = (10, 12, 14, 16)
 STAGING_MINUTES = 30
 
@@ -42,7 +45,12 @@ class ScenarioSource:
                  interleaving: bool = True, breaks: list | None = None,
                  origin_mode: str = "depot", setup_in_gap: bool = False,
                  sequence_clock: str = "start", presence: str = "shift",
-                 due_plan: str | None = None, stops_in_tours: bool = False):
+                 due_plan: str | None = None, stops_in_tours: bool = False,
+                 absence: str = "recorded", absence_seed: int = 0):
+        """``absence=stochastic`` draws the absences from a model fitted on the
+        other study days (``casim.sources.absence``), with ``absence_seed``."""
+        if absence not in ("recorded", "stochastic"):
+            raise ValueError(f"unknown IJPE absence: {absence}")
         if due_plan not in (None, "fixed_dispatch"):
             raise ValueError(f"unknown IJPE due plan: {due_plan}")
         self.due_plan = due_plan
@@ -69,6 +77,25 @@ class ScenarioSource:
             setup_in_gap=setup_in_gap, sequence_clock=sequence_clock, presence=presence,
             stops_in_tours=stops_in_tours)
         self._domain: SimWarehouseDomain | None = None
+        if absence == "stochastic":
+            if pause_threshold_s is None or breaks is not None:
+                raise ValueError("stochastic absences need a chained run without breaks")
+            from casim.sources.absence import AbsenceModel, recorded_absences, windows
+            settings = dict(shift_start_s=shift_start_s, pause_threshold_s=pause_threshold_s,
+                            speed=speed, time_per_pick=time_per_pick,
+                            tour_setup_time=tour_setup_time, per_unit_s=per_unit_s,
+                            interleaving=interleaving, origin_mode=origin_mode,
+                            setup_in_gap=setup_in_gap, sequence_clock=sequence_clock,
+                            presence=presence, stops_in_tours=stops_in_tours)
+            fit_days = []
+            for other in STUDY_DAYS:
+                if other == str(day):
+                    continue
+                replay = ScenarioSource(data_dir, day=other, **settings).replay
+                fit_days.append((windows(replay), recorded_absences(replay)))
+            model = AbsenceModel.fit(fit_days)
+            rng = np.random.default_rng([int(absence_seed), int(pd.Timestamp(day).strftime("%Y%m%d"))])
+            self.replay.absences = model.draw(windows(self.replay), rng)
 
     def initial_state(self) -> SimWarehouseDomain:
         self._domain = self.replay.domain()

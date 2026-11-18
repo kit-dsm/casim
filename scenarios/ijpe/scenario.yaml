@@ -23,6 +23,8 @@ source:
   origin_mode: depot           # diagnostics: first_pick or aisle_head; WMS origin unknown
   setup_in_gap: false          # diagnostic: setup before the first WMS line of a tour
   stops_in_tours: false        # chained: stops inside a tour over the threshold are pauses
+  absence: recorded            # stochastic: absences drawn from a model fitted on the other days
+  absence_seed: 0              # replication seed of the stochastic absences
   breaks: null                 # [[start_s, end_s], ...] replaces the recorded pauses
   presence: shift              # recorded: arrive at the first tour, leave after the last line
   due_plan: null                # fixed_dispatch: synthetic store slot minus 30 min staging

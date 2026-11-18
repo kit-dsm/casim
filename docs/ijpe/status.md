@@ -2,6 +2,35 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: Fitted absences for the experiments
+
+**Decision.** The paper validates in two steps: trace-driven (recorded
+decisions and absences, isolating the time model) and distribution-driven
+(fitted absences). The experiments use the second: the roster stays an
+input, absences during the shift are drawn from a model fitted on the other
+days, with replications and common seeds across policies.
+
+**Done.** `source.absence=stochastic` with `source.absence_seed`
+(`casim/sources/absence.py`; the recorded source takes given absences;
+tests in `tests/verification/test_ijpe_absence.py`): a Poisson process of
+absence requests per picker with a rate per clock hour, and durations drawn
+from recorded absences near the same clock time. Validation with 30
+replications per day (`scripts/ijpe/absence_validation.py`).
+
+**Result.** With FIFO assignment the fitted absences reproduce the six days
+as well as the recorded ones: orders by 12:00 1,041 (90 % band 980 to
+1,075) against 1,031 in the WMS, open work as in the trace-driven run. At
+10:00 both runs are 6 to 8 % ahead. Single days with an unusual absence
+level (Monday, Friday) are not reproduced. With recorded assignment the
+fitted absences do not fit, because the recorded work plan is matched to each
+picker's own absences; that combination is not used. Details in
+`docs/ijpe/validation.md`.
+
+**For the user.** Ask the use-case partner what pickers do when not picking
+(the peaks around 08:00 and 12:00 look like scheduled breaks or other tasks).
+If they are scheduled breaks, the model can take them as fixed and keep the
+rest random, and the paper can explain the 35 % instead of only measuring it.
+
 ## 2026-11-18: Stops inside tours; the calibrated day
 
 **Found.** On the calibrated day after C7, pickers still finished about an

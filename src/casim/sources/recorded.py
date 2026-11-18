@@ -138,10 +138,13 @@ class RecordedReplay:
                  breaks: Sequence[tuple[float, float]] | None = None,
                  origin_mode: str = "depot", setup_in_gap: bool = False,
                  sequence_clock: str = "start", presence: str = "shift",
-                 stops_in_tours: bool = False):
+                 stops_in_tours: bool = False,
+                 absences: Sequence[tuple[int, float, float]] | None = None):
         """Build a replay; ``sequence_clock=end`` tests confirmation-time order.
 
-        ``breaks`` replaces recorded pauses by fixed breaks for all pickers.
+        ``breaks`` replaces recorded pauses by fixed breaks for all pickers;
+        ``absences`` (picker, request time, duration) replaces them by given
+        absences, for example drawn from a fitted model; both run chained.
         Tour membership remains inferred from start-time order in either mode.
         """
         self.rows = list(rows)
@@ -150,6 +153,8 @@ class RecordedReplay:
         self.shift_start_s = float(shift_start_s)
         self.pause_threshold_s = pause_threshold_s
         self.breaks = None if breaks is None else [(float(a), float(b)) for a, b in breaks]
+        self.absences = None if absences is None else [
+            (int(p), float(t), float(d)) for p, t, d in absences]
         if origin_mode not in {"depot", "first_pick", "aisle_head"}:
             raise ValueError(f"unknown recorded tour origin mode: {origin_mode}")
         self.origin_mode = origin_mode
@@ -168,7 +173,8 @@ class RecordedReplay:
         self.summary = ReplaySummary(tours=len(self.tours))
 
     def plan(self) -> RecordedPickingPlan:
-        anchored = self.pause_threshold_s is None and self.breaks is None
+        anchored = (self.pause_threshold_s is None and self.breaks is None
+                    and self.absences is None)
         seen_pickers: set[int] = set()
         planned = []
         for index, (picker, lines) in enumerate(self.tours):
@@ -243,6 +249,9 @@ class RecordedReplay:
         if self.breaks is not None:
             return [PickerDeparture(time=start, picker_id=picker, duration=end - start)
                     for start, end in self.breaks for picker in self.pickers]
+        if self.absences is not None:
+            return [PickerDeparture(time=time, picker_id=picker, duration=duration)
+                    for picker, time, duration in self.absences]
         if self.pause_threshold_s is None:
             return []  # anchored: the plan holds each tour until its recorded start
         pauses = []

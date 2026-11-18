@@ -112,6 +112,52 @@ Three runs, all after C7 (departures in request order), 18 November:
   longest, so it leaves more work open at the end (141 orders) than the
   recorded assignment.
 
+## Fitted absences (distribution-driven validation)
+
+The calibrated day takes every absence from the record. The experiments
+cannot: they need absences that are modelled, not replayed. The roster (when
+each picker arrives and leaves) stays an input, as a planner knows it; the
+absences during the shift come from a model (`source.absence=stochastic`,
+`casim/sources/absence.py`):
+
+- the recorded absences are 35 % of a picker's time between first and last
+  line (28 to 44 % by day), about 1.7 per working hour, with peaks around
+  08:00 and 12:00 (32 and 38 minutes per present picker-hour against about
+  15 between 09:00 and 11:00); durations depend on the hour (median 23
+  minutes around 08:00, 39 around 12:00, 5 after 13:00);
+- requests follow a Poisson process per picker over its rostered window,
+  with a rate per clock hour (recorded absences per present picker-hour);
+  durations are drawn from recorded absences that started within 30 minutes
+  of the request (wider if fewer than 20). As recorded absences, they begin
+  when the running tour ends;
+- each day is fitted on the other five days; the draws depend only on seed,
+  day and roster, so all policies of a replication see the same absences.
+
+Drawn and recorded absences agree in total (220 h against 229 h over six
+days, mean of ten seeds) and by clock hour. Thirty replications per day,
+all with the calibrated time model (`scripts/ijpe/absence_validation.py`):
+
+| Assignment | Orders by 10:00, six days | Orders by 12:00, six days | Open orders | WMS inside the 90 % band at 12:00 |
+|---|---:|---:|---:|---:|
+| WMS | 626 | 1,031 | 0 | |
+| FIFO, recorded absences (trace-driven) | 663 | 1,032 | 141 | |
+| FIFO, fitted absences, mean (90 % band) | 676 (640 to 704) | 1,041 (980 to 1,075) | 135 (102 to 175) | 4 of 6 days |
+| Recorded assignment, fitted absences | 654 (617 to 692) | 977 (922 to 1,014) | 159 (117 to 199) | 3 of 6 days |
+
+- With FIFO assignment, the base of the experiments, the fitted absences
+  reproduce the six days as well as the recorded ones: orders by 12:00
+  within 1 % and the same open work. Both are ahead at 10:00 (+37 and +50
+  orders, 6 to 8 %); this comes from the time model and FIFO, not from the
+  absences.
+- Single days are not reproduced where their absence level is far from the
+  average day: Monday had 51 h of absence (about 39 h drawn) and runs ahead,
+  Friday is a short day with a different pattern. A model fitted on other
+  days reproduces the average day, and the paper says so.
+- Recorded assignment with fitted absences does not fit (too slow by
+  midday, more open work): the recorded work plan gave each picker the work
+  it managed given its own absences, which random absences do not respect.
+  It is not used.
+
 ## How the calibration was found (diagnostics, before C7)
 
 The runs below each change one assumption, with the submitted 19 s per line
@@ -212,7 +258,11 @@ limit is not used to reproduce the WMS.
 - Not validated: the end of the day, individual picker finish times (RMSE
   an hour) and busy shares.
 
+- With fitted absences and FIFO assignment, the six-day throughput by
+  12:00 within 1 % of the WMS (90 % band of 30 replications contains it).
+
 Disruption and policy results are therefore reported as comparisons between
-policies on the same calibrated day (`variants=calibrated`), measured on
-throughput and on-time completion up to midday, not as predicted
-picker-level effects in this warehouse.
+policies on the calibrated day with fitted absences and the recorded roster
+(`variants=calibrated source.absence=stochastic`, replications with common
+seeds across policies), measured on throughput and on-time completion up to
+midday, not as predicted picker-level effects in this warehouse.

@@ -42,7 +42,9 @@ What the source emits for a day (P1.1):
   vanish. With `source.stops_in_tours`, a stop inside a tour over the same
   threshold (a gap between lines, or a line's excess over 19 s) is a timed
   absence too, beginning when the tour ends; otherwise stops inside a tour
-  are not modelled. The sweep
+  are not modelled. With `source.absence=stochastic` the absences are drawn
+  instead from a model fitted on the other study days (`casim.sources.absence`;
+  replication seed `source.absence_seed`); the roster stays recorded. The sweep
   `days_thresholds` compares 2, 5 and 10 minutes. The selected threshold is
   5 minutes; `variants/recorded_presence.yaml` uses it. In
   anchored runs (`source.pause_threshold_s=null`, the default) there are no
