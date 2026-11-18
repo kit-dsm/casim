@@ -92,6 +92,12 @@ class OrderManager:
     def get_order_buffer(self) -> list[Order]:
         return list(self._order_buffer.values())
 
+    def known_orders(self) -> list[Order]:
+        """Every order that has arrived: buffered or taken from the buffer."""
+        return [*self._order_buffer.values(),
+                *(order for order_id, order in self._order_history.items()
+                  if order_id not in self._order_buffer)]
+
     def get_pick_list_buffer(self) -> list[BatchObject]:
         return list(self._pick_list_buffer)
 

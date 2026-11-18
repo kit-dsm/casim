@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
@@ -19,6 +20,14 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINES = ROOT / "tests" / "baseline"
 RUNS = ROOT / ".phaseb_runs"
 PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
+# Scenarios that run only where their data is placed (never in git); without
+# it their cases are skipped, not failed. Their baselines keep no data at
+# order, line or picker level: scalar KPIs, counts and digests only. They run
+# without --audit (checking every invariant after each of some 240,000 events
+# takes hours); the trace digest still covers every event.
+DATA_DEPENDENT = {"ijpe": ("scenarios/ijpe/data/layout.csv", "scenarios/ijpe/data/cache")}
+IJPE_DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16",
+             "2026-04-17")
 if not PYTHON.exists():
     PYTHON = Path(sys.executable)
 sys.path.insert(0, str(ROOT))
@@ -72,6 +81,9 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
     for repo in ("analytic_waiting", "henn_waiting", "no_waiting"):
         add(f"stochastic__{repo}", "analytic_waiting", stochastic,
             (f"cosy_repo={repo}",))
+
+    for day in IJPE_DAYS:
+        add(f"ijpe_replay__{day}", "ijpe", None, (f"source.day={day}",))
 
     ijpe = "scenarios.scenario_ijpe.scenario_grocery_retailer"
     for simulation in ("baseline", "scenario1", "scenario2", "scenario3",
@@ -131,9 +143,66 @@ def _check_once(definition, check: list[str]) -> tuple[int, str]:
         return _CHECKS[key]
 
 
+def has_data(scenario: str) -> bool:
+    return all((ROOT / path).exists() for path in DATA_DEPENDENT.get(scenario, ()))
+
+
+def _digest(value) -> str:
+    return sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+
+
+def _without_detail(result: dict) -> dict:
+    """A data-dependent case's result with scalars, counts and digests only."""
+    kpis = result["kpis"]
+    result["kpis"] = {key: (value if isinstance(value, (int, float)) or value is None
+                            else {"digest": _digest(value), "size": len(value)})
+                      for key, value in kpis.items()}
+    tours = result["committed_tours"]
+    result["committed_tours"] = [{"digest": _digest(tours), "count": len(tours)}]
+    result["first_violations"] = {"digest": _digest(result["first_violations"])}
+    result["kpi_differences"] = [{"digest": _digest(result["kpi_differences"]),
+                                  "count": len(result["kpi_differences"])}]
+    return result
+
+
+def _run_data_dependent(name: str, scenario: str, overrides: tuple[str, ...]) -> dict:
+    out_dir = RUNS / f"{name}-{uuid4().hex[:8]}"
+    directory = str(ROOT / "scenarios" / scenario)
+    check = [str(PYTHON), "-m", "casim", "check", directory, *overrides, "--json"]
+    command = [str(PYTHON), "-m", "casim", "run", directory, *overrides,
+               "--output-dir", str(out_dir)]
+    check_code, check_tail = _run(check)
+    run_code, run_tail = _run(command)
+    result = {"name": name, "scenario": scenario,
+              "command": _relative_command(["python", *command[1:-2]]),
+              "check_command": _relative_command(["python", *check[1:]]),
+              "check_exit": check_code, "check_output": "ok" if not check_code else "failed",
+              "run_exit": run_code, "run_output": "ok" if not run_code else "failed"}
+    trace_path = out_dir / "trace.json"
+    if run_code != 0 or not trace_path.exists():
+        result["status"] = "not_runnable"
+        return result
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    kpis = json.loads((out_dir / "kpis.json").read_text(encoding="utf-8"))
+    result.update({
+        "casim_commit": _run(["git", "rev-parse", "HEAD"])[1].strip(),
+        "kpis": kpis,
+        "decisions": json.loads((out_dir / "decisions.json").read_text(encoding="utf-8")),
+        "committed_tours": [], "trace_digest": trace["trace_digest"],
+        "event_count": trace["event_count"], "violations": {}, "first_violations": [],
+        "kpi_differences": [], "status": "consistent"})
+    # The run folder holds order- and line-level outputs of confidential data.
+    shutil.rmtree(out_dir, ignore_errors=True)
+    return _without_detail(result)
+
+
 def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
     """Check the case's sweep once and run the configuration; only a failed run keeps its outputs."""
     scenario, module, overrides = definition
+    if not has_data(scenario):
+        return {"name": name, "scenario": scenario, "status": "no_data"}
+    if scenario in DATA_DEPENDENT:
+        return _run_data_dependent(name, scenario, overrides)
     out_dir = RUNS / f"{name}-{uuid4().hex[:8]}"
     out_dir.mkdir(parents=True, exist_ok=True)
     capture = out_dir / "audit.json"
@@ -230,6 +299,9 @@ def record(selected: set[str] | None = None) -> list[dict]:
             continue
         print(f"record {name}", flush=True)
         result = run_case(name, definition)
+        if result["status"] == "no_data":
+            print("  skipped: data not present", flush=True)
+            continue
         inventory.append({key: result[key] for key in (
             "name", "scenario", "command", "check_command", "check_exit",
             "check_output", "run_exit", "run_output", "status")})
@@ -263,6 +335,9 @@ def compare(selected: set[str] | None = None) -> list[str]:
         print(f"compare {name}", flush=True)
         old = json.loads(path.read_text(encoding="utf-8"))
         new = run_case(name, definition)
+        if new["status"] == "no_data":
+            print("  skipped: data not present", flush=True)
+            continue
         differences = compare_recorded(old, new)
         for difference in differences:
             findings.append(f"{name}: {difference}")

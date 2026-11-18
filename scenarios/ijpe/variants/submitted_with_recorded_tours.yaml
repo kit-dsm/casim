@@ -1,0 +1,6 @@
+# @package _global_
+# R1.6, second order: submitted assumptions, but the recorded tours with interleaving.
+defaults:
+  - override /cosy_repo: recorded_ushape
+source:
+  breaks: [[28800.0, 30600.0], [39600.0, 41400.0]]

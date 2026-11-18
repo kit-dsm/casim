@@ -27,7 +27,7 @@ from ware_ops_algos.domain_models import (
     Articles,
     Resources,
     LayoutData,
-    DataCard, OrdersDomain,
+    DataCard, OrdersDomain, RecordedPickingPlan,
 )
 from ware_ops_algos.algorithms.algorithm_cards import AlgorithmCard
 
@@ -650,3 +650,13 @@ def algorithm_applicability_constraint(vs, data_card: DataCard, models, get_clas
                 if not mapper.filter([m], data_card):
                     return False
     return True
+
+
+# ─────────────────────────── Recorded plan ──────────────────────────────────
+
+def recorded_plan(component: BaseComponent):
+    """The recorded picking plan in the planner information of the instance."""
+    domain = load_pickle(component.input()["instance"]["domain"].path)
+    if domain.information is None:
+        raise ValueError("a recorded plan needs planner information 'recorded_plan'")
+    return domain.information.require("recorded_plan", RecordedPickingPlan)

@@ -10,12 +10,12 @@ Operations" (Winter Simulation Conference 2026).
 
 ## Setup
 
-CASIM needs `ware_ops_algos` cloned next to it, on the matching branch (currently
-`codex/revision-scopes`), and [uv](https://docs.astral.sh/uv/) (Python 3.13 is installed by uv).
+CASIM needs `ware_ops_algos` cloned next to it, on the matching branch (on this branch,
+`codex/ijpe-revision`), and [uv](https://docs.astral.sh/uv/) (Python 3.13 is installed by uv).
 
 ```bash
-git clone -b codex/revision-scopes https://github.com/kit-dsm/casim.git
-git clone -b codex/revision-scopes https://github.com/kit-dsm/ware_ops_algos.git
+git clone -b codex/ijpe-revision https://github.com/kit-dsm/casim.git
+git clone -b codex/ijpe-revision https://github.com/kit-dsm/ware_ops_algos.git
 cd casim
 uv sync --locked --extra dev
 ```

@@ -1,0 +1,63 @@
+{
+  "name": "ijpe_replay__2026-04-17",
+  "scenario": "ijpe",
+  "command": "python -m casim run scenarios\\ijpe source.day=2026-04-17",
+  "check_command": "python -m casim check scenarios\\ijpe source.day=2026-04-17 --json",
+  "check_exit": 0,
+  "check_output": "ok",
+  "run_exit": 0,
+  "run_output": "ok",
+  "casim_commit": "8659d4943aed4a2e13724cab26fdc3f7121c0205",
+  "kpis": {
+    "makespan": 55141.712055508106,
+    "mean_order_completion_time": 24599.5293437412,
+    "num_tours": 80,
+    "num_orders_completed": 81,
+    "avg_tour_makespan": 899.6820034693241,
+    "avg_batch_size": 1.0125,
+    "orders_per_hour": 5.288192715279903,
+    "tours_per_hour": 5.222906385461633,
+    "distance_by_picker": {
+      "digest": "f9225da58aa0d0ce05d949232ee9592a33dc0b9bf6aa36f633a512681e022438",
+      "size": 7
+    },
+    "idle_time_by_picker": {
+      "digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "size": 0
+    },
+    "total_distance": 42242600.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "digest": "4571cfa240ab04b74e5acd78a73bad432c1fbab479983a271863241fa4e9d884",
+      "size": 80
+    },
+    "total_tour_times": 71974.56027754593,
+    "picks_per_hour": 184.36859540679563,
+    "total_processing_time": 71974.56027754593
+  },
+  "decisions": {
+    "decisions": 1,
+    "pipeline_counts": {
+      "0:PlanCandidateEndpoint_SchedulingPlanCa_4287d82217_plan_candidate": 1
+    }
+  },
+  "committed_tours": [
+    {
+      "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "count": 0
+    }
+  ],
+  "trace_digest": "73354c2df44c23fe4b453447b80c2482a516b93f64caaafb5cf94daae125f8bf",
+  "event_count": 61713,
+  "violations": {},
+  "first_violations": {
+    "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "kpi_differences": [
+    {
+      "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "count": 0
+    }
+  ],
+  "status": "consistent"
+}

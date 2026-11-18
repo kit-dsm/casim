@@ -1,0 +1,23 @@
+# One decision when the orders are in: the recorded plan, committed at once, never revised.
+OBRSP:
+  problem_class: OBRSP
+  state_information:
+    orders: true
+    pick_lists: false
+    tours:
+    - planned
+    resources:
+    - idle
+    - reserved
+  scope:
+    freeze_from: pending
+    frozen_accepts: none
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    repo: ${cosy_repo}
+  commitment_policy:
+    _target_: casim.decision_engine.commitment_policies.CommitAllPolicy
+  triggers:
+  - OrderStreamClosed
+  conditions:
+  - _target_: casim.simulation_engine.conditions.NewInformationCondition

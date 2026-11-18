@@ -1,10 +1,10 @@
 from ware_ops_algos.algorithms import (
     EDDScheduling, ERDScheduling, LPTScheduling, SPTScheduling,
-    FIFOScheduling, SAVScheduling,
+    FIFOScheduling, RecordedScheduling, SAVScheduling,
 )
 from ware_ops_algos.algorithms.routing.routing import Routing
 
-from casim.pipelines.problem_based_template import AbstractScheduling, load_pickle
+from casim.pipelines.problem_based_template import AbstractScheduling, load_pickle, recorded_plan
 from casim.pipelines.subproblems.routers import build_router
 
 
@@ -56,3 +56,11 @@ class SAVScheduler(AbstractScheduling):
         router = build_router(self.routing_class, self._load_layout(), resources.resources)
         return SAVScheduling(resources, router=router,
                              available_from=available_from)
+
+
+class RecordedPlan(AbstractScheduling):
+    """Each tour to its recorded picker, in the recorded order."""
+
+    def _get_inited_scheduler(self, available_from: dict[int, float]):
+        return RecordedScheduling(self._load_resources(), plan=recorded_plan(self),
+                                  available_from=available_from)

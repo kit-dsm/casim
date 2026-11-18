@@ -1,12 +1,12 @@
 # Data audit of the IJPE case (Phase R0)
 
-Phase R0 of `docs/ijpe_revision_plan.md`: what the WMS export contains, before
+Phase R0 of `docs/ijpe/plan.md`: what the WMS export contains, before
 any of it is modelled. This document holds aggregates only. The tables are
 written by
 
 ```bash
-uv run --with openpyxl python -m scenarios.ijpe.analysis.export   # once: workbook -> parquet
-python -m scenarios.ijpe.analysis.audit                           # tables -> scenarios/ijpe/outputs/audit/
+uv run --with openpyxl python -m scripts.ijpe.convert   # once: workbook -> parquet
+python -m scripts.ijpe.audit                           # tables -> scenarios/ijpe/outputs/audit/
 ```
 
 and every number below is taken from that output (table names in brackets).
@@ -69,6 +69,26 @@ customer's orders of one day. The submitted model refers to casim `main`,
 11. **No departures in the export.** No column names a truck, route, tour or
     departure, and no store-to-truck relation can be derived. R3 needs the
     departure plan per store from the user (stop point of Section 9).
+
+## What the data says about splitting, batching and sequencing
+
+The model needs three WMS decisions per day: how a store's demand is split
+into orders, how orders are grouped into the tours of a picker (batching and
+assignment), and in which sequence a tour's lines are picked. The export
+records the outcome of each, line by line, but not the decision rules.
+
+| Decision | Columns that record it | Recoverable? |
+|---|---|---|
+| Split of a store's demand | KUNDENNR (store), NEU_DATUM / pick date, area, AUFTRAGSNR | Yes, the outcome: a store-day's orders are its zone orders, one per area in 97 % of multi-order store-days; their order numbers are mostly consecutive (median gap 1, fully consecutive in 62 %), so the WMS creates them together. The rule beyond "one order per zone and store-day" (for example a size limit: 56 orders cover all three areas) is not recorded. |
+| Batching and assignment | PERS_NR (picker), BEGINN_ZEIT / ENDE_ZEIT, PALNR | Only as inferred from times. There is no batch, wave, pick-list or tour column. LFDNR is a running line number across all orders (order ranges overlap in 99.6 %; it matches the time order within an order for 41 % of lines), not a batch key. PALNR is the load carrier: 2,757 of 2,760 pallets hold one order, so a picker carrying several orders carries several pallets. A recorded tour is therefore defined from the picker's timeline: lines in time order, cut where no order of the picker is open; overlapping orders (11 % of order time) form one tour. |
+| Sequence | AUFTRAGSPOS, Q_PLATZ, start times | Yes. The WMS numbers an order's positions along the walking path (position order equals location order for 99.5 % of lines), and pickers mostly follow it: 97 % of consecutive picks of an order are in non-decreasing position order, 35 % of orders exactly so. The replay uses the recorded time order. |
+
+Consequence for the model: the replay treats orders as split and batched
+upstream ("pre-batched"): it takes the store's zone orders as given and the
+recorded tours as the batching decision. Modelling the split is possible
+from the data in its outcome (one order per store-day and zone), but not its
+exceptions; modelling the batching would need a rule the export does not
+contain, and can only be calibrated against the inferred tours.
 
 ## R0.1 Inventory
 

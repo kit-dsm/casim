@@ -1,6 +1,7 @@
 from ware_ops_algos.algorithms import (
     Batching, ClarkAndWrightBatching, DueDateBatching, FifoBatching, FirstFitFifoBatching,
-    LocalSearchBatching, OrderNrFifoBatching, ShiftNeighborhood, SwapNeighborhood,
+    LocalSearchBatching, OrderNrFifoBatching, RecordedBatching, ShiftNeighborhood,
+    SwapNeighborhood,
 )
 from ware_ops_algos.algorithms.batching import IncumbentStartBatching
 from ware_ops_algos.algorithms.batching.moves import Neighborhood
@@ -9,7 +10,7 @@ from ware_ops_algos.algorithms.routing.routing import Routing
 from cosy_luigi import CoSyLuigiTaskParameter
 
 from casim.pipelines.problem_based_template import (
-    BatchingNode, IncumbentProvider, load_pickle,
+    BatchingNode, IncumbentProvider, load_pickle, recorded_plan,
 )
 from casim.pipelines.subproblems.routers import build_router, router_arguments
 
@@ -109,3 +110,11 @@ class ConfiguredClarkAndWrightNode(ConfiguredBatchingNode):
             routing_class_kwargs=self._routing_kwargs(),
             time_limit=self.pipeline_params.runtime,
         )
+
+
+class RecordedTours(BatchingNode):
+    """The tours of the recorded picking plan, one batch each."""
+
+    def _get_inited_batcher(self):
+        return RecordedBatching(pick_cart=self._get_resources().resources[0].pick_cart,
+                                articles=self._get_articles(), plan=recorded_plan(self))

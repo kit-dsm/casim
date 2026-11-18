@@ -1,0 +1,4 @@
+# @package _global_
+# Every tour starts no earlier than its recorded start (through the plan); no breaks.
+source:
+  pause_threshold_s: null

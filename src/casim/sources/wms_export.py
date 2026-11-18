@@ -1,12 +1,11 @@
-"""Read the WMS export of the IJPE case (docs/ijpe/plan.md, Phase R0).
+"""Read the order-picking export of a WMS (the IJPE case, docs/ijpe/plan.md).
 
-The export is confidential and lives in ``scenarios/ijpe/data/`` (ignored by
-git). Reading the workbook needs ``openpyxl``, which is not a casim
-dependency; ``convert`` therefore caches its sheets as parquet once:
-
-    uv run --with openpyxl python -m scenarios.ijpe.analysis.export
-
-Everything else reads the parquet cache.
+The export is one workbook: a sheet of picked lines, the warehouse's pivot of
+transport units per day, and its lists of disruption orders. Its content is
+described in docs/ijpe/data_audit.md; the data is confidential and never in
+git. Reading the workbook needs ``openpyxl``, which is not a casim
+dependency, so ``convert`` caches the sheets as parquet once
+(``scripts/ijpe/convert.py``); everything else reads the cache.
 """
 
 from __future__ import annotations
@@ -16,9 +15,6 @@ from pathlib import Path
 
 import pandas as pd
 
-DATA = Path(__file__).resolve().parents[1] / "data"
-EXPORT = DATA / "wms_export_kw16.xlsx"
-CACHE = DATA / "cache"
 LINES_SHEET = "OP Daten KW16_2026"
 TU_SHEET = "TE pro h"
 # Sheets listing the orders of each disruption the warehouse defined; the
@@ -59,7 +55,7 @@ GAP_COLUMN_PREFIX = "L"  # "Lücken Auftrag", mis-encoded in the workbook
 EXCLUDED_ARTICLE_SHA256 = "5264f5a34ac5ee9a0db1c0482ace924789e5151c6cb90d8695f35d628fc3de2c"
 
 
-def convert(export: Path = EXPORT, cache: Path = CACHE) -> None:
+def convert(export: Path, cache: Path) -> None:
     """Cache every sheet of the workbook as parquet, all columns as strings."""
     cache.mkdir(parents=True, exist_ok=True)
     workbook = pd.ExcelFile(export)
@@ -73,15 +69,15 @@ def _slug(sheet: str) -> str:
     return "".join(c if c.isalnum() else "_" for c in sheet).strip("_")
 
 
-def raw(sheet: str, cache: Path = CACHE) -> pd.DataFrame:
+def raw(sheet: str, cache: Path) -> pd.DataFrame:
     path = cache / f"{_slug(sheet)}.parquet"
     if not path.exists():
         raise FileNotFoundError(f"{path} missing; run `uv run --with openpyxl python -m "
-                                "scenarios.ijpe.analysis.export` first")
+                                "scripts.ijpe.convert` first")
     return pd.read_parquet(path)
 
 
-def lines(cache: Path = CACHE) -> pd.DataFrame:
+def lines(cache: Path) -> pd.DataFrame:
     """One row per order line, typed, with start and end as timestamps.
 
     Times in the export are clock times without a date; ``start`` and ``end``
@@ -127,7 +123,7 @@ def paper_lines(frame: pd.DataFrame) -> pd.DataFrame:
     return frame[frame["aisle"].between(1, 8) & ~is_excluded_article(frame["article"])]
 
 
-def disruption_orders(cache: Path = CACHE) -> pd.DataFrame:
+def disruption_orders(cache: Path) -> pd.DataFrame:
     """The orders of the disruption sheets S1, S2, S4, S5: sheet, date, order.
 
     S3 lists article lines of a new store with neither order number nor times
@@ -143,7 +139,7 @@ def disruption_orders(cache: Path = CACHE) -> pd.DataFrame:
     return pd.concat(rows, ignore_index=True)
 
 
-def disruption_lines(cache: Path = CACHE) -> pd.DataFrame:
+def disruption_lines(cache: Path) -> pd.DataFrame:
     frame = raw(DISRUPTION_SHEETS["S3"], cache).rename(columns=COLUMNS)
     frame["date"] = pd.to_datetime(frame["date"])
     for column in ("quantity", "weight", "package_volume"):
@@ -151,6 +147,42 @@ def disruption_lines(cache: Path = CACHE) -> pd.DataFrame:
     return frame
 
 
-if __name__ == "__main__":
-    convert()
-    print(f"cached {EXPORT.name} in {CACHE}")
+def with_pick_date(frame: pd.DataFrame) -> pd.DataFrame:
+    """Add ``pick_date``, the booking date holding most of the order's lines.
+
+    Some orders have lines on two booking dates; the lines on the minority date
+    are splits of positions picked on the majority date, within the order's
+    clock interval there (data_audit.md, R0.4). ``rebooked`` marks them, and
+    their start and end move to the pick date. Days are assigned by timestamp.
+    """
+    counts = frame.groupby(["order", "date"]).size().rename("n").reset_index()
+    counts = counts.sort_values(["order", "n", "date"], ascending=[True, False, True])
+    majority = counts.drop_duplicates("order").set_index("order")["date"]
+    frame = frame.copy()
+    frame["pick_date"] = frame["order"].map(majority)
+    frame["rebooked"] = frame["date"] != frame["pick_date"]
+    shift = frame["pick_date"] - frame["date"]
+    frame["start"] = frame["start"] + shift
+    frame["end"] = frame["end"] + shift
+    return frame
+
+
+def day_lines(day: str, pick_nodes: dict, cache: Path) -> tuple[pd.DataFrame, dict[str, int]]:
+    """The lines picked on ``day`` with their pick node, and counts of what is left out.
+
+    Left out: lines whose (aisle, house, place) has no pick node, and orders
+    picked by more than one picker, which one recorded tour cannot hold.
+    """
+    frame = with_pick_date(lines(cache))
+    frame = frame[frame["pick_date"] == pd.Timestamp(day)].copy()
+    frame["node"] = [pick_nodes.get(key) for key in zip(frame["aisle"], frame["house"],
+                                                         frame["place"])]
+    excluded = {"lines": len(frame), "orders": frame["order"].nunique()}
+    unlocated = frame["node"].isna()
+    excluded["lines_without_pick_node"] = int(unlocated.sum())
+    frame = frame[~unlocated]
+    pickers = frame.groupby("order")["picker"].nunique()
+    shared = pickers[pickers > 1].index
+    excluded["orders_with_several_pickers"] = len(shared)
+    excluded["lines_of_these_orders"] = int(frame["order"].isin(shared).sum())
+    return frame[~frame["order"].isin(shared)], excluded

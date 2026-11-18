@@ -2,6 +2,44 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: P1.1, the IJPE source, with the replay work of 16 and 17 November
+
+**Done.** The replay work of the old worktree is on this branch, on top of
+the base and C1: the IJPE scenario (`scenarios/ijpe/`) with its source over
+`casim.sources.wms_export`, `casim.sources.grid_layout` and
+`casim.sources.recorded`; the facts tables (`facts/tours.csv`, `orders.csv`,
+`picks.csv`, from `casim.facts`); the recorded-plan components (`RecordedIA`,
+`RecordedTours`, `GivenSequence`, `RecordedPlan`); a line pick time that may
+depend on the quantity; the recorded pick order at shared nodes; the
+`recorded_replay` verification scenario; and the diagnostics in
+`scripts/ijpe/`. The ware_ops_algos branch `codex/ijpe-revision` (the
+recorded algorithms and the line pick-time model) is merged with
+`core-ijpe-base`; its 115 tests pass. Its old presence model (picker
+absences in the resource manager, `PickerReturn`) was dropped: the base's
+`PickerDeparture` already defers an absence until the running tour ends.
+
+New for P1.1: `source.presence: recorded` makes a picker arrive at the setup
+start of its first recorded tour and leave after its last recorded line;
+`variants/recorded_presence.yaml` combines it with the 5 minute pause
+threshold and lets the decision see pickers not yet arrived. The default
+(`shift`) keeps every picker present from 5:30, as before. Hand-derived
+tests in `tests/verification/test_recorded_replay.py`. On Friday 17 April,
+recorded presence leaves 3 of 81 orders open: those pickers' recorded day
+ends while CASIM still has their tours queued.
+
+**Reproduced on the base.** The default replay of all six days keeps every
+scalar KPI of the old worktree's baselines (makespan, mean completion time,
+tours, orders, distance). The records differ only by the base's new busy,
+absent and idle times per picker and by about 180 fewer events per day
+(the base's dispatch). The anchored six-day order-span RMSE is again
+16.273 min on 1,414 orders (single-order tours 14.145 min). Every other
+baseline is unchanged (21 scenario and 39 benchmark runs); 154 tests pass;
+`casim check --all` passes.
+
+**Open.** P1.2 to P1.4 (order level, system level with CASIM's own
+decisions, recorded assignment) build on this source. The WMS gap analysis
+of 17 November continues as before; its scripts are on this branch.
+
 ## 2026-11-18: C1, disruptions as exogenous information
 
 **Done.** `TruckDisruption(time, order_ids, due_date)` sets the due date of
@@ -28,12 +66,150 @@ TU volume is reached. It cannot run on the base (its order stream file is
 missing), so this hook is untested.
 
 **Open for P2.1.** The affected orders of Scenarios 1 and 2 are the stores
-of the warehouse's list; this needs the IJPE source of P1.1, which is not on
-this branch. The R1 replay work of the old worktree (recorded replay source,
-facts tables, `scripts/ijpe/` diagnostics, replay baselines and the status
-entries of 16 and 17 November) is preserved on the local branch
-`wip/ijpe-replay-r1`, not pushed. Its core changes need the user's approval
-before they enter this branch.
+of the warehouse's list, selected by the IJPE source (P1.1, entry above).
+
+## 2026-11-17: Current WMS reproduction diagnosis
+
+WMS line starts are partly order-local bookkeeping: on 3,036 returns to an
+open order, the start matches that order's preceding completion within one
+second yet precedes the picker's previous completion on a different order.
+An opt-in completion-time sequence variant reorders 5,860 lines and lowers
+six-day anchored RMSE only from 16.273 to 16.079 min. Combining that sequence
+with the fixed-speed pick fit gives 15.864 min pooled and 16.112 min on later
+Thursday/Friday. Thus correcting sequence interpretation alone does not
+reproduce the WMS order spans. The original start-order run remains default.
+Combining one-order tours with completion order and that same fit still gives
+15.865 min pooled and 16.024 min later-day RMSE. No simple tour/sequence/time
+combination tested so far closes the full trace gap.
+Completion-to-completion evaluation avoids the order-local start field:
+308 matched within-tour WMS gaps exceed 300 s, versus none in the submitted
+CASIM model. The fitted handling formula improves ordinary later-day gap MAE,
+but the long unlabelled gaps remain. `scripts/ijpe/completion_gaps.py` reports
+only aggregate counts and errors.
+
+With the original, correspondence-supported 15 m cross-aisle geometry and
+the exact recorded line sequence, the six-day anchored order-span RMSE is
+16.273 min for 1,414 retained orders. Tours containing several orders account
+for 378 orders and 44.6% of squared error. WMS intervals overlap at 2,539 of
+2,871 transitions that change both order and aisle; the replay cannot treat
+those starts and ends as consecutive physical activity. The single-order
+tour RMSE is still 14.145 min. Long WMS line intervals and gaps inside orders
+explain much of that residual, but the export does not label their causes.
+Ordering single-order tours by WMS position number instead of booking time
+saves only about 10.5 s of graph travel per order at the submitted speed, so
+the router's line order cannot account for the minute-scale RMSE. A fitted
+same-aisle line model and a separate order-residual prototype improve later
+days only modestly; neither identifies a physical pause or tour process.
+An exact-sequence six-day CASIM variant with one order per tour scores 15.575
+min pooled, a small improvement that does not justify assuming the WMS never
+interleaves orders.
+For a secondary trace-quality sensitivity screen (single-order tour, no WMS
+line over 300 s, no internal idle gap over 300 s), the unchanged submitted
+model has 4.360 min RMSE on 789/1,414 orders. Later Thursday/Friday validation
+is 4.401 min on 198/353 orders, compared with 16.205 min on all 353. This is
+an outcome-filtered sensitivity analysis with explicit coverage, not a
+replacement for the full-cohort result or evidence of pause reconstruction.
+On the same 198 later-day orders, the Monday--Wednesday ordinary-line fit
+lowers RMSE from 4.401 to 3.639 min, while full later-day RMSE barely moves
+(16.205 to 16.109 min). Its duration-selected training sample prevents
+interpreting its speed coefficient as a measured truck speed.
+Keeping speed fixed at the submitted 2.306 m/s and fitting only handling
+gives 3.632 min on that same 198-order later-day screen, essentially equal to
+the free-speed variant. Its full later-day RMSE is 16.262 min. This fixed-speed
+variant is in `scenarios/ijpe/variants/fixed_speed_pick_fit.yaml`; it is a
+diagnostic, while the submitted constant remains default.
+The current diagnostic is `scripts/ijpe/trace_diagnosis.py`; `blockers.py`
+crosses tour type, idle gaps and long lines.
+
+## 2026-11-16: R1.3 exact pick sequence committed in ware_ops_algos
+
+Commit `4b0eb38` records the ordered pick positions on a given-sequence
+route, so CASIM can select the correct order and article when consecutive
+recorded picks share a graph node. The full ware_ops_algos suite passes. The
+CASIM replay executes the recorded tour sequences and its focused tests pass.
+The CASIM worktree and its scalar/digest IJPE baselines remain uncommitted.
+
+## 2026-11-16: Reproduction diagnosis in progress
+
+The IJPE worktree preserves the recorded pick order when several orders share
+one graph node. A review of Jonas Koreis's layout correspondence overturned
+an attempted aisle-column rescaling: the submitted loader's column scale
+already yields the reported aisle-change distance across the cross aisle.
+The original scale has been restored and its travel-edge distance is tested.
+The aggregate replay check confirms the recorded tour sequences. The WMS
+intervals still conflict with a sequential physical pick trace, and the
+submitted time model still has substantial order-span error. The fitted
+same-aisle line model improves line timing and only slightly improves later-day
+order spans. The current analysis is checking WMS timestamp semantics and latent
+waiting inside tours before selecting a revision time model. Focused replay
+tests pass. Broad repository gates and task commits remain pending.
+The numerical entries below predate the exact pick-order correction; use the
+current diagnostic script for the corrected replay.
+
+The export's pallet identifier was also tested as a possible missing tour
+boundary. It usually identifies one handling unit within an order, but pallet
+switches are often adjacent in WMS time. Charging the reported setup mean for
+every additional pallet gives only a modest forward-day improvement and is
+not yet justified as a physical event. Pallet count is retained as an
+explanatory diagnostic, not silently added to the simulator.
+
+## 2026-11-16: Corrected departure sweep and defect-aware evaluation
+
+The source now emits `PickerDeparture(picker_id, duration)` and the core defers
+an absence until an active tour ends. The hand-derived replay tests and
+`casim check --all` pass. Six-day anchored and chained runs at 2, 5 and 10
+minute thresholds conserve the recorded lines. The 1,414-order pooled
+anchored RMSE is 16.554 min; order spans are unchanged by between-tour pause
+thresholds. Chained picker-day timing is substantially worse. The 284 WMS
+lines over 300 s account for 92.6% of squared line error; both busy and idle
+components contribute to order-span error. The clean 50-order diagnostic
+cohort has 2.167 min RMSE but is too selective for paper validation. Details
+are in `docs/ijpe/replay.md`. The 18-run assumption sweep and 24-run reverse
+sweep completed: U-shape raises pooled order-span RMSE to 19.756 min with
+recorded tours; one-order tours lower it to 15.575 min but change the recorded
+work organization. The order of replacements matters. The full CASIM suite
+and benchmark comparisons are running; `casim check --all` and the standalone
+all-scenario baseline comparison pass with no differences. This work remains
+uncommitted.
+
+## 2026-11-16: R1.3 recorded item assignment committed in ware_ops_algos
+
+Commit `8a3e5ea` adds a recorded item assigner through the existing algorithm
+interface. Its full suite passes (107 tests). The CASIM replay now selects it
+instead of greedy assignment; the old greedy behavior remains a named variant.
+Across six anchored days all 62,985 retained lines use their recorded pick
+nodes, versus 22 moved picks previously. The pooled order-span RMSE changes
+only from 16.56 to 16.55 min, ruling out those moved picks as the principal
+cause. CASIM wiring, the greedy comparison variant, and the one changed IJPE
+scalar/digest baseline are in the worktree but uncommitted. `casim check --all`
+passes, the ware_ops_algos suite passes, and six anchored CASIM runs conserve
+all 62,985 lines. The full CASIM test and all-scenario baseline gates were
+started but stopped at the Task 4.14 core-interface boundary. No CASIM commit
+or push was made.
+
+## 2026-11-16: R1.3 routing extension committed in ware_ops_algos
+
+Commit `e973651` adds an optional recorded-tour start node and fixes the
+zero-distance first-leg case in `GivenSequenceRouting`. Its regression test
+and the full ware_ops_algos suite pass (104 tests). CASIM's diagnostic source,
+analysis and report remain uncommitted. The one-process CASIM suite passed
+(587 tests), as did the standalone all-scenario baseline comparison and
+`casim check --all`. The recorded-pause correction still depends on Task 4.14:
+the current core has `BreakStart` but no `PickerDeparture` interface.
+
+## 2026-11-16: R1 replay diagnosis in progress
+
+The six-day anchored replay and a hand-derived verification scenario run in
+CASIM. `docs/ijpe/replay.md` records the aggregate baseline and diagnostic
+results. Replacing the assumed fixed-depot origin with an aisle-head or
+first-pick origin leaves pooled order-span RMSE near 16.6 min. A zero-distance
+first-leg routing defect was fixed and verified. A fixed-speed pick-time fit on
+13–15 April improves line MAE on held-out days but raises their pooled
+order-span RMSE from 14.97 to 15.41 min. WMS interval extremes and overlap
+prevent literal physical timestamp reproduction. A setup-in-gap diagnostic
+improves anchored picker-day timing slightly but exposes more missing idle in
+the chained replay. No CASIM R1 task has yet been committed; the remaining
+replay corrections are pending.
 
 ## 2026-11-16: Phase R0 (data audit) done, stopped for the user
 

@@ -1,0 +1,3 @@
+# R1.4: every day, anchored: each tour held to its recorded start.
+source.day: ["2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17"]
+source.pause_threshold_s: ["null"]

@@ -30,7 +30,6 @@ FORBIDDEN_IMPORTS = ("casim.simulation_engine", "casim.runner", "casim.run",
 # Scenarios not yet ported to this structure (Phase S, Task S.4); IJPE stays
 # until Task 6b.6. Each port removes its entry.
 NOT_PORTED = frozenset({
-    "ijpe",  # data audit and time model only (docs/ijpe/plan.md) until its port
     "scenario_ijpe",
     "scenario_dhaen_online",  # data of L4 only; deferred with Phase 6
 })

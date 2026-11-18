@@ -1,0 +1,14 @@
+# @package _global_
+# P1.1: each picker present from the setup start of its first recorded tour to
+# the end of its last recorded line, with the recorded pauses over the threshold
+# as timed departures. The decision also sees pickers not yet arrived.
+source:
+  presence: recorded
+  pause_threshold_s: 300.0
+decisions:
+  OBRSP:
+    state_information:
+      resources:
+      - idle
+      - reserved
+      - off_shift

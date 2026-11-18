@@ -1,6 +1,6 @@
-from ware_ops_algos.algorithms import GreedyItemAssignment, MinMinItemAssignment
+from ware_ops_algos.algorithms import GreedyItemAssignment, MinMinItemAssignment, RecordedItemAssignment
 
-from casim.pipelines.problem_based_template import AbstractItemAssignment, load_pickle
+from casim.pipelines.problem_based_template import AbstractItemAssignment, load_pickle, recorded_plan
 
 
 class GreedyIA(AbstractItemAssignment):
@@ -9,6 +9,13 @@ class GreedyIA(AbstractItemAssignment):
         storage = self._get_storage()
         item_assigner = GreedyItemAssignment(storage)
         return item_assigner
+
+
+class RecordedIA(AbstractItemAssignment):
+    """Keep the recorded pick node for every order position."""
+
+    def _get_inited_ia(self):
+        return RecordedItemAssignment(self._get_storage(), recorded_plan(self))
 
 
 class MinMinIA(AbstractItemAssignment):

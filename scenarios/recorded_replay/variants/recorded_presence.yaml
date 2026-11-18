@@ -1,0 +1,12 @@
+# @package _global_
+# Each picker present from the setup start of its first recorded tour to the
+# end of its last recorded line; the decision also sees pickers not yet arrived.
+source:
+  presence: recorded
+decisions:
+  OBRSP:
+    state_information:
+      resources:
+      - idle
+      - reserved
+      - off_shift

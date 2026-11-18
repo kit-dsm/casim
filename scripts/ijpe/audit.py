@@ -5,7 +5,7 @@ aggregate tables. ``main`` writes them as CSV to ``scenarios/ijpe/outputs/
 audit/`` (ignored by git) and prints them; ``docs/ijpe/data_audit.md`` is
 written from that output. Tables per picker go to ``outputs/audit/private/``.
 
-    python -m scenarios.ijpe.analysis.audit
+    python -m scripts.ijpe.audit
 """
 
 from __future__ import annotations
@@ -15,9 +15,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scenarios.ijpe.analysis import export
+from casim.sources import wms_export as export
+from scripts.ijpe import CACHE, OUTPUTS as SCENARIO_OUTPUTS
 
-OUTPUTS = Path(__file__).resolve().parents[1] / "outputs" / "audit"
+OUTPUTS = SCENARIO_OUTPUTS / "audit"
 SIZE_BINS = [0, 20, 40, 60, 80, np.inf]
 SIZE_LABELS = ["1-20", "21-40", "41-60", "61-80", ">80"]
 GAP_THRESHOLDS_MIN = [1, 2, 5, 10, 15, 20, 30]
@@ -41,21 +42,8 @@ def _minutes(delta: pd.Series) -> pd.Series:
 
 
 def with_pick_date(lines: pd.DataFrame) -> pd.DataFrame:
-    """Add ``pick_date``, the booking date holding most of the order's lines.
-
-    147 orders have lines on two booking dates; the lines on the minority date
-    are splits of positions picked on the majority date, within the order's
-    clock interval there (R0.4). ``rebooked`` marks them.
-    """
-    counts = lines.groupby(["order", "date"]).size().rename("n").reset_index()
-    counts = counts.sort_values(["order", "n", "date"], ascending=[True, False, True])
-    majority = counts.drop_duplicates("order").set_index("order")["date"]
-    frame = lines.copy()
-    frame["pick_date"] = frame["order"].map(majority)
-    frame["rebooked"] = frame["date"] != frame["pick_date"]
-    shift = frame["pick_date"] - frame["date"]
-    frame["start"] = frame["start"] + shift
-    frame["end"] = frame["end"] + shift
+    """``wms_export.with_pick_date`` with the order's size class."""
+    frame = export.with_pick_date(lines)
     frame["size_class"] = pd.cut(frame.groupby("order")["row"].transform("size"),
                                  SIZE_BINS, labels=SIZE_LABELS)
     return frame
@@ -64,7 +52,7 @@ def with_pick_date(lines: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------- R0.1
 
 def inventory_columns(lines: pd.DataFrame) -> pd.DataFrame:
-    raw = export.raw(export.LINES_SHEET)
+    raw = export.raw(export.LINES_SHEET, CACHE)
     rows = []
     for column in raw.columns:
         values = raw[column]
@@ -344,6 +332,37 @@ def interleaving(lines: pd.DataFrame) -> pd.DataFrame:
     ])
 
 
+def zone_affinity(lines: pd.DataFrame) -> pd.DataFrame:
+    """R1.8: does a picker stay in one zone (area) over the day, and how often do they change?
+
+    A picker-day's orders, in the order of their first line, each with its main
+    area; a change is a consecutive pair of orders with different main areas.
+    """
+    frame = with_pick_date(lines)
+    orders = frame.groupby(["picker", "pick_date", "order"]).agg(
+        first=("start", "min"), area=("area", lambda a: a.mode().iloc[0])).reset_index()
+    orders = orders.sort_values(["picker", "pick_date", "first"])
+    orders["change"] = orders.groupby(["picker", "pick_date"])["area"].transform(
+        lambda a: a.ne(a.shift()) & a.shift().notna())
+    days = orders.groupby(["picker", "pick_date"]).agg(orders=("order", "size"),
+                                                       changes=("change", "sum"),
+                                                       areas=("area", "nunique"))
+    share = (frame.groupby(["picker", "pick_date", "area"]).size()
+             .groupby(level=["picker", "pick_date"]).apply(lambda s: s.max() / s.sum()))
+    return pd.DataFrame([
+        {"measure": "picker-days", "value": len(days)},
+        {"measure": "picker-days whose orders all have one main area", "value": int((days["areas"] == 1).sum())},
+        {"measure": "picker-days with at least one zone change", "value": int((days["changes"] > 0).sum())},
+        {"measure": "zone changes per picker-day, mean", "value": days["changes"].mean()},
+        {"measure": "zone changes per picker-day, max", "value": int(days["changes"].max())},
+        {"measure": "zone changes per order change, all picker-days",
+         "value": days["changes"].sum() / (days["orders"] - 1).clip(lower=0).sum()},
+        {"measure": "share of a picker-day's lines in its main area, median", "value": share.median()},
+        {"measure": "share of a picker-day's lines in its main area, 10 % quantile",
+         "value": share.quantile(0.1)},
+    ])
+
+
 # ---------------------------------------------------------------- R0.3
 
 def timelines(lines: pd.DataFrame) -> pd.DataFrame:
@@ -607,7 +626,7 @@ def disruption_sheets(lines: pd.DataFrame) -> pd.DataFrame:
                                         start=("start", "min"), end=("end", "max"))
     tu = {"S1": 120, "S2": 100, "S3": 6, "S4": 80, "S5": 200}
     rows = []
-    for sheet, group in export.disruption_orders().groupby("sheet"):
+    for sheet, group in export.disruption_orders(CACHE).groupby("sheet"):
         sheet_date = group["date"].iloc[0]
         selected = orders.reindex(group["order"])
         same_customer = orders[(orders["customer"].isin(selected["customer"]))
@@ -625,7 +644,7 @@ def disruption_sheets(lines: pd.DataFrame) -> pd.DataFrame:
             "end_clock_min": str(clock_end.min()).split()[-1][:5],
             "end_clock_max": str(clock_end.max()).split()[-1][:5],
         })
-    template = export.disruption_lines()
+    template = export.disruption_lines(CACHE)
     rows.append({"sheet": "S3", "sheet_date": template["date"].min().date(), "tu": tu["S3"],
                  "orders": 0, "tu_over_2.6": tu["S3"] / TU_PER_ORDER_WORKBOOK,
                  "tu_over_1.6": tu["S3"] / TU_PER_ORDER_SIMULATION,
@@ -649,7 +668,7 @@ def completion_by_customer_hour(lines: pd.DataFrame) -> pd.DataFrame:
 # ----------------------------------------------------------------
 
 def run() -> dict[str, pd.DataFrame]:
-    lines = export.lines()
+    lines = export.lines(CACHE)
     timeline = timelines(lines)
     days = presence(timeline)
     orders = order_structure(lines)
@@ -666,6 +685,7 @@ def run() -> dict[str, pd.DataFrame]:
         "r02_concurrency": concurrency(lines),
         "r02_picker_zones": picker_zones(lines),
         "r02_interleaving": interleaving(lines),
+        "r18_zone_affinity": zone_affinity(lines),
         "r03_gaps": gap_summary(timeline),
         "r03_gap_thresholds": gap_thresholds(timeline),
         "r03_break_gaps": break_gaps(timeline),

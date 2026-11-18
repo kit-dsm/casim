@@ -1,0 +1,4 @@
+# R1.4: every day, anchored (null: each tour held to its recorded start) and chained
+# with three pause thresholds (s).
+source.day: ["2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17"]
+source.pause_threshold_s: ["null", 120.0, 300.0, 600.0]  # "null": Hydra reads it as None (anchored)

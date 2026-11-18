@@ -1,0 +1,5 @@
+# @package _global_
+# Diagnostic: start each route at the lower cross aisle on the first pick's rail.
+# This is a proxy, not a recorded WMS position.
+source:
+  origin_mode: aisle_head

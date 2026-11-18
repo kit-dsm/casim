@@ -1,5 +1,5 @@
 from ware_ops_algos.algorithms import Route, RouteNode, NodeType, WarehouseOrder, BatchObject, ScheduledJob
-from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Dock
+from ware_ops_algos.domain_models import LayoutData, Articles, StorageLocations, Resources, WarehouseInfo, PlannerInformation, Dock, pick_time
 from ware_ops_algos.planning.lifecycle import TourStates
 
 from .order_manager import OrderManager
@@ -186,7 +186,8 @@ class State:
         tour.edge_start_time = tour.edge_end_time = tour.edge_distance = None
         tour.route_version += 1
         tour.planned_end = (self.current_time + route.distance / picker.speed
-                                 + len(tour.remaining_picks) * picker.time_per_pick)
+                            + sum(pick_time(picker, pick.amount)
+                                  for pick in tour.remaining_picks))
         self.resource_manager.update_resource_location(
             picker_id, RouteNode(origin, NodeType.ROUTE)
         )

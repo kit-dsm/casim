@@ -1,0 +1,4 @@
+# @package _global_
+# The 70 s gap of picker 0 is below the threshold: no pause, tours follow each other.
+source:
+  pause_threshold_s: 100.0

@@ -1,0 +1,8 @@
+# @package _global_
+# R1.6, second order: all three submitted assumptions together (U-shape routing,
+# one order per tour, configured breaks).
+defaults:
+  - override /cosy_repo: recorded_ushape
+source:
+  interleaving: false
+  breaks: [[28800.0, 30600.0], [39600.0, 41400.0]]

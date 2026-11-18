@@ -21,6 +21,7 @@ from casim.runner import apply_decision
 from casim.setup import DecisionSetup, resolve
 from casim.simulation_engine.simulation_engine import SimulationEngine
 from casim.sources.base import Source, SourceLoader, build_source, release
+from casim.facts import FactsRecorder
 from casim.trace import TraceRecorder
 
 SCENARIO_FILE = "scenario.yaml"
@@ -89,9 +90,10 @@ class RunResult:
 
 
 def _engines(cfg: DictConfig, setups: dict[str, DecisionSetup], source,
-             recorder: TraceRecorder) -> tuple[SimulationEngine, DecisionEngine]:
+             recorder: TraceRecorder, facts: FactsRecorder,
+             ) -> tuple[SimulationEngine, DecisionEngine]:
     output_dir = Path(cfg.experiment.output_dir)
-    loggers = [KPILogger(output_dir / "kpis"), recorder]
+    loggers = [KPILogger(output_dir / "kpis"), recorder, facts]
     if cfg.experiment.audit:
         loggers.append(BaselineCapture(output_dir / "audit.json"))
     triggers = {trigger: tuple(name for name, setup in setups.items()
@@ -125,7 +127,7 @@ def _engines(cfg: DictConfig, setups: dict[str, DecisionSetup], source,
 
 
 def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
-                   output_dir: Path, recorder: TraceRecorder) -> None:
+                   output_dir: Path, recorder: TraceRecorder, facts: FactsRecorder) -> None:
     (output_dir / "kpis.json").write_text(
         (output_dir / "kpis" / "kpis.json").read_text(encoding="utf-8"), encoding="utf-8")
     tracker = engine.decision_tracker
@@ -170,6 +172,7 @@ def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
     (output_dir / "trace.json").write_text(json.dumps({
         "trace_digest": recorder.digest(), "event_count": len(recorder.trace),
     }, indent=2), encoding="utf-8")
+    facts.write(sim, output_dir)
 
 
 @dataclass(frozen=True)
@@ -180,6 +183,7 @@ class Prepared:
     engine: DecisionEngine
     source: Source
     recorder: TraceRecorder
+    facts: FactsRecorder
 
     def reset(self) -> None:
         """Load the initial state and queue the source's events."""
@@ -191,9 +195,9 @@ def prepare(cfg: DictConfig) -> Prepared:
     setups = check(cfg)
     source = build_source(OmegaConf.to_container(cfg.source, resolve=True),
                           Path(cfg.scenario_dir))
-    recorder = TraceRecorder()
-    sim, engine = _engines(cfg, setups, source, recorder)
-    return Prepared(sim, engine, source, recorder)
+    recorder, facts = TraceRecorder(), FactsRecorder()
+    sim, engine = _engines(cfg, setups, source, recorder, facts)
+    return Prepared(sim, engine, source, recorder, facts)
 
 
 def run(cfg: DictConfig) -> RunResult:
@@ -207,7 +211,7 @@ def run(cfg: DictConfig) -> RunResult:
             break
         apply_decision(sim, engine, engine.on_trigger(snapshot), snapshot)
     output_dir = Path(cfg.experiment.output_dir)
-    _write_outputs(sim, engine, output_dir, recorder)
+    _write_outputs(sim, engine, output_dir, recorder, prepared.facts)
     reference = Path(cfg.scenario_dir) / REFERENCE_FILE
     if reference.exists():
         compare_with_reference(reference, cfg, output_dir)

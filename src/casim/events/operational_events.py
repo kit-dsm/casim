@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from ware_ops_algos.algorithms import NodeType, RouteNode
-from ware_ops_algos.domain_models import Order
+from ware_ops_algos.domain_models import Order, pick_time
 from ware_ops_algos.planning.lifecycle import TourStates
 from casim.domain_objects.tour_model import TourPlanningState
 from casim.domain_objects.sim_domain import ReconsiderReason
@@ -346,6 +346,17 @@ class TravelEvent(BaseTourEvent):
         return [NodeArrival(arrival_time, tour.tour_id, tour.route_version)]
 
 
+def _pick_at_route_cursor(tour: TourPlanningState, node: tuple[float, float]):
+    """Select the route's next recorded pick when locations are shared."""
+    sequence = tour.route.pick_sequence
+    if sequence is not None:
+        index = len(tour.completed_picks)
+        if index >= len(sequence) or sequence[index].pick_node != node:
+            raise ValueError(f"Tour {tour.tour_id}: recorded pick sequence disagrees with route at {node}")
+        return next((pick for pick in tour.remaining_picks if pick == sequence[index]), None)
+    return next((pick for pick in tour.remaining_picks if pick.pick_node == node), None)
+
+
 class NodeArrival(BaseTourEvent):
     """Handle arrival at a node: either pick, continue travel, or end at depot."""
     def handle(self, state: State) -> list[Event]:
@@ -373,7 +384,10 @@ class NodeArrival(BaseTourEvent):
 
         # If next planned pick is exactly here → start pick
         if here.node_type == NodeType.PICK:
-            finish_at = self.time + res.time_per_pick
+            pick = _pick_at_route_cursor(tour, here.position)
+            if pick is None:
+                raise ValueError(f"No remaining pick at {here.position} on tour {tour.tour_id}")
+            finish_at = self.time + pick_time(res, pick.amount)
             tour.picking_until = finish_at
             return [PickComplete(finish_at, tour.tour_id, pick_start=self.time,
                                  route_version=tour.route_version)]
@@ -397,7 +411,7 @@ class PickComplete(BaseTourEvent):
         res = state.resource_manager.get_resource(tour.assigned_resource)
         here = res.current_location
         tour.picking_until = None
-        match = next((p for p in tour.remaining_picks if p.pick_node == here.position), None)
+        match = _pick_at_route_cursor(tour, here.position)
         if match is None:
             raise ValueError(f"No remaining pick at {here.position} on tour {tour.tour_id}")
         tour.remaining_picks.remove(match)

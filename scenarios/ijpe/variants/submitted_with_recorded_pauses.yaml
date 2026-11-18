@@ -1,0 +1,6 @@
+# @package _global_
+# R1.6, second order: submitted assumptions, but the recorded pauses (chained, 5 min).
+defaults:
+  - override /cosy_repo: recorded_ushape
+source:
+  interleaving: false

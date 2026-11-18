@@ -1,0 +1,63 @@
+{
+  "name": "ijpe_replay__2026-04-16",
+  "scenario": "ijpe",
+  "command": "python -m casim run scenarios\\ijpe source.day=2026-04-16",
+  "check_command": "python -m casim check scenarios\\ijpe source.day=2026-04-16 --json",
+  "check_exit": 0,
+  "check_output": "ok",
+  "run_exit": 0,
+  "run_output": "ok",
+  "casim_commit": "8659d4943aed4a2e13724cab26fdc3f7121c0205",
+  "kpis": {
+    "makespan": 57417.83087598135,
+    "mean_order_completion_time": 18788.995437095826,
+    "num_tours": 219,
+    "num_orders_completed": 272,
+    "avg_tour_makespan": 1360.679010879086,
+    "avg_batch_size": 1.2420091324200913,
+    "orders_per_hour": 17.053935773279314,
+    "tours_per_hour": 13.730926229221213,
+    "distance_by_picker": {
+      "digest": "d728c1393ed569e55e61cabd1a959311352b083b23bf5251feeaf442c508ec14",
+      "size": 15
+    },
+    "idle_time_by_picker": {
+      "digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "size": 0
+    },
+    "total_distance": 171252100.0,
+    "total_delayed": 0,
+    "dock_utilization": {
+      "digest": "2893fb602af72539155d67cba16a6032d4e231679fc4f6106ff961ba4a67326a",
+      "size": 219
+    },
+    "total_tour_times": 297988.70338251983,
+    "picks_per_hour": 738.2724034204556,
+    "total_processing_time": 297988.70338251983
+  },
+  "decisions": {
+    "decisions": 1,
+    "pipeline_counts": {
+      "0:PlanCandidateEndpoint_SchedulingPlanCa_4287d82217_plan_candidate": 1
+    }
+  },
+  "committed_tours": [
+    {
+      "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "count": 0
+    }
+  ],
+  "trace_digest": "f93c901a9fb2ae57326e92b5e919c76fd743b59cb4319205f465acaad118bdc0",
+  "event_count": 275467,
+  "violations": {},
+  "first_violations": {
+    "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "kpi_differences": [
+    {
+      "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "count": 0
+    }
+  ],
+  "status": "consistent"
+}

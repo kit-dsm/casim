@@ -55,7 +55,7 @@ Open from P0, asked now because P3 depends on it: the departure plan per store (
 
 ## 6. Phase P1: time model and validation (Rev2: validation)
 
-Goal: a time model calibrated and validated on separate days, and validation at system level, with CASIM's own infrastructure (Phase S structure, `casim run`, outputs of C4). Analysis code in `scenarios/ijpe/analysis/` reads CASIM's outputs and the data; it never computes model times itself.
+Goal: a time model calibrated and validated on separate days, and validation at system level, with CASIM's own infrastructure (Phase S structure, `casim run`, outputs of C4). Analysis code in `scripts/ijpe/` reads CASIM's outputs and the data; it never computes model times itself.
 
 - **P1.1 must.** Source. `scenarios/ijpe/source.py` emits layout, storage, pickers and the events of a day: picker arrival at the first recorded line and departure after the last, the recorded pauses as `PickerDeparture` with duration (pause threshold proposed from the gap distribution; three thresholds reported until the user fixes one), orders available from the shift start. Days are assigned by timestamp.
 - **P1.2 must.** Order level. Modelled order processing time (route plus per-line pick time plus setup, as the simulation charges it) against the historic span, per order size, with the submitted parameters and with parameters calibrated on the calibration days. Report RMSE, MAE and bias by order size, leave-one-day-out and on the held-out days. This replaces the in-sample numbers of the submitted Figure 8.

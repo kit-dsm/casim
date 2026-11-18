@@ -1,0 +1,26 @@
+defaults:
+  - _self_
+  - data_card: ijpe_replay
+  - decisions: recorded
+  - cosy_repo: recorded
+  - optional sweep: null
+  - optional variants: null
+
+# R1 of docs/ijpe/plan.md: one historic picking day replayed with the
+# recorded decisions. The default is the submitted model's time model.
+name: ijpe
+source:
+  name: local
+  day: "2026-04-13"
+  shift_start_s: 19800.0       # 5:30
+  pause_threshold_s: null      # anchored diagnostic: every tour held to its WMS start
+  speed: 2306.0                # mm/s
+  time_per_pick: 19.0          # s per line
+  tour_setup_time: 215.0       # s per tour
+  per_unit_s: null             # s per package (R1.7); null: time_per_pick per line
+  interleaving: true           # false: one order per tour
+  sequence_clock: start        # end: diagnostic WMS confirmation ordering
+  origin_mode: depot           # diagnostics: first_pick or aisle_head; WMS origin unknown
+  setup_in_gap: false          # diagnostic: setup before the first WMS line of a tour
+  breaks: null                 # [[start_s, end_s], ...] replaces the recorded pauses
+  presence: shift              # recorded: arrive at the first tour, leave after the last line

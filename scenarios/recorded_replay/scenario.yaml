@@ -1,0 +1,28 @@
+defaults:
+  - _self_
+  - data_card: recorded_replay
+  - decisions: recorded
+  - cosy_repo: recorded
+  - optional variants: null
+
+name: recorded_replay
+source:
+  name: local
+  shift_start_s: 0.0
+  n_aisles: 2
+  n_pick_locations: 4
+  speed: 1.0
+  time_per_pick: 2.0
+  tour_setup_time: 5.0
+  pause_threshold_s: 50.0
+  per_unit_s: null   # s per package; null: time_per_pick per line
+  origin_mode: depot  # first_pick tests a zero-distance first leg
+  setup_in_gap: false
+  presence: shift     # recorded: arrive at the first tour, leave after the last line
+  # picker, order, article, quantity, [aisle, location], start, end (seconds)
+  lines:
+    - [0, 1, 1, 1, [1, 2], 10, 20]
+    - [0, 2, 2, 1, [1, 3], 20, 24]
+    - [0, 1, 3, 1, [1, 4], 24, 30]
+    - [0, 3, 4, 1, [2, 1], 100, 110]
+    - [1, 4, 5, 1, [2, 2], 40, 50]

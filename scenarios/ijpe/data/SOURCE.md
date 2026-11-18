@@ -8,11 +8,14 @@ pushed or quoted at order, line or picker level. The user places it here
 under this name; `SHA256SUMS.txt` lists its checksum. There is no public
 source and `scripts/fetch_data.py` cannot restore it.
 
-`scenarios/ijpe/analysis/export.py` caches the sheets as parquet in `cache/`
+`casim.sources.wms_export` reads it; `scripts/ijpe/convert.py` caches the sheets as parquet in `cache/`
 (also ignored):
 
 ```bash
-uv run --with openpyxl python -m scenarios.ijpe.analysis.export
+uv run --with openpyxl python -m scripts.ijpe.convert
 ```
 
 The workbook's content is described in `docs/ijpe/data_audit.md`.
+
+`layout.csv` is the warehouse's grid layout, a copy of the tracked
+`scenarios/scenario_ijpe/data/layout.csv`, read by `casim.sources.grid_layout`.

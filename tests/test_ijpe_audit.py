@@ -3,7 +3,8 @@
 import pandas as pd
 import pytest
 
-from scenarios.ijpe.analysis import audit, export
+from casim.sources import wms_export as export
+from scripts.ijpe import audit
 
 
 def _lines(rows):
