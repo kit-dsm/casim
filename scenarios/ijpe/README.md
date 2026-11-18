@@ -86,6 +86,7 @@ python -m casim run scenarios/ijpe sweep=variants
 python -m casim run scenarios/ijpe sweep=anchored --output-dir scenarios/ijpe/outputs/anchored
 python -m scripts.ijpe.trace_diagnosis scenarios/ijpe/outputs/anchored
 python -m scripts.ijpe.replay
+python -m scripts.ijpe.current_state
 ```
 
 ## Expected outputs
@@ -103,5 +104,7 @@ The anchored replay of the six days with the submitted time model has an
 order-span RMSE of 16.27 min on 1,414 retained orders. Most of this error
 comes from long WMS line intervals and gaps inside orders that the export does
 not label; correcting the line order, the tour origin or the pick-time
-formula changes it by less than 1 min. The analysis and its limits are in
+formula changes it by less than 1 min. The current package scope, input,
+release rule, picker-day finish errors and matched-tour work errors are in
+`docs/ijpe/current_state.md`. Earlier diagnostics and their limits are in
 `docs/ijpe/replay.md` and `docs/ijpe/status.md`.
