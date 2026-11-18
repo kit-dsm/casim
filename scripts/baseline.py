@@ -194,11 +194,16 @@ def _run_data_dependent(name: str, scenario: str, overrides: tuple[str, ...]) ->
         return result
     trace = json.loads(trace_path.read_text(encoding="utf-8"))
     kpis = json.loads((out_dir / "kpis.json").read_text(encoding="utf-8"))
+    decision_output = json.loads((out_dir / "decisions.json").read_text(encoding="utf-8"))
+    # C3 writes detailed, timing-dependent decision records for analysis. The
+    # confidential replay baseline retains only stable aggregate counts.
+    decision_summary = {key: decision_output[key]
+                        for key in ("decisions", "pipeline_counts")}
     result.update({
         "casim_commit": _run(["git", "rev-parse", "HEAD"])[1].strip(),
         "ware_ops_algos_commit": ware_commit(),
         "kpis": kpis,
-        "decisions": json.loads((out_dir / "decisions.json").read_text(encoding="utf-8")),
+        "decisions": decision_summary,
         "committed_tours": [], "trace_digest": trace["trace_digest"],
         "event_count": trace["event_count"], "violations": {}, "first_violations": [],
         "kpi_differences": [], "status": "consistent"})

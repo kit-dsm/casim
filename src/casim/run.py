@@ -17,6 +17,7 @@ from casim.config.data_card import load_and_flatten_data_card
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.loggers import KPILogger
 from casim.reference import compare_with_reference
+from casim.service import service_measures
 from casim.runner import apply_decision
 from casim.setup import DecisionSetup, resolve
 from casim.simulation_engine.simulation_engine import SimulationEngine
@@ -134,6 +135,10 @@ def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
     (output_dir / "decisions.json").write_text(json.dumps({
         "decisions": tracker.num_decisions,
         "pipeline_counts": dict(tracker.pipeline_counts),
+        "decision_log": tracker.command_decisions,
+        "solve_seconds": sum(row["solve_seconds"] for row in tracker.command_decisions),
+        "conversion_seconds": sum(row["conversion_seconds"] for row in tracker.command_decisions),
+        "apply_seconds": sum(row["apply_seconds"] for row in tracker.command_decisions),
     }, indent=2), encoding="utf-8")
     with open(output_dir / "tours.csv", "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
@@ -165,14 +170,19 @@ def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
                    for order_id in completions})
     with open(output_dir / "orders.csv", "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        writer.writerow(("order_id", "arrival", "due_date", "completion"))
+        writer.writerow(("order_id", "affected", "arrival", "due_date", "completion"))
+        affected = set(getattr(facts.source, "affected_order_ids", ()))
         for order_id in sorted(orders):
-            writer.writerow((order_id, orders[order_id].order_date, orders[order_id].due_date,
+            writer.writerow((order_id, order_id in affected, orders[order_id].order_date,
+                             orders[order_id].due_date,
                              completions.get(order_id)))
     (output_dir / "trace.json").write_text(json.dumps({
         "trace_digest": recorder.digest(), "event_count": len(recorder.trace),
     }, indent=2), encoding="utf-8")
     facts.write(sim, output_dir)
+    (output_dir / "service.json").write_text(
+        json.dumps(service_measures(facts.orders(sim), sim.state.tracker), indent=2),
+        encoding="utf-8")
 
 
 @dataclass(frozen=True)
@@ -195,7 +205,7 @@ def prepare(cfg: DictConfig) -> Prepared:
     setups = check(cfg)
     source = build_source(OmegaConf.to_container(cfg.source, resolve=True),
                           Path(cfg.scenario_dir))
-    recorder, facts = TraceRecorder(), FactsRecorder()
+    recorder, facts = TraceRecorder(), FactsRecorder(source)
     sim, engine = _engines(cfg, setups, source, recorder, facts)
     return Prepared(sim, engine, source, recorder, facts)
 

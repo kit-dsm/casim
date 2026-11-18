@@ -2,6 +2,33 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: C2, C3 and order and picker measures of C4
+
+The source may expose `affected_order_ids`. Both `facts/orders.csv` and the
+legacy `orders.csv` mark those orders, and all other scenarios write false.
+`decisions.json` now records each accepted decision's trigger, feasible
+candidate scores, selected pipeline, solve, conversion and apply times, and
+counts of visible kept, changed, cancelled and created tours. These counts
+refer to the decision-visible plan and accepted commands; no individual
+orders or tours are committed.
+
+`service.json` reports completed and open orders, on-time rate among completed
+orders with due dates, total and maximum tardiness, and makespan for all,
+affected and unaffected orders. It reports each picker's busy, idle and
+absent seconds, with busy share divided by busy plus idle presence. The
+existing `facts/picks.csv` remains the pick table. Departure delay and
+orders-carried measures still need C5's consistent dock and manifest
+accounting; the current event does not identify a truck's orders.
+
+Focused tests pass for affected and unaffected denominators, candidate and
+command logging, and picker presence. The one-process suite passed with
+160 tests, 3 skipped and 1 deselected. `casim check --all` passed. The fast
+and full scenario comparisons, including all six IJPE days, and all L1, L2
+and L3 benchmark comparisons show no differences. The full scenario comparison
+initially found the RADAR case unrunnable because its ignored selected input
+was absent from the new worktree; copying that public local input and
+rerunning the case made it equal.
+
 ## 2026-11-18: C6, one definition of the tours a replanning decision may revise
 
 **Found.** The pipelines receive every tour the decision's scope lets it

@@ -9,11 +9,13 @@ it at t = 0.
 """
 
 from pathlib import Path
+import json
 
 import pandas as pd
 import pytest
 
 from casim.run import compose_scenario, run
+from casim.service import service_measures
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -48,3 +50,59 @@ def test_order_table_has_tour_completion_and_span(outputs):
     tour_id = pd.read_csv(outputs / "facts" / "tours.csv").tour_id.iloc[0]
     assert (order.tour_id, order.tour_start, order.completion, order.picker_id) == (tour_id, 0, 39, 0)
     assert (order.first_pick_start, order.last_pick_end) == (5, 6)
+    assert not bool(order.affected)
+
+
+def test_decision_log_and_service_measures(outputs):
+    decisions = json.loads((outputs / "decisions.json").read_text())
+    assert decisions["decisions"] == 1
+    entry = decisions["decision_log"][0]
+    assert entry["chosen_pipeline"] in {row["pipeline"] for row in entry["candidates"]}
+    assert entry["chosen_score"] is not None
+    assert entry["created_tours"] == 1
+    assert entry["cancelled_tours"] == entry["changed_tours"] == 0
+    assert entry["solve_seconds"] >= 0
+    service = json.loads((outputs / "service.json").read_text())
+    assert service["orders"]["all"]["completed_orders"] == 1
+    assert service["orders"]["all"]["on_time_rate"] == 1
+    assert service["orders"]["affected"]["orders"] == 0
+    assert service["orders"]["unaffected"]["orders"] == 1
+    assert sum(row["busy_s"] + row["idle_s"] for row in service["pickers"]) > 0
+
+
+def test_source_marked_order_is_affected(tmp_path, monkeypatch):
+    import casim.run as run_module
+
+    original = run_module.build_source
+
+    def marked_source(*args, **kwargs):
+        source = original(*args, **kwargs)
+        source.affected_order_ids = {0}
+        return source
+
+    monkeypatch.setattr(run_module, "build_source", marked_source)
+    run(compose_scenario(ROOT / "scenarios" / "minimal", output_dir=tmp_path))
+    assert pd.read_csv(tmp_path / "facts" / "orders.csv").iloc[0].affected
+    assert pd.read_csv(tmp_path / "orders.csv").iloc[0].affected
+    service = json.loads((tmp_path / "service.json").read_text())
+    assert service["orders"]["affected"]["completed_orders"] == 1
+    assert service["orders"]["unaffected"]["orders"] == 0
+
+
+def test_service_denominators_and_picker_presence():
+    class Tracker:
+        busy_time_by_picker = {0: 60}
+        idle_time_by_picker = {0: 40}
+        absent_time_by_picker = {0: 20}
+
+    rows = [
+        {"affected": True, "completion": 90, "due_date": 80},
+        {"affected": False, "completion": 70, "due_date": 80},
+        {"affected": False, "completion": None, "due_date": 80},
+    ]
+    measures = service_measures(rows, Tracker())
+    assert measures["orders"]["all"]["on_time_rate"] == 0.5
+    assert measures["orders"]["all"]["open_orders"] == 1
+    assert measures["orders"]["affected"]["total_tardiness_s"] == 10
+    assert measures["pickers"][0]["busy_share_of_presence"] == 0.6
+    assert measures["pickers"][0]["absent_s"] == 20

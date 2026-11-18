@@ -61,6 +61,7 @@ class DecisionResult:
     objective_value: float | None = None
     solve_seconds: float = 0.0
     conversion_seconds: float = 0.0
+    candidate_scores: tuple[tuple[str, float | None], ...] = ()
 
 
 def bind_start_times(commands: tuple[Command, ...], mode: str) -> tuple[Command, ...]:
@@ -106,6 +107,7 @@ class DecisionEngine:
         objective_value = None
         solve_seconds = 0.0
         conversion_seconds = 0.0
+        candidate_scores: tuple[tuple[str, float | None], ...] = ()
 
         if dynamic.context.solve and decision in self.solver_map:
             started = perf_counter()
@@ -120,29 +122,33 @@ class DecisionEngine:
             conversion_seconds = perf_counter() - conversion_start
             if not feasible:
                 raise ValueError(f"{decision}: no feasible candidate solution")
+            scores = {}
+            for name, (candidate, proposal) in feasible.items():
+                try:
+                    scores[name] = self.solution_rankers[decision].score(candidate, proposal)
+                except ValueError:
+                    # A single candidate can be accepted without a rankable
+                    # objective, as before; its unavailable score is explicit.
+                    if len(feasible) != 1:
+                        raise
+                    scores[name] = None
+            candidate_scores = tuple(sorted(scores.items()))
             if action is None:
                 if len(feasible) == 1:
                     chosen_name = next(iter(feasible))
                     solution, commands = feasible[chosen_name]
-                    try:
-                        objective_value = self.solution_rankers[decision].score(
-                            solution, commands)
-                    except ValueError:
-                        objective_value = None
+                    objective_value = scores[chosen_name]
                 else:
-                    solution, commands, chosen_name, objective_value = (
-                        self.solution_rankers[decision].select_best(feasible))
+                    chosen_name = min(scores, key=lambda name: (scores[name], name))
+                    solution, commands = feasible[chosen_name]
+                    objective_value = scores[chosen_name]
             else:
                 names = tuple(sorted(feasible))
                 chosen_name = names[action] if isinstance(action, int) else action
                 if chosen_name not in feasible:
                     raise ValueError(f"{decision}: action {action!r} is not a feasible candidate")
                 solution, commands = feasible[chosen_name]
-                try:
-                    objective_value = self.solution_rankers[decision].score(
-                        solution, commands)
-                except ValueError:
-                    objective_value = None
+                objective_value = scores[chosen_name]
             waiting, reconsider_at, selected_considered = decision_effects(solution)
             considered = considered | selected_considered
             self._accepted_choices[decision] = solution, chosen_name
@@ -162,6 +168,7 @@ class DecisionEngine:
             considered_active_orders=considered, solver_name=chosen_name,
             objective_value=objective_value, solve_seconds=solve_seconds,
             conversion_seconds=conversion_seconds,
+            candidate_scores=candidate_scores,
         )
 
     def on_accepted(self, result: DecisionResult,

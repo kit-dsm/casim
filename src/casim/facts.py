@@ -5,7 +5,7 @@
 - ``tours.csv``: one row per started tour: ``tour_id``, ``picker_id``,
   ``commit_time``, ``start`` (of the setup), ``setup_end`` (start of the
   route), ``end``, ``distance``, ``lines``, ``order_ids``;
-- ``orders.csv``: one row per order: ``order_id``, ``release_time``,
+- ``orders.csv``: one row per order: ``order_id``, source-marked ``affected``, ``release_time``,
   ``due_date``, ``lines``, ``tour_id``, ``tour_start``, ``completion`` (end
   of its tour, empty if not completed), and for comparisons with recorded
   data ``picker_id``, ``first_pick_start``, ``last_pick_end``;
@@ -32,14 +32,15 @@ from casim.loggers import EventLogger
 FACTS_DIR = "facts"
 TOUR_COLUMNS = ("tour_id", "picker_id", "commit_time", "start", "setup_end", "end",
                 "distance", "lines", "order_ids")
-ORDER_COLUMNS = ("order_id", "release_time", "due_date", "lines", "tour_id", "tour_start",
+ORDER_COLUMNS = ("order_id", "affected", "release_time", "due_date", "lines", "tour_id", "tour_start",
                  "completion", "picker_id", "first_pick_start", "last_pick_end")
 PICK_COLUMNS = ("tour_id", "picker_id", "order_id", "article_id", "node_x", "node_y",
                 "walk_start", "walk_distance", "pick_start", "pick_end")
 
 
 class FactsRecorder(EventLogger):
-    def __init__(self):
+    def __init__(self, source=None):
+        self.source = source
         self.picks: list[dict] = []
         self.tours: dict[int, dict] = {}
         self.commit_time: dict[int, float] = {}
@@ -83,6 +84,7 @@ class FactsRecorder(EventLogger):
             self.tours[event.tour_id]["end"] = event.time
 
     def orders(self, sim) -> list[dict]:
+        affected = set(getattr(self.source, "affected_order_ids", ()))
         picks: dict = {}
         for pick in self.picks:
             row = picks.setdefault(pick["order_id"], {
@@ -95,7 +97,8 @@ class FactsRecorder(EventLogger):
             row = picks.get(order.order_id)
             tour = self.tours.get(row["tour"]) if row else None
             table.append({
-                "order_id": order.order_id, "release_time": order.order_date,
+                "order_id": order.order_id, "affected": order.order_id in affected,
+                "release_time": order.order_date,
                 "due_date": order.due_date, "lines": len(order.order_positions),
                 "tour_id": row["tour"] if row else None,
                 "tour_start": tour["start"] if tour else None,

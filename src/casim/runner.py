@@ -14,5 +14,5 @@ def apply_decision(sim: SimulationEngine, engine: DecisionEngine,
     engine.on_accepted(result, snapshot)
     engine.decision_tracker.on_commands(
         sim.state.current_time, snapshot.dynamic_warehouse_info.context.decision,
-        result.commands, result.conversion_seconds, perf_counter() - started,
+        result, snapshot, perf_counter() - started,
     )

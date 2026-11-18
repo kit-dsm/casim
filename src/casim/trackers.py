@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from ware_ops_algos.planning.commands import CancelTour, CreateTour, ReplaceSuffix, Reschedule
+
 
 class ExperimentTracker:
     def __init__(self, n_pickers):
@@ -192,12 +194,30 @@ class DecisionTracker:
         self.pipeline_counts: dict[str, int] = defaultdict(int)
         self.command_decisions: list[dict] = []
 
-    def on_commands(self, time, decision, commands, conversion_seconds, apply_seconds):
+    def on_commands(self, time, decision, result, snapshot, apply_seconds):
+        commands = result.commands
+        context = snapshot.dynamic_warehouse_info.context
+        visible = {tour.tour_id for tour in snapshot.dynamic_warehouse_info.plan.tours}
+        cancelled = {command.tour_id for command in commands
+                     if isinstance(command, CancelTour)}
+        changed = {command.tour_id for command in commands
+                   if isinstance(command, (ReplaceSuffix, Reschedule))} - cancelled
         self.command_decisions.append({
             "time": time,
             "decision": decision,
+            "trigger": list(context.cause),
+            "reconsider": [reason.value for reason in context.reconsider],
+            "candidates": [{"pipeline": name, "score": score}
+                           for name, score in result.candidate_scores],
+            "chosen_pipeline": result.solver_name,
+            "chosen_score": result.objective_value,
+            "solve_seconds": result.solve_seconds,
             "commands": [type(command).__name__ for command in commands],
-            "conversion_seconds": conversion_seconds,
+            "kept_tours": len(visible - changed - cancelled),
+            "changed_tours": len(changed),
+            "cancelled_tours": len(cancelled),
+            "created_tours": sum(isinstance(command, CreateTour) for command in commands),
+            "conversion_seconds": result.conversion_seconds,
             "apply_seconds": apply_seconds,
         })
 
