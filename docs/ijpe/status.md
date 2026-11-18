@@ -2,6 +2,26 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: C7, departures take effect in request order
+
+**Defect.** A departure requested while a picker was busy replaced any
+departure still pending for that picker. With recorded presence and the
+five-minute pauses, this lost 5 requests on the six days: 0.6 h of pause,
+and in one case a pause was replaced by the shift end.
+
+**Fix (core, approved by the user).** `ResourceManager` keeps the pending
+departures of each picker in request order. Each one takes effect at the next
+free point. Departures requested during an absence wait until the picker
+returns, and `free_at` adds them up. Two new hand-derived tests cover this
+(`tests/verification/test_dispatch_two_pickers.py`), and the expected absent
+time in a recorded-replay test is re-derived.
+
+**Checks.** pytest (165 passed), `casim check --all`, and every scenario
+and benchmark baseline (27 scenario runs, l1, l2, l3) are unchanged. The
+defect only affects chained recorded-presence runs, which have no baseline
+record. The system-level numbers in `docs/ijpe/validation.md` came from runs
+before the fix and move by at most the 0.6 h of lost pause.
+
 ## 2026-11-18: P1.3 and P1.4 system-level validation, and why pickers idle
 
 **Done.** Six-day runs with recorded batches, U-shape routing and either
