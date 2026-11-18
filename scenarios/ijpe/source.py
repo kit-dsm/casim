@@ -13,6 +13,7 @@ and the pauses.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from hashlib import sha256
 from pathlib import Path
 
 import pandas as pd
@@ -24,18 +25,35 @@ from casim.sources.recorded import RecordedReplay, RecordedRow, TimeModel
 from casim.sources.wms_export import day_lines
 
 
+DEPARTURE_HOURS = (10, 12, 14, 16)
+STAGING_MINUTES = 30
+
+
+def fixed_departure_hour(customer: str) -> int:
+    """Synthetic daily store slot, independent of recorded picking times."""
+    digest = sha256(str(customer).encode("utf-8")).digest()
+    return DEPARTURE_HOURS[int.from_bytes(digest[:8], "big") % len(DEPARTURE_HOURS)]
+
+
 class ScenarioSource:
     def __init__(self, data_dir: Path, *, day: str, shift_start_s: float,
                  pause_threshold_s: float | None, speed: float, time_per_pick: float,
                  tour_setup_time: float, per_unit_s: float | None = None,
                  interleaving: bool = True, breaks: list | None = None,
                  origin_mode: str = "depot", setup_in_gap: bool = False,
-                 sequence_clock: str = "start", presence: str = "shift"):
+                 sequence_clock: str = "start", presence: str = "shift",
+                 due_plan: str | None = None):
+        if due_plan not in (None, "fixed_dispatch"):
+            raise ValueError(f"unknown IJPE due plan: {due_plan}")
+        self.due_plan = due_plan
         layout, locations = GridLayout().build(Path(data_dir) / "layout.csv")
         lines, self.excluded = day_lines(str(day), GridLayout.pick_nodes(locations),
                                          Path(data_dir) / "cache")
         midnight = pd.Timestamp(day)
         lines = lines.sort_values(["start", "row"])
+        if (lines.groupby("order")["customer"].nunique() != 1).any():
+            raise ValueError("an order belongs to several stores")
+        self.customer_by_order = lines.groupby("order")["customer"].first().to_dict()
         picker_ids = {picker: index for index, picker in enumerate(lines["picker"].unique())}
         rows = [RecordedRow(picker=picker_ids[line.picker], order=int(line.order),
                             article=int(line.article), quantity=int(line.quantity),
@@ -53,6 +71,10 @@ class ScenarioSource:
 
     def initial_state(self) -> SimWarehouseDomain:
         self._domain = self.replay.domain()
+        if self.due_plan == "fixed_dispatch":
+            for order in self._domain.orders.orders:
+                hour = fixed_departure_hour(self.customer_by_order[str(order.order_id)])
+                order.due_date = hour * 3600 - STAGING_MINUTES * 60
         return self._domain
 
     def events(self) -> Iterator[Event]:

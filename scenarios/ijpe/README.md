@@ -39,7 +39,8 @@ What the source emits for a day (P1.1):
   gap between tours longer than the threshold is a `PickerDeparture` with the
   gap's duration, which begins when the running tour ends. Shorter gaps
   vanish, and a gap inside a tour is not modelled. The sweep
-  `days_thresholds` runs 2, 5 and 10 minutes until the threshold is fixed. In
+  `days_thresholds` compares 2, 5 and 10 minutes. The selected threshold is
+  5 minutes; `variants/recorded_presence.yaml` uses it. In
   anchored runs (`source.pause_threshold_s=null`, the default) there are no
   pauses; every tour starts no earlier than its recorded start instead. This
   isolates each tour's time error but uses future recorded starts, so it is a
@@ -79,6 +80,7 @@ Variants:
 ```bash
 python -m casim run scenarios/ijpe source.day=2026-04-15
 python -m casim run scenarios/ijpe variants=recorded_presence source.day=2026-04-15
+python -m casim run scenarios/ijpe variants=fixed_dispatch source.day=2026-04-15
 python -m casim run scenarios/ijpe sweep=days_thresholds
 python -m casim run scenarios/ijpe sweep=variants
 python -m casim run scenarios/ijpe sweep=anchored --output-dir scenarios/ijpe/outputs/anchored

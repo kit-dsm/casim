@@ -2,6 +2,26 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: Pause threshold selected and departure fallback specified
+
+The user selected a five-minute inferred pause threshold after a new six-day
+24-run sweep on the C6 base. Across 95 picker-days, the 2-, 5- and 10-minute
+thresholds yield respectively 957, 378 and 217 pauses; 176.0, 142.5 and
+125.2 hours of inferred absence; and 81.0, 80.5 and 82.7 minutes of pooled
+picker-day last-line RMSE. Between-tour pauses do not change order spans.
+The five-minute threshold is the selected chained replay setting;
+`source.pause_threshold_s=null` remains the anchored diagnostic.
+
+The partner has not supplied a departure plan. `docs/ijpe/departure_fallback.md`
+specifies a fixed synthetic schedule, with 10:00, 12:00, 14:00 and 16:00
+dispatch groups, a stated 30-minute staging assumption, and a stable
+store-to-slot assignment independent of picking outcomes. An aggregate audit
+on the replay cohort finds recorded late shares of 16.3% to 51.9% by day.
+These are missed synthetic deadlines, not observed truck delays. The
+`fixed_dispatch` variant now puts the deadlines on orders; its Friday smoke
+run completed 81 orders with a 54.3% simulated on-time rate. C5 is required
+before departure events and truck delay measures use this schedule.
+
 ## 2026-11-18: C2, C3 and order and picker measures of C4
 
 The source may expose `affected_order_ids`. Both `facts/orders.csv` and the

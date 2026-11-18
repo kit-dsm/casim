@@ -77,8 +77,8 @@ Not part of the revision (moved to after 27 December): replay of the recorded li
 
 ## 8. Phase P3: due times (Rev2: feasible by construction)
 
-- **P3.1 must.** Departure-based due times: departure of the store's truck minus the staging lead time, from the departure plan requested in P0. If the plan does not arrive by 1 December, use the delivery windows and staging times of the manuscript's Section 4.1 and state that in the paper.
-- **P3.2 must.** Baseline on-time rate, lateness and departure delays under the hourly bucket of the submitted paper, the departure-based due time, and the departure-based due time tightened by a margin. State that the first is feasible for the historical schedule by construction.
+- **P3.1 must.** If the partner supplies a departure plan, use each store's actual truck departure minus its staging lead time. Otherwise use the fixed synthetic dispatch plan in `docs/ijpe/departure_fallback.md`. Its store-to-slot rule is independent of completed picking times and is held constant across scenarios. State clearly that the fallback does not identify actual trucks or observed departure delays.
+- **P3.2 must.** Baseline on-time rate, lateness and simulated departure delays under the hourly bucket of the submitted paper, the fixed departure-based due time, and a stated tighter margin. State that the hourly bucket is feasible for the historical schedule by construction and that the synthetic departure plan is an assumption whose deadlines are binding on the recorded orders.
 
 ## 9. Phase P4: experiments for the reviews
 
@@ -126,7 +126,7 @@ Checkpoint on 6 December: tasks marked should or could that are not started are 
 - The pause threshold, after P1.1.
 - The time model, at the end of P1.
 - Whether aisle 10 enters the layout or is reported as an exclusion with its share.
-- If the departure plan per store is not available by 1 December.
+- If the departure plan per store becomes available, compare it with the documented synthetic fallback before replacing the latter in the main experiment.
 - If a number of the submitted paper cannot be reproduced and the cause is not a demonstrated defect.
 - Whether the revision scope is claimed as a contribution (P5), and whether the pipeline repository is extended or the claim narrowed (P4.3).
 - Before any core change not listed in Section 4.

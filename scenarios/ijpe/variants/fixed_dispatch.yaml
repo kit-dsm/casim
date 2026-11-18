@@ -1,0 +1,5 @@
+# @package _global_
+# Synthetic, fixed store dispatch deadlines. Chained with selected 5 min pauses.
+source:
+  due_plan: fixed_dispatch
+  pause_threshold_s: 300.0
