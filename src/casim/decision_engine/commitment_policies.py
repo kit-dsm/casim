@@ -1,11 +1,4 @@
-"""Select visible planned tours to make executable.
-
-Push: the decision commits tours into resource queues ahead of time
-(``CommitAllPolicy``, ``SchedulingCommitmentPolicy``, ``WindowCommitmentPolicy``).
-Pull: a free resource takes its next tour when it becomes free
-(``PullCommitmentPolicy``); the rest stays planned and is planned again at the
-next decision, so work never waits in the queue of a resource that is away.
-"""
+"""Select visible planned tours to make executable."""
 
 from __future__ import annotations
 
@@ -118,22 +111,3 @@ class WindowCommitmentPolicy(CommitmentPolicy):
         future = [tour.start_time - self.within_s for tour in planned
                   if tour.start_time > cutoff]
         return commits, min(future) if future else None
-
-
-@dataclass(frozen=True)
-class PullCommitmentPolicy(CommitmentPolicy):
-    """Each visible (free) resource takes its first planned tour, nothing more.
-
-    The decision sees only idle resources and is triggered when a resource
-    becomes free (``PickerIdle``, ``PickerArrival``); ``DecisionConfig``
-    checks both. Uncommitted tours stay planned for the next free resource.
-    """
-    __pydantic_config__ = {"extra": "forbid"}
-
-    def apply(self, commands, state_snapshot):
-        if state_snapshot.dynamic_warehouse_info.memory.waiting:
-            return (), None
-        first: dict[int, _Planned] = {}
-        for tour in _planned_after(commands, state_snapshot):
-            first.setdefault(tour.picker_id, tour)
-        return tuple(tour.commit() for tour in first.values()), None

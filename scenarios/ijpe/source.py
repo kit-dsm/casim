@@ -88,7 +88,7 @@ class ScenarioSource:
         elif absences == "fitted":
             if pause_threshold_s is None:
                 raise ValueError("fitted absences need a chained run (a pause threshold)")
-            from casim.sources.absence import AbsenceModel, recorded_absences, windows
+            from casim.sources.absence import AbsenceModel
             settings = dict(shift_start_s=shift_start_s, pause_threshold_s=pause_threshold_s,
                             speed=speed, time_per_pick=time_per_pick,
                             tour_setup_time=tour_setup_time, per_unit_s=per_unit_s,
@@ -99,10 +99,10 @@ class ScenarioSource:
                 if other == str(day):
                     continue
                 replay = ScenarioSource(data_dir, day=other, **settings).replay
-                fit_days.append((windows(replay), recorded_absences(replay)))
+                fit_days.append((replay.roster(), replay.recorded_absences()))
             model = AbsenceModel.fit(fit_days, BREAK_WINDOWS, BREAK_MIN_S)
             rng = np.random.default_rng([int(absence_seed), int(pd.Timestamp(day).strftime("%Y%m%d"))])
-            self.replay.absences = model.draw(windows(self.replay), rng)
+            self.replay.absences = model.draw(self.replay.roster(), rng)
 
     def initial_state(self) -> SimWarehouseDomain:
         self._domain = self.replay.domain()

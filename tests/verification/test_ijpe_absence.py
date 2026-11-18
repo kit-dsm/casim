@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from casim.sources.absence import AbsenceModel, Allowance, Break
+from casim.sources.absence import PARTS, AbsenceModel, Allowance, Break
 
 H = 3600
 WINDOWS = ((7 * H, 9.5 * H), (10.5 * H, 13.5 * H))
@@ -23,16 +23,16 @@ def test_breaks_and_allowance_are_fitted_from_the_recorded_absences():
     morning, midday = model.breaks
     assert (morning.share, morning.samples) == (0.5, ((8.5 * H, 1800),))
     assert (midday.share, midday.samples) == (2 / 3, ((11 * H, 900), (12 * H, 2400)))
-    assert model.allowance == {"start": Allowance(1 / 3, (600,)),
+    assert model.allowance == {"start-up": Allowance(1 / 3, (600,)),
                                "regular": Allowance(2 / 14, (120, 300)),
-                               "end": Allowance(0.0, ())}
+                               "wind-down": Allowance(0.0, ())}
 
 
 def test_draws_repeat_with_the_seed_and_stay_in_the_roster():
     model = AbsenceModel(
         breaks=(Break(WINDOWS[0], 1.0, ((8.5 * H, 1800), (9 * H, 1500))),
                 Break(WINDOWS[1], 1.0, ((12 * H, 2400),))),
-        allowance={name: Allowance(1.5, (120, 300, 600)) for name in ("start", "regular", "end")})
+        allowance={name: Allowance(1.5, (120, 300, 600)) for name in PARTS})
     roster = {0: (6 * H, 14 * H), 1: (6.5 * H, 13 * H)}
     first = model.draw(roster, np.random.default_rng(7))
     assert first == model.draw(roster, np.random.default_rng(7))
@@ -46,5 +46,5 @@ def test_draws_repeat_with_the_seed_and_stay_in_the_roster():
 
 def test_a_picker_not_present_in_a_break_window_takes_no_break_there():
     model = AbsenceModel(breaks=(Break(WINDOWS[0], 1.0, ((8.5 * H, 1800),)),),
-                         allowance={"start": Allowance(0.0, (60,))})
+                         allowance={name: Allowance(0.0, (60,)) for name in PARTS})
     assert model.draw({0: (10 * H, 14 * H)}, np.random.default_rng(0)) == []

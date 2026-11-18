@@ -185,8 +185,7 @@ def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
     if service["stranded"]["tours"]:
         print(f"warning: {service['stranded']['tours']} committed tours "
               f"({service['stranded']['orders']} orders) never started: their pickers "
-              "were away at the end. Push queued work for pickers who left; "
-              "pull (PullCommitmentPolicy) does not.")
+              "were away at the end (work pushed into the queue of a picker who left).")
     (output_dir / "service.json").write_text(json.dumps(service, indent=2), encoding="utf-8")
 
 

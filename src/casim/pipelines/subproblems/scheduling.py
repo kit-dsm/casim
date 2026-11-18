@@ -44,8 +44,6 @@ class FIFOScheduler(AbstractScheduling):
 class SAVScheduler(AbstractScheduling):
     """Henn's SAV selection; builds its own router from the configured class."""
 
-    supports_pull = False  # defined for exactly one picker
-
     routing_class: type[Routing] | None = None
 
     def _load_layout(self):
@@ -63,7 +61,7 @@ class SAVScheduler(AbstractScheduling):
 class RecordedPlan(AbstractScheduling):
     """Each tour to its recorded picker, in the recorded order."""
 
-    supports_pull = False  # needs every recorded picker, free or not
+    supports_pull = False  # needs every recorded picker visible, free or not
 
     def _get_inited_scheduler(self, available_from: dict[int, float]):
         return RecordedScheduling(self._load_resources(), plan=recorded_plan(self),

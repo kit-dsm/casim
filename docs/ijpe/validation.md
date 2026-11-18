@@ -88,13 +88,16 @@ from -78 to -10 minutes.
 
 Three runs, all after C7 (departures in request order), 18 November. The
 recorded assignment is a push: the recorded plan is committed into each
-picker's queue at the start. FIFO is a pull: whenever a picker is free, it
-takes the next recorded tour (`decisions/pull.yaml`).
+picker's queue at the start. FIFO is a pull, with batching and assignment
+separated as in the paper (`decisions/pull.yaml`): OBP makes the recorded
+tours into pick lists once, when the orders are in; ORSP routes the open pick
+lists and gives one to each picker that becomes free (about 220 decisions a
+day).
 
 | Run | Assignment | Presence | Open orders | Orders by 10:00 / 12:00 | Largest day error by 10:00 / 12:00 | Picker finish bias, min | Picker finish RMSE, min | Day's last line, mean error, min |
 |---|---|---|---:|---:|---:|---:|---:|---:|
 | `calibrated_recorded` | recorded | recorded | 86 | +32 / -13 | 11 / 15 | -26 | 52 | +19 |
-| `calibrated_fifo` | FIFO, pull | recorded | 5 | +39 / +8 | 11 / 6 | -3 | 14 | +3 |
+| `calibrated_fifo` | FIFO, pull | recorded | 5 | +44 / +10 | 14 / 8 | -6 | 28 | +4 |
 | `calibrated_recorded_arrival` | recorded | no departure | 0 | +32 / -12 | 11 / 14 | -10 | 61 | +89 |
 
 - Throughput up to midday is reproduced: on every day the orders completed
@@ -112,8 +115,12 @@ takes the next recorded tour (`decisions/pull.yaml`).
   presence) or the last picker finishes late (+89 minutes on average without
   departures).
 - FIFO as a pull reproduces the day: 5 open orders over six days (all on
-  Friday), picker finish times within 14 minutes (RMSE) and the day's last
-  line within 3 minutes on average. A free picker takes over work a late
+  Friday), picker finish RMSE 28 minutes (8 to 19 on five days) and the
+  day's last line within 4 minutes on average. Monday's picker RMSE is 58
+  minutes because of one picker: with FIFO it gets a longer tour than
+  recorded, four of its recorded absences fall due during it, and absences
+  take effect in request order, so they run back to back from 09:35 until
+  it leaves at 13:16. A free picker takes over work a late
   picker would otherwise leave open, as on the floor. The recorded
   assignment cannot: it fixes every tour to its picker, so the tour errors
   add up per picker (RMSE 61 minutes without departures).
@@ -140,45 +147,49 @@ The calibrated day takes every absence from the record. The experiments
 cannot: they need absences that are modelled, not replayed. The roster (when
 each picker arrives and leaves) stays an input, as a planner knows it; the
 absences during the shift come from a model (`source.absences=fitted`,
-`casim/sources/absence.py`):
+`casim/sources/absence.py`). The recorded absences are 229 h, 34 % of the
+665 present picker-hours of the six days. The model has two parts:
 
-- the recorded absences are 35 % of a picker's time between first and last
-  line (28 to 44 % by day), about 1.7 per working hour, with peaks around
-  08:00 and 12:00 (32 and 38 minutes per present picker-hour against about
-  15 between 09:00 and 11:00); durations depend on the hour (median 23
-  minutes around 08:00, 39 around 12:00, 5 after 13:00);
-- requests follow a Poisson process per picker over its rostered window,
-  with a rate per clock hour (recorded absences per present picker-hour);
-  durations are drawn from recorded absences that started within 30 minutes
-  of the request (wider if fewer than 20). As recorded absences, they begin
-  when the running tour ends;
-- each day is fitted on the other five days; the draws depend only on seed,
-  day and roster, so all policies of a replication see the same absences.
+- scheduled breaks around 08:00 and 12:00: in each window (07:00 to 09:30,
+  10:30 to 13:30) a picker's longest absence of at least 10 minutes is its
+  break. Every present picker takes the morning break (median 30 minutes,
+  around 09:00), 84 % the midday break (median 40 minutes, around 12:15);
+  together 110 h, 17 % of present time. Time and duration are drawn together
+  from the recorded breaks of the window;
+- allowance, every other absence (personal needs, fatigue, delays; the
+  record does not say what): a Poisson process per picker with its own rate
+  and durations in three parts of the picker's presence. In the first hour
+  1.05 absences per hour (median 9 minutes), 28 % of the time: start-up; in
+  the regular time 0.80 per hour (median 8 minutes), 17 %; in the last hour
+  0.80 per hour (median 6 minutes), 11 %: wind-down. A single rate over the
+  whole presence put too little absence before 08:00 (43 h drawn against 58
+  h recorded) and too much at the end, and the days ran 8 % ahead by 12:00;
+- each day is fitted on the other five days; the draws depend only on seed
+  and roster, so all policies of a replication see the same absences. As
+  recorded absences, they begin when the running tour ends.
 
-Drawn and recorded absences agree in total (220 h against 229 h over six
-days, mean of ten seeds) and by clock hour. Thirty replications per day,
-all with the calibrated time model (`scripts/ijpe/absence_validation.py`):
+Thirty replications per day, FIFO as a pull, the calibrated time model
+(`scripts/ijpe/absence_validation.py`):
 
 | Assignment | Orders by 10:00, six days | Orders by 12:00, six days | Open orders | WMS inside the 90 % band at 12:00 |
 |---|---:|---:|---:|---:|
 | WMS | 626 | 1,031 | 0 | |
-| FIFO (push, before 18 November), recorded absences (trace-driven) | 663 | 1,032 | 141 | |
-| FIFO, fitted absences, mean (90 % band) | 676 (640 to 704) | 1,041 (980 to 1,075) | 135 (102 to 175) | 4 of 6 days |
-| Recorded assignment, fitted absences | 654 (617 to 692) | 977 (922 to 1,014) | 159 (117 to 199) | 3 of 6 days |
+| FIFO, recorded absences (trace-driven) | 670 | 1,041 | 5 | |
+| FIFO, fitted absences, mean (90 % band) | 682 (662 to 703) | 1,085 (1,057 to 1,113) | 12 (0 to 26) | 3 of 6 days |
 
-- With FIFO assignment, the base of the experiments, the fitted absences
-  reproduce the six days as well as the recorded ones: orders by 12:00
-  within 1 % and the same open work. Both are ahead at 10:00 (+37 and +50
-  orders, 6 to 8 %); this comes from the time model and FIFO, not from the
-  absences.
-- Single days are not reproduced where their absence level is far from the
-  average day: Monday had 51 h of absence (about 39 h drawn) and runs ahead,
-  Friday is a short day with a different pattern. A model fitted on other
-  days reproduces the average day, and the paper says so.
-- Recorded assignment with fitted absences does not fit (too slow by
-  midday, more open work): the recorded work plan gave each picker the work
-  it managed given its own absences, which random absences do not respect.
-  It is not used.
+- Open work stays small with fitted absences (12 orders over six days), as
+  in the trace-driven run.
+- By 12:00 the fitted days are 5 % ahead of the WMS. Most of it is Monday
+  (+38 of +54 orders): Monday had 51 h of absence, the model fitted on the
+  other days draws about 36 h. Without Monday the five days are within 2 %.
+  Thursday goes the other way (about 10 h more drawn than recorded). A model
+  fitted on other days reproduces the average day, not each day's level, and
+  the paper says so.
+- Both the trace-driven and the fitted days are ahead at 10:00 (7 to 9 %);
+  this comes from the time model, not from the absences.
+- Recorded assignment is not combined with fitted absences: the recorded
+  work plan gave each picker the work it managed given its own absences,
+  which drawn absences do not respect.
 
 ## How the calibration was found (diagnostics, before C7)
 

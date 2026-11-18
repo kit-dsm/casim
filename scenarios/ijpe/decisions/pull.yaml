@@ -1,15 +1,33 @@
-# Pull: whenever a picker is free (idle, arrived, back from an absence), it
-# takes the next tour; the other tours stay planned. Nothing waits in the
+# As the paper separates them: OBP batches the orders into pick lists (the
+# recorded tours) once, when the orders are in; ORSP routes the pick lists and
+# hands one to each picker that becomes free (pull). Nothing waits in the
 # queue of a picker who is away or has left.
-OBRSP:
-  problem_class: OBRSP
+OBP:
+  problem_class: OBP
   state_information:
     orders: true
     pick_lists: false
-    tours:
-    - planned
-    resources:
-    - idle
+    tours: []
+    resources: [off_shift, idle, reserved, busy]
+  scope:
+    freeze_from: planned
+    frozen_accepts: none
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    repo: ${cosy_repo}
+  precedence: 0
+  triggers:
+  - OrderStreamClosed
+  conditions:
+  - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+    threshold: 1
+ORSP:
+  problem_class: ORSP
+  state_information:
+    orders: false
+    pick_lists: true
+    tours: [planned]
+    resources: [idle]
   scope:
     freeze_from: scheduled
     frozen_accepts: none
@@ -17,11 +35,13 @@ OBRSP:
     _target_: casim.pipelines.pipeline_runner.CoSySolver
     repo: ${cosy_repo}
   commitment_policy:
-    _target_: casim.decision_engine.commitment_policies.PullCommitmentPolicy
+    _target_: casim.decision_engine.commitment_policies.SchedulingCommitmentPolicy
+    n_jobs: 1
+  precedence: 10
   triggers:
   - OrderStreamClosed
   - PickerIdle
   - PickerArrival
   conditions:
-  - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+  - _target_: casim.simulation_engine.conditions.NbrPickersCondition
     threshold: 1

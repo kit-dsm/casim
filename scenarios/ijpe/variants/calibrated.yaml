@@ -1,6 +1,7 @@
 # @package _global_
-# The calibrated day (docs/ijpe/validation.md): recorded batches, U-shape
-# routing and FIFO assignment as a pull (a free picker takes the next tour);
+# The calibrated day (docs/ijpe/validation.md): the recorded batches as pick
+# lists (OBP, once), U-shape routing and FIFO assignment as a pull (ORSP, each
+# free picker takes the next tour; decisions/pull.yaml);
 # recorded presence; gaps between tours and stops inside tours over five
 # minutes are timed absences; the 215 s setup lies inside the recorded gap
 # before a tour; 16.26 s per line, fitted on Monday to Wednesday tour time net
@@ -8,7 +9,7 @@
 # Each tour to its recorded picker: decisions=recorded cosy_repo=recorded_ushape
 # (a push of the recorded plan; the recorded decision sees every picker).
 defaults:
-  - override /cosy_repo: recorded_tours_fifo_ushape
+  - override /cosy_repo: recorded_tours_split
   - override /decisions: pull
 source:
   presence: recorded

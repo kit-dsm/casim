@@ -157,7 +157,6 @@ solution stays in the plan as `planned` tours, which a later decision sees and m
 | `CommitAllPolicy` | every planned tour | never |
 | `SchedulingCommitmentPolicy(n_jobs)` | the first `n_jobs` planned tours by planned start | never |
 | `WindowCommitmentPolicy(within_s)` | planned tours that start within `within_s` | when the next tour becomes ready, minus `within_s` |
-| `PullCommitmentPolicy` | the first planned tour of each visible (free) resource | never; the next free resource triggers it |
 
 A decision without a solver only commits.
 
@@ -192,19 +191,13 @@ One mechanism hands work to a resource. Every change of a resource's queue or pr
 tour end, emits `Dispatch`. Dispatch leaves a busy or absent resource alone, makes a pending
 departure effective, and otherwise starts the first queued tour once its earliest start, if any,
 is reached. A resource that becomes idle emits `PickerIdle` once, which a decision can use as its
-trigger.
-
-Push and pull. A push decision commits tours into the queues ahead of time; a queued tour waits
-for its resource, also while the resource is away, and stays queued if it never returns. A pull
-decision (`PullCommitmentPolicy`) lets each free resource take one tour when it becomes free;
-the rest stays planned for the next free resource, so no work waits with a resource that is
-away. Pull needs the decision to see only idle resources and to be triggered by `PickerIdle` and
-`PickerArrival` (the schema checks both); it solves only when a free resource sees it. A
-component that plans for resources the decision does not see (`RecordedPlan`, which gives each
-tour to its recorded picker, and `SAVScheduler`, defined for one picker) declares
-`supports_pull = False`, and setup rejects it in a pull decision. A run reports in
-`service.json` (`stranded`) the committed tours that never started because their resource was
-away at the end, the failure that push can produce and pull cannot.
+trigger: that is pull planning, as in Henn's model (the decision sees the idle resources and
+commits one tour, `SchedulingCommitmentPolicy` with `n_jobs: 1`). A decision triggered by
+arrivals or periodically that commits tours into the queues is push planning. A queued tour
+waits for its resource, also while the resource is away, and stays queued if it never returns;
+a run reports such tours in `service.json` (`stranded`). A component that plans for every
+resource, busy or away (`RecordedPlan`, which gives each tour to its recorded picker), declares
+`supports_pull = False`, and setup rejects it in a decision triggered by `PickerIdle`.
 
 ## Planned and executed times
 

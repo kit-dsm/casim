@@ -26,12 +26,14 @@ than 10 minutes before their recorded end, 22 h in total). The graph and
 U-shape routing are not the cause: for tours of 11 to 60 lines the
 recorded walk through the lines has the same length as CASIM's route.
 
-**Done.** `PullCommitmentPolicy` (each free picker takes its first planned
-tour; the rest stays planned). The schema requires a pull decision to see
-only idle pickers and to be triggered by `PickerIdle` and `PickerArrival`;
-setup rejects components that plan for pickers the decision does not see
-(`supports_pull = False`: `RecordedPlan`, `SAVScheduler`); a pull decision
-solves only when a free picker sees it. `RecordedIA` assigns the open orders
+**Done.** FIFO as a pull with the existing concepts, batching and assignment
+separated as in the paper (`decisions/pull.yaml`): OBP makes the recorded
+tours into pick lists once; ORSP, triggered by `PickerIdle` and
+`PickerArrival`, sees the idle pickers, routes the open pick lists and commits
+one tour. Setup rejects a component that plans for every picker in a decision
+triggered by `PickerIdle` (`supports_pull = False`: `RecordedPlan`). A first
+version added a separate pull commitment policy; it gave the same days and
+was removed. `RecordedIA` assigns the open orders
 only, so the recorded batches can be planned again at each decision. Every
 run reports in `service.json` the committed tours stranded with a picker who
 is away at the end (`stranded`). Tests in `tests/test_pull_assignment.py`.
@@ -40,9 +42,12 @@ decision now sees every picker itself (`off_shift`), so the variants no
 longer set it. All baselines are unchanged.
 
 **Result.** Calibrated FIFO as a pull: 5 open orders over six days (push:
-141), picker finish RMSE 14 minutes (push: 74), the day's last line +3
-minutes on average, orders by 12:00 within 1 % of the WMS. The fitted-absence
-replications with FIFO were run with push and are rerun with pull next.
+141), picker finish RMSE 28 minutes (push: 74; one Monday picker whose
+recorded absences run back to back accounts for most of it), the day's last
+line +4 minutes on average, orders by 12:00 within 1 % of the WMS. Fitted absences
+(breaks plus allowance by start-up, regular time and wind-down) with pull:
+1,085 orders by 12:00 against 1,031 (Monday's unusually high absence is most
+of the gap), 12 open orders over six days (`validation.md`).
 
 ## 2026-11-18: Fitted absences for the experiments
 

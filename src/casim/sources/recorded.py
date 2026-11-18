@@ -277,21 +277,31 @@ class RecordedReplay:
         self.summary.stop_s_in_tours += duration
         return PickerDeparture(time=start, picker_id=picker, duration=duration)
 
-    def _presence(self) -> list[Event]:
-        if self.presence == "shift":
-            return [PickerArrival(time=self.shift_start_s, picker_id=picker)
-                    for picker in self.pickers]
+    def roster(self) -> dict[int, tuple[float, float]]:
+        """Each picker's recorded presence: setup start of its first tour to its last line."""
         first: dict[int, float] = {}
         last: dict[int, float] = {}
         for picker, lines in self.tours:
             first.setdefault(picker, self._setup_start(lines))
             last[picker] = max(last.get(picker, float("-inf")),
                                max(row.end_s for row in lines))
-        arrivals = [PickerArrival(time=first[picker], picker_id=picker) for picker in self.pickers]
+        return {picker: (first[picker], last[picker]) for picker in self.pickers}
+
+    def recorded_absences(self) -> list[tuple[int, float, float]]:
+        """(picker, request time, duration) of the absences this replay runs with."""
+        return [(d.picker_id, d.time, d.duration) for d in self._pauses()]
+
+    def _presence(self) -> list[Event]:
+        if self.presence == "shift":
+            return [PickerArrival(time=self.shift_start_s, picker_id=picker)
+                    for picker in self.pickers]
+        roster = self.roster()
+        arrivals = [PickerArrival(time=roster[picker][0], picker_id=picker)
+                    for picker in self.pickers]
         if self.presence == "arrival":
             return arrivals
-        return [*arrivals,
-                *(PickerDeparture(time=last[picker], picker_id=picker) for picker in self.pickers)]
+        return [*arrivals, *(PickerDeparture(time=roster[picker][1], picker_id=picker)
+                             for picker in self.pickers)]
 
     def events(self, domain: SimWarehouseDomain) -> Iterator[Event]:
         events: list[Event] = [
