@@ -7,7 +7,7 @@
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "02353cb8ee90b14129580981691dfb6c394bbc0e",
+  "casim_commit": "9bd5b40fb2176eda595f3e9da4cdb025c3db9965",
   "ware_ops_algos_commit": "c7950f4b15b53788e68f954ce594ce2e3dd88297",
   "kpis": {
     "makespan": 29015.75,
@@ -64,7 +64,7 @@
   },
   "decisions": {
     "planning": 147,
-    "release_due": 58
+    "release_due": 57
   },
   "committed_tours": [
     {
@@ -211,8 +211,8 @@
         98,
         99
       ],
-      "start": 13060.75,
-      "end": 14186.75
+      "start": 12665.75,
+      "end": 13791.75
     },
     {
       "tour_id": 19,
@@ -223,8 +223,8 @@
         77,
         78
       ],
-      "start": 14186.75,
-      "end": 15462.75
+      "start": 13791.75,
+      "end": 15067.75
     },
     {
       "tour_id": 13,
@@ -237,8 +237,8 @@
         54,
         55
       ],
-      "start": 15462.75,
-      "end": 16748.75
+      "start": 15067.75,
+      "end": 16353.75
     },
     {
       "tour_id": 15,
@@ -250,8 +250,8 @@
         63,
         64
       ],
-      "start": 16748.75,
-      "end": 18037.75
+      "start": 16353.75,
+      "end": 17642.75
     },
     {
       "tour_id": 17,
@@ -263,8 +263,8 @@
         70,
         71
       ],
-      "start": 18037.75,
-      "end": 19353.75
+      "start": 17642.75,
+      "end": 18958.75
     },
     {
       "tour_id": 8,
@@ -277,8 +277,8 @@
         36,
         37
       ],
-      "start": 19353.75,
-      "end": 20709.75
+      "start": 18958.75,
+      "end": 20314.75
     },
     {
       "tour_id": 21,
@@ -290,8 +290,8 @@
         85,
         94
       ],
-      "start": 20709.75,
-      "end": 22065.75
+      "start": 20314.75,
+      "end": 21670.75
     },
     {
       "tour_id": 6,
@@ -304,8 +304,8 @@
         25,
         26
       ],
-      "start": 22065.75,
-      "end": 23441.75
+      "start": 21670.75,
+      "end": 23046.75
     },
     {
       "tour_id": 7,
@@ -317,8 +317,8 @@
         30,
         31
       ],
-      "start": 23441.75,
-      "end": 24827.75
+      "start": 23046.75,
+      "end": 24432.75
     },
     {
       "tour_id": 3,
@@ -331,8 +331,8 @@
         9,
         14
       ],
-      "start": 24827.75,
-      "end": 26223.75
+      "start": 24432.75,
+      "end": 25828.75
     },
     {
       "tour_id": 12,
@@ -344,8 +344,8 @@
         48,
         49
       ],
-      "start": 26223.75,
-      "end": 27619.75
+      "start": 25828.75,
+      "end": 27224.75
     },
     {
       "tour_id": 14,
@@ -356,32 +356,23 @@
         58,
         59
       ],
-      "start": 27619.75,
-      "end": 29015.75
+      "start": 27224.75,
+      "end": 28620.75
     }
   ],
-  "trace_digest": "f687dca847ee29358088bda125233218ac1359af48bf9bd90ecc52a0e43dca07",
-  "event_count": 21811,
+  "trace_digest": "2a9fcb6b7409d08891320b202753157ab040c585f3573b365140e0a9b69bf250",
+  "event_count": 21810,
   "violations": {
-    "check_plan": {
-      "overlap": 15
-    },
+    "check_plan": {},
     "check_progress": {},
     "check_resources": {}
   },
   "first_violations": {
-    "check_plan": {
-      "overlap": {
-        "at": "time_end",
-        "time": 4179.75,
-        "tour_id": 10,
-        "message": "Picker 0 has overlapping tours"
-      }
-    },
+    "check_plan": {},
     "check_progress": {},
     "check_resources": {}
   },
   "open_orders": {},
   "kpi_differences": {},
-  "status": "inconsistent"
+  "status": "consistent"
 }

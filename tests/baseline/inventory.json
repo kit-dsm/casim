@@ -30,7 +30,7 @@
     "check_output": "ok",
     "run_exit": 0,
     "run_output": "ok",
-    "status": "inconsistent"
+    "status": "consistent"
   },
   {
     "name": "henn__29s-40-30-0__henn_waiting",
