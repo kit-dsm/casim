@@ -20,7 +20,7 @@ NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "scenarios" / "henn_waiting" / "data"
 REFERENCE = ROOT / "scenarios" / "oobp" / "reference.csv"
-RUNLIST = ROOT / "docs" / "literature_benchmarks" / "l3_instances.csv"
+RUNLIST = ROOT / "benchmarks" / "l3_instances.csv"
 COLUMNS = ("source.filepath", "kpi", "published", "kind", "source")
 # (column of the workbook rows, KPI of the scenario, method in the source column)
 VALUES = ((1, "max_completion_time", "GRASP+VND"), (2, "max_turnover_time", "GRASP+VND"),

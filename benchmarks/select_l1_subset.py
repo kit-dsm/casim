@@ -1,7 +1,7 @@
 """Choose the L1 pipelines and the stratified L1 subset from CASOP results.
 
 Run from the ware_ops_pipes root:
-    PYTHONPATH=experiments/evaluation uv run python <casim>/docs/literature_benchmarks/select_l1_subset.py l1_subset.csv 4
+    PYTHONPATH=experiments/evaluation uv run python <casim>/benchmarks/select_l1_subset.py l1_subset.csv 4
 The second argument is the CASIM overhead per run in seconds. One row per
 instance and pipeline; `smoke` marks the 3 runs per set and pipeline of the
 smoke stage. Pipelines that need an integrated stage (RatliffRosenthalNF,

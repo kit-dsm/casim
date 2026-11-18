@@ -372,7 +372,7 @@ def record_benchmark(kind: str, workers: int, patterns: list[str]) -> list[str]:
 # The fast tier: a fixed subset of one or two recorded cases per scenario and
 # benchmark set, under five minutes in total on four workers, run after every
 # commit. The full baseline (``compare`` and ``compare-benchmark`` for l1, l2
-# and l3) runs at the end of a task. Timings are in docs/revision_scopes_status.md.
+# and l3) runs at the end of a task. Tiers and timings are in docs/validation.md.
 FAST = {
     "scenarios": ("henn__default", "henn__29s-40-30-0__order_window", "walk__default",
                   "walk__patrol", "stochastic__henn_waiting"),

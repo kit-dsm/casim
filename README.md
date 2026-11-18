@@ -1,58 +1,82 @@
-# CASIM: Context Aware Simulation for Warehouse Operations 
+# CASIM: Context Aware Simulation for Warehouse Operations
 
-## What is this?
-This repository contains the implementation of CASIM as described in the paper "CASIM: Context Aware Simulation for Warehouse Operations" submitted to the Winter Simulation Conference 2026. 
+CASIM is a discrete-event simulation of manual order picking in which planning decisions are
+configured, not programmed. A decision (when to batch, route, schedule, wait or admit orders to
+a running tour) is defined by its trigger events, its conditions, the part of the state it sees,
+how far it may revise earlier plans, and what it commits. Each decision is solved by pipelines
+that CoSy synthesises from the algorithms of `ware_ops_algos`, which also serves the static
+framework CASOP. CASIM is described in the paper "CASIM: Context Aware Simulation for Warehouse
+Operations" (Winter Simulation Conference 2026).
+
 ## Setup
 
-This project depends on `ware_ops_algos`, which must be cloned adjacent and
-checked out on the branch that matches casim's branch (currently
-`codex/revision-scopes`, not `main`):
+CASIM needs `ware_ops_algos` cloned next to it, on the matching branch (currently
+`codex/revision-scopes`), and [uv](https://docs.astral.sh/uv/) (Python 3.13 is installed by uv).
 
 ```bash
-git clone https://github.com/kit-dsm/casim.git
+git clone -b codex/revision-scopes https://github.com/kit-dsm/casim.git
 git clone -b codex/revision-scopes https://github.com/kit-dsm/ware_ops_algos.git
 cd casim
-git checkout codex/revision-scopes
 uv sync --locked --extra dev
+```
+
+`python -m casim run scenarios/minimal` runs without any data. The benchmark data is not
+committed; download it, with its checksums checked, before running the other scenarios or the
+tests:
+
+```bash
 uv run --locked python scripts/fetch_data.py all
 uv run --locked pytest
 ```
 
-Requires [uv](https://docs.astral.sh/uv/) and Python 3.13 (installed automatically by uv).
+`fetch_data.py` also takes one dataset: `henn_waiting`, `oobp`, `dhaen`, `casop`,
+`casop_instances` or `radar`. The tests skip the slow baseline comparison by default
+(`pytest -m baseline` runs it). Optional extras: `--extra viz` for the Dash replay and the plots,
+`--extra rl` for the Gymnasium environment.
 
-Benchmark data is not committed. `scripts/fetch_data.py all` downloads every
-dataset into the ignored `data/` directories and checks each file against the
-committed `SHA256SUMS.txt`; one dataset is fetched with its name
-(`henn_waiting`, `oobp`, `dhaen`, `casop`, `casop_instances`, `radar`), and
-`--check` only verifies the files already present. `henn_waiting` is restored
-from the git history, so it needs a full (not shallow) clone.
-
-Optional extras: `--extra viz` installs `dash`, `plotly` and `seaborn` for
-`casim.viz` and the scenario plots, `--extra rl` installs `gymnasium` for
-`casim.envs`.
-
-`pytest` skips the slow `baseline` tests by default (every
-scenario against its recorded baseline). Run them with
+## Command line
 
 ```bash
-uv run --locked pytest -m baseline
+python -m casim run <scenario_dir> [overrides] [--audit] [--output-dir DIR]
+python -m casim check --all
+python -m casim check <scenario_dir> [overrides] [--json]
+python -m casim schema
+python -m casim catalog
 ```
+
+- `run` runs a scenario and writes `kpis.json`, `decisions.json`, `tours.csv`, `orders.csv`,
+  `trace.json` and, with a `reference.csv`, `comparison.csv`. `--audit` checks the plan and the
+  resources after every timestamp and writes `audit.json`. Overrides use Hydra syntax
+  (`decisions=order_window`, `source.filepath=29s-40-30-0.txt`).
+- Sweeps: a scenario's `sweep/` files list values to combine; `run ... +sweep=<name>` runs every
+  combination into its own output directory.
+- `check --all` checks the structure and every configuration of every scenario; `check
+  <scenario_dir>` prints the decisions as CASIM resolves them, with the pipelines and the
+  algorithm cards it excludes and why.
+- `schema` prints the JSON schema of a decisions file; `catalog` lists statuses, policies and
+  algorithm cards.
 
 ## Scenarios
 
-A scenario is one warehouse case in `scenarios/<name>/`, run with
+| Scenario | Case |
+|---|---|
+| [minimal](scenarios/minimal/README.md) | One picker, one order, every value derived by hand; the template for new scenarios |
+| [henn_waiting](scenarios/henn_waiting/README.md) | Henn's (2012) waiting rule and an order window on converted Henn instances |
+| [walk_or_wait](scenarios/walk_or_wait/README.md) | The wait-k and intervention rules of "Walking vs. Waiting", with the RADAR standard case |
+| [analytic_waiting](scenarios/analytic_waiting/README.md) | The analytic stochastic waiting rule on a four-order example |
+| [casop_static](scenarios/casop_static/README.md) | The seven CASOP benchmark sets as static instances (benchmark L1) |
+| [henn2012](scenarios/henn2012/README.md) | Henn's (2012) online batching experiments (benchmark L2) |
+| [oobp](scenarios/oobp/README.md) | The online order batching benchmark of Gil-Borrás et al. (2020) (benchmark L3) |
+| `ijpe`, `scenario_ijpe` | The IJPE grocery-retailer study, under revision (`docs/ijpe/`) |
 
-```bash
-python -m casim run scenarios/<name> [overrides]
-python -m casim check --all
-```
+## Documentation
 
-Every scenario has the same structure (`AGENTS.md`); `scenarios/minimal/` is
-the template for a new one.
-
-- [minimal](scenarios/minimal/README.md): one picker, one order, values derived by hand.
-- [henn_waiting](scenarios/henn_waiting/README.md): Henn's (2012) waiting rule and an order window on converted Henn instances.
-- [walk_or_wait](scenarios/walk_or_wait/README.md): the wait-k and intervention rules of *Walking vs. Waiting*, with the RADAR standard case.
-- [analytic_waiting](scenarios/analytic_waiting/README.md): the analytical stochastic waiting example.
-- [oobp](scenarios/oobp/README.md), [henn2012](scenarios/henn2012/README.md), [casop_static](scenarios/casop_static/README.md): the literature benchmarks L3, L2 and L1 (`docs/literature_benchmarks.md`).
-- `scenario_ijpe/`: the IJPE study, ported in Task 6b.6.
+- [docs/concepts.md](docs/concepts.md): the model: state, decisions and their properties,
+  revision scope, commitment, tour lifecycle, dispatch, events and outputs.
+- [docs/scenarios.md](docs/scenarios.md): how a scenario is structured, the meaning of every
+  configuration field, and how to write a new one.
+- [docs/validation.md](docs/validation.md): what has been verified and how, the literature
+  benchmarks with their open differences, the defects found, and the baseline tiers.
+- [docs/development.md](docs/development.md): the backlog and the open design decisions.
+- [docs/ijpe/](docs/ijpe/): the plan, status and data audit of the IJPE revision.
+- [AGENTS.md](AGENTS.md): the rules every contributor follows.

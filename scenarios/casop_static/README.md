@@ -1,44 +1,38 @@
-# Static benchmarks (L1, Task B.4)
+# Static CASOP benchmarks (L1)
 
-A CASOP benchmark instance as a static CASIM instance: every order and every
-picker arrives at t = 0, the order stream closes at t = 0, one OBRSP decision
-with `CommitAllPolicy` solves the whole instance, and the pickers execute the
-committed tours. The source is `casop` (`casim.sources.casop`): one instance
-of `source.instance_set`, read with ware_ops_pipes' loader; the data card of
-its set (`data_card/`) and one CoSy repository per CASOP pipeline
-(`cosy_repo/`, named by the v0.1.0 label) complete the configuration.
+## Question
 
-`scripts/l1/run_benchmark.py` runs the L1 subset through this scenario and
-answers three questions, each with one possible cause of a difference:
+Does CASIM, running a CASOP benchmark instance as a static case, give exactly the result of the
+same ware_ops_algos algorithms called directly, and do those still give the published CASOP
+v0.1.0 results?
 
-1. Simulator: CASIM against the same ware_ops_algos algorithms called directly
-   (`scripts/l1/direct.py`, built with the arguments of casim's components), objective
-   from the routes and the time model. A difference is CASIM's.
-2. Algorithm drift: the direct result against CASOP's published v0.1.0 result
-   (`casop-results-v0.1.0.parquet`, ware_ops_pipes `f04527ba` with
-   ware_ops_algos `042dcff`). A difference is a change on casim's
-   ware_ops_algos branch.
-3. Literature: the direct result against the reference value of
-   `docs/literature_benchmarks/l1_subset.csv`.
+## Data source
 
-## Data
+The seven CASOP benchmark sets (Bahçeci and Öncan, Foodmart, Henn and Wäscher with class-based
+and uniform storage, Muter and Öncan, SPRP, SPRP-SS, Kris small and large), read by the library
+source `casop` with ware_ops_pipes' own loaders; `source.instance_set` and `source.instance`
+select one instance, and a variant per set sets the matching data card. Every order and picker
+arrives at t = 0 and the order stream closes at t = 0.
 
-- Instances: `python scripts/fetch_data.py casop_instances` restores the selected
-  public files into `data/instances/` and verifies their committed checksums.
-  Loaded with ware_ops_pipes' own loaders (`casim.sources.casop.loader`), ware_ops_pipes
-  `554a153` as a development dependency of casim.
-- CASOP v0.1.0 results: `python scripts/fetch_data.py casop` downloads the
-  release asset into `data/` and checks it against `data/SHA256SUMS.txt`.
+- Instances: `python scripts/fetch_data.py casop_instances` restores the selected public files
+  into `data/instances/` and checks their checksums.
+- Published CASOP v0.1.0 results: `python scripts/fetch_data.py casop` downloads the release's
+  results file into `data/`.
+- Run list and reference values: `benchmarks/l1_runlist.csv` and `benchmarks/l1_subset.csv`,
+  reproducible with `benchmarks/select_l1_runlist.py` and `select_l1_subset.py`.
 
-## Pipelines
+The Kris loader of ware_ops_pipes leaves wrong distance-matrix entries in instances with aisles
+without products (`docs/validation.md`); Kris results are affected until it is fixed.
 
-`scripts/l1/pipelines.py` maps each CASOP v0.1.0 label (the names
-`experiments/evaluation/01_prepare_pipeline_results.py` gives in that release)
-to today's classes and casim's components:
+## Decisions
+
+One OBRSP decision (`decisions/static.yaml`) solves the whole instance and commits every tour
+(`CommitAllPolicy`). One CoSy repository per CASOP pipeline (`cosy_repo/`, named by the v0.1.0
+label):
 
 | v0.1.0 label | Item assignment | Batching | Routing | Scheduling |
 |---|---|---|---|---|
-| `GIA+SingleOrderBatching+RR` | `GreedyIA` | `FiFo` (one order per SPRP instance) | `RatliffRosenthal` | FIFO |
+| `GIA+SingleOrderBatching+RR` | `GreedyIA` | `FiFo` | `RatliffRosenthal` | FIFO |
 | `GIA+SingleOrderBatching+SShape` | `GreedyIA` | `FiFo` | `SShape` | FIFO |
 | `MinMinIA+SingleOrderBatching+RR` | `MinMinIA` | `FiFo` | `RatliffRosenthal` | FIFO |
 | `MinMinIA+SingleOrderBatching+SShape` | `MinMinIA` | `FiFo` | `SShape` | FIFO |
@@ -48,28 +42,31 @@ to today's classes and casim's components:
 | `GIA+LSOrdNrNN+NN` | `GreedyIA` | `LSBatchingNNFiFoOrderNr` | `NearestNeighbourhood` | FIFO |
 | `GIA+DueDate+NN+EDD` | `GreedyIA` | `DueDate` | `NearestNeighbourhood` | `EDDScheduler` |
 
-`SingleOrderBatching` was a ware_ops_pipes template stage, not an algorithm
-card; every SPRP and SPRP-SS instance has one order, which the loader gives one
-box, so `FiFo` returns the same single batch. The FIFO scheduler and no waiting
-only let the picker execute the tours; they change no distance.
-`RatliffRosenthalNF` and `CombinedBatchingRoutingAssigning` need integrated
-stages that CASIM does not have. `RatliffRosenthalRouting` reconstructs its
-node sequence since B.4a and is executed in CASIM.
+`SingleOrderBatching` was a template stage of ware_ops_pipes, not an algorithm; every SPRP and
+SPRP-SS instance has one order, so `FiFo` returns the same single batch. The FIFO scheduler and
+no waiting only let the picker execute the tours and change no distance. CASOP's integrated
+stages (`RatliffRosenthalNF`, `CombinedBatchingRoutingAssigning`) have no CASIM counterpart.
 
-## Running
+## How to run
 
 ```bash
 python -m casim run scenarios/casop_static
 python -m casim run scenarios/casop_static data_card=kris source.instance_set=KrisSmallDataCorrected source.instance=instances_100_1 "cosy_repo='GIA+DueDate+NN+EDD'"
 python -m scripts.l1.run_benchmark smoke
-python -m scripts.l1.run_benchmark full [--sets SET ...]
+python -m scripts.l1.run_benchmark full [--sets SET ...] [--resume]
 ```
 
-The full run reads the committed `docs/literature_benchmarks/l1_runlist.csv`,
-reproducible from `docs/literature_benchmarks/select_l1_runlist.py`.
-Pass `--resume` after an interrupted run to continue from its existing CSV;
-the prefix of instance and pipeline keys is checked against the run list.
+`scripts/l1/run_benchmark.py` runs the run list and compares, per row, CASIM with the direct
+algorithm calls (`scripts/l1/direct.py`), the direct calls with CASOP v0.1.0, and the direct
+result with the literature value.
 
-The result table is written to `scenarios/casop_static/outputs/l1_<stage>.csv`
-(not committed). The recorded CASIM runs are `tests/baseline/benchmarks/l1/`;
-`python scripts/baseline.py compare-benchmark --benchmark l1` reruns them.
+## Expected outputs
+
+The standard outputs per run; the benchmark script writes `outputs/l1_<stage>.csv` with the three
+comparisons per instance and pipeline.
+
+## Reference result
+
+On all 415 rows of the run list, the direct calls equal CASOP v0.1.0. CASIM equals the direct
+calls on 310 rows; the other 105 are Kris rows that the loader defect explains. No result lies
+below a proven optimum. Details in `docs/validation.md` (L1).

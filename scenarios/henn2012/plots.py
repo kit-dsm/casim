@@ -1,4 +1,4 @@
-"""The L2 validation table (docs/literature_benchmarks.md, "B.5 L2 validation set").
+"""The L2 validation table (docs/validation.md, L2).
 
 Run the four sweeps, then this file with their output directory:
 

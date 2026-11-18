@@ -1,1 +1,1 @@
-"""Data audit and time model of the IJPE case (docs/ijpe_revision_plan.md)."""
+"""Data audit and time model of the IJPE case (docs/ijpe/plan.md)."""

@@ -1,54 +1,46 @@
 # Minimal scenario
 
-The smallest case CASIM runs, and the template for new scenarios: one picker,
-one order, every expected value derived by hand. It is verification scenario 1
-of Section 7.3 of `docs/revision_scopes_corrections.md`.
+## Question
 
-## The case
+Does CASIM give the values derived by hand for the smallest possible case? This scenario is also
+the template for new scenarios (`docs/scenarios.md`).
 
-The source is the scenario's own `source.py` (`source: {name: local}`): the
-orders are written out in `scenario.yaml`.
+## Data source
 
-A conventional warehouse with 8 aisles of 16 pick locations, the depot in
-front of aisle 1, walking speed 1 length unit per second, 1 s per pick, no
-setup. One order arrives at t = 0 with one pick at aisle 2, location 3. The
-picker arrives at t = 0. One decision (`decisions/obrsp.yaml`) batches FCFS,
-routes S-shape and commits the tour at once.
+None. The scenario's own `source.py` (`source: {name: local}`) builds the case from the values in
+`scenario.yaml`: a conventional warehouse with 8 aisles of 16 pick locations, the depot in front
+of aisle 1, walking speed 1 length unit per second, 1 s per pick, no setup. One order arrives at
+t = 0 with one pick at aisle 2, location 3. The picker arrives at t = 0.
 
-## Expected values (derived by hand)
+## Decisions
 
-The walk-or-wait S-shape tour leaves the depot node (-1, -1) for the front
-cross aisle at (1, 0), moves to aisle 2 at (2, 0), traverses the aisle to its
-rear end (2, 17), picking at (2, 3) on the way, comes back down the same aisle
-to (2, 0) and returns over (1, 0) to the end node (-2, -1). Every edge has
-length 1: 1 + 1 + 17 + 17 + 1 + 1 = 38 unit edges, so 38 s of walking. With
-one pick of 1 s:
+One decision (`decisions/obrsp.yaml`) batches first come first served, routes S-shape
+(`cosy_repo/fifo_sshape.yaml`) and commits the tour at once (`CommitAllPolicy`).
 
-| KPI | Value | Derivation |
-|---|---:|---|
-| `total_distance` | 38 | 38 unit edges |
-| `makespan` | 39 | start 0, 38 s walking, 1 s picking |
-| `mean_order_completion_time` | 39 | completion 39 minus arrival 0 |
-
-`reference.csv` holds these values; `casim run scenarios/minimal` writes
-`comparison.csv` next to the other outputs.
-
-## Running
+## How to run
 
 ```bash
 python -m casim run scenarios/minimal
+python -m casim run scenarios/minimal --audit
 ```
 
-Outputs go to `scenarios/minimal/outputs/run/`: `kpis.json`, `decisions.json`,
-`tours.csv`, `trace.json` (digest of the event trace) and `comparison.csv`.
-Add `--audit` to check the plan invariants after every event (`audit.json`).
+## Expected outputs
 
-## Making a new scenario from this one
+`scenarios/minimal/outputs/run/` with `kpis.json`, `decisions.json`, `tours.csv`, `orders.csv`,
+`trace.json` and `comparison.csv`; with `--audit` also `audit.json`. The run has 89 events and one
+tour.
 
-Copy this directory, then change, in this order: the `source` in
-`scenario.yaml` (a library source by name, or `name: local` with your own
-`source.py`), the data card, the decisions and the CoSy repository. Put
-published values into `reference.csv` with their kind (exact, statistical,
-bound, reproduction). Data files never go into git: `data/SOURCE.md` says
-where they come from and `data/SHA256SUMS.txt` lists their checksums.
-`casim check --all` must pass.
+## Reference result
+
+The S-shape tour leaves the depot node (-1, -1) for the front cross aisle at (1, 0), moves to
+aisle 2 at (2, 0), traverses the aisle to its rear end (2, 17), picking at (2, 3) on the way,
+comes back down to (2, 0) and returns over (1, 0) to the end node (-2, -1). Every edge has length
+1: 1 + 1 + 17 + 17 + 1 + 1 = 38 edges, so 38 s of walking, plus one pick of 1 s.
+
+| KPI | Value | Derivation | Kind |
+|---|---:|---|---|
+| `total_distance` | 38 | 38 unit edges | exact |
+| `makespan` | 39 | start 0, 38 s walking, 1 s picking | exact |
+| `mean_order_completion_time` | 39 | completion 39 minus arrival 0 | exact |
+
+`reference.csv` holds these values; the run reproduces them (`comparison.csv`).

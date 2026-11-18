@@ -33,7 +33,7 @@ from scripts.l1.pipelines import PIPELINES
 from tests.verification.kpi_recomputation import recompute_kpis
 
 ROOT = Path(__file__).resolve().parents[2]
-RUNLIST = ROOT / "docs" / "literature_benchmarks" / "l1_runlist.csv"
+RUNLIST = ROOT / "benchmarks" / "l1_runlist.csv"
 SCENARIO = ROOT / "scenarios" / "casop_static"
 RESULTS = SCENARIO / "data" / "casop-results-v0.1.0.parquet"
 INSTANCES = SCENARIO / "data" / "instances"

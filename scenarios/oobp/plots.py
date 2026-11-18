@@ -1,4 +1,4 @@
-"""The L3 table (docs/literature_benchmarks.md, "B.5 full stage (L3)") from sweep outputs.
+"""The L3 table (docs/validation.md, L3) from sweep outputs.
 
 Run the sweeps first:
 

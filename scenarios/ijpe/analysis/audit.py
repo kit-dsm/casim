@@ -1,4 +1,4 @@
-"""Phase R0 of docs/ijpe_revision_plan.md: what the WMS export contains.
+"""Phase R0 of docs/ijpe/plan.md: what the WMS export contains.
 
 Every function takes the line table of ``export.lines()`` and returns
 aggregate tables. ``main`` writes them as CSV to ``scenarios/ijpe/outputs/

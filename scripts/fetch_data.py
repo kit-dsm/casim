@@ -3,7 +3,7 @@
 Usage: python scripts/fetch_data.py {henn_waiting,oobp,dhaen,casop,casop_instances,radar,all} [--check]
 
 Each dataset directory holds a committed SOURCE.md and SHA256SUMS.txt; the data
-itself is never committed (Section 3.1 of docs/revision_scopes_corrections.md).
+itself is never committed (see docs/scenarios.md).
 """
 
 from __future__ import annotations

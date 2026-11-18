@@ -1,4 +1,4 @@
-"""Read the WMS export of the IJPE case (docs/ijpe_revision_plan.md, Phase R0).
+"""Read the WMS export of the IJPE case (docs/ijpe/plan.md, Phase R0).
 
 The export is confidential and lives in ``scenarios/ijpe/data/`` (ignored by
 git). Reading the workbook needs ``openpyxl``, which is not a casim
