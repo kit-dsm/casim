@@ -46,6 +46,7 @@ Each is a prerequisite of a reviewer answer and small on the current code.
 | C3. Decision log | `decisions.json` keeps only pipeline counts. `SolutionRanker.select_best` already computes every candidate's score and `DecisionResult` carries `solve_seconds`; both are written per decision: time, decision name, trigger, candidates with scores, chosen pipeline, solve and conversion time (Rev2: selected pipelines, changes after disruptions; computation times). | `decision_engine.py`, `trackers.py`, `run.py` |
 | C4. Pick table and service measures | `on_pick_end` exists in the tracker but no table is written. Write `picks.csv`; compute on-time rate, total tardiness, maximum lateness, completed and open orders per group, makespan per day, busy, idle and absent time per picker relative to presence, departures with delay and orders carried. | `run.py`, scenario `metrics.py` |
 | C5. Dock and departures | The two open results of Task 4.9: a `TruckDeparture` with `capacity: null` releases no pallets; truck capacity counts orders while staging counts pallets. Both can produce the departure counts of Table 6 (Rev2). | `DockManager`, `TruckDeparture` |
+| C6. One definition of revisable tours | The pipelines receive every tour the replanning decision's scope lets it rebuild, scheduled tours included, but the comparison that turns a solution into commands compared only planned tours. Under `freeze_from: pending` with scheduled tours observed, a replanned scheduled tour became a second tour for its orders, every candidate was rejected and the run stopped; with only planned tours observed (the current configuration) nothing was revisable, so "re-plan unstarted" behaved like "append only" once C1 removed the event's own cancelling. The comparison now uses the same set; a candidate holding exactly a revisable tour's orders revises it, revisable tours missing from the candidate are cancelled, the rest are created (the overlap rule remains for decisions that batch anew). One test per policy of P4.1. The decision log of C3 records per decision how many tours were kept, changed, cancelled and created. | ware_ops_algos `planning/conversion.py`, `tests/test_replanning_policies.py` |
 
 ## 5. Phase P0: data audit (done)
 
@@ -112,7 +113,7 @@ All runs use the calibrated model and the departure-based due time; the hourly b
 | Week | Work |
 |---|---|
 | 17–22 Nov | Base commit fixed; C2, C3, C4; P1.1, P1.2; departure plan requested |
-| 23–29 Nov | P1.3, P1.4; C1, C5; P2.1 |
+| 23–29 Nov | P1.3, P1.4; C1, C5, C6; P2.1 |
 | 30 Nov–6 Dec | P1.5; P2.2, P2.3; P3 |
 | 7–13 Dec | P4.1 to P4.5 |
 | 14–27 Dec | P4.6, P5, response letter |
@@ -142,7 +143,7 @@ Checkpoint on 6 December: tasks marked should or could that are not started are 
 | Rev1: benchmarks | P4.6 |
 | Rev1: language | P5 |
 | Rev2: novelty relative to 2026a/b; cancellation core versus contribution | P5 (novelty table, scope decision) |
-| Rev2: counterfactual policies; spare capacity | C1, P4.1, P4.2 |
+| Rev2: counterfactual policies; spare capacity | C1, C6, P4.1, P4.2 |
 | Rev2: selected pipelines, changes after disruptions, tour-to-tour revision | C3, P4.3 |
 | Rev2: due times feasible by construction | P3 |
 | Rev2: validation, calibration on same data, RMSE/MAE, Figure 8 bias, system level, 47.75 % | P0, P1.2, P1.3, P1.5 |

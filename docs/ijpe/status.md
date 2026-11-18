@@ -2,6 +2,38 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: C6, one definition of the tours a replanning decision may revise
+
+**Found.** The pipelines receive every tour the decision's scope lets it
+rebuild (`rebuildable_tours`), scheduled tours included under
+`freeze_from: pending`; the comparison that turns a solution into commands
+(`_schedule_commands` in ware_ops_algos) compared only planned tours. A
+replanned scheduled tour therefore became a second `CreateTour` for its
+orders, validation rejected every candidate and the run stopped ("no
+feasible candidate solution"); reproduced in a test. The configuration on
+this branch avoids the error only because RORSP observes planned tours, of
+which there are none after ORSP's commit-all: since C1, "re-plan unstarted"
+replans nothing and behaves like "append only". No other configuration
+makes scheduled tours rebuildable.
+
+**Done.** The comparison uses the same set of tours as the pipelines. A
+candidate holding exactly a revisable tour's orders revises it (reschedule,
+new route); revisable tours missing from the candidate are cancelled and
+their pick lists return to the buffer; the rest are created. The overlap
+rule remains for decisions that batch anew. A rescheduled committed tour
+re-enters its picker's queue by planned start (this already held). Tests:
+four in ware_ops_algos `tests/test_planning_conversion.py`, and
+`tests/test_replanning_policies.py` for the policies of P4.1 (append only,
+re-plan unstarted, rolling with one committed tour, no replanning); the
+re-plan and rolling tests fail with the old comparison. Every baseline is
+unchanged (27 scenario runs including the six IJPE days, 39 benchmark
+runs); 159 tests pass; `casim check --all` passes.
+
+**Open.** For P2.2 and P4.1, RORSP must observe scheduled tours
+(`tours: [planned, scheduled]`) for "re-plan unstarted" to replan. The
+counts of kept, changed, cancelled and created tours per decision go into
+the decision log with C3.
+
 ## 2026-11-18: P1.1, the IJPE source, with the replay work of 16 and 17 November
 
 **Done.** The replay work of the old worktree is on this branch, on top of
