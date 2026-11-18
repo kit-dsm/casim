@@ -7,7 +7,8 @@
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "8659d4943aed4a2e13724cab26fdc3f7121c0205",
+  "casim_commit": "0e7189d7f3a2dde65bc6a94e7adb6cfb2ae631ea",
+  "ware_ops_algos_commit": "967270f559c073544f5b3f112dbe62cac3f7a763",
   "kpis": {
     "makespan": 53848.43365134485,
     "mean_order_completion_time": 17951.48627887013,
@@ -22,8 +23,16 @@
       "size": 17
     },
     "idle_time_by_picker": {
-      "digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-      "size": 0
+      "digest": "3773453e9135148c99663d4e3262eb4e53a3fe9e2a52aae736cab8b91f6e90de",
+      "size": 17
+    },
+    "busy_time_by_picker": {
+      "digest": "82838ac1861d7045e2829172ca3979135cd51b6e1f88991dfe651e1d502b3507",
+      "size": 17
+    },
+    "absent_time_by_picker": {
+      "digest": "8c5175a8961bb800a442af99e8e1fa9b873523a8562777dd19c9e03bba19fff5",
+      "size": 17
     },
     "total_distance": 158520700.0,
     "total_delayed": 0,
@@ -47,8 +56,8 @@
       "count": 0
     }
   ],
-  "trace_digest": "4081a8cbc378514d18aa15bcaca33de9783a3eaa2d734a202fa7971d0a4d7e1b",
-  "event_count": 239676,
+  "trace_digest": "a44efabd635a789736ef93fdc3a106d471883d74813c8400db8fcaa6b4950347",
+  "event_count": 239504,
   "violations": {},
   "first_violations": {
     "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"

@@ -231,6 +231,72 @@
     "status": "consistent"
   },
   {
+    "name": "ijpe_replay__2026-04-11",
+    "scenario": "ijpe",
+    "command": "python -m casim run scenarios\\ijpe source.day=2026-04-11",
+    "check_command": "python -m casim check scenarios\\ijpe source.day=2026-04-11 --json",
+    "check_exit": 0,
+    "check_output": "ok",
+    "run_exit": 0,
+    "run_output": "ok",
+    "status": "consistent"
+  },
+  {
+    "name": "ijpe_replay__2026-04-13",
+    "scenario": "ijpe",
+    "command": "python -m casim run scenarios\\ijpe source.day=2026-04-13",
+    "check_command": "python -m casim check scenarios\\ijpe source.day=2026-04-13 --json",
+    "check_exit": 0,
+    "check_output": "ok",
+    "run_exit": 0,
+    "run_output": "ok",
+    "status": "consistent"
+  },
+  {
+    "name": "ijpe_replay__2026-04-14",
+    "scenario": "ijpe",
+    "command": "python -m casim run scenarios\\ijpe source.day=2026-04-14",
+    "check_command": "python -m casim check scenarios\\ijpe source.day=2026-04-14 --json",
+    "check_exit": 0,
+    "check_output": "ok",
+    "run_exit": 0,
+    "run_output": "ok",
+    "status": "consistent"
+  },
+  {
+    "name": "ijpe_replay__2026-04-15",
+    "scenario": "ijpe",
+    "command": "python -m casim run scenarios\\ijpe source.day=2026-04-15",
+    "check_command": "python -m casim check scenarios\\ijpe source.day=2026-04-15 --json",
+    "check_exit": 0,
+    "check_output": "ok",
+    "run_exit": 0,
+    "run_output": "ok",
+    "status": "consistent"
+  },
+  {
+    "name": "ijpe_replay__2026-04-16",
+    "scenario": "ijpe",
+    "command": "python -m casim run scenarios\\ijpe source.day=2026-04-16",
+    "check_command": "python -m casim check scenarios\\ijpe source.day=2026-04-16 --json",
+    "check_exit": 0,
+    "check_output": "ok",
+    "run_exit": 0,
+    "run_output": "ok",
+    "status": "consistent"
+  },
+  {
+    "name": "ijpe_replay__2026-04-17",
+    "scenario": "ijpe",
+    "command": "python -m casim run scenarios\\ijpe source.day=2026-04-17",
+    "check_command": "python -m casim check scenarios\\ijpe source.day=2026-04-17 --json",
+    "check_exit": 0,
+    "check_output": "ok",
+    "run_exit": 0,
+    "run_output": "ok",
+    "status": "consistent"
+  },
+  {
     "name": "ijpe__baseline",
     "scenario": "scenario_ijpe",
     "command": ".venv\\Scripts\\python.exe -m scenarios.scenario_ijpe.scenario_grocery_retailer simulation=baseline viz.launch=false +experiment.audit=true",
@@ -238,7 +304,7 @@
     "check_exit": 0,
     "check_output": "ok",
     "run_exit": 1,
-    "run_output": "ased_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nFound 1 pipelines\nLoaded 51 model cards\nBuilding pipelines\nFound 3 pipelines\nError executing job with overrides: ['simulation=baseline', 'viz.launch=False', '+experiment.audit=True']\n\nTraceback (most recent call last):\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 220, in run_and_report\n    return func()\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 466, in <lambda>\n    lambda: hydra.multirun(\n            ~~~~~~~~~~~~~~^\n        config_name=config_name,\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n        task_function=task_function,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        overrides=overrides,\n        ^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\hydra.py\", line 162, in multirun\n    ret = sweeper.sweep(arguments=task_overrides)\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\core_plugins\\basic_sweeper.py\", line 181, in sweep\n    _ = r.return_value\n        ^^^^^^^^^^^^^^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\core\\utils.py\", line 263, in return_value\n    raise self._return_value\nFileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\zm0714\\\\Documents\\\\Projekte\\\\casim\\\\data\\\\order_stream_historic.csv'\n",
+    "run_output": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\scenario_ijpe\\scenario_grocery_retailer.py\", line 10, in <module>\n    from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment\nImportError: cannot import name 'load_and_flatten_data_card' from 'scenarios.experiment_commons' (C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\experiment_commons.py)\n",
     "status": "not_runnable"
   },
   {
@@ -249,7 +315,7 @@
     "check_exit": 0,
     "check_output": "ok",
     "run_exit": 1,
-    "run_output": "sed_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nFound 1 pipelines\nLoaded 51 model cards\nBuilding pipelines\nFound 3 pipelines\nError executing job with overrides: ['simulation=scenario1', 'viz.launch=False', '+experiment.audit=True']\n\nTraceback (most recent call last):\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 220, in run_and_report\n    return func()\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 466, in <lambda>\n    lambda: hydra.multirun(\n            ~~~~~~~~~~~~~~^\n        config_name=config_name,\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n        task_function=task_function,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        overrides=overrides,\n        ^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\hydra.py\", line 162, in multirun\n    ret = sweeper.sweep(arguments=task_overrides)\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\core_plugins\\basic_sweeper.py\", line 181, in sweep\n    _ = r.return_value\n        ^^^^^^^^^^^^^^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\core\\utils.py\", line 263, in return_value\n    raise self._return_value\nFileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\zm0714\\\\Documents\\\\Projekte\\\\casim\\\\data\\\\order_stream_historic.csv'\n",
+    "run_output": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\scenario_ijpe\\scenario_grocery_retailer.py\", line 10, in <module>\n    from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment\nImportError: cannot import name 'load_and_flatten_data_card' from 'scenarios.experiment_commons' (C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\experiment_commons.py)\n",
     "status": "not_runnable"
   },
   {
@@ -260,7 +326,7 @@
     "check_exit": 0,
     "check_output": "ok",
     "run_exit": 1,
-    "run_output": "sed_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nFound 1 pipelines\nLoaded 51 model cards\nBuilding pipelines\nFound 3 pipelines\nError executing job with overrides: ['simulation=scenario2', 'viz.launch=False', '+experiment.audit=True']\n\nTraceback (most recent call last):\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 220, in run_and_report\n    return func()\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 466, in <lambda>\n    lambda: hydra.multirun(\n            ~~~~~~~~~~~~~~^\n        config_name=config_name,\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n        task_function=task_function,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        overrides=overrides,\n        ^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\hydra.py\", line 162, in multirun\n    ret = sweeper.sweep(arguments=task_overrides)\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\core_plugins\\basic_sweeper.py\", line 181, in sweep\n    _ = r.return_value\n        ^^^^^^^^^^^^^^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\core\\utils.py\", line 263, in return_value\n    raise self._return_value\nFileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\zm0714\\\\Documents\\\\Projekte\\\\casim\\\\data\\\\order_stream_historic.csv'\n",
+    "run_output": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\scenario_ijpe\\scenario_grocery_retailer.py\", line 10, in <module>\n    from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment\nImportError: cannot import name 'load_and_flatten_data_card' from 'scenarios.experiment_commons' (C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\experiment_commons.py)\n",
     "status": "not_runnable"
   },
   {
@@ -271,7 +337,7 @@
     "check_exit": 0,
     "check_output": "ok",
     "run_exit": 1,
-    "run_output": "tProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nFound 1 pipelines\nLoaded 51 model cards\nBuilding pipelines\nFound 3 pipelines\nError executing job with overrides: ['simulation=scenario3', 'viz.launch=False', '+experiment.audit=True']\n\nTraceback (most recent call last):\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 220, in run_and_report\n    return func()\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 466, in <lambda>\n    lambda: hydra.multirun(\n            ~~~~~~~~~~~~~~^\n        config_name=config_name,\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n        task_function=task_function,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        overrides=overrides,\n        ^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\hydra.py\", line 162, in multirun\n    ret = sweeper.sweep(arguments=task_overrides)\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\core_plugins\\basic_sweeper.py\", line 181, in sweep\n    _ = r.return_value\n        ^^^^^^^^^^^^^^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\core\\utils.py\", line 263, in return_value\n    raise self._return_value\nFileNotFoundError: [Errno 2] No such file or directory: 'data\\\\calibrated_generator.json'\n",
+    "run_output": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\scenario_ijpe\\scenario_grocery_retailer.py\", line 10, in <module>\n    from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment\nImportError: cannot import name 'load_and_flatten_data_card' from 'scenarios.experiment_commons' (C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\experiment_commons.py)\n",
     "status": "not_runnable"
   },
   {
@@ -282,7 +348,7 @@
     "check_exit": 0,
     "check_output": "ok",
     "run_exit": 1,
-    "run_output": "sed_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nNot valid, <class 'casim.pipelines.problem_based_template.PickListProvider'> in [<class 'casim.pipelines.problem_based_template.BatchingPlanCandidate'>, <class 'casim.pipelines.problem_based_template.PickListProvider'>, <class 'casim.pipelines.problem_based_template.InstanceLoader'>]\nFound 1 pipelines\nLoaded 51 model cards\nBuilding pipelines\nFound 3 pipelines\nError executing job with overrides: ['simulation=scenario4', 'viz.launch=False', '+experiment.audit=True']\n\nTraceback (most recent call last):\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 220, in run_and_report\n    return func()\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\utils.py\", line 466, in <lambda>\n    lambda: hydra.multirun(\n            ~~~~~~~~~~~~~~^\n        config_name=config_name,\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n        task_function=task_function,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        overrides=overrides,\n        ^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\hydra.py\", line 162, in multirun\n    ret = sweeper.sweep(arguments=task_overrides)\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\_internal\\core_plugins\\basic_sweeper.py\", line 181, in sweep\n    _ = r.return_value\n        ^^^^^^^^^^^^^^\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim\\.venv\\Lib\\site-packages\\hydra\\core\\utils.py\", line 263, in return_value\n    raise self._return_value\nFileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\zm0714\\\\Documents\\\\Projekte\\\\casim\\\\data\\\\order_stream_historic.csv'\n",
+    "run_output": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\scenario_ijpe\\scenario_grocery_retailer.py\", line 10, in <module>\n    from scenarios.experiment_commons import load_and_flatten_data_card, setup_experiment\nImportError: cannot import name 'load_and_flatten_data_card' from 'scenarios.experiment_commons' (C:\\Users\\zm0714\\Documents\\Projekte\\casim-ijpe\\scenarios\\experiment_commons.py)\n",
     "status": "not_runnable"
   }
 ]
