@@ -2,6 +2,22 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: Calibrated day rerun after C7; validation cut to two runs
+
+**Done.** The system-level validation now runs only the calibrated day
+(recorded presence, five-minute pauses, setup inside the recorded gaps),
+with recorded assignment (the validation) and with FIFO assignment (the base
+of the policy comparisons): 12 day-runs instead of 54. The nine diagnostic
+settings stay in `docs/ijpe/validation.md` as the record of how the
+calibration was found, marked as before C7, and are not rerun.
+
+**Found.** With recorded assignment, orders completed by 10:00 and 12:00
+are within 17 of the WMS on every day (+43 by 10:00 over six days, 47
+orders open). Against the pre-C7 run: the day's last line is +14 min
+instead of +23, picker finish RMSE is 80 instead of 85 min, open orders
+are 47 instead of 31. FIFO: within 31 orders, 91 open. The decision of the
+P1.3 entry stands.
+
 ## 2026-11-18: C7, departures take effect in request order
 
 **Defect.** A departure requested while a picker was busy replaced any

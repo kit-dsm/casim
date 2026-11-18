@@ -54,12 +54,44 @@ system level, and P1.4 must isolate the effect of recorded assignment.
 
 All runs keep the recorded batches (inferred tours) and recorded pick
 locations, route with U-shape and use the submitted time model unless
-stated. Selected five-minute pauses are timed departures. Presence is either
+stated. Measures are model minus WMS over the 1,414 orders and 95
+picker-days; `scripts/ijpe/system_validation.py` writes them to ignored
+outputs.
+
+## The calibrated day
+
+The calibrated day is recorded presence, the selected five-minute pauses as
+timed departures, and the 215 s setup inside the recorded gaps
+(`source.setup_in_gap`). It is run with two assignments: each tour to its
+recorded picker (the validation) and CASIM's FIFO assignment (the base of
+the disruption and policy comparisons). Runs after C7 (departures in request
+order), 18 November.
+
+| Run | Assignment | Open orders | Picker finish bias, min | Picker finish RMSE, min | Day's last line, mean error, min | Orders by 10:00 | Largest day error by 10:00 / 12:00 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `calibrated_recorded` | recorded | 47 | -53 | 80 | +14 | +43 | 16 / 17 |
+| `calibrated_fifo` | FIFO | 91 | -61 | 88 | +11 | +81 | 23 / 31 |
+
+With recorded assignment, the orders completed by 10:00 and by 12:00 are
+within 17 of the WMS count on every day. CASIM is slightly ahead in the
+morning (+43 orders by 10:00 over six days), and 47 orders (3 %) stay open
+because pickers that run behind leave at their recorded time. FIFO
+assignment completes more orders early (+81 by 10:00) and leaves 91 open:
+it gives tours to pickers who are free now, not to the ones who stay
+longest. Picker finish times are about an hour early with either
+assignment, so picker-level effects are not claimed. Against the same
+setting before C7, the recorded-assignment run is closer on every measure
+except open orders (31 before), because the restored pauses take 0.6 h of
+picking away.
+
+## How the calibration was found (diagnostics, before C7)
+
+The runs below each change one assumption. They were run before C7, so runs
+with recorded presence lose up to 0.6 h of pause over the six days; their
+conclusions do not depend on that. They are not rerun. Selected five-minute pauses are timed departures. Presence is either
 `shift` (every picker from 05:30), `recorded` (arrival at the setup start of
 the first recorded tour, departure after the last recorded line) or
-`arrival` (recorded arrival, no forced departure). Measures are model minus
-WMS over the 1,414 orders and 95 picker-days; `scripts/ijpe/system_validation.py`
-writes them to ignored outputs. "Orders by 10:00" is the pooled difference in
+`arrival` (recorded arrival, no forced departure). "Orders by 10:00" is the pooled difference in
 orders completed by 10:00 over six days.
 
 | Run | Assignment | Presence | Setup | Open orders | Picker finish bias, min | Picker finish RMSE, min | Day's last line, mean error, min | Orders by 10:00 |
@@ -137,10 +169,10 @@ limit is not used to reproduce the WMS.
 ## What the case supports
 
 - Order-level time: unbiased on average (-0.65 min), 16 min RMSE.
-- Daily throughput up to midday with recorded presence and setup: within
-  14 orders (at most 12 % on Saturday to Thursday) of the WMS count at 10:00
-  and 12:00 with recorded assignment, within 30 with FIFO. This is the window
-  of the disruption scenarios (07:30 to 13:00).
+- Daily throughput up to midday on the calibrated day: within 17 orders of
+  the WMS count at 10:00 and 12:00 on every day with recorded assignment,
+  within 31 with FIFO. This is the window of the disruption scenarios (07:30
+  to 13:00).
 - Not validated: the end of the day (setup and assignment at the day's end),
   picker-level finish times and busy shares.
 

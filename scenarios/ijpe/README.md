@@ -67,8 +67,10 @@ Variants:
 - `system_fifo` (P1.3): recorded batches with CASIM's U-shape routing and
   FIFO assignment, recorded presence and the 5 minute pauses; with
   `cosy_repo=recorded_ushape` each tour goes to its recorded picker (P1.4).
-  `python -m scripts.ijpe.system_validation` compares the runs with the WMS
-  (`docs/ijpe/validation.md`);
+  with `source.setup_in_gap=true` it is the calibrated day.
+  `python -m scripts.ijpe.system_validation` compares the calibrated day,
+  with recorded and with FIFO assignment, with the WMS
+  (`docs/ijpe/validation.md`; the run commands are in its docstring);
 - the submitted assumptions, one at a time: `greedy_locations` (greedy item
   assignment), `ushape` (U-shape routing of each recorded tour),
   `one_order_per_tour`, `configured_breaks` (8:00 and 11:00); all three

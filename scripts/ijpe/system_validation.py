@@ -1,8 +1,22 @@
-"""Aggregate IJPE system-level diagnostics; never export private records.
+"""Compare the calibrated IJPE day with the WMS; never export private records.
 
-Run after the system_fifo variant for all six days. The recorded-presence
-case can leave orders open; completion-time scores are then censored and are
-not presented as a valid model fit.
+The calibrated day is recorded presence, five-minute pauses and the setup
+inside the recorded gaps (``docs/ijpe/validation.md``). Two runs per day:
+
+- ``calibrated_recorded``: each tour to its recorded picker (the validation);
+- ``calibrated_fifo``: CASIM's FIFO assignment (the base of the policy
+  comparisons).
+
+Run them first, for every day::
+
+    python -m casim run scenarios/ijpe variants=system_fifo source.setup_in_gap=true
+        cosy_repo=recorded_ushape source.day=<day>
+        --output-dir scenarios/ijpe/outputs/calibrated_recorded/<day>
+    python -m casim run scenarios/ijpe variants=system_fifo source.setup_in_gap=true
+        source.day=<day> --output-dir scenarios/ijpe/outputs/calibrated_fifo/<day>
+
+Orders can stay open at the end of the day; completion-time scores are then
+censored.
 """
 
 from __future__ import annotations
@@ -19,8 +33,7 @@ from scripts.ijpe.replay import _union_s
 
 DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15",
         "2026-04-16", "2026-04-17")
-RUNS = ("system_fifo", "system_fifo_arrival", "system_recorded_assignment", "system_recorded_nosetup", "system_recorded_setup_in_gap", "system_fifo_shift", "system_fifo_shift_nopause",
-        "system_fifo_calibrated_recorded", "system_fifo_calibrated_shift")
+RUNS = ("calibrated_recorded", "calibrated_fifo")
 HOURS = (8, 10, 12, 14, 16, 18)
 
 
