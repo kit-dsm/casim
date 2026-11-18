@@ -33,8 +33,9 @@ What the source emits for a day (P1.1):
 - presence (`source.presence`): `shift` (default) makes every picker present
   from the shift start; `recorded` makes a picker arrive at the setup start of
   its first recorded tour and leave, without return, after its last recorded
-  line. A departure never interrupts a tour; work still queued for a picker
-  that has left stays open;
+  line; `arrival` makes a picker arrive as in `recorded` but never leave. A
+  departure never interrupts a tour; work still queued for a picker that has
+  left stays open;
 - pauses: in chained runs (`source.pause_threshold_s` in seconds), a recorded
   gap between tours longer than the threshold is a `PickerDeparture` with the
   gap's duration, which begins when the running tour ends. Shorter gaps
@@ -63,6 +64,11 @@ Variants:
 
 - `recorded_presence`: recorded presence with the 5 minute pause threshold;
   the decision also sees pickers not yet arrived (`off_shift`);
+- `system_fifo` (P1.3): recorded batches with CASIM's U-shape routing and
+  FIFO assignment, recorded presence and the 5 minute pauses; with
+  `cosy_repo=recorded_ushape` each tour goes to its recorded picker (P1.4).
+  `python -m scripts.ijpe.system_validation` compares the runs with the WMS
+  (`docs/ijpe/validation.md`);
 - the submitted assumptions, one at a time: `greedy_locations` (greedy item
   assignment), `ushape` (U-shape routing of each recorded tour),
   `one_order_per_tour`, `configured_breaks` (8:00 and 11:00); all three

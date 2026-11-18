@@ -141,8 +141,8 @@ recorded pipeline and no policy comparison, and the affected-order flag is
 false for all orders. The model's picker absence measure includes time before
 05:30 and inferred departures; it is not an observed absence measure.
 
-System validation with CASIM making its own routing and scheduling choices
-(P1.3), recorded-assignment isolation (P1.4), truck and dock accounting
+System validation (P1.3) and recorded-assignment isolation (P1.4) are now
+in `docs/ijpe/validation.md`. Truck and dock accounting
 (C5), actual or simulated departure delays, disruption experiments and
 policy comparisons remain open. The fixed synthetic deadlines answer whether
 deadlines can be set independently of observed completion; they do not

@@ -145,3 +145,16 @@ def test_recorded_presence_leaves_work_open_after_the_last_recorded_line(tmp_pat
     assert kpis["absent_time_by_picker"] == {"0": 10.0, "1": 92.0}
     _, shift, _ = _kpis(tmp_path_factory, "source.time_per_pick=40.0")
     assert shift.loc[shift.order_ids == "3", ["start", "end"]].values.tolist() == [[215, 266]]
+
+
+def test_arrival_presence_never_forces_a_departure(tmp_path_factory):
+    # Pick 40 s as above, with presence "arrival": picker 0 arrives at 10, its
+    # pause (70 s) runs after its first tour, 145-215, and it picks order 3 at
+    # 215-266, as with the shift-long presence. Absent: picker 0 before 10 and
+    # during the pause; picker 1 only before 40.
+    kpis, tours, orders = _kpis(tmp_path_factory, "variants=recorded_presence",
+                                "source.presence=arrival", "source.time_per_pick=40.0")
+    assert tours[["picker_id", "start", "end", "order_ids"]].values.tolist() == [
+        [0, 10, 145, "1 2"], [1, 40, 93, "4"], [0, 215, 266, "3"]]
+    assert orders.completion.notna().all()
+    assert kpis["absent_time_by_picker"] == {"0": 80.0, "1": 40.0}

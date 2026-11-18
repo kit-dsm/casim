@@ -24,7 +24,9 @@ Presence (``presence``): ``shift`` makes every picker present from the
 shift start; ``recorded`` makes a picker arrive at the setup start of its
 first recorded tour and leave, without return, at the end of its last
 recorded line (after its running tour, as every departure). Work still queued
-for a picker that has left stays open and is reported as such.
+for a picker that has left stays open and is reported as such. ``arrival``
+makes a picker arrive as in ``recorded`` but never leave, so all work is
+done and late work shows as a later finish.
 
 A gap inside a tour is not a pause: CASIM does not interrupt a tour. The
 counts of what the replay cannot represent are in ``ReplaySummary``.
@@ -144,7 +146,7 @@ class RecordedReplay:
             raise ValueError(f"unknown recorded tour origin mode: {origin_mode}")
         self.origin_mode = origin_mode
         self.setup_in_gap = bool(setup_in_gap)
-        if presence not in {"shift", "recorded"}:
+        if presence not in {"shift", "recorded", "arrival"}:
             raise ValueError(f"unknown presence: {presence}")
         self.presence = presence
         self.tours = recorded_tours(self.rows, interleaving)
@@ -277,7 +279,10 @@ class RecordedReplay:
             first.setdefault(picker, self._setup_start(lines))
             last[picker] = max(last.get(picker, float("-inf")),
                                max(row.end_s for row in lines))
-        return [*(PickerArrival(time=first[picker], picker_id=picker) for picker in self.pickers),
+        arrivals = [PickerArrival(time=first[picker], picker_id=picker) for picker in self.pickers]
+        if self.presence == "arrival":
+            return arrivals
+        return [*arrivals,
                 *(PickerDeparture(time=last[picker], picker_id=picker) for picker in self.pickers)]
 
     def events(self, domain: SimWarehouseDomain) -> Iterator[Event]:

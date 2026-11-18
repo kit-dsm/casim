@@ -2,6 +2,32 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: P1.3 and P1.4 system-level validation, and why pickers idle
+
+**Done.** Six-day runs with recorded batches, U-shape routing and either
+FIFO or recorded assignment, under three presence settings, with and
+without setup, and with the fitted pick time; a new presence setting
+`arrival` (recorded arrival, no forced departure) with a hand-derived test.
+Aggregate tests on the export of why recorded pickers idle. Results and
+tables in `docs/ijpe/validation.md`.
+
+**Found.** Presence dominates: with every picker present from 05:30, CASIM
+completes 365 more orders by 10:00 than the WMS. With recorded presence,
+recorded assignment and the 215 s setup, orders completed by 10:00 and 12:00
+are within 14 of the WMS on every day. The end of the day is not reproduced:
+with setup, orders stay open or the day overruns; without setup, the day's
+end matches but the morning runs ahead. Picker-level finish times are not
+reproduced in any run. The fitted pick time makes every system measure
+worse. The export shows no dock limit, work-in-progress cap or release
+waves: work was waiting at the end of every long gap, and open orders show
+no ceiling. A dock limit is not used to reproduce the WMS.
+
+**Decision.** Disruption and policy results are comparisons between policies
+on the calibrated day (recorded presence, five-minute pauses), measured on
+throughput and on-time completion up to midday, with setup 215 s and 0 s as
+bounds. Picker-level effects and end-of-day measures are not claimed.
+Aisle 10 is not part of the study (user, 18 November).
+
 ## 2026-11-18: P1.2 order-level validation completed
 
 `docs/ijpe/validation.md` reports six-day leave-one-day-out and held-out

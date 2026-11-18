@@ -63,7 +63,7 @@ Goal: a time model calibrated and validated on separate days, and validation at 
 - **P1.3 must.** System level. CASIM runs each historic day with the WMS batches, the recorded picker presence and its own routing and scheduling. Compare per day and per picker-day: completion profile of lines and orders over the day, makespan, busy share relative to presence (same definition on both sides), number of tours. Report the submitted and the calibrated parameters.
 - **P1.4 should.** Recorded assignment. A scheduling component `RecordedAssignment` in `src/casim/pipelines` assigns each order to its recorded picker in recorded start order (one order per tour, routing by the configured router). The difference to P1.3 is the effect of CASIM's scheduling, the difference to the data the effect of the time model and the router. No new router, no change to cart capacity.
 - **P1.5 should.** Line attributes. Regress the recorded line duration (which includes the walk to the line) on distance, aisle change, quantity and the first line of an order, leave-one-day-out. If a line attribute changes the out-of-sample order error by more than the user's threshold, add it to the calibrated pick time as a per-line formula in the picker resource, used identically in planning and execution; otherwise report it as residual.
-- **P1.6 could.** Sensitivity of the validation to the submitted simplifications: greedy item assignment versus recorded locations, aisle 10 excluded versus included, one order per tour versus the recorded 11 % interleaving.
+- **P1.6 could.** Sensitivity of the validation to the submitted simplifications: greedy item assignment versus recorded locations, one order per tour versus the recorded 11 % interleaving.
 
 Output: `docs/ijpe/validation.md` with hypotheses, tests, parameters and residuals. Stop and report; the user fixes the time model.
 
@@ -125,7 +125,7 @@ Checkpoint on 6 December: tasks marked should or could that are not started are 
 - The base commit of `codex/ijpe-revision`.
 - The pause threshold, after P1.1.
 - The time model, at the end of P1.
-- Whether aisle 10 enters the layout or is reported as an exclusion with its share.
+- Whether aisle 10 enters the layout or is reported as an exclusion with its share. Decided 18 November: aisle 10 is not part of the study.
 - If the departure plan per store becomes available, compare it with the documented synthetic fallback before replacing the latter in the main experiment.
 - If a number of the submitted paper cannot be reproduced and the cause is not a demonstrated defect.
 - Whether the revision scope is claimed as a contribution (P5), and whether the pipeline repository is extended or the claim narrowed (P4.3).

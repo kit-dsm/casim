@@ -1,0 +1,15 @@
+# @package _global_
+# System-level diagnostic: recorded batches, CASIM U-shape routes and FIFO
+# scheduling, selected five-minute inferred pauses and recorded presence.
+defaults:
+  - override /cosy_repo: recorded_tours_fifo_ushape
+source:
+  presence: recorded
+  pause_threshold_s: 300.0
+decisions:
+  OBRSP:
+    state_information:
+      resources:
+      - idle
+      - reserved
+      - off_shift
