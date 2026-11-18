@@ -2,6 +2,15 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: P1.2 order-level validation completed
+
+`docs/ijpe/validation.md` reports six-day leave-one-day-out and held-out
+order-span errors by order size. The fixed-speed interior-line calibration
+reduces pooled six-day RMSE from 16.27 to 16.12 minutes but raises held-out
+RMSE from 14.95 to 15.39 minutes and makes bias more negative. It does not
+justify replacing the submitted pick-time constant for the paper's main
+model. P1.3 and P1.4 remain before the P1 time-model decision.
+
 ## 2026-11-18: Pause threshold selected and departure fallback specified
 
 The user selected a five-minute inferred pause threshold after a new six-day
