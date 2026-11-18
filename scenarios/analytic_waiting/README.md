@@ -42,7 +42,7 @@ python -m casim run scenarios/analytic_waiting decisions=remaining_route_admissi
 
 The standard outputs. In the default run the decision waits when the third order arrives at
 t = 2 and releases the first tour (orders 0, 1, 2) at t ≈ 11.085; the fourth order, arriving at
-t = 12, goes into a second tour (`tours.csv`). With `decisions=remaining_route_admission` it is
+t = 12, goes into a second tour (`facts/tours.csv`). With `decisions=remaining_route_admission` it is
 admitted to the running tour instead.
 
 ## Reference result

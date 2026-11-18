@@ -14,7 +14,7 @@ from casim.config.schema import DecisionDefinitions
 from casim.decision_engine.decision_engine import DecisionResult
 from casim.domain_objects.sim_domain import ReconsiderReason
 from casim.events.operational_events import Dispatch, Reconsider
-from casim.setup import resolve
+from casim.config.setup import resolve
 from casim.state.apply import CommandViolation
 from casim.config.data_card import load_and_flatten_data_card
 from casim.run import prepare

@@ -133,8 +133,14 @@ def test_recorded_presence_leaves_work_open_after_the_last_recorded_line(tmp_pat
     # picker returns from its pause at 215 and picks order 3.
     kpis, tours, orders = _kpis(tmp_path_factory, "variants=recorded_presence",
                                 "source.time_per_pick=40.0")
-    assert tours[["picker_id", "start", "end", "order_ids"]].values.tolist() == [
+    started = tours[tours.start.notna()]
+    assert started[["picker_id", "start", "end", "order_ids"]].values.tolist() == [
         [0, 10, 145, "1 2"], [1, 40, 93, "4"]]
+    # Order 3's tour was committed to picker 0, who left: it stays in the
+    # table, scheduled and never started.
+    stranded = tours[tours.start.isna()]
+    assert stranded[["picker_id", "status", "order_ids"]].values.tolist() == [
+        [0, "scheduled", "3"]]
     assert orders.loc[orders.completion.isna(), "order_id"].tolist() == [3]
     assert kpis["absent_time_by_picker"] == {"0": 80.0, "1": 162.0}
     _, shift, _ = _kpis(tmp_path_factory, "source.time_per_pick=40.0")

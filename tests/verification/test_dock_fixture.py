@@ -10,7 +10,7 @@ import pytest
 from omegaconf import OmegaConf
 
 from casim.events.operational_events import TruckDeparture
-from casim.setup import resolve
+from casim.config.setup import resolve
 from casim.state.dock_manager import DockManager
 from casim.config.data_card import load_and_flatten_data_card
 from casim.run import prepare
@@ -86,7 +86,8 @@ def run_fixture(tmp_path, seed, capacity):
     return {
         "seed": seed, "capacity": capacity, "events": trace.events,
         "decisions": trace.decisions,
-        "completed_tours": tracker.completed_tours,
+        # The stored baseline keeps the field order of CompletedTour as a list.
+        "completed_tours": [list(tour.to_dict().values()) for tour in tracker.completed_tours],
         "distance_by_picker": dict(tracker.distance_by_picker),
         "last_time": sim.state.current_time,
     }

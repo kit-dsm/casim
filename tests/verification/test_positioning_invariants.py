@@ -4,7 +4,7 @@ import pytest
 from ware_ops_algos.planning.commands import ReplaceSuffix
 from ware_ops_algos.planning.lifecycle import TourStates
 
-from casim.runner import apply_decision
+from casim.run import apply_decision
 from casim.run import prepare
 from tests.scenario_configs import walk_config
 
@@ -23,9 +23,9 @@ def test_center_example_preserves_plan_invariants(tmp_path, invariant_logger):
         apply_decision(sim, engine, engine.on_trigger(snapshot), snapshot)
     tracker = sim.state.tracker
     assert len(tracker.completed_tours) == 2
-    assert sum(len(record[3]) for record in tracker.completed_tours) == 3
+    assert sum(len(tour.order_ids) for tour in tracker.completed_tours) == 3
     assert tracker.distance_by_picker[0] == 88
-    assert tracker.completed_tours[-1][2] == 91
+    assert tracker.completed_tours[-1].end == 91
 
 
 def test_two_admissions_keep_cumulative_prefix_and_distance(tmp_path, invariant_logger):
@@ -94,6 +94,6 @@ def test_partly_picked_tour_can_admit_order(tmp_path, invariant_logger,
         apply_decision(sim, engine, result, snapshot)
     assert admitted_after_pick
     tracker = sim.state.tracker
-    assert sum(len(record[3]) for record in tracker.completed_tours) == 6
-    assert tracker.completed_tours[-1][2] == makespan
+    assert sum(len(tour.order_ids) for tour in tracker.completed_tours) == 6
+    assert tracker.completed_tours[-1].end == makespan
     assert tracker.distance_by_picker[0] == distance

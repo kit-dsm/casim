@@ -21,7 +21,7 @@ from casim.events.operational_events import (
     NodeArrival, OrderArrival, TravelEvent,
 )
 from casim.state.resource_checks import check_resources, check_time_balance
-from casim.trace import TraceRecorder
+from casim.outputs.trace import TraceRecorder
 
 
 AISLE_TOLERANCE = 1e-9

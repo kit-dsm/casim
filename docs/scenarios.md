@@ -220,8 +220,7 @@ Every further column is a selector, a dotted key of the configuration (for examp
 | `casop_static` | The seven CASOP benchmark sets as static instances (benchmark L1) |
 | `henn2012` | Henn's (2012) online batching experiments (benchmark L2) |
 | `oobp` | The online order batching benchmark of Gil-Borrás et al. (2020) (benchmark L3) |
-| `ijpe`, `scenario_ijpe` | The IJPE grocery-retailer study; `scenario_ijpe` is the submitted version in the old structure, `ijpe` its port (see `docs/ijpe/plan.md`) |
+| `ijpe` | The IJPE grocery-retailer study (see `docs/ijpe/plan.md`); the submitted version is on the tag `archive/scenario-ijpe-submitted` |
 | `scenario_dhaen_online` | Data of the D'Haen et al. (2023) benchmark only; not yet runnable |
 
-`ijpe`, `scenario_ijpe` and `scenario_dhaen_online` are exempt from `casim check --all` until
-they have the structure above.
+`scenario_dhaen_online` is exempt from `casim check --all` until it has the structure above.

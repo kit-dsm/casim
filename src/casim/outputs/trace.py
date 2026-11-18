@@ -5,7 +5,7 @@ from __future__ import annotations
 from hashlib import sha256
 import json
 
-from casim.loggers import EventLogger
+from casim.simulation_engine.event_logger import EventLogger
 
 
 class TraceRecorder(EventLogger):

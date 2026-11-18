@@ -26,8 +26,8 @@ python -m casim run scenarios/minimal --audit
 
 ## Expected outputs
 
-`scenarios/minimal/outputs/run/` with `kpis.json`, `decisions.json`, `tours.csv`, `orders.csv`,
-`trace.json` and `comparison.csv`; with `--audit` also `audit.json`. The run has 89 events and one
+`scenarios/minimal/outputs/run/` with `kpis.json`, `tracker.json`, `decisions.json`,
+`service.json`, `trace.json`, `facts/` and `comparison.csv`; with `--audit` also `audit.json`. The run has 89 events and one
 tour.
 
 ## Reference result

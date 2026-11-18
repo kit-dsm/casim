@@ -2,16 +2,35 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+
 from collections.abc import Iterator, Mapping
 from importlib import import_module
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from casim.data_loader import DataLoader
+import pandas as pd
+
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 
+
+
+class DataLoader(ABC):
+    """Read a scenario's data from a directory and build its initial state."""
+
+    def __init__(self, data_dir: str | Path):
+        self.data_dir = Path(data_dir)
+        self.cache_path: Path | None = None
+
+    @abstractmethod
+    def load(self, *args, **kwargs) -> SimWarehouseDomain: ...
+
+    def _load_text(self, filename: str, encoding: str = "utf-8") -> list[str]:
+        path = Path(filename) if Path(filename).is_absolute() else self.data_dir / filename
+        with open(path, "r", encoding=encoding) as handle:
+            return [line.strip() for line in handle if line.strip()]
 
 @runtime_checkable
 class Source(Protocol):

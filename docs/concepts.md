@@ -243,15 +243,20 @@ in a real warehouse; other closure rules are on the backlog (`docs/development.m
 
 ## Outputs
 
-`casim run` writes per run:
+`casim run` writes per run, each file from one place (`casim/outputs/write.py`):
 
 - `kpis.json`: makespan, mean order completion time, tours and orders completed, mean tour
   duration and batch size, orders, tours and picks per hour, total and per-picker distance, idle,
   busy and absent time per picker, delayed orders, dock utilisation, total tour and processing
   time;
-- `decisions.json`: the number of decisions and the chosen pipelines;
-- `tours.csv`: per tour picker, status, start, end, setup, distance, picks and orders;
-- `orders.csv`: per order arrival, due date and completion;
+- `tracker.json`: time series for plots (completed tours, dock fill, utilisation);
+- `decisions.json`: the number of decisions, the chosen pipelines and the decision log;
+- `facts/tours.csv`: one row per committed tour, also one that never started: picker, status,
+  commit time, planned start, setup start (`start`), route start (`setup_end`), end, setup,
+  planned and walked distance, picked lines, orders at start and at the end;
+- `facts/orders.csv`: per order release, due date, lines, its tour, completion and its first
+  and last pick;
+- `facts/picks.csv`: per picked line its walk and pick times;
 - `service.json`: completed and open orders (all, affected, unaffected), presence, busy, idle
   and absent time per picker, and `stranded`, the committed tours (and their orders) left with a
   resource that is away at the end;

@@ -11,12 +11,12 @@ from tqdm import tqdm
 
 from ware_ops_algos.domain_models import Order
 
-from casim.data_loader import DataLoader
+from casim.sources.base import DataLoader
 from casim.decision_engine.decision_engine import DecisionResult
 from casim.domain_objects.sim_domain import ReconsiderReason, SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.events.operational_events import OrderArrival, ActiveTourOpportunity, Reconsider
-from casim.loggers import EventLogger
+from casim.simulation_engine.event_logger import EventLogger
 from casim.simulation_engine.conditions import Condition
 from casim.simulation_engine.state_adapter import StateAdapter
 from casim.state import State

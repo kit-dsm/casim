@@ -6,7 +6,7 @@ import pytest
 from omegaconf import open_dict
 
 from casim.run import check
-from casim.scenario_check import compose_scenario
+from casim.config.scenario_check import compose_scenario
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -16,7 +16,7 @@ from ware_ops_algos.domain_models.datacards import load_and_flatten_data_card as
 
 from casim.config.data_card import load_and_flatten_data_card
 from casim.run import prepare
-from casim.setup import resolve
+from casim.config.setup import resolve
 from tests.scenario_configs import ANALYTIC_WAITING, analytic_config
 
 

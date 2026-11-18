@@ -44,8 +44,9 @@ python -m casim schema
 python -m casim catalog
 ```
 
-- `run` runs a scenario and writes `kpis.json`, `decisions.json`, `tours.csv`, `orders.csv`,
-  `trace.json` and, with a `reference.csv`, `comparison.csv`. `--audit` checks the plan and the
+- `run` runs a scenario and writes `kpis.json`, `tracker.json`, `decisions.json`,
+  `service.json`, `trace.json`, the facts tables `facts/tours.csv`, `facts/orders.csv` and
+  `facts/picks.csv` and, with a `reference.csv`, `comparison.csv`. `--audit` checks the plan and the
   resources after every timestamp and writes `audit.json`. Overrides use Hydra syntax
   (`decisions=order_window`, `source.filepath=29s-40-30-0.txt`).
 - Sweeps: a scenario's `sweep/` files list values to combine; `run ... +sweep=<name>` runs every
@@ -67,7 +68,7 @@ python -m casim catalog
 | [casop_static](scenarios/casop_static/README.md) | The seven CASOP benchmark sets as static instances (benchmark L1) |
 | [henn2012](scenarios/henn2012/README.md) | Henn's (2012) online batching experiments (benchmark L2) |
 | [oobp](scenarios/oobp/README.md) | The online order batching benchmark of Gil-Borrás et al. (2020) (benchmark L3) |
-| `ijpe`, `scenario_ijpe` | The IJPE grocery-retailer study, under revision (`docs/ijpe/`) |
+| `ijpe` | The IJPE grocery-retailer study, under revision (`docs/ijpe/`) |
 
 ## Documentation
 

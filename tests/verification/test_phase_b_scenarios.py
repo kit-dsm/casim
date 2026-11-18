@@ -18,7 +18,7 @@ from ware_ops_algos.planning.models import PlanView, TourView
 from ware_ops_algos.planning.validation import check as check_commands
 from ware_ops_algos.algorithms.waiting.analytic_progress import optimal_waiting
 
-from casim.baseline_capture import BaselineCapture
+from casim.outputs.audit import BaselineCapture
 from casim.decision_engine.commitment_policies import (
     SchedulingCommitmentPolicy, WindowCommitmentPolicy,
 )
@@ -28,7 +28,7 @@ from casim.domain_objects.sim_domain import (
     DecisionContext, DecisionMemory, DynamicInfo, SimWarehouseDomain,
 )
 from casim.events.operational_events import Reconsider
-from casim.runner import apply_decision
+from casim.run import apply_decision
 from casim.run import prepare
 from tests.scenario_configs import walk_config
 
@@ -66,10 +66,9 @@ def test_one_picker_one_order_has_derived_end_and_completion(tmp_path):
                    "cosy_repo=wait_1")
     record = sim.state.tracker.completed_tours
     assert len(record) == 1
-    _, start, end, order_ids, _, _, _, _ = record[0]
-    assert (start, end, order_ids) == (0.0, 39.0, [0])
+    assert (record[0].start, record[0].end, record[0].order_ids) == (0.0, 39.0, [0])
     assert sim.state.tracker.distance_by_picker[0] == 38.0
-    assert end - order[0]["arrival_s"] == 39.0
+    assert record[0].end - order[0]["arrival_s"] == 39.0
 
 
 def test_two_orders_wait_zero_vs_wait_two(tmp_path):
@@ -82,9 +81,9 @@ def test_two_orders_wait_zero_vs_wait_two(tmp_path):
                           "decisions=paper_no_intervention", "cosy_repo=wait_0")
     waiting, _ = _walk(tmp_path / "waiting", orders,
                         "decisions=paper_no_intervention", "cosy_repo=wait_2")
-    assert [row[3] for row in immediate.state.tracker.completed_tours] == [[0], [1]]
-    assert [row[3] for row in waiting.state.tracker.completed_tours] == [[0, 1]]
-    assert waiting.state.tracker.completed_tours[0][1] == 10.0
+    assert [tour.order_ids for tour in immediate.state.tracker.completed_tours] == [[0], [1]]
+    assert [tour.order_ids for tour in waiting.state.tracker.completed_tours] == [[0, 1]]
+    assert waiting.state.tracker.completed_tours[0].start == 10.0
 
 
 def test_henn_threshold_delays_the_only_job():
@@ -223,7 +222,7 @@ def test_admission_keeps_prefix_and_sums_old_and_new_distance(tmp_path):
     tour = sim.state.tour_manager.get_tour(1)
     assert tuple(node.position for node in tour.executed_prefix) == prefix
     record = sim.state.tracker.completed_tours
-    assert [(row[1], row[2], row[3]) for row in record] == [(0.0, 40.0, [0, 1])]
+    assert [(tour.start, tour.end, tour.order_ids) for tour in record] == [(0.0, 40.0, [0, 1])]
     assert sim.state.tracker.distance_by_picker[0] == 38.0
     assert sum(leg["distance"] * leg["completed_fraction"]
                for leg in capture.legs) == pytest.approx(38.0)

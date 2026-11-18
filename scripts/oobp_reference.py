@@ -2,7 +2,7 @@
 
 Usage: python scripts/oobp_reference.py experiments.xlsx oobp_instances.zip
 The official downloads are linked at https://grafo.etsii.urjc.es/optsicom/oobp.html.
-Writes ``scenarios/oobp/reference.csv`` in the format of ``casim.reference``: one
+Writes ``scenarios/oobp/reference.csv`` in the format of ``casim.outputs.reference``: one
 row per instance, objective and method, selected by ``source.filepath``.
 """
 

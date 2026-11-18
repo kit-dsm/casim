@@ -2,28 +2,26 @@
 
 from __future__ import annotations
 
-import csv
 from dataclasses import dataclass
 from itertools import product
-import json
 from pathlib import Path
+from time import perf_counter
 
 from hydra import compose, initialize_config_dir
 from omegaconf import DictConfig, OmegaConf, open_dict
-from ware_ops_algos.planning.lifecycle import TourStates
 
-from casim.baseline_capture import BaselineCapture
 from casim.config.data_card import load_and_flatten_data_card
-from casim.decision_engine.decision_engine import DecisionEngine
-from casim.loggers import KPILogger
-from casim.reference import compare_with_reference
-from casim.service import service_measures
-from casim.runner import apply_decision
-from casim.setup import DecisionSetup, resolve
+from casim.config.setup import DecisionSetup, resolve
+from casim.decision_engine.decision_engine import DecisionEngine, DecisionResult
+from casim.domain_objects.sim_domain import SimWarehouseDomain
+from casim.outputs.audit import BaselineCapture
+from casim.outputs.facts import FactsRecorder
+from casim.outputs.kpis import KPILogger
+from casim.outputs.reference import compare_with_reference
+from casim.outputs.trace import TraceRecorder
+from casim.outputs.write import write_outputs
 from casim.simulation_engine.simulation_engine import SimulationEngine
 from casim.sources.base import Source, SourceLoader, build_source, release
-from casim.facts import FactsRecorder
-from casim.trace import TraceRecorder
 
 SCENARIO_FILE = "scenario.yaml"
 REFERENCE_FILE = "reference.csv"
@@ -94,7 +92,7 @@ def _engines(cfg: DictConfig, setups: dict[str, DecisionSetup], source,
              recorder: TraceRecorder, facts: FactsRecorder,
              ) -> tuple[SimulationEngine, DecisionEngine]:
     output_dir = Path(cfg.experiment.output_dir)
-    loggers = [KPILogger(output_dir / "kpis"), recorder, facts]
+    loggers = [KPILogger(), recorder, facts]
     if cfg.experiment.audit:
         loggers.append(BaselineCapture(output_dir / "audit.json"))
     triggers = {trigger: tuple(name for name, setup in setups.items()
@@ -123,80 +121,18 @@ def _engines(cfg: DictConfig, setups: dict[str, DecisionSetup], source,
                              if setup.commitment_policy is not None},
         start_times={name: setup.config.start_times for name, setup in setups.items()},
     )
-    loggers[0].decision_tracker = decision.decision_tracker
     return simulation, decision
 
 
-def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
-                   output_dir: Path, recorder: TraceRecorder, facts: FactsRecorder) -> None:
-    (output_dir / "kpis.json").write_text(
-        (output_dir / "kpis" / "kpis.json").read_text(encoding="utf-8"), encoding="utf-8")
-    tracker = engine.decision_tracker
-    (output_dir / "decisions.json").write_text(json.dumps({
-        "decisions": tracker.num_decisions,
-        "pipeline_counts": dict(tracker.pipeline_counts),
-        "decision_log": tracker.command_decisions,
-        "solve_seconds": sum(row["solve_seconds"] for row in tracker.command_decisions),
-        "conversion_seconds": sum(row["conversion_seconds"] for row in tracker.command_decisions),
-        "apply_seconds": sum(row["apply_seconds"] for row in tracker.command_decisions),
-    }, indent=2), encoding="utf-8")
-    with open(output_dir / "tours.csv", "w", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle)
-        # start is the actual start of the route, after the setup; a committed
-        # tour that never started shows its planned start, a draft or a
-        # cancelled tour that never started none. distance is the route's
-        # planned distance.
-        writer.writerow(("tour_id", "picker_id", "status", "start", "end", "setup",
-                         "distance", "picks", "orders_at_start", "order_ids"))
-        resources = sim.state.resource_manager
-        for tour in sorted(sim.state.tour_manager.get_all_tours(),
-                           key=lambda tour: tour.tour_id):
-            setup = (resources.get_resource(tour.assigned_resource).tour_setup_time or 0.0
-                     if tour.assigned_resource is not None else None)
-            writer.writerow((tour.tour_id, tour.assigned_resource, tour.status.value,
-                             (tour.actual_start if tour.actual_start is not None
-                              else tour.planned_start
-                              if tour.status in (TourStates.SCHEDULED, TourStates.PENDING)
-                              else None),
-                             tour.actual_end, setup, tour.route.distance,
-                             len(tour.completed_picks), len(tour.original_route.batch.orders),
-                             " ".join(map(str, tour.order_numbers))))
-    manager = sim.state.order_manager
-    completions = {order_id: tour.actual_end
-                   for tour in sim.state.tour_manager.get_all_tours()
-                   if tour.status is TourStates.DONE for order_id in tour.order_numbers}
-    orders = {order.order_id: order for order in manager.get_order_buffer()}
-    orders.update({order_id: manager.get_order_from_history(order_id)
-                   for order_id in completions})
-    with open(output_dir / "orders.csv", "w", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(("order_id", "affected", "arrival", "due_date", "completion"))
-        affected = set(getattr(facts.source, "affected_order_ids", ()))
-        for order_id in sorted(orders):
-            writer.writerow((order_id, order_id in affected, orders[order_id].order_date,
-                             orders[order_id].due_date,
-                             completions.get(order_id)))
-    (output_dir / "trace.json").write_text(json.dumps({
-        "trace_digest": recorder.digest(), "event_count": len(recorder.trace),
-    }, indent=2), encoding="utf-8")
-    facts.write(sim, output_dir)
-    service = service_measures(facts.orders(sim), sim.state.tracker)
-    service["stranded"] = stranded_work(sim)
-    if service["stranded"]["tours"]:
-        print(f"warning: {service['stranded']['tours']} committed tours "
-              f"({service['stranded']['orders']} orders) never started: their pickers "
-              "were away at the end (work pushed into the queue of a picker who left).")
-    (output_dir / "service.json").write_text(json.dumps(service, indent=2), encoding="utf-8")
-
-
-def stranded_work(sim: SimulationEngine) -> dict:
-    """Committed tours left in the queue of a picker who is away at the end."""
-    resources = sim.state.resource_manager
-    tours = [tour for tour in sim.state.tour_manager.get_all_tours()
-             if tour.status in (TourStates.SCHEDULED, TourStates.PENDING)
-             and tour.assigned_resource is not None
-             and not resources.is_present(tour.assigned_resource)]
-    return {"tours": len(tours), "orders": sum(len(tour.order_numbers) for tour in tours)}
+def apply_decision(sim: SimulationEngine, engine: DecisionEngine,
+                   result: DecisionResult, snapshot: SimWarehouseDomain) -> None:
+    """Apply a decision and record its accepted choice and timing."""
+    started = perf_counter()
+    sim.step(result, snapshot)
+    engine.on_accepted(result, snapshot)
+    engine.decision_tracker.on_commands(
+        sim.state.current_time, snapshot.dynamic_warehouse_info.context.decision,
+        result, snapshot, perf_counter() - started)
 
 
 @dataclass(frozen=True)
@@ -235,7 +171,7 @@ def run(cfg: DictConfig) -> RunResult:
             break
         apply_decision(sim, engine, engine.on_trigger(snapshot), snapshot)
     output_dir = Path(cfg.experiment.output_dir)
-    _write_outputs(sim, engine, output_dir, recorder, prepared.facts)
+    write_outputs(sim, engine, output_dir, recorder, prepared.facts)
     reference = Path(cfg.scenario_dir) / REFERENCE_FILE
     if reference.exists():
         compare_with_reference(reference, cfg, output_dir)

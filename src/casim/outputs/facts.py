@@ -2,9 +2,13 @@
 
 ``FactsRecorder`` observes the executed events and writes, in ``facts/``,
 
-- ``tours.csv``: one row per started tour: ``tour_id``, ``picker_id``,
-  ``commit_time``, ``start`` (of the setup), ``setup_end`` (start of the
-  route), ``end``, ``distance``, ``lines``, ``order_ids``;
+- ``tours.csv``: one row per committed tour, also one that never started:
+  ``tour_id``, ``picker_id``, ``status`` at the end, ``commit_time``,
+  ``planned_start`` (of the route, as last planned), ``start`` (of the
+  setup), ``setup_end`` (start of the route), ``end``, ``setup`` (s),
+  ``route_distance`` (planned), ``distance`` (walked), ``lines`` (picked),
+  ``orders_at_start``, ``order_ids``. Drafts that were never committed are
+  left out;
 - ``orders.csv``: one row per order: ``order_id``, source-marked ``affected``, ``release_time``,
   ``due_date``, ``lines``, ``tour_id``, ``tour_start``, ``completion`` (end
   of its tour, empty if not completed), and for comparisons with recorded
@@ -14,9 +18,6 @@
   ``node_y``, ``walk_start``, ``walk_distance``, ``pick_start``, ``pick_end``.
   The walk starts at the end of the tour's previous pick, or at the route
   start for the first pick; its distance is the route length walked since.
-
-The older ``tours.csv`` and ``orders.csv`` next to ``facts/`` are to be derived
-from these tables, or removed, after the revision.
 """
 
 from __future__ import annotations
@@ -27,11 +28,12 @@ from pathlib import Path
 from ware_ops_algos.planning.lifecycle import TourStates
 
 from casim.events.operational_events import PickComplete, TourEnd, TourStart, TravelEvent
-from casim.loggers import EventLogger
+from casim.simulation_engine.event_logger import EventLogger
 
 FACTS_DIR = "facts"
-TOUR_COLUMNS = ("tour_id", "picker_id", "commit_time", "start", "setup_end", "end",
-                "distance", "lines", "order_ids")
+TOUR_COLUMNS = ("tour_id", "picker_id", "status", "commit_time", "planned_start", "start",
+                "setup_end", "end", "setup", "route_distance", "distance", "lines",
+                "orders_at_start", "order_ids")
 ORDER_COLUMNS = ("order_id", "affected", "release_time", "due_date", "lines", "tour_id", "tour_start",
                  "completion", "picker_id", "first_pick_start", "last_pick_end")
 PICK_COLUMNS = ("tour_id", "picker_id", "order_id", "article_id", "node_x", "node_y",
@@ -47,9 +49,11 @@ class FactsRecorder(EventLogger):
         self._walk: dict[int, list[float]] = {}  # tour -> [walk start, distance so far]
 
     def on_decision(self, problem_class, result, state_snapshot, sim) -> None:
-        # A tour is committed by the first decision after which it is no longer planned.
+        # A tour is committed by the first decision after which it is neither
+        # planned nor cancelled (a draft dropped before it was committed).
         for tour in sim.state.tour_manager.get_all_tours():
-            if tour.tour_id not in self.commit_time and tour.status is not TourStates.PLANNED:
+            if (tour.tour_id not in self.commit_time
+                    and tour.status not in (TourStates.PLANNED, TourStates.CANCELLED)):
                 self.commit_time[tour.tour_id] = sim.state.current_time
 
     def on_event(self, event, sim) -> None:
@@ -57,11 +61,8 @@ class FactsRecorder(EventLogger):
             tour = sim.state.tour_manager.get_tour(event.tour_id)
             resource = sim.state.resource_manager.get_resource(tour.assigned_resource)
             self.tours[event.tour_id] = {
-                "tour_id": event.tour_id, "picker_id": tour.assigned_resource,
-                "commit_time": self.commit_time.get(event.tour_id),
                 "start": event.time - (resource.tour_setup_time or 0.0),
-                "setup_end": event.time, "end": None, "distance": 0.0, "lines": 0,
-                "order_ids": " ".join(map(str, sorted(tour.order_numbers)))}
+                "setup_end": event.time, "end": None, "distance": 0.0, "lines": 0}
             self._walk[event.tour_id] = [event.time, 0.0]
         elif isinstance(event, TravelEvent):
             tour = sim.state.tour_manager.get_tour(event.tour_id)
@@ -108,11 +109,33 @@ class FactsRecorder(EventLogger):
                 "last_pick_end": row["last"] if row else None})
         return table
 
+    def tour_rows(self, sim) -> list[dict]:
+        """Every committed tour with its executed facts (empty if never started)."""
+        resources = sim.state.resource_manager
+        rows = []
+        for tour in sorted(sim.state.tour_manager.get_all_tours(), key=lambda t: t.tour_id):
+            if tour.tour_id not in self.commit_time:
+                continue
+            executed = self.tours.get(tour.tour_id, {})
+            rows.append({
+                "tour_id": tour.tour_id, "picker_id": tour.assigned_resource,
+                "status": tour.status.value, "commit_time": self.commit_time[tour.tour_id],
+                "planned_start": tour.planned_start,
+                "start": executed.get("start"), "setup_end": executed.get("setup_end"),
+                "end": executed.get("end"),
+                "setup": resources.get_resource(tour.assigned_resource).tour_setup_time or 0.0,
+                "route_distance": tour.route.distance,
+                "distance": executed.get("distance", 0.0),
+                "lines": executed.get("lines", 0),
+                "orders_at_start": len(tour.original_route.batch.orders),
+                "order_ids": " ".join(map(str, sorted(tour.order_numbers)))})
+        return rows
+
     def write(self, sim, output_dir: Path) -> None:
         directory = Path(output_dir) / FACTS_DIR
         directory.mkdir(parents=True, exist_ok=True)
         for name, columns, rows in (
-                ("tours.csv", TOUR_COLUMNS, [self.tours[t] for t in sorted(self.tours)]),
+                ("tours.csv", TOUR_COLUMNS, self.tour_rows(sim)),
                 ("orders.csv", ORDER_COLUMNS, self.orders(sim)),
                 ("picks.csv", PICK_COLUMNS, self.picks)):
             with open(directory / name, "w", newline="", encoding="utf-8") as handle:

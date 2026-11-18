@@ -61,7 +61,7 @@ def test_component_runs_a_static_instance(name, tmp_path):
                            tmp_path)
     run(cfg)
     kpis = json.loads((tmp_path / "kpis.json").read_text(encoding="utf-8"))
-    with open(tmp_path / "orders.csv", newline="", encoding="utf-8") as handle:
-        orders = list(csv.DictReader(handle))
+    with open(tmp_path / "facts" / "orders.csv", newline="", encoding="utf-8") as handle:
+        orders = [row for row in csv.DictReader(handle) if row["completion"]]
     assert kpis["num_tours"] > 0
     assert kpis["num_orders_completed"] == len(orders) > 0

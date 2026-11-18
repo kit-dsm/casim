@@ -24,7 +24,7 @@ import networkx as nx
 import pandas as pd
 import pytest
 
-from casim.baseline_capture import BaselineCapture
+from casim.outputs.audit import BaselineCapture
 
 
 def _ladder():

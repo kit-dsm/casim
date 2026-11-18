@@ -6,7 +6,7 @@ from ware_ops_algos.planning.invariants import check_plan, check_progress
 from ware_ops_algos.planning.lifecycle import Accepts, ResourceStates, TourStates
 from ware_ops_algos.planning.scope import RevisionScope, StateInformation
 
-from casim.loggers import EventLogger
+from casim.simulation_engine.event_logger import EventLogger
 from casim.simulation_engine.state_adapter import StateAdapter
 
 

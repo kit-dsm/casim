@@ -19,8 +19,8 @@ optionally `sweep/` and `variants/`, `source.py` only for a local source, option
    outputs.
 4. Data is never committed: `scripts/fetch_data.py` downloads public data, the user places
    confidential data. IJPE data at order, line or picker level never enters a committed file.
-5. `python -m casim check --all` must pass. `scenarios/scenario_ijpe/`, `scenarios/ijpe/` and
-   `scenarios/scenario_dhaen_online/` are exempt until they have this structure.
+5. `python -m casim check --all` must pass. `scenarios/scenario_dhaen_online/` is exempt until
+   it has this structure.
 
 ## Before every commit
 

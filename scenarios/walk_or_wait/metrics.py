@@ -13,7 +13,7 @@ import pandas as pd
 
 
 def _orders(output_dir: Path) -> pd.DataFrame:
-    orders = pd.read_csv(output_dir / "orders.csv")
+    orders = pd.read_csv(output_dir / "facts" / "orders.csv")
     if orders["completion"].isna().any():
         raise ValueError("not every order was completed")
     return orders
@@ -21,13 +21,13 @@ def _orders(output_dir: Path) -> pd.DataFrame:
 
 def mean_order_completion_time(output_dir: Path) -> float:
     orders = _orders(output_dir)
-    return float((orders["completion"] - orders["arrival"]).mean())
+    return float((orders["completion"] - orders["release_time"]).mean())
 
 
 def mean_length_per_item(output_dir: Path) -> float:
-    tours = pd.read_csv(output_dir / "tours.csv")
+    tours = pd.read_csv(output_dir / "facts" / "tours.csv")
     kpis = pd.read_json(output_dir / "kpis.json", typ="series")
-    return float(kpis["total_distance"] / tours["picks"].sum())
+    return float(kpis["total_distance"] / tours["lines"].sum())
 
 
 def mean_tardiness(output_dir: Path) -> float:
@@ -36,7 +36,7 @@ def mean_tardiness(output_dir: Path) -> float:
 
 
 def _empty_starts(output_dir: Path) -> pd.DataFrame:
-    tours = pd.read_csv(output_dir / "tours.csv", dtype={"order_ids": str})
+    tours = pd.read_csv(output_dir / "facts" / "tours.csv", dtype={"order_ids": str})
     return tours[(tours["status"] == "done") & (tours["orders_at_start"] == 0)]
 
 

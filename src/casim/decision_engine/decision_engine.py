@@ -19,7 +19,7 @@ from casim.decision_engine.commitment_policies import CommitmentPolicy
 from casim.decision_engine.interfaces import DecisionSolver
 from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.domain_objects.sim_domain import SimWarehouseDomain
-from casim.trackers import DecisionTracker
+from casim.outputs.tracker import DecisionTracker
 
 
 @singledispatch

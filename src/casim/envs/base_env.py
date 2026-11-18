@@ -10,7 +10,7 @@ except ImportError as error:
 
 from ware_ops_algos.algorithms import AlgorithmSolution
 
-from casim.runner import apply_decision
+from casim.run import apply_decision
 from casim.decision_engine.decision_engine import DecisionEngine
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event

@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 
 from casim.run import compose_scenario, run
-from casim.service import service_measures
+from casim.outputs.service import service_measures
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -83,7 +83,6 @@ def test_source_marked_order_is_affected(tmp_path, monkeypatch):
     monkeypatch.setattr(run_module, "build_source", marked_source)
     run(compose_scenario(ROOT / "scenarios" / "minimal", output_dir=tmp_path))
     assert pd.read_csv(tmp_path / "facts" / "orders.csv").iloc[0].affected
-    assert pd.read_csv(tmp_path / "orders.csv").iloc[0].affected
     service = json.loads((tmp_path / "service.json").read_text())
     assert service["orders"]["affected"]["completed_orders"] == 1
     assert service["orders"]["unaffected"]["orders"] == 0

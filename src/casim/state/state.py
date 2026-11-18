@@ -8,7 +8,7 @@ from .tour_manager import TourManager
 from .layout_manager import LayoutManager
 from .storage_manager import StorageManager
 from .dock_manager import DockManager
-from ..trackers import ExperimentTracker
+from ..outputs.tracker import ExperimentTracker
 
 
 class State:

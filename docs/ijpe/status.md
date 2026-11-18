@@ -2,6 +2,26 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-19: Code structure: one output record, packages instead of loose files
+
+**Done (no change in results).** Completed tours are a typed `CompletedTour`
+instead of an 8-element tuple read by position. Every output file has one
+writer (`casim/outputs/write.py`): `kpis.json`, `tracker.json`,
+`decisions.json`, `service.json`, `trace.json` and `facts/`. The duplicates
+are gone (`kpis/` with `kpis.pkl`, a second `kpis.json`, `tracker.json` and
+`decisions.json`; the top-level `tours.csv` and `orders.csv`). `facts/tours.csv`
+now holds every committed tour with its status, also one that never started,
+and names its columns by what they mean (`start` of the setup, `route_distance`
+planned, `distance` walked). The top level of `casim` is `cli.py`, `run.py`
+and `__main__.py`; the rest moved into `casim/outputs/` (tracker, kpis, facts,
+service, trace, audit, reference, write), `casim/config/` (setup,
+scenario_check), `casim/simulation_engine/event_logger.py`,
+`casim/viz/logger.py` (the Dash recorder) and `casim/sources/base.py`
+(`DataLoader`); `runner.py` is in `run.py`, `io_helpers.py` is gone. The old
+submitted scenario `scenarios/scenario_ijpe` is removed (it no longer ran; tag
+`archive/scenario-ijpe-submitted`). Baselines, the default IJPE replay,
+`submitted` and the calibrated day have unchanged trace digests.
+
 ## 2026-11-18: Fewer IJPE settings, variants and scripts
 
 **Done.** Removed the settled diagnostics: `source.origin_mode` and

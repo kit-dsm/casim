@@ -10,7 +10,7 @@ import subprocess
 import pytest
 
 from casim.run import compose_scenario, run
-from casim.scenario_check import NOT_PORTED, check_all, check_scenario
+from casim.config.scenario_check import NOT_PORTED, check_all, check_scenario
 from tests.verification.kpi_recomputation import recompute_kpis
 
 ROOT = Path(__file__).resolve().parents[1]

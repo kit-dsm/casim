@@ -39,8 +39,8 @@ def summarize(tracker: dict) -> dict:
     util = tracker["avg_utilization"]
     completed = tracker["completed_tours"]
 
-    tour_durations = [end - start for _, start, end, *_ in completed]
-    final_makespan = max((end for _, _, end, *_ in completed), default=0.0)
+    tour_durations = [tour["end"] - tour["start"] for tour in completed]
+    final_makespan = max((tour["end"] for tour in completed), default=0.0)
 
     return {
         "final_makespan": final_makespan,
@@ -60,7 +60,7 @@ def collect_runs(base_path: Path) -> pd.DataFrame:
     """
     rows = []
     for run_dir in sorted(base_path.iterdir()):
-        tracker_path = run_dir / "kpis" / "tracker.json"
+        tracker_path = run_dir / "tracker.json"
         if not tracker_path.exists():
             continue
         overrides = dict(item.split("=", 1) for item in run_dir.name.split(","))

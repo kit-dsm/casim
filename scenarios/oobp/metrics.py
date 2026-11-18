@@ -12,7 +12,7 @@ import pandas as pd
 
 
 def _orders(output_dir: Path) -> pd.DataFrame:
-    orders = pd.read_csv(output_dir / "orders.csv")
+    orders = pd.read_csv(output_dir / "facts" / "orders.csv")
     if orders["completion"].isna().any():
         raise ValueError("not every order was completed")
     return orders
@@ -24,4 +24,4 @@ def max_completion_time(output_dir: Path) -> float:
 
 def max_turnover_time(output_dir: Path) -> float:
     orders = _orders(output_dir)
-    return float((orders["completion"] - orders["arrival"]).max())
+    return float((orders["completion"] - orders["release_time"]).max())

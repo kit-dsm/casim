@@ -73,14 +73,14 @@ def run(instance_set: str, instance: str, label: str, output_dir: Path,
         audit: bool = False) -> CasimResult:
     """Run one row through scenarios/casop_static and read the result from its outputs.
 
-    Total time counts each completed tour from the start of its setup; ``start``
-    in ``tours.csv`` is the start of the route, after the setup.
+    Total time counts each completed tour from the start of its setup (``start``
+    in ``facts/tours.csv``).
     """
     cfg = compose_scenario(SCENARIO, scenario_overrides(instance_set, instance, label), output_dir)
     cfg.experiment.audit = audit
     run_scenario(cfg)
-    tours = pd.read_csv(output_dir / "tours.csv", dtype={"order_ids": str})
-    orders = pd.read_csv(output_dir / "orders.csv")
+    tours = pd.read_csv(output_dir / "facts" / "tours.csv", dtype={"order_ids": str})
+    orders = pd.read_csv(output_dir / "facts" / "orders.csv")
     done = tours[tours.status == "done"]
     late = (orders.completion - orders.due_date).dropna()
     kpis = json.loads((output_dir / "kpis.json").read_text(encoding="utf-8"))
@@ -89,9 +89,9 @@ def run(instance_set: str, instance: str, label: str, output_dir: Path,
                  json.loads((output_dir / "decisions.json").read_text(encoding="utf-8"))["decisions"])
     return CasimResult(
         distance=sum(kpis["distance_by_picker"].values()),
-        total_time=float((done.end - done.start + done.setup).sum()),
+        total_time=float((done.end - done.start).sum()),
         max_lateness=float(late.max()) if len(late) else None,
-        route_distances=tuple(sorted(tours.distance)),
+        route_distances=tuple(sorted(tours.route_distance)),
         batches=tuple(sorted(tuple(sorted(int(order) for order in ids.split()))
                              for ids in tours.order_ids.fillna(""))),
         decisions=decisions,

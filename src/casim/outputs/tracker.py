@@ -1,6 +1,28 @@
 from collections import defaultdict
+from dataclasses import asdict, dataclass
 
 from ware_ops_algos.planning.commands import CancelTour, CreateTour, ReplaceSuffix, Reschedule
+
+
+@dataclass(frozen=True)
+class CompletedTour:
+    """A finished tour: when it ran, its orders and their due-date outcome."""
+
+    tour_id: int
+    start: float
+    end: float
+    order_ids: list[int]
+    picker_id: int
+    on_time: list[int]
+    delayed: list[int]
+    lines: int
+
+    @property
+    def duration(self) -> float:
+        return self.end - self.start
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 class ExperimentTracker:
@@ -13,7 +35,7 @@ class ExperimentTracker:
         self._horizon_start: float | None = None
         self._horizon_end: float | None = None
         self.pick_durations_by_picker: dict[int, list[float]] = defaultdict(list)
-        self.completed_tours: list[tuple[int, float, float, list[int], int, list[int], list[int], int]] = []
+        self.completed_tours: list[CompletedTour] = []
         self.truck_departures: list[tuple[float, int]] = []
         self.dock_utilization: list[tuple[float, int]] = []
         self.batch_buffer: list[tuple[float, int]] = []
@@ -112,7 +134,9 @@ class ExperimentTracker:
                     delayed,
                     n_pallets_dock,
                     n_lines):
-        self.completed_tours.append((tour_id, start_time, end_time, list(order_ids), picker_id, on_time, delayed, n_lines))
+        self.completed_tours.append(CompletedTour(
+            tour_id=tour_id, start=start_time, end=end_time, order_ids=list(order_ids),
+            picker_id=picker_id, on_time=list(on_time), delayed=list(delayed), lines=n_lines))
         for delayed_order_id in delayed:
             self.all_delayed.append(delayed_order_id)
         for on_time_order_id in on_time:
@@ -143,10 +167,7 @@ class ExperimentTracker:
         if elapsed <= 0:
             return 0.0
 
-        total_tour_time = sum(
-            end - start
-            for _, start, end, _, _, _, _, _ in self.completed_tours
-        )
+        total_tour_time = sum(tour.duration for tour in self.completed_tours)
         return total_tour_time / (elapsed * self.n_pickers)
 
     @property
@@ -173,7 +194,7 @@ class ExperimentTracker:
 
     @property
     def tour_durations(self) -> list[float]:
-        return [end - start for _, start, end, _, _, _, _, _ in self.completed_tours]
+        return [tour.duration for tour in self.completed_tours]
 
     @property
     def average_tour_makespan(self) -> float:
@@ -184,7 +205,7 @@ class ExperimentTracker:
     def average_batch_size(self) -> float:
         if not self.completed_tours:
             return 0.0
-        total_orders = sum(len(order_ids) for _, _, _, order_ids, _, _, _, _ in self.completed_tours)
+        total_orders = sum(len(tour.order_ids) for tour in self.completed_tours)
         return total_orders / len(self.completed_tours)
 
 
