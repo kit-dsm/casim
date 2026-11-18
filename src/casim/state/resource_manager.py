@@ -20,8 +20,9 @@ class ResourceManager:
     def __init__(self, resources: Resources):
         self._resources = resources
         self._present = {r.id: False for r in resources.resources}
-        # picker_id -> requested absence: a duration (a break) or None (a shift end)
-        self._departure: dict[int, float | None] = {}
+        # picker_id -> requested absences in request order: a duration (a break)
+        # or None (a shift end). Each takes effect at the next free point.
+        self._departures: dict[int, list[float | None]] = {}
         # picker_id -> the end of its current absence, when it is known (a break)
         self._return_at: dict[int, float] = {}
         self._version = {r.id: 0 for r in resources.resources}
@@ -49,22 +50,32 @@ class ResourceManager:
         return self._present[picker_id]
 
     def arrive(self, picker_id: int) -> int:
-        """Make the resource present; cancels a pending departure."""
+        """Make the resource present.
+
+        An arrival of a present resource cancels its pending departures (it
+        never left). A resource returning from an absence keeps the
+        departures requested meanwhile; the next takes effect at once.
+        """
+        if self._present[picker_id]:
+            self._departures.pop(picker_id, None)
         self._present[picker_id] = True
-        self._departure.pop(picker_id, None)
         self._return_at.pop(picker_id, None)
         return self.bump_version(picker_id)
 
     def request_departure(self, picker_id: int, duration: float | None) -> int:
-        self._departure[picker_id] = duration
+        """Request an absence; requests take effect one after another, in order."""
+        self._departures.setdefault(picker_id, []).append(duration)
         return self.bump_version(picker_id)
 
     def has_pending_departure(self, picker_id: int) -> bool:
-        return picker_id in self._departure
+        return bool(self._departures.get(picker_id))
 
     def make_departure_effective(self, picker_id: int, now: float) -> float | None:
-        """Make the resource absent; return the duration of its absence, if known."""
-        duration = self._departure.pop(picker_id)
+        """Make the resource absent for its oldest request; return the duration, if known."""
+        pending = self._departures[picker_id]
+        duration = pending.pop(0)
+        if not pending:
+            del self._departures[picker_id]
         if duration is not None:
             self._return_at[picker_id] = now + duration
         self._present[picker_id] = False
@@ -77,12 +88,12 @@ class ResourceManager:
         current = tour_manager.current_tour(picker_id)
         free = now if current is None else max(
             now, tour_manager.get_tour(current).planned_end)
-        if picker_id in self._departure:
-            duration = self._departure[picker_id]
-            return None if duration is None else free + duration
+        pending = self._departures.get(picker_id, [])
         if not self._present[picker_id]:
-            return self._return_at.get(picker_id)
-        return free
+            free = self._return_at.get(picker_id)
+        if free is None or None in pending:
+            return None
+        return free + sum(pending)
 
     def version(self, picker_id: int) -> int:
         return self._version[picker_id]

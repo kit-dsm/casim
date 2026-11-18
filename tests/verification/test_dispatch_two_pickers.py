@@ -242,3 +242,30 @@ def test_a_draft_moves_behind_a_tour_that_ends_late(sim):
     assert first.status is TourStates.DONE
     assert (draft.planned_start, draft.planned_end) == (sim.d, 2 * sim.d)
     assert sim.findings == []
+
+
+def test_departures_requested_during_a_tour_take_effect_in_order(sim):
+    # A break of 30 and then a shift end are both requested while picker 0's tour
+    # runs (0 to d). The break starts at d, the picker returns at d + 30 and the
+    # shift end takes effect at once; an overwrite would have lost the break.
+    sim.commit(0, 0, start=0)
+    sim.push(PickerDeparture(5, 0, duration=30), PickerDeparture(6, 0))
+    sim.run_until(sim.d + 1)
+    assert sim.status(0) is ResourceStates.OFF_SHIFT
+    assert any(isinstance(event, PickerArrival) and event.picker_id == 0
+               and event.time == sim.d + 30 for event in sim.heap)
+    sim.run_until(sim.d + 30)
+    assert sim.status(0) is ResourceStates.OFF_SHIFT
+    assert not sim.state.resource_manager.has_pending_departure(0)
+    assert sim.findings == []
+
+
+def test_a_departure_requested_during_a_break_waits_for_the_return(sim):
+    # Break 10-40 (picker idle); a second break of 20 requested at 15 starts at
+    # the return, 40, so the picker is back at 60, not at 35.
+    sim.push(PickerDeparture(10, 0, duration=30), PickerDeparture(15, 0, duration=20))
+    sim.run_until(59)
+    assert sim.status(0) is ResourceStates.OFF_SHIFT
+    sim.run_until(60)
+    assert sim.status(0) is ResourceStates.IDLE
+    assert sim.findings == []

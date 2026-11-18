@@ -14,7 +14,7 @@ core is therefore finished to a frozen base, tagged `core-ijpe-base`, from which
 - the IJPE branch may change the core only for the changes its plan lists in Section 4
   (C1 disruptions as exogenous information, C2 affected-order flag, C3 decision log with
   candidate scores and solve times, C4 `picks.csv` and service measures, C5 the two dock fixes, C6 one definition of
-  the tours a replanning decision may revise),
+  the tours a replanning decision may revise, C7 departures in request order),
   each with a test and with every other baseline unchanged;
 - any other change to the core needs the user's approval first;
 - the effect of every core change is reported on the baseline tiers and on the IJPE reference

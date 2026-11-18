@@ -144,12 +144,13 @@ class Dispatch(Event):
         picker_id = self.picker_id
         if tours.current_tour(picker_id) is not None:
             return []
+        if not resources.is_present(picker_id):
+            # Departures requested during an absence wait for the return.
+            return []
         if resources.has_pending_departure(picker_id):
             duration = resources.make_departure_effective(picker_id, self.time)
             return ([] if duration is None
                     else [PickerArrival(self.time + duration, picker_id)])
-        if not resources.is_present(picker_id):
-            return []
         queue = tours.queue(picker_id)
         if not queue:
             if resources.enter_idle(picker_id):

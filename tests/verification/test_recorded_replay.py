@@ -134,15 +134,18 @@ def test_recorded_presence_keeps_the_timing_and_counts_absence(tmp_path_factory,
 
 def test_recorded_presence_leaves_work_open_after_the_last_recorded_line(tmp_path_factory):
     # Pick 40 s: picker 0's first tour runs 10-145 (setup 5, walks 3, 1, 1 and 5,
-    # three picks of 40). Its departure after the last recorded line (110) waits
-    # for that tour and has no return, so order 3's tour never starts; with the
-    # shift-long presence the picker returns from its pause at 215 and picks it.
+    # three picks of 40). Its pause (requested at 30) and its departure after
+    # the last recorded line (110) both wait for that tour and take effect in
+    # order: the pause 145-215, then the departure, without return, so order 3's
+    # tour never starts. The run ends at 215: picker 0 is absent 10 + 70, picker
+    # 1 before 40 and after its tour, 93-215. With the shift-long presence the
+    # picker returns from its pause at 215 and picks order 3.
     kpis, tours, orders = _kpis(tmp_path_factory, "variants=recorded_presence",
                                 "source.time_per_pick=40.0")
     assert tours[["picker_id", "start", "end", "order_ids"]].values.tolist() == [
         [0, 10, 145, "1 2"], [1, 40, 93, "4"]]
     assert orders.loc[orders.completion.isna(), "order_id"].tolist() == [3]
-    assert kpis["absent_time_by_picker"] == {"0": 10.0, "1": 92.0}
+    assert kpis["absent_time_by_picker"] == {"0": 80.0, "1": 162.0}
     _, shift, _ = _kpis(tmp_path_factory, "source.time_per_pick=40.0")
     assert shift.loc[shift.order_ids == "3", ["start", "end"]].values.tolist() == [[215, 266]]
 
