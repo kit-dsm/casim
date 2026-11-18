@@ -1,5 +1,0 @@
-# @package _global_
-# R1.6, second order: submitted assumptions, but the recorded sequence (no U-shape).
-source:
-  interleaving: false
-  breaks: [[28800.0, 30600.0], [39600.0, 41400.0]]

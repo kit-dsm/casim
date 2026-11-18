@@ -134,47 +134,33 @@ class RecordedReplay:
 
     def __init__(self, rows: Sequence[RecordedRow], layout: LayoutData, time_model: TimeModel,
                  shift_start_s: float, pause_threshold_s: float | None,
-                 interleaving: bool = True,
-                 breaks: Sequence[tuple[float, float]] | None = None,
-                 origin_mode: str = "depot", setup_in_gap: bool = False,
-                 sequence_clock: str = "start", presence: str = "shift",
-                 stops_in_tours: bool = False,
+                 interleaving: bool = True, setup_in_gap: bool = False,
+                 presence: str = "shift", stops_in_tours: bool = False,
                  absences: Sequence[tuple[int, float, float]] | None = None):
-        """Build a replay; ``sequence_clock=end`` tests confirmation-time order.
+        """Build a replay.
 
-        ``breaks`` replaces recorded pauses by fixed breaks for all pickers;
-        ``absences`` (picker, request time, duration) replaces them by given
-        absences, for example drawn from a fitted model; both run chained.
-        Tour membership remains inferred from start-time order in either mode.
+        ``absences`` (picker, request time, duration) replace the recorded
+        pauses and stops, for example fixed breaks or absences drawn from a
+        fitted model; the run is then chained.
         """
         self.rows = list(rows)
         self.layout = layout
         self.time_model = time_model
         self.shift_start_s = float(shift_start_s)
         self.pause_threshold_s = pause_threshold_s
-        self.breaks = None if breaks is None else [(float(a), float(b)) for a, b in breaks]
         self.absences = None if absences is None else [
             (int(p), float(t), float(d)) for p, t, d in absences]
-        if origin_mode not in {"depot", "first_pick", "aisle_head"}:
-            raise ValueError(f"unknown recorded tour origin mode: {origin_mode}")
-        self.origin_mode = origin_mode
         self.setup_in_gap = bool(setup_in_gap)
         self.stops_in_tours = bool(stops_in_tours)
         if presence not in {"shift", "recorded", "arrival"}:
             raise ValueError(f"unknown presence: {presence}")
         self.presence = presence
         self.tours = recorded_tours(self.rows, interleaving)
-        if sequence_clock == "end":
-            self.tours = [(picker, sorted(lines, key=lambda row: (row.end_s, row.start_s)))
-                          for picker, lines in self.tours]
-        elif sequence_clock != "start":
-            raise ValueError(f"unknown recorded sequence clock: {sequence_clock}")
         self.pickers = sorted({row.picker for row in self.rows})
         self.summary = ReplaySummary(tours=len(self.tours))
 
     def plan(self) -> RecordedPickingPlan:
-        anchored = (self.pause_threshold_s is None and self.breaks is None
-                    and self.absences is None)
+        anchored = self.pause_threshold_s is None and self.absences is None
         seen_pickers: set[int] = set()
         planned = []
         for index, (picker, lines) in enumerate(self.tours):
@@ -183,20 +169,8 @@ class RecordedReplay:
             planned.append(RecordedTour(
                 tour_id=index, picker_id=picker,
                 lines=tuple(RecordedLine(row.order, row.article, row.node) for row in lines),
-                start_s=self._setup_start(lines) if anchored or first_tour else None,
-                start_node=self._tour_origin(lines[0])))
+                start_s=self._setup_start(lines) if anchored or first_tour else None))
         return RecordedPickingPlan(tours=tuple(planned))
-
-    def _tour_origin(self, first: RecordedRow) -> tuple[float, float] | None:
-        """Diagnostic origins; neither is claimed as an observed WMS position."""
-        if self.origin_mode == "depot":
-            return None
-        if self.origin_mode == "first_pick":
-            return first.node
-        graph = self.layout.layout_network.graph
-        return min((node for node, data in graph.nodes(data=True)
-                    if node[0] == first.node[0] and data.get("node_type") == "intersection"),
-                   key=lambda node: node[1])
 
     def _setup_start(self, lines: Sequence[RecordedRow]) -> float:
         """Target setup start, optionally before the WMS first-line interval."""
@@ -246,9 +220,6 @@ class RecordedReplay:
         )
 
     def _pauses(self) -> list[PickerDeparture]:
-        if self.breaks is not None:
-            return [PickerDeparture(time=start, picker_id=picker, duration=end - start)
-                    for start, end in self.breaks for picker in self.pickers]
         if self.absences is not None:
             return [PickerDeparture(time=time, picker_id=picker, duration=duration)
                     for picker, time, duration in self.absences]

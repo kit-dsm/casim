@@ -1,7 +1,0 @@
-# @package _global_
-# Diagnostic physical-time fit from Mon-Wed WMS lines: within one order and
-# aisle, non-overlapping, 4-59 s, non-first. All lines remain in validation.
-source:
-  speed: 2466.0
-  time_per_pick: 14.403
-  per_unit_s: 0.1514

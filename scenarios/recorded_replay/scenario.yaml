@@ -16,7 +16,6 @@ source:
   tour_setup_time: 5.0
   pause_threshold_s: 50.0
   per_unit_s: null   # s per package; null: time_per_pick per line
-  origin_mode: depot  # first_pick tests a zero-distance first leg
   setup_in_gap: false
   presence: shift     # recorded: arrive at the first tour, leave after the last line
   # picker, order, article, quantity, [aisle, location], start, end (seconds)

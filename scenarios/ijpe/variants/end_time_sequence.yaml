@@ -1,5 +1,0 @@
-# @package _global_
-# Preserve inferred tour membership, but execute its lines by WMS completion
-# rather than start time. This tests whether starts are order-local bookkeeping.
-source:
-  sequence_clock: end

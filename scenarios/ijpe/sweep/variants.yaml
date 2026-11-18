@@ -1,3 +1,0 @@
-# R1.6: each submitted assumption alone, every day, chained with the 5-min pause threshold.
-source.day: ["2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17"]
-variants: [ushape, one_order_per_tour, configured_breaks]

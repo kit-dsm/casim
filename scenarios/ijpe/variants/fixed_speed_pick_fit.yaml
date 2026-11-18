@@ -1,8 +1,0 @@
-# @package _global_
-# Diagnostic Mon-Wed ordinary-line fit with the submitted travel speed fixed.
-# Training: same-order, same-aisle, nonoverlapping, non-first lines of 4-59 s.
-# Duration selection biases the coefficients; this is a validation variant.
-source:
-  speed: 2306.0
-  time_per_pick: 14.217
-  per_unit_s: 0.15189

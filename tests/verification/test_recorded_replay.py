@@ -80,15 +80,6 @@ def test_a_line_pick_time_model_sets_each_pick_in_execution(tmp_path_factory):
     assert tours.loc[tours.order_ids == "1 2", "end"].tolist() == [37]
 
 
-def test_a_tour_starting_at_its_first_pick_keeps_that_pick(tmp_path_factory):
-    # Picker 0 begins its first route at (1, 2). Setup is 10-15, first
-    # walk is zero, and the first pick must still run from 15 to 17.
-    picks, _, _ = _run(tmp_path_factory, "source.origin_mode=first_pick")
-    assert len(picks) == 5
-    first = picks[(picks.picker_id == 0) & (picks.order_id == 1)].sort_values("pick_start")
-    assert first.iloc[0][["walk_distance", "pick_start", "pick_end"]].tolist() == [0, 15, 17]
-
-
 def test_interleaved_orders_at_one_node_keep_the_recorded_pick_order(tmp_path):
     cfg = compose_scenario(SCENARIO, output_dir=tmp_path)
     cfg.source.lines = [

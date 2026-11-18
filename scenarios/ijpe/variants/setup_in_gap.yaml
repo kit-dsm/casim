@@ -1,6 +1,0 @@
-# @package _global_
-# The WMS inter-tour gap includes the setup; begin CASIM setup 215 s before
-# the next tour's first recorded line interval. Test, do not assume, this
-# interpretation of a WMS first-line start.
-source:
-  setup_in_gap: true

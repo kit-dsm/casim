@@ -1,5 +1,9 @@
 # IJPE recorded replay: what limits reproduction
 
+> The diagnostic scripts named below (`trace_diagnosis`, `blockers`,
+> `completion_gaps`) and the diagnostic variants were removed on 18 November
+> 2026; they are in git history before that date. The findings stand.
+
 **Current-run note (17 November 2026).** The numerical replay and variant
 results below were produced before a correction that preserves the exact
 recorded pick order when several orders share one graph node. A proposed

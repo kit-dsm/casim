@@ -1,4 +1,0 @@
-# @package _global_
-# Diagnostic lower bound on the first leg: WMS gives no tour start position.
-source:
-  origin_mode: first_pick

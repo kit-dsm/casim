@@ -28,6 +28,10 @@ from casim.sources.wms_export import day_lines
 
 STUDY_DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15",
               "2026-04-16", "2026-04-17")
+# The scheduled breaks around 08:00 and 12:00: a picker's longest absence of at
+# least 10 minutes requested in each window is its break (casim.sources.absence).
+BREAK_WINDOWS = ((7.0 * 3600, 9.5 * 3600), (10.5 * 3600, 13.5 * 3600))
+BREAK_MIN_S = 600.0
 DEPARTURE_HOURS = (10, 12, 14, 16)
 STAGING_MINUTES = 30
 
@@ -42,15 +46,17 @@ class ScenarioSource:
     def __init__(self, data_dir: Path, *, day: str, shift_start_s: float,
                  pause_threshold_s: float | None, speed: float, time_per_pick: float,
                  tour_setup_time: float, per_unit_s: float | None = None,
-                 interleaving: bool = True, breaks: list | None = None,
-                 origin_mode: str = "depot", setup_in_gap: bool = False,
-                 sequence_clock: str = "start", presence: str = "shift",
-                 due_plan: str | None = None, stops_in_tours: bool = False,
-                 absence: str = "recorded", absence_seed: int = 0):
-        """``absence=stochastic`` draws the absences from a model fitted on the
-        other study days (``casim.sources.absence``), with ``absence_seed``."""
-        if absence not in ("recorded", "stochastic"):
-            raise ValueError(f"unknown IJPE absence: {absence}")
+                 interleaving: bool = True, setup_in_gap: bool = False,
+                 presence: str = "shift", due_plan: str | None = None,
+                 stops_in_tours: bool = False, absences="recorded", absence_seed: int = 0):
+        """``absences``: ``recorded`` takes the recorded pauses (and stops) over
+        the threshold; ``fitted`` draws scheduled breaks and allowance from a
+        model fitted on the other study days (``casim.sources.absence``) with
+        ``absence_seed``; a list of ``[start_s, end_s]`` gives every picker
+        these fixed breaks. Each absence is a timed ``PickerDeparture``."""
+        fixed = not isinstance(absences, str)
+        if not fixed and absences not in ("recorded", "fitted"):
+            raise ValueError(f"unknown IJPE absences: {absences}")
         if due_plan not in (None, "fixed_dispatch"):
             raise ValueError(f"unknown IJPE due plan: {due_plan}")
         self.due_plan = due_plan
@@ -73,19 +79,20 @@ class ScenarioSource:
                                     None if per_unit_s is None else float(per_unit_s)),
             shift_start_s=float(shift_start_s),
             pause_threshold_s=None if pause_threshold_s is None else float(pause_threshold_s),
-            interleaving=bool(interleaving), breaks=breaks, origin_mode=origin_mode,
-            setup_in_gap=setup_in_gap, sequence_clock=sequence_clock, presence=presence,
+            interleaving=bool(interleaving), setup_in_gap=setup_in_gap, presence=presence,
             stops_in_tours=stops_in_tours)
         self._domain: SimWarehouseDomain | None = None
-        if absence == "stochastic":
-            if pause_threshold_s is None or breaks is not None:
-                raise ValueError("stochastic absences need a chained run without breaks")
+        if fixed:
+            self.replay.absences = [(picker, float(start), float(end) - float(start))
+                                    for start, end in absences for picker in self.replay.pickers]
+        elif absences == "fitted":
+            if pause_threshold_s is None:
+                raise ValueError("fitted absences need a chained run (a pause threshold)")
             from casim.sources.absence import AbsenceModel, recorded_absences, windows
             settings = dict(shift_start_s=shift_start_s, pause_threshold_s=pause_threshold_s,
                             speed=speed, time_per_pick=time_per_pick,
                             tour_setup_time=tour_setup_time, per_unit_s=per_unit_s,
-                            interleaving=interleaving, origin_mode=origin_mode,
-                            setup_in_gap=setup_in_gap, sequence_clock=sequence_clock,
+                            interleaving=interleaving, setup_in_gap=setup_in_gap,
                             presence=presence, stops_in_tours=stops_in_tours)
             fit_days = []
             for other in STUDY_DAYS:
@@ -93,7 +100,7 @@ class ScenarioSource:
                     continue
                 replay = ScenarioSource(data_dir, day=other, **settings).replay
                 fit_days.append((windows(replay), recorded_absences(replay)))
-            model = AbsenceModel.fit(fit_days)
+            model = AbsenceModel.fit(fit_days, BREAK_WINDOWS, BREAK_MIN_S)
             rng = np.random.default_rng([int(absence_seed), int(pd.Timestamp(day).strftime("%Y%m%d"))])
             self.replay.absences = model.draw(windows(self.replay), rng)
 

@@ -13,18 +13,15 @@ source:
   name: local
   day: "2026-04-13"
   shift_start_s: 19800.0       # 5:30
-  pause_threshold_s: null      # anchored diagnostic; selected chained threshold: 300 s
+  pause_threshold_s: null      # null: anchored (each tour held to its recorded start); chained: 300 s
   speed: 2306.0                # mm/s
   time_per_pick: 19.0          # s per line
   tour_setup_time: 215.0       # s per tour
   per_unit_s: null             # s per package (R1.7); null: time_per_pick per line
   interleaving: true           # false: one order per tour
-  sequence_clock: start        # end: diagnostic WMS confirmation ordering
-  origin_mode: depot           # diagnostics: first_pick or aisle_head; WMS origin unknown
-  setup_in_gap: false          # diagnostic: setup before the first WMS line of a tour
+  setup_in_gap: false          # true: setup in the recorded gap before a tour's first line
   stops_in_tours: false        # chained: stops inside a tour over the threshold are pauses
-  absence: recorded            # stochastic: absences drawn from a model fitted on the other days
-  absence_seed: 0              # replication seed of the stochastic absences
-  breaks: null                 # [[start_s, end_s], ...] replaces the recorded pauses
+  absences: recorded           # recorded | fitted (breaks and allowance fitted on the other days) | [[start_s, end_s], ...] fixed breaks
+  absence_seed: 0              # replication seed of fitted absences
   presence: shift              # recorded: arrive at the first tour, leave after the last line
   due_plan: null                # fixed_dispatch: synthetic store slot minus 30 min staging

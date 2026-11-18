@@ -42,9 +42,12 @@ What the source emits for a day (P1.1):
   vanish. With `source.stops_in_tours`, a stop inside a tour over the same
   threshold (a gap between lines, or a line's excess over 19 s) is a timed
   absence too, beginning when the tour ends; otherwise stops inside a tour
-  are not modelled. With `source.absence=stochastic` the absences are drawn
-  instead from a model fitted on the other study days (`casim.sources.absence`;
-  replication seed `source.absence_seed`); the roster stays recorded. The sweep
+  are not modelled. `source.absences` says where the absences come from:
+  `recorded` (these pauses and stops), `fitted` (scheduled breaks and
+  allowance drawn from a model fitted on the other study days,
+  `casim.sources.absence`, with replication seed `source.absence_seed`; the
+  roster stays recorded) or a list of `[start_s, end_s]` (fixed breaks for
+  every picker). Every absence is a timed `PickerDeparture`. The sweep
   `days_thresholds` compares 2, 5 and 10 minutes. The selected threshold is
   5 minutes; `variants/recorded_presence.yaml` uses it. In
   anchored runs (`source.pause_threshold_s=null`, the default) there are no
@@ -73,8 +76,8 @@ Variants:
   next tour), recorded presence, five-minute pauses and stops inside
   tours, setup inside the recorded gaps and 16.26 s per line
   (`scripts/ijpe/line_time.py`); with `decisions=recorded
-  cosy_repo=recorded_ushape` each tour is pushed to its recorded picker. `python -m scripts.ijpe.system_validation`
-  compares it with the WMS (`docs/ijpe/validation.md`; the run commands are
+  cosy_repo=recorded_ushape` each tour is pushed to its recorded picker.
+  `python -m scripts.ijpe.system_validation` compares it with the WMS (`docs/ijpe/validation.md`; the run commands are
   in its docstring);
 - `recorded_presence`: recorded presence with the 5 minute pause threshold
   (the recorded decision, `decisions/recorded.yaml`, sees every picker,
@@ -82,17 +85,14 @@ Variants:
 - `system_fifo` (P1.3): recorded batches with CASIM's U-shape routing and
   FIFO assignment, recorded presence and the 5 minute pauses, with the
   submitted time model (the diagnostics of `docs/ijpe/validation.md`);
-- the submitted assumptions, one at a time: `greedy_locations` (greedy item
-  assignment), `ushape` (U-shape routing of each recorded tour),
-  `one_order_per_tour`, `configured_breaks` (8:00 and 11:00); all three
-  together in `submitted`;
-- diagnostics, none of them a claim about the real process:
-  `aisle_head_origin` and `first_pick_origin` (route origins instead of the
-  unobserved depot), `end_time_sequence` (lines ordered by completion time),
-  `setup_in_gap` (setup before the first recorded line), `interior_fit`,
-  `same_aisle_fit`, `fixed_speed_pick_fit` and `end_time_fixed_speed_fit`
-  (fitted pick times; their training samples are selected by duration, so a
-  fitted speed is not a measured truck speed).
+- `submitted`: the submitted model's assumptions, U-shape routing, one order
+  per tour and fixed breaks at 8:00 and 11:00;
+- `fixed_dispatch`: synthetic store departure slots as due dates.
+
+The diagnostic variants of R1 (route origins, completion-time line order,
+fitted pick times, the submitted assumptions one at a time) were removed on
+18 November; their findings are in `docs/ijpe/replay.md` and
+`docs/ijpe/validation.md`, their files in git history.
 
 ## How to run
 
@@ -101,9 +101,7 @@ python -m casim run scenarios/ijpe source.day=2026-04-15
 python -m casim run scenarios/ijpe variants=recorded_presence source.day=2026-04-15
 python -m casim run scenarios/ijpe variants=fixed_dispatch source.day=2026-04-15
 python -m casim run scenarios/ijpe sweep=days_thresholds
-python -m casim run scenarios/ijpe sweep=variants
 python -m casim run scenarios/ijpe sweep=anchored --output-dir scenarios/ijpe/outputs/anchored
-python -m scripts.ijpe.trace_diagnosis scenarios/ijpe/outputs/anchored
 python -m scripts.ijpe.replay
 python -m scripts.ijpe.current_state
 ```

@@ -1,8 +1,0 @@
-# @package _global_
-# Diagnostic fit on Monday-Wednesday's interior lines of 4-59 s, with truck
-# speed fixed at the operational estimate of 8.3 km/h. Validate on the other
-# three days. The submitted constant 19 s stays the default scenario model.
-source:
-  speed: 2306.0
-  time_per_pick: 12.753485414572497
-  per_unit_s: 0.1480023432519852

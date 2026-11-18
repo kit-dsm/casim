@@ -2,6 +2,19 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: Fewer IJPE settings, variants and scripts
+
+**Done.** Removed the settled diagnostics: `source.origin_mode` and
+`source.sequence_clock` (and their support in `casim/sources/recorded.py`);
+15 of 20 variants, kept are `calibrated`, `submitted`, `fixed_dispatch`,
+`recorded_presence` and `system_fifo`; the sweeps `variants` and
+`second_order`; `cosy_repo/recorded_greedy`; the scripts `pause_sweep`,
+`origin_diagnostic`, `blockers`, `completion_gaps` and `trace_diagnosis`.
+`source.breaks` and `source.absence` are one setting, `source.absences`:
+`recorded`, `fitted` or a list of fixed breaks; all become timed
+`PickerDeparture`s. Baselines, the calibrated day and `submitted` are
+unchanged (same trace digests).
+
 ## 2026-11-18: FIFO as a pull; push and pull in the core
 
 **Found.** The open orders of the calibrated FIFO day (141 over six days)

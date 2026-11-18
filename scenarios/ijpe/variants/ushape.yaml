@@ -1,4 +1,0 @@
-# @package _global_
-# R1.6: U-shape routing over each recorded tour instead of the recorded sequence.
-defaults:
-  - override /cosy_repo: recorded_ushape

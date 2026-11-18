@@ -1,3 +1,0 @@
-# R1.6, second order: from the submitted assumptions, one recorded feature restored at a time.
-source.day: ["2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17"]
-variants: [submitted, submitted_with_recorded_sequence, submitted_with_recorded_tours, submitted_with_recorded_pauses]

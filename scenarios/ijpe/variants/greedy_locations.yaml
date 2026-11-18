@@ -1,4 +1,0 @@
-# @package _global_
-# R1.6: replace observed pick nodes with the submitted greedy assignment.
-defaults:
-  - override /cosy_repo: recorded_greedy

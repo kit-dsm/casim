@@ -139,7 +139,7 @@ not informative.
 The calibrated day takes every absence from the record. The experiments
 cannot: they need absences that are modelled, not replayed. The roster (when
 each picker arrives and leaves) stays an input, as a planner knows it; the
-absences during the shift come from a model (`source.absence=stochastic`,
+absences during the shift come from a model (`source.absences=fitted`,
 `casim/sources/absence.py`):
 
 - the recorded absences are 35 % of a picker's time between first and last
@@ -285,6 +285,6 @@ limit is not used to reproduce the WMS.
 
 Disruption and policy results are therefore reported as comparisons between
 policies on the calibrated day with fitted absences and the recorded roster
-(`variants=calibrated source.absence=stochastic`, replications with common
+(`variants=calibrated source.absences=fitted`, replications with common
 seeds across policies), measured on throughput and on-time completion up to
 midday, not as predicted picker-level effects in this warehouse.

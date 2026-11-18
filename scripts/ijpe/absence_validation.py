@@ -2,7 +2,7 @@
 
 Runs the calibrated day (``variants=calibrated``) with the recorded roster
 and absences drawn from the model fitted on the other days
-(``source.absence=stochastic``), for ``REPLICATIONS`` seeds per day, with
+(``source.absences=fitted``), for ``REPLICATIONS`` seeds per day, with
 FIFO assignment as a pull (``fifo``, the base of the experiments) or each tour to its
 recorded picker (``recorded``). Compares orders completed by 10:00 and
 12:00, open orders and the non-picking time per picker-day with the WMS and
@@ -42,7 +42,7 @@ def _run(assignment: str, day: str, seed: int) -> None:
     if (out / "service.json").exists():
         return
     subprocess.run([sys.executable, "-m", "casim", "run", str(SCENARIO), "variants=calibrated",
-                    *ASSIGNMENT[assignment][0], "source.absence=stochastic",
+                    *ASSIGNMENT[assignment][0], "source.absences=fitted",
                     f"source.absence_seed={seed}", f"source.day={day}",
                     "--output-dir", str(out)],
                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

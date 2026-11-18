@@ -1,36 +1,50 @@
-"""The fitted absence model of the IJPE scenario (casim/sources/absence.py)."""
+"""The fitted absence model: scheduled breaks and allowance (casim/sources/absence.py)."""
 
 import numpy as np
 
-from casim.sources.absence import AbsenceModel
+from casim.sources.absence import AbsenceModel, Allowance, Break
+
+H = 3600
+WINDOWS = ((7 * H, 9.5 * H), (10.5 * H, 13.5 * H))
 
 
-def test_rates_are_absences_per_present_picker_hour():
-    # Day 1: picker 0 present 1:00-2:00, picker 1 1:30-3:00; absences at 1:05
-    # and 1:40, one at 2:10. Day 2: picker 0 present 1:00-2:00, no absence.
-    # Hour 1: 1 + 0.5 + 1 = 2.5 present hours, 2 absences; hour 2: 1 hour, 1.
-    day1 = ({0: (3600, 7200), 1: (5400, 10800)}, [(3900, 60), (6000, 120), (7800, 30)])
-    day2 = ({0: (3600, 7200)}, [])
-    model = AbsenceModel.fit([day1, day2])
-    assert model.rates == {1: 2 / 2.5, 2: 1.0}
-    assert model.samples == ((3900, 60), (6000, 120), (7800, 30))
+def test_breaks_and_allowance_are_fitted_from_the_recorded_absences():
+    # Pickers 0 and 2 work 6:00-14:00, picker 1 10:00-14:00 (not present in
+    # the morning window). Picker 0: 30 min at 8:30 is its morning break; 5 min
+    # at 8:36 is allowance; 40 min at 12:00 its midday break. Picker 1: 15 min
+    # at 11:00 its midday break; 2 min at 12:00 allowance. Picker 2: 10 min at
+    # 6:30, in its first hour (start-up allowance). Morning: 1 break of 2
+    # present; midday: 2 of 3. Allowance: start-up 1 in 3 picker-hours (each
+    # picker's first hour), regular 2 in 6 + 2 + 6 = 14, wind-down 0 in 3.
+    roster = {0: (6 * H, 14 * H), 1: (10 * H, 14 * H), 2: (6 * H, 14 * H)}
+    absences = [(0, 8.5 * H, 1800), (0, 8.6 * H, 300), (0, 12 * H, 2400),
+                (1, 11 * H, 900), (1, 12 * H, 120), (2, 6.5 * H, 600)]
+    model = AbsenceModel.fit([(roster, absences)], WINDOWS, break_min_s=600)
+    morning, midday = model.breaks
+    assert (morning.share, morning.samples) == (0.5, ((8.5 * H, 1800),))
+    assert (midday.share, midday.samples) == (2 / 3, ((11 * H, 900), (12 * H, 2400)))
+    assert model.allowance == {"start": Allowance(1 / 3, (600,)),
+                               "regular": Allowance(2 / 14, (120, 300)),
+                               "end": Allowance(0.0, ())}
 
 
 def test_draws_repeat_with_the_seed_and_stay_in_the_roster():
-    samples = tuple((3600 + 60 * i, 100 + i) for i in range(40))
-    model = AbsenceModel(rates={1: 3.0, 2: 3.0}, samples=samples)
-    roster = {0: (3600, 9000), 1: (4000, 7000)}
+    model = AbsenceModel(
+        breaks=(Break(WINDOWS[0], 1.0, ((8.5 * H, 1800), (9 * H, 1500))),
+                Break(WINDOWS[1], 1.0, ((12 * H, 2400),))),
+        allowance={name: Allowance(1.5, (120, 300, 600)) for name in ("start", "regular", "end")})
+    roster = {0: (6 * H, 14 * H), 1: (6.5 * H, 13 * H)}
     first = model.draw(roster, np.random.default_rng(7))
     assert first == model.draw(roster, np.random.default_rng(7))
     assert first != model.draw(roster, np.random.default_rng(8))
     assert all(roster[p][0] <= t <= roster[p][1] for p, t, _ in first)
-    assert {d for _, _, d in first} <= {d for _, d in samples}
+    for picker in roster:
+        durations = {d for p, _, d in first if p == picker}
+        assert 2400 in durations and durations & {1800, 1500}
+        assert durations <= {120, 300, 600, 1500, 1800, 2400}
 
 
-def test_a_duration_comes_from_absences_near_the_same_clock_time():
-    # 20 absences at 1:00 last 10 s, 20 at 5:00 last 500 s: a request at 1:10
-    # draws only from the first group.
-    samples = tuple([(3600, 10)] * 20 + [(18000, 500)] * 20)
-    model = AbsenceModel(rates={}, samples=samples)
-    rng = np.random.default_rng(0)
-    assert {model._duration(4200, rng) for _ in range(50)} == {10}
+def test_a_picker_not_present_in_a_break_window_takes_no_break_there():
+    model = AbsenceModel(breaks=(Break(WINDOWS[0], 1.0, ((8.5 * H, 1800),)),),
+                         allowance={"start": Allowance(0.0, (60,))})
+    assert model.draw({0: (10 * H, 14 * H)}, np.random.default_rng(0)) == []

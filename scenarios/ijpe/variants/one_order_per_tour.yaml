@@ -1,4 +1,0 @@
-# @package _global_
-# R1.6: the submitted model's tour holds one order; interleaved orders become separate tours.
-source:
-  interleaving: false
