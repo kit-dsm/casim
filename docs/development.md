@@ -28,7 +28,7 @@ Steps to the freeze:
 | The audit reports the orders still open at the end of a run | done |
 | Documentation reduced to README, concepts, scenarios, validation and this backlog | done |
 | Comparison with the base version (`docs/validation.md`): walk-or-wait and analytic waiting identical, Henn differs with four known causes | done |
-| Full tier, tests and `casim check --all`; tag `core-ijpe-base`; create and push `codex/ijpe-revision` from the tag | open |
+| Full tier (60 runs equal), tests (134 pass) and `casim check --all`; tag `core-ijpe-base`; `codex/ijpe-revision` created from the tag | done |
 
 The first task on the IJPE branch is C1 together with the port of the disruptions as source
 events (P2.1 of the IJPE plan). The cancelling code is in the core
