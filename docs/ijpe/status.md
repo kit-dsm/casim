@@ -2,6 +2,35 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: FIFO as a pull; push and pull in the core
+
+**Found.** The open orders of the calibrated FIFO day (141 over six days)
+were not missing capacity: the FIFO decision planned the whole day at 05:30
+into fixed picker queues and never revised it, also for pickers not yet
+arrived or leaving early. Tours stayed in the queues of pickers who had
+left while others stood idle (Monday: 52 orders open, 11 pickers idle more
+than 10 minutes before their recorded end, 22 h in total). The graph and
+U-shape routing are not the cause: for tours of 11 to 60 lines the
+recorded walk through the lines has the same length as CASIM's route.
+
+**Done.** `PullCommitmentPolicy` (each free picker takes its first planned
+tour; the rest stays planned). The schema requires a pull decision to see
+only idle pickers and to be triggered by `PickerIdle` and `PickerArrival`;
+setup rejects components that plan for pickers the decision does not see
+(`supports_pull = False`: `RecordedPlan`, `SAVScheduler`); a pull decision
+solves only when a free picker sees it. `RecordedIA` assigns the open orders
+only, so the recorded batches can be planned again at each decision. Every
+run reports in `service.json` the committed tours stranded with a picker who
+is away at the end (`stranded`). Tests in `tests/test_pull_assignment.py`.
+IJPE: `decisions/pull.yaml`; the calibrated day uses it; the recorded
+decision now sees every picker itself (`off_shift`), so the variants no
+longer set it. All baselines are unchanged.
+
+**Result.** Calibrated FIFO as a pull: 5 open orders over six days (push:
+141), picker finish RMSE 14 minutes (push: 74), the day's last line +3
+minutes on average, orders by 12:00 within 1 % of the WMS. The fitted-absence
+replications with FIFO were run with push and are rerun with pull next.
+
 ## 2026-11-18: Fitted absences for the experiments
 
 **Decision.** The paper validates in two steps: trace-driven (recorded

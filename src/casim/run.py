@@ -180,9 +180,24 @@ def _write_outputs(sim: SimulationEngine, engine: DecisionEngine,
         "trace_digest": recorder.digest(), "event_count": len(recorder.trace),
     }, indent=2), encoding="utf-8")
     facts.write(sim, output_dir)
-    (output_dir / "service.json").write_text(
-        json.dumps(service_measures(facts.orders(sim), sim.state.tracker), indent=2),
-        encoding="utf-8")
+    service = service_measures(facts.orders(sim), sim.state.tracker)
+    service["stranded"] = stranded_work(sim)
+    if service["stranded"]["tours"]:
+        print(f"warning: {service['stranded']['tours']} committed tours "
+              f"({service['stranded']['orders']} orders) never started: their pickers "
+              "were away at the end. Push queued work for pickers who left; "
+              "pull (PullCommitmentPolicy) does not.")
+    (output_dir / "service.json").write_text(json.dumps(service, indent=2), encoding="utf-8")
+
+
+def stranded_work(sim: SimulationEngine) -> dict:
+    """Committed tours left in the queue of a picker who is away at the end."""
+    resources = sim.state.resource_manager
+    tours = [tour for tour in sim.state.tour_manager.get_all_tours()
+             if tour.status in (TourStates.SCHEDULED, TourStates.PENDING)
+             and tour.assigned_resource is not None
+             and not resources.is_present(tour.assigned_resource)]
+    return {"tours": len(tours), "orders": sum(len(tour.order_numbers) for tour in tours)}
 
 
 @dataclass(frozen=True)

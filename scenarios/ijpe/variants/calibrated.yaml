@@ -1,22 +1,18 @@
 # @package _global_
 # The calibrated day (docs/ijpe/validation.md): recorded batches, U-shape
-# routing and FIFO assignment; recorded presence; gaps between tours and
-# stops inside tours over five minutes are timed absences; the 215 s setup
-# lies inside the recorded gap before a tour; 16.26 s per line, fitted on
-# Monday to Wednesday tour time net of stops (scripts/ijpe/line_time.py).
-# With cosy_repo=recorded_ushape each tour goes to its recorded picker.
+# routing and FIFO assignment as a pull (a free picker takes the next tour);
+# recorded presence; gaps between tours and stops inside tours over five
+# minutes are timed absences; the 215 s setup lies inside the recorded gap
+# before a tour; 16.26 s per line, fitted on Monday to Wednesday tour time net
+# of stops (scripts/ijpe/line_time.py).
+# Each tour to its recorded picker: decisions=recorded cosy_repo=recorded_ushape
+# (a push of the recorded plan; the recorded decision sees every picker).
 defaults:
   - override /cosy_repo: recorded_tours_fifo_ushape
+  - override /decisions: pull
 source:
   presence: recorded
   pause_threshold_s: 300.0
   stops_in_tours: true
   setup_in_gap: true
   time_per_pick: 16.26
-decisions:
-  OBRSP:
-    state_information:
-      resources:
-      - idle
-      - reserved
-      - off_shift

@@ -69,14 +69,16 @@ Variants:
 
 - `calibrated`: the calibrated day of the system-level validation and the
   base of the disruption scenarios: recorded batches, U-shape routing and
-  FIFO assignment, recorded presence, five-minute pauses and stops inside
+  FIFO assignment as a pull (`decisions/pull.yaml`: a free picker takes the
+  next tour), recorded presence, five-minute pauses and stops inside
   tours, setup inside the recorded gaps and 16.26 s per line
-  (`scripts/ijpe/line_time.py`); with `cosy_repo=recorded_ushape` each tour
-  goes to its recorded picker. `python -m scripts.ijpe.system_validation`
+  (`scripts/ijpe/line_time.py`); with `decisions=recorded
+  cosy_repo=recorded_ushape` each tour is pushed to its recorded picker. `python -m scripts.ijpe.system_validation`
   compares it with the WMS (`docs/ijpe/validation.md`; the run commands are
   in its docstring);
-- `recorded_presence`: recorded presence with the 5 minute pause threshold;
-  the decision also sees pickers not yet arrived (`off_shift`);
+- `recorded_presence`: recorded presence with the 5 minute pause threshold
+  (the recorded decision, `decisions/recorded.yaml`, sees every picker,
+  also those not yet arrived or away);
 - `system_fifo` (P1.3): recorded batches with CASIM's U-shape routing and
   FIFO assignment, recorded presence and the 5 minute pauses, with the
   submitted time model (the diagnostics of `docs/ijpe/validation.md`);

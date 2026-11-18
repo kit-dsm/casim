@@ -1,0 +1,27 @@
+# Pull: whenever a picker is free (idle, arrived, back from an absence), it
+# takes the next tour; the other tours stay planned. Nothing waits in the
+# queue of a picker who is away or has left.
+OBRSP:
+  problem_class: OBRSP
+  state_information:
+    orders: true
+    pick_lists: false
+    tours:
+    - planned
+    resources:
+    - idle
+  scope:
+    freeze_from: scheduled
+    frozen_accepts: none
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    repo: ${cosy_repo}
+  commitment_policy:
+    _target_: casim.decision_engine.commitment_policies.PullCommitmentPolicy
+  triggers:
+  - OrderStreamClosed
+  - PickerIdle
+  - PickerArrival
+  conditions:
+  - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+    threshold: 1

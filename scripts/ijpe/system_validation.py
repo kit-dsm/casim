@@ -3,21 +3,22 @@
 The calibrated day is ``variants=calibrated`` (``docs/ijpe/validation.md``).
 Three runs per day:
 
-- ``calibrated_recorded``: each tour to its recorded picker (the validation);
-- ``calibrated_fifo``: CASIM's FIFO assignment (the base of the policy
-  comparisons);
+- ``calibrated_recorded``: each tour to its recorded picker, pushed into
+  the picker's queue at the start (the validation);
+- ``calibrated_fifo``: CASIM's FIFO assignment as a pull, a free picker
+  takes the next tour (the base of the policy comparisons);
 - ``calibrated_recorded_arrival``: as the first, but no picker is sent home,
   so a late picker shows as a late finish instead of open work (the
   uncensored picker-level check).
 
 Run them first, for every day::
 
-    python -m casim run scenarios/ijpe variants=calibrated cosy_repo=recorded_ushape
-        source.day=<day> --output-dir scenarios/ijpe/outputs/calibrated_recorded/<day>
+    python -m casim run scenarios/ijpe variants=calibrated decisions=recorded
+        cosy_repo=recorded_ushape source.day=<day> --output-dir scenarios/ijpe/outputs/calibrated_recorded/<day>
     python -m casim run scenarios/ijpe variants=calibrated
         source.day=<day> --output-dir scenarios/ijpe/outputs/calibrated_fifo/<day>
-    python -m casim run scenarios/ijpe variants=calibrated cosy_repo=recorded_ushape
-        source.presence=arrival source.day=<day>
+    python -m casim run scenarios/ijpe variants=calibrated decisions=recorded
+        cosy_repo=recorded_ushape source.presence=arrival source.day=<day>
         --output-dir scenarios/ijpe/outputs/calibrated_recorded_arrival/<day>
 
 With recorded presence, orders can stay open at the end of the day; picker

@@ -40,6 +40,9 @@
               "$ref": "#/$defs/WindowCommitmentPolicy"
             },
             {
+              "$ref": "#/$defs/PullCommitmentPolicy"
+            },
+            {
               "type": "null"
             }
           ],
@@ -133,6 +136,13 @@
         "every_s"
       ],
       "title": "PeriodicTrigger",
+      "type": "object"
+    },
+    "PullCommitmentPolicy": {
+      "additionalProperties": false,
+      "description": "Each visible (free) resource takes its first planned tour, nothing more.\n\nThe decision sees only idle resources and is triggered when a resource\nbecomes free (``PickerIdle``, ``PickerArrival``); ``DecisionConfig``\nchecks both. Uncommitted tours stay planned for the next free resource.",
+      "properties": {},
+      "title": "PullCommitmentPolicy",
       "type": "object"
     },
     "ResourceStates": {

@@ -1,4 +1,6 @@
-# One decision when the orders are in: the recorded plan, committed at once, never revised.
+# Push: one decision when the orders are in, committed at once, never revised.
+# It sees every picker, also those not yet arrived or away (off_shift), since
+# the recorded plan gives each tour to its recorded picker.
 OBRSP:
   problem_class: OBRSP
   state_information:
@@ -9,6 +11,7 @@ OBRSP:
     resources:
     - idle
     - reserved
+    - off_shift
   scope:
     freeze_from: pending
     frozen_accepts: none

@@ -6,12 +6,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ware_ops_algos.planning.lifecycle import PHYSICAL, TourStates
+from ware_ops_algos.planning.lifecycle import PHYSICAL, Accepts, ResourceStates, TourStates
 from ware_ops_algos.planning.scope import RevisionScope, StateInformation
 from ware_ops_algos.planning.validation import check_scope
 
 from casim.decision_engine.commitment_policies import (
-    CommitAllPolicy, SchedulingCommitmentPolicy, WindowCommitmentPolicy,
+    CommitAllPolicy, PullCommitmentPolicy, SchedulingCommitmentPolicy, WindowCommitmentPolicy,
 )
 from casim.pipelines.taxonomy import TAXONOMY
 
@@ -26,9 +26,12 @@ class PeriodicTrigger(StrictModel):
 
 _POLICIES = {
     f"{policy.__module__}.{policy.__name__}": policy
-    for policy in (CommitAllPolicy, SchedulingCommitmentPolicy, WindowCommitmentPolicy)
+    for policy in (CommitAllPolicy, SchedulingCommitmentPolicy, WindowCommitmentPolicy,
+                   PullCommitmentPolicy)
 }
-Policy = CommitAllPolicy | SchedulingCommitmentPolicy | WindowCommitmentPolicy
+Policy = (CommitAllPolicy | SchedulingCommitmentPolicy | WindowCommitmentPolicy
+          | PullCommitmentPolicy)
+PULL_TRIGGERS = ("PickerIdle", "PickerArrival")
 
 
 class DecisionConfig(StrictModel):
@@ -95,7 +98,25 @@ class DecisionConfig(StrictModel):
         if (TourStates.PLANNED in self.state_information.tours
                 and self.commitment_policy is None):
             raise ValueError("commitment_policy is required when planned tours are exposed")
+        if isinstance(self.commitment_policy, PullCommitmentPolicy):
+            self._check_pull()
         return self
+
+    def _check_pull(self) -> None:
+        """A pull decision: free resources take work, nothing waits in a queue."""
+        info = self.state_information
+        if set(info.resources) != {ResourceStates.IDLE}:
+            raise ValueError(
+                "pull (PullCommitmentPolicy) needs state_information.resources: [idle]; "
+                "a busy, reserved or off-shift resource would get a queued tour")
+        missing = [name for name in PULL_TRIGGERS if name not in self.triggers]
+        if missing:
+            raise ValueError(f"pull (PullCommitmentPolicy) needs the triggers {missing}: "
+                             "a resource that becomes free must cause a decision")
+        if (TourStates.PLANNED not in info.tours
+                or self.scope.accepts(TourStates.PLANNED) is not Accepts.REBUILD):
+            raise ValueError("pull (PullCommitmentPolicy) needs planned tours exposed and "
+                             "rebuildable, so the next free resource can take them")
 
 
 class DecisionDefinitions(StrictModel):

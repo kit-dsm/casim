@@ -138,7 +138,7 @@ OBRSP:
 | `scope.freeze_from` | first status that is frozen | a tour status |
 | `scope.frozen_accepts` | what frozen tours still accept | `none`, `insert` |
 | `solver` | which pipelines produce candidates | `CoSySolver` with `repo`; omitted for a decision that only commits |
-| `commitment_policy` | which planned tours are committed | `CommitAllPolicy`, `SchedulingCommitmentPolicy` with `n_jobs`, `WindowCommitmentPolicy` with `within_s`; omitted when the decision sees no planned tours |
+| `commitment_policy` | which planned tours are committed | `CommitAllPolicy`, `SchedulingCommitmentPolicy` with `n_jobs`, `WindowCommitmentPolicy` with `within_s` (push); `PullCommitmentPolicy` (pull: needs `resources: [idle]` and the triggers `PickerIdle` and `PickerArrival`); omitted when the decision sees no planned tours |
 | `change_penalty` | cost per changed existing tour in the ranking | number at least 0, default 0 |
 | `precedence` | order among decisions due at one time | integer at least 0, lower first |
 | `start_times` | committed starts are binding earliest starts or forecasts | `binding` (default), `forecast` |

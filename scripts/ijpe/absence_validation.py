@@ -3,7 +3,7 @@
 Runs the calibrated day (``variants=calibrated``) with the recorded roster
 and absences drawn from the model fitted on the other days
 (``source.absence=stochastic``), for ``REPLICATIONS`` seeds per day, with
-FIFO assignment (``fifo``, the base of the experiments) or each tour to its
+FIFO assignment as a pull (``fifo``, the base of the experiments) or each tour to its
 recorded picker (``recorded``). Compares orders completed by 10:00 and
 12:00, open orders and the non-picking time per picker-day with the WMS and
 with the trace-driven run of the same assignment (``system_validation``).
@@ -32,7 +32,8 @@ from scripts.ijpe.system_validation import DAYS
 REPLICATIONS = 30
 WORKERS = 8
 ASSIGNMENT = {"fifo": ([], "calibrated_fifo"),
-              "recorded": (["cosy_repo=recorded_ushape"], "calibrated_recorded")}
+              "recorded": (["decisions=recorded", "cosy_repo=recorded_ushape"],
+                           "calibrated_recorded")}
 HOURS = (10, 12)
 
 

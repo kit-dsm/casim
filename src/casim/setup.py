@@ -14,12 +14,14 @@ from ware_ops_algos.planning.decision_features import decision_features
 from ware_ops_algos.planning.lifecycle import Accepts, TimeAttribute
 
 from casim.config.schema import DecisionConfig, DecisionDefinitions, PeriodicTrigger
-from casim.decision_engine.commitment_policies import CommitmentPolicy
+from casim.decision_engine.commitment_policies import CommitmentPolicy, PullCommitmentPolicy
 from casim.decision_engine.solution_ranker import SolutionRanker
 from casim.pipelines.pipeline_runner import CoSySolver
 from casim.pipelines.card_components import card_matches_component
 from casim.pipelines.taxonomy import TAXONOMY, variant
-from casim.simulation_engine.conditions import Condition, DockCapacityCondition
+from casim.simulation_engine.conditions import (
+    Condition, DockCapacityCondition, NbrPickersCondition,
+)
 from casim.simulation_engine.state_adapter import StateAdapter
 
 
@@ -103,6 +105,12 @@ def resolve(cfg: DictConfig, data_card) -> dict[str, DecisionSetup]:
         card.decision_features = {"type": "decision", "features": features}
         configured = (tuple(get_class(path) for path in raw.solver.repo.components)
                       if solver is not None else ())
+        pull = isinstance(model.commitment_policy, PullCommitmentPolicy)
+        push_only = [component.__name__ for component in configured
+                     if not getattr(component, "supports_pull", True)]
+        if pull and push_only:
+            raise ValueError(f"{name}: pull (PullCommitmentPolicy) is not supported by "
+                             f"{push_only}: they plan for resources the decision does not see")
         exclusions = []
         for algorithm in solver.algorithm_cards if solver is not None else ():
             if not any(card_matches_component(algorithm, component)
@@ -135,6 +143,10 @@ def resolve(cfg: DictConfig, data_card) -> dict[str, DecisionSetup]:
         if len(periods) > 1:
             raise ValueError(f"{name}: only one every_s trigger is allowed")
         conditions = tuple(instantiate(condition) for condition in raw.get("conditions", ()))
+        if pull and not any(isinstance(condition, NbrPickersCondition)
+                            for condition in conditions):
+            # A pull decision solves only when a free resource sees it.
+            conditions = (NbrPickersCondition(threshold=1), *conditions)
         if (any(isinstance(condition, DockCapacityCondition) for condition in conditions)
                 and OmegaConf.select(cfg, "simulation.dock") is None):
             raise ValueError(

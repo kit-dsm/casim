@@ -86,12 +86,15 @@ per line had absorbed part of it. With the stops as absences and the line
 time fitted net of them, the per-picker bias without forced departures goes
 from -78 to -10 minutes.
 
-Three runs, all after C7 (departures in request order), 18 November:
+Three runs, all after C7 (departures in request order), 18 November. The
+recorded assignment is a push: the recorded plan is committed into each
+picker's queue at the start. FIFO is a pull: whenever a picker is free, it
+takes the next recorded tour (`decisions/pull.yaml`).
 
 | Run | Assignment | Presence | Open orders | Orders by 10:00 / 12:00 | Largest day error by 10:00 / 12:00 | Picker finish bias, min | Picker finish RMSE, min | Day's last line, mean error, min |
 |---|---|---|---:|---:|---:|---:|---:|---:|
 | `calibrated_recorded` | recorded | recorded | 86 | +32 / -13 | 11 / 15 | -26 | 52 | +19 |
-| `calibrated_fifo` | FIFO | recorded | 141 | +37 / +1 | 10 / 8 | -41 | 74 | +16 |
+| `calibrated_fifo` | FIFO, pull | recorded | 5 | +39 / +8 | 11 / 6 | -3 | 14 | +3 |
 | `calibrated_recorded_arrival` | recorded | no departure | 0 | +32 / -12 | 11 / 14 | -10 | 61 | +89 |
 
 - Throughput up to midday is reproduced: on every day the orders completed
@@ -108,9 +111,28 @@ Three runs, all after C7 (departures in request order), 18 November:
 - The end of the day is not reproduced: either orders stay open (recorded
   presence) or the last picker finishes late (+89 minutes on average without
   departures).
-- FIFO assignment gives tours to whoever is free, not to pickers who stay
-  longest, so it leaves more work open at the end (141 orders) than the
-  recorded assignment.
+- FIFO as a pull reproduces the day: 5 open orders over six days (all on
+  Friday), picker finish times within 14 minutes (RMSE) and the day's last
+  line within 3 minutes on average. A free picker takes over work a late
+  picker would otherwise leave open, as on the floor. The recorded
+  assignment cannot: it fixes every tour to its picker, so the tour errors
+  add up per picker (RMSE 61 minutes without departures).
+- Pushed FIFO, as run before 18 November, planned the whole day at 05:30
+  into fixed queues, also for pickers not yet arrived or leaving early: 141
+  orders stayed in the queues of pickers who had left, while others stood
+  idle (on Monday 11 pickers stopped more than 10 minutes before their
+  recorded end, 22 h in total, with 52 orders open). `service.json` now
+  reports such stranded tours (`stranded`); with pull there are none.
+
+Graph and routing, checked against the recorded line sequence. For tours of
+11 to 60 lines (765 of 1,172 tours, mostly one order) the shortest-path
+distance through the recorded sequence of lines equals CASIM's U-shape
+distance (median ratio 0.98 to 1.00); for tours of up to 10 lines U-shape is
+longer (median ratio 0.82, 77 tours). In tours over 100 lines (several orders, 26 % of lines)
+the recorded sequence jumps back and forth between orders (about 13 jumps
+of more than 40 m within 20 seconds per tour), which no picker can walk:
+there the confirmation order is not the walking order, and the comparison is
+not informative.
 
 ## Fitted absences (distribution-driven validation)
 
@@ -140,7 +162,7 @@ all with the calibrated time model (`scripts/ijpe/absence_validation.py`):
 | Assignment | Orders by 10:00, six days | Orders by 12:00, six days | Open orders | WMS inside the 90 % band at 12:00 |
 |---|---:|---:|---:|---:|
 | WMS | 626 | 1,031 | 0 | |
-| FIFO, recorded absences (trace-driven) | 663 | 1,032 | 141 | |
+| FIFO (push, before 18 November), recorded absences (trace-driven) | 663 | 1,032 | 141 | |
 | FIFO, fitted absences, mean (90 % band) | 676 (640 to 704) | 1,041 (980 to 1,075) | 135 (102 to 175) | 4 of 6 days |
 | Recorded assignment, fitted absences | 654 (617 to 692) | 977 (922 to 1,014) | 159 (117 to 199) | 3 of 6 days |
 
