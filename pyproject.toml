@@ -17,9 +17,6 @@ dependencies = [
     "omegaconf>=2.3",
     "pydantic>=2.0",
     "tqdm>=4.67.3",
-    # Not imported, but scenarios/scenario_ijpe/config/grocery_retailer_config.yaml
-    # selects hydra/launcher: joblib, which Hydra resolves on every run.
-    "hydra-joblib-launcher>=1.2.0",
 ]
 
 [project.optional-dependencies]

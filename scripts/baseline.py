@@ -85,19 +85,7 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
 
     for day in IJPE_DAYS:
         add(f"ijpe_replay__{day}", "ijpe", None, (f"source.day={day}",))
-
-    ijpe = "scenarios.scenario_ijpe.scenario_grocery_retailer"
-    for simulation in ("baseline", "scenario1", "scenario2", "scenario3",
-                       "scenario4"):
-        add(f"ijpe__{simulation}", "scenario_ijpe", ijpe,
-            (f"simulation={simulation}",))
     return result
-
-
-def _config_name(scenario: str) -> str:
-    return {
-        "scenario_ijpe": "grocery_retailer_config",
-    }[scenario]
 
 
 def _run(command: list[str], env: dict | None = None,
@@ -222,22 +210,14 @@ def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
     out_dir = RUNS / f"{name}-{uuid4().hex[:8]}"
     out_dir.mkdir(parents=True, exist_ok=True)
     capture = out_dir / "audit.json"
-    if module is None:
-        directory = str(ROOT / "scenarios" / scenario)
-        check = [str(PYTHON), "-m", "casim", "check", directory, *overrides, "--json"]
-        command = [str(PYTHON), "-m", "casim", "run", directory, *overrides, "--audit",
-                   "--output-dir", str(out_dir)]
-        recorded_command = command[:-2]
-        kpi_path = out_dir / "kpis.json"
-    else:
-        check = [str(PYTHON), "-m", "casim", "check",
-                 str(ROOT / "scenarios" / scenario / "config"),
-                 _config_name(scenario), *overrides, "--json"]
-        command = [str(PYTHON), "-m", module, *overrides,
-                   "viz.launch=false", "+experiment.audit=true",
-                   f"hydra.run.dir={out_dir}"]
-        recorded_command = command[:-1]
-        kpi_path = out_dir / "kpis" / "kpis.json"
+    if module is not None:
+        raise ValueError(f"{name}: every baseline case runs with casim run")
+    directory = str(ROOT / "scenarios" / scenario)
+    check = [str(PYTHON), "-m", "casim", "check", directory, *overrides, "--json"]
+    command = [str(PYTHON), "-m", "casim", "run", directory, *overrides, "--audit",
+               "--output-dir", str(out_dir)]
+    recorded_command = command[:-2]
+    kpi_path = out_dir / "kpis.json"
     check_code, check_tail = _check_once(definition, check)
     run_code, run_tail = _run(command)
     result = {

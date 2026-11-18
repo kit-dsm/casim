@@ -1,6 +1,0 @@
-# @package _global_
-hydra:
-  mode: MULTIRUN
-  sweeper:
-    params:
-      simulation: baseline, scenario1, scenario2, scenario3, scenario4
