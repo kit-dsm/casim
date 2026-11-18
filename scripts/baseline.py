@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
+from functools import lru_cache
 from hashlib import sha256
 import json
 import os
@@ -143,6 +144,15 @@ def _check_once(definition, check: list[str]) -> tuple[int, str]:
         return _CHECKS[key]
 
 
+@lru_cache(maxsize=1)
+def ware_commit() -> str:
+    """The commit of the ware_ops_algos checkout the run interpreter imports."""
+    code, path = _run([str(PYTHON), "-c",
+                       "import ware_ops_algos; print(ware_ops_algos.__file__)"])
+    return _run(["git", "-C", str(Path(path.strip().splitlines()[-1]).parent),
+                 "rev-parse", "HEAD"])[1].strip()
+
+
 def has_data(scenario: str) -> bool:
     return all((ROOT / path).exists() for path in DATA_DEPENDENT.get(scenario, ()))
 
@@ -186,6 +196,7 @@ def _run_data_dependent(name: str, scenario: str, overrides: tuple[str, ...]) ->
     kpis = json.loads((out_dir / "kpis.json").read_text(encoding="utf-8"))
     result.update({
         "casim_commit": _run(["git", "rev-parse", "HEAD"])[1].strip(),
+        "ware_ops_algos_commit": ware_commit(),
         "kpis": kpis,
         "decisions": json.loads((out_dir / "decisions.json").read_text(encoding="utf-8")),
         "committed_tours": [], "trace_digest": trace["trace_digest"],
@@ -242,9 +253,7 @@ def run_case(name: str, definition: tuple[str, str, tuple[str, ...]]) -> dict:
     differences = recompute_kpis(audit, kpis)
     result.update({
         "casim_commit": _run(["git", "rev-parse", "HEAD"])[1].strip(),
-        "ware_ops_algos_commit": _run([
-            "git", "-C", str(ROOT.parent / "ware_ops_algos"),
-            "rev-parse", "HEAD"])[1].strip(),
+        "ware_ops_algos_commit": ware_commit(),
         "kpis": kpis,
         # Counts on_decision callbacks by decision name, including callbacks
         # that commit no tour; this is not a count of committed tours.
