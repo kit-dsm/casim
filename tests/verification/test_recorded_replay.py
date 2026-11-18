@@ -161,3 +161,25 @@ def test_arrival_presence_never_forces_a_departure(tmp_path_factory):
         [0, 10, 145, "1 2"], [1, 40, 93, "4"], [0, 215, 266, "3"]]
     assert orders.completion.notna().all()
     assert kpis["absent_time_by_picker"] == {"0": 80.0, "1": 40.0}
+
+
+def test_stops_inside_a_tour_become_pauses_of_their_recorded_length():
+    # One tour of one order, threshold 300 s, 19 s per line. Lines at 10-30,
+    # 130-150 (gap 100: no stop), 520-540 (gap 370: a stop from 150 of 370 s)
+    # and 540-940 (400 s, 381 s over the pick time: a stop from 559 of 381 s).
+    from casim.sources.recorded import RecordedReplay, RecordedRow, TimeModel
+
+    rows = [RecordedRow(picker=0, order=1, article=a, quantity=1, node=(1, a),
+                        start_s=s, end_s=e)
+            for a, (s, e) in enumerate([(10, 30), (130, 150), (520, 540), (540, 940)])]
+    model = TimeModel(speed=1.0, time_per_pick=19.0, tour_setup_time=5.0)
+
+    def stops(enabled):
+        replay = RecordedReplay(rows, None, model, shift_start_s=0.0, pause_threshold_s=300.0,
+                                stops_in_tours=enabled)
+        return [(d.time, d.duration) for d in replay._pauses()], replay.summary
+
+    assert stops(False)[0] == []
+    found, summary = stops(True)
+    assert sorted(found) == [(150, 370), (559, 381)]
+    assert (summary.stops_in_tours, summary.stop_s_in_tours) == (2, 751)

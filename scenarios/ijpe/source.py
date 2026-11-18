@@ -42,7 +42,7 @@ class ScenarioSource:
                  interleaving: bool = True, breaks: list | None = None,
                  origin_mode: str = "depot", setup_in_gap: bool = False,
                  sequence_clock: str = "start", presence: str = "shift",
-                 due_plan: str | None = None):
+                 due_plan: str | None = None, stops_in_tours: bool = False):
         if due_plan not in (None, "fixed_dispatch"):
             raise ValueError(f"unknown IJPE due plan: {due_plan}")
         self.due_plan = due_plan
@@ -66,7 +66,8 @@ class ScenarioSource:
             shift_start_s=float(shift_start_s),
             pause_threshold_s=None if pause_threshold_s is None else float(pause_threshold_s),
             interleaving=bool(interleaving), breaks=breaks, origin_mode=origin_mode,
-            setup_in_gap=setup_in_gap, sequence_clock=sequence_clock, presence=presence)
+            setup_in_gap=setup_in_gap, sequence_clock=sequence_clock, presence=presence,
+            stops_in_tours=stops_in_tours)
         self._domain: SimWarehouseDomain | None = None
 
     def initial_state(self) -> SimWarehouseDomain:

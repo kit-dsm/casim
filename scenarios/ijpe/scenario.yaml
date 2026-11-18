@@ -22,6 +22,7 @@ source:
   sequence_clock: start        # end: diagnostic WMS confirmation ordering
   origin_mode: depot           # diagnostics: first_pick or aisle_head; WMS origin unknown
   setup_in_gap: false          # diagnostic: setup before the first WMS line of a tour
+  stops_in_tours: false        # chained: stops inside a tour over the threshold are pauses
   breaks: null                 # [[start_s, end_s], ...] replaces the recorded pauses
   presence: shift              # recorded: arrive at the first tour, leave after the last line
   due_plan: null                # fixed_dispatch: synthetic store slot minus 30 min staging

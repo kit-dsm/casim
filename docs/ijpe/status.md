@@ -2,6 +2,39 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-18: Stops inside tours; the calibrated day
+
+**Found.** On the calibrated day after C7, pickers still finished about an
+hour early, although per-order time was unbiased. Matched tour by tour, the
+missing time is stops inside tours: 28 % of recorded tours contain a stop
+of five minutes or more (a gap between lines or one long line), 99 h on the
+six days. Between tours such gaps were already absences; inside tours they
+were dropped. Without them, CASIM's tours are slightly too slow: the
+submitted 19 s per line had absorbed part of the stops. The earlier "an
+hour early" also mixed two groups: with recorded presence a picker who runs
+late leaves with work open instead of finishing late, so picker finish
+times are censored.
+
+**Done.** `source.stops_in_tours` (the recorded source, default off, so no
+baseline changes; hand-derived test) makes such stops timed absences that
+begin when the running tour ends. The line time is refitted net of stops:
+16.26 s on Monday to Wednesday, tour bias -0.15 min and RMSE 6.0 min on the
+held-out days (`scripts/ijpe/line_time.py`). `variants=calibrated` is the
+calibrated day. `scripts/ijpe/system_validation.py` runs it with recorded
+and FIFO assignment and, as the uncensored picker check, without forced
+departures.
+
+**Result.** Orders completed by 10:00 and 12:00 are within 15 of the WMS on
+every day (recorded assignment; FIFO within 10). The picker-day bias is
+-10 minutes without forced departures (-78 before), RMSE an hour. The end
+of the day is not reproduced. The earlier entry of today, with the
+pre-stops numbers, is superseded.
+
+**Decision.** `variants=calibrated` is the base of the disruption and
+policy scenarios. Claims stay as in the P1.3 entry: policy comparisons on
+throughput and on-time completion up to midday, no picker-level or
+end-of-day effects.
+
 ## 2026-11-18: Calibrated day rerun after C7; validation cut to two runs
 
 **Done.** The system-level validation now runs only the calibrated day

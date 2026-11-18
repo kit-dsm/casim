@@ -28,7 +28,12 @@ for a picker that has left stays open and is reported as such. ``arrival``
 makes a picker arrive as in ``recorded`` but never leave, so all work is
 done and late work shows as a later finish.
 
-A gap inside a tour is not a pause: CASIM does not interrupt a tour. The
+CASIM does not interrupt a tour. With ``stops_in_tours`` (chained runs
+only), a stop inside a tour over the same threshold, a gap between two lines
+or the excess of one line over the model's pick time, also requests a
+``PickerDeparture`` of its recorded duration; it begins when the running
+tour ends, so the day keeps its recorded absence and only the stop's place
+moves to the tour end. Without it, stops inside a tour are not modelled. The
 counts of what the replay cannot represent are in ``ReplaySummary``.
 """
 
@@ -84,6 +89,8 @@ class ReplaySummary:
     pause_s: float = 0.0
     gaps_inside_tours: int = 0
     gap_s_inside_tours: float = 0.0
+    stops_in_tours: int = 0
+    stop_s_in_tours: float = 0.0
     largest_tour_orders: int = 0
 
 
@@ -130,7 +137,8 @@ class RecordedReplay:
                  interleaving: bool = True,
                  breaks: Sequence[tuple[float, float]] | None = None,
                  origin_mode: str = "depot", setup_in_gap: bool = False,
-                 sequence_clock: str = "start", presence: str = "shift"):
+                 sequence_clock: str = "start", presence: str = "shift",
+                 stops_in_tours: bool = False):
         """Build a replay; ``sequence_clock=end`` tests confirmation-time order.
 
         ``breaks`` replaces recorded pauses by fixed breaks for all pickers.
@@ -146,6 +154,7 @@ class RecordedReplay:
             raise ValueError(f"unknown recorded tour origin mode: {origin_mode}")
         self.origin_mode = origin_mode
         self.setup_in_gap = bool(setup_in_gap)
+        self.stops_in_tours = bool(stops_in_tours)
         if presence not in {"shift", "recorded", "arrival"}:
             raise ValueError(f"unknown presence: {presence}")
         self.presence = presence
@@ -248,7 +257,15 @@ class RecordedReplay:
                 if row.start_s > reach:
                     self.summary.gaps_inside_tours += 1
                     self.summary.gap_s_inside_tours += row.start_s - reach
+                    if self.stops_in_tours and row.start_s - reach > self.pause_threshold_s:
+                        pauses.append(self._stop(picker, reach, row.start_s - reach))
                 reach = max(reach, row.end_s)
+            if self.stops_in_tours:
+                for row in ordered:
+                    pick = self._pick_time(row)
+                    if row.end_s - row.start_s - pick > self.pause_threshold_s:
+                        pauses.append(self._stop(picker, row.start_s + pick,
+                                                 row.end_s - row.start_s - pick))
             if picker not in previous_end:
                 # The first tour has a binding start in the recorded plan. A
                 # departure at shift start would hide this picker from the
@@ -268,6 +285,17 @@ class RecordedReplay:
                     self.summary.pause_s += duration
             previous_end[picker] = end
         return pauses
+
+    def _pick_time(self, row: RecordedRow) -> float:
+        model = self.time_model
+        if model.per_unit_s is None:
+            return model.time_per_pick
+        return model.time_per_pick + model.per_unit_s * row.quantity
+
+    def _stop(self, picker: int, start: float, duration: float) -> PickerDeparture:
+        self.summary.stops_in_tours += 1
+        self.summary.stop_s_in_tours += duration
+        return PickerDeparture(time=start, picker_id=picker, duration=duration)
 
     def _presence(self) -> list[Event]:
         if self.presence == "shift":

@@ -1,22 +1,27 @@
 """Compare the calibrated IJPE day with the WMS; never export private records.
 
-The calibrated day is recorded presence, five-minute pauses and the setup
-inside the recorded gaps (``docs/ijpe/validation.md``). Two runs per day:
+The calibrated day is ``variants=calibrated`` (``docs/ijpe/validation.md``).
+Three runs per day:
 
 - ``calibrated_recorded``: each tour to its recorded picker (the validation);
 - ``calibrated_fifo``: CASIM's FIFO assignment (the base of the policy
-  comparisons).
+  comparisons);
+- ``calibrated_recorded_arrival``: as the first, but no picker is sent home,
+  so a late picker shows as a late finish instead of open work (the
+  uncensored picker-level check).
 
 Run them first, for every day::
 
-    python -m casim run scenarios/ijpe variants=system_fifo source.setup_in_gap=true
-        cosy_repo=recorded_ushape source.day=<day>
-        --output-dir scenarios/ijpe/outputs/calibrated_recorded/<day>
-    python -m casim run scenarios/ijpe variants=system_fifo source.setup_in_gap=true
+    python -m casim run scenarios/ijpe variants=calibrated cosy_repo=recorded_ushape
+        source.day=<day> --output-dir scenarios/ijpe/outputs/calibrated_recorded/<day>
+    python -m casim run scenarios/ijpe variants=calibrated
         source.day=<day> --output-dir scenarios/ijpe/outputs/calibrated_fifo/<day>
+    python -m casim run scenarios/ijpe variants=calibrated cosy_repo=recorded_ushape
+        source.presence=arrival source.day=<day>
+        --output-dir scenarios/ijpe/outputs/calibrated_recorded_arrival/<day>
 
-Orders can stay open at the end of the day; completion-time scores are then
-censored.
+With recorded presence, orders can stay open at the end of the day; picker
+finish times are then censored (a late picker leaves with work open).
 """
 
 from __future__ import annotations
@@ -33,7 +38,7 @@ from scripts.ijpe.replay import _union_s
 
 DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15",
         "2026-04-16", "2026-04-17")
-RUNS = ("calibrated_recorded", "calibrated_fifo")
+RUNS = ("calibrated_recorded", "calibrated_fifo", "calibrated_recorded_arrival")
 HOURS = (8, 10, 12, 14, 16, 18)
 
 
@@ -113,7 +118,11 @@ def main() -> None:
                            group.picker_end_rmse_min ** 2).sum() / n)),
                        "mean_day_last_error_min": float(group.last_line_error_min.mean()),
                        "orders_complete_by_10h_minus_wms": int(
-                           group.order_cdf_error_10h.sum())})
+                           group.order_cdf_error_10h.sum()),
+                       "orders_complete_by_12h_minus_wms": int(
+                           group.order_cdf_error_12h.sum()),
+                       "largest_day_error_10h": int(group.order_cdf_error_10h.abs().max()),
+                       "largest_day_error_12h": int(group.order_cdf_error_12h.abs().max())})
     pooled = pd.DataFrame(pooled)
     pooled.to_csv(directory / "overall.csv", index=False)
     print("\nPOOLED\n", pooled.round(2).to_string(index=False))

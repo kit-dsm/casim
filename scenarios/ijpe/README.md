@@ -39,7 +39,10 @@ What the source emits for a day (P1.1):
 - pauses: in chained runs (`source.pause_threshold_s` in seconds), a recorded
   gap between tours longer than the threshold is a `PickerDeparture` with the
   gap's duration, which begins when the running tour ends. Shorter gaps
-  vanish, and a gap inside a tour is not modelled. The sweep
+  vanish. With `source.stops_in_tours`, a stop inside a tour over the same
+  threshold (a gap between lines, or a line's excess over 19 s) is a timed
+  absence too, beginning when the tour ends; otherwise stops inside a tour
+  are not modelled. The sweep
   `days_thresholds` compares 2, 5 and 10 minutes. The selected threshold is
   5 minutes; `variants/recorded_presence.yaml` uses it. In
   anchored runs (`source.pause_threshold_s=null`, the default) there are no
@@ -62,15 +65,19 @@ model is the submitted one: 2,306 mm/s, 19 s per line, 215 s setup per tour.
 
 Variants:
 
+- `calibrated`: the calibrated day of the system-level validation and the
+  base of the disruption scenarios: recorded batches, U-shape routing and
+  FIFO assignment, recorded presence, five-minute pauses and stops inside
+  tours, setup inside the recorded gaps and 16.26 s per line
+  (`scripts/ijpe/line_time.py`); with `cosy_repo=recorded_ushape` each tour
+  goes to its recorded picker. `python -m scripts.ijpe.system_validation`
+  compares it with the WMS (`docs/ijpe/validation.md`; the run commands are
+  in its docstring);
 - `recorded_presence`: recorded presence with the 5 minute pause threshold;
   the decision also sees pickers not yet arrived (`off_shift`);
 - `system_fifo` (P1.3): recorded batches with CASIM's U-shape routing and
-  FIFO assignment, recorded presence and the 5 minute pauses; with
-  `cosy_repo=recorded_ushape` each tour goes to its recorded picker (P1.4).
-  with `source.setup_in_gap=true` it is the calibrated day.
-  `python -m scripts.ijpe.system_validation` compares the calibrated day,
-  with recorded and with FIFO assignment, with the WMS
-  (`docs/ijpe/validation.md`; the run commands are in its docstring);
+  FIFO assignment, recorded presence and the 5 minute pauses, with the
+  submitted time model (the diagnostics of `docs/ijpe/validation.md`);
 - the submitted assumptions, one at a time: `greedy_locations` (greedy item
   assignment), `ushape` (U-shape routing of each recorded tour),
   `one_order_per_tour`, `configured_breaks` (8:00 and 11:00); all three
