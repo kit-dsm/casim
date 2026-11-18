@@ -24,8 +24,9 @@ no ceiling. A dock limit is not used to reproduce the WMS.
 
 **Decision.** Disruption and policy results are comparisons between policies
 on the calibrated day (recorded presence, five-minute pauses), measured on
-throughput and on-time completion up to midday, with setup 215 s and 0 s as
-bounds. Picker-level effects and end-of-day measures are not claimed.
+throughput and on-time completion up to midday, with the 215 s setup inside
+the recorded gaps (`setup_in_gap`; the export shows about 4 to 5 minutes per
+tour, so zero setup is not supported). Picker-level effects and end-of-day measures are not claimed.
 Aisle 10 is not part of the study (user, 18 November).
 
 ## 2026-11-18: P1.2 order-level validation completed

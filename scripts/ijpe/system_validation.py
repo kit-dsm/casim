@@ -19,7 +19,7 @@ from scripts.ijpe.replay import _union_s
 
 DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15",
         "2026-04-16", "2026-04-17")
-RUNS = ("system_fifo", "system_fifo_arrival", "system_recorded_assignment", "system_recorded_nosetup", "system_fifo_shift", "system_fifo_shift_nopause",
+RUNS = ("system_fifo", "system_fifo_arrival", "system_recorded_assignment", "system_recorded_nosetup", "system_recorded_setup_in_gap", "system_fifo_shift", "system_fifo_shift_nopause",
         "system_fifo_calibrated_recorded", "system_fifo_calibrated_shift")
 HOURS = (8, 10, 12, 14, 16, 18)
 

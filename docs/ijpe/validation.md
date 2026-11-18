@@ -66,6 +66,7 @@ orders completed by 10:00 over six days.
 |---|---|---|---:|---:|---:|---:|---:|---:|
 | `system_recorded_assignment` | recorded | recorded | 215 s | 47 | -44 | 76 | +30 | +28 |
 | `system_recorded_nosetup` | recorded | recorded | 0 | 6 | -85 | 105 | -4 | +135 |
+| `system_recorded_setup_in_gap` | recorded | recorded | 215 s, in the gap | 31 | -55 | 85 | +23 | +55 |
 | `system_fifo` | FIFO | recorded | 215 s | 89 | -55 | 84 | +15 | +57 |
 | `system_fifo_arrival` | FIFO | arrival | 215 s | 0 | -37 | 99 | +80 | +57 |
 | `system_fifo_shift` | FIFO | shift | 215 s | 0 | -113 | 142 | -20 | +365 |
@@ -82,14 +83,25 @@ Findings:
   12 % on Saturday to Thursday, 119 to 222 orders; Friday has only 8 and 36).
   FIFO stays within 30 orders; without setup or with the fitted pick time
   the morning runs up to 38 and 42 orders ahead.
-- The end of the day is not reproduced by any single setting. With the 215 s
-  setup per tour, recorded presence leaves orders open (the assigned picker
-  leaves before reaching them) or, without forced departures, the day ends
-  29 to 169 minutes late. Without setup, the day's last line is within 10
-  minutes on five of six days, but the morning runs ahead and pickers finish
-  85 minutes early on average. WMS gaps at order changes have a median of
-  -2 s, so the WMS shows no 215 s setup between orders; the true setup lies
-  between the two settings and is not identified by the export.
+- The setup per tour is visible in the export. Between inferred tours, the
+  695 gaps under five minutes have a median of 188 s, and a tour's first line
+  lasts 48 s against 15 s for other lines (medians; means 120 s and 25 s).
+  Together about 4 to 5 minutes per tour, so the submitted 215 s is in range
+  and slightly low; zero setup is not supported. In chained runs the pause
+  before a tour should end at the tour's setup start (`source.setup_in_gap`),
+  or the 215 s are charged twice after every long gap.
+- Total work is close. With recorded assignment and `setup_in_gap`, CASIM
+  spends 413 h on routes and picks and 68 h on setup; the WMS has 438 h of
+  line time inside tours (about 407 h without the longer first lines) and
+  about 70 to 90 h of setup-like time (short gaps between tours and longer
+  first lines). CASIM does the day's work in 5 to 10 % less time.
+- The end of the day and picker finish times are not reproduced because
+  tour errors add up along each picker's day: matched tours have 15 min RMSE
+  and a picker works about 12 tours, so finish errors of an hour are
+  expected even without bias. With recorded presence a picker that runs
+  behind leaves work open (31 orders with `setup_in_gap`); without forced
+  departures the day ends late. Assignment is not the cause: recorded and
+  FIFO assignment give the same picture.
 - Picker-level timing is not reproduced in any run (finish RMSE 76 to 190
   minutes), including with recorded assignment (P1.4). CASIM's pickers are
   busy 76 to 92 % of their presence against 53 to 73 % in the WMS.
@@ -134,5 +146,6 @@ limit is not used to reproduce the WMS.
 
 Disruption and policy results are therefore reported as comparisons between
 policies on the same calibrated day (recorded presence, inferred pauses),
-measured on throughput and on-time completion up to midday, with both setup
-settings as bounds, not as predicted picker-level effects in this warehouse.
+measured on throughput and on-time completion up to midday, with the setup
+inside the recorded gaps, not as predicted picker-level effects in this
+warehouse.
