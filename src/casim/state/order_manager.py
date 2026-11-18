@@ -63,6 +63,32 @@ class OrderManager:
             raise ValueError(f"Order {order_id} has ambiguous lifecycle status: {statuses}")
         return next(iter(statuses))
 
+    def set_due_dates(self, order_ids, due_date: float,
+                      tour_manager) -> dict[int, float | None]:
+        """Set the due date of every open copy of the given orders.
+
+        An order may be held as several objects (buffer, pick lists, the
+        batches of tours); each copy that is not yet completed changes.
+        Returns each changed order's previous due date.
+        """
+        ids = set(order_ids)
+        done = {o.order_id for o in self.completed_orders}
+        batches = [*self._pick_list_buffer,
+                   *(b for b in self._pick_list_assignments.values() if b is not None),
+                   *(t.batch for t in tour_manager.all_tours.values()
+                     if t.status not in (TourStates.DONE, TourStates.CANCELLED))]
+        holders = [*self._order_buffer.values(),
+                   *(o for b in batches for o in b.orders)]
+        changed: dict[int, float | None] = {}
+        for order in holders:
+            if order.order_id in ids and order.order_id not in done:
+                changed.setdefault(order.order_id, order.due_date)
+                order.due_date = due_date
+        for order_id in changed:
+            if order_id in self._order_history:
+                self._order_history[order_id].due_date = due_date
+        return changed
+
     def get_order_buffer(self) -> list[Order]:
         return list(self._order_buffer.values())
 

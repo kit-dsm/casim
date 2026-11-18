@@ -137,15 +137,28 @@ def make_truck_disruption_hook(
     from_time = t(from_day, from_hour, day_sec)
     to_time = t(to_day, to_hour, day_sec)
 
+    assert to_time < from_time, "the disrupted truck departs earlier"
+
     def hook(sim, domain) -> None:
+        # The orders known at the disruption with due time from_time or
+        # later, earliest due first, until the transport-unit volume is
+        # reached. This replaces the submitted event's selection of planned
+        # tours in dictionary order (a changed definition, see
+        # docs/development.md).
+        known = sorted(
+            (e.order for e in sim.events
+             if isinstance(e, OrderArrival) and e.time <= disruption_time
+             and e.order.due_date is not None and e.order.due_date >= from_time),
+            key=lambda o: (o.due_date, str(o.order_id)),
+        )
+        order_ids = []
+        for order in known:
+            if len(order_ids) * palett_te_factor >= te_volume:
+                break
+            order_ids.append(order.order_id)
         sim.add_event(
-            TruckDisruption(
-                time=disruption_time,
-                from_time=from_time,
-                to_time=to_time,
-                te_volume=te_volume,
-                palett_te_factor=palett_te_factor,
-            )
+            TruckDisruption(time=disruption_time, order_ids=order_ids,
+                            due_date=to_time)
         )
 
     return hook

@@ -30,13 +30,12 @@ Steps to the freeze:
 | Comparison with the base version (`docs/validation.md`): walk-or-wait and analytic waiting identical, Henn differs with four known causes | done |
 | Full tier (60 runs equal), tests (134 pass) and `casim check --all`; tag `core-ijpe-base`; `codex/ijpe-revision` created from the tag | done |
 
-The first task on the IJPE branch is C1 together with the port of the disruptions as source
-events (P2.1 of the IJPE plan). The cancelling code is in the core
-(`events/operational_events.py`, `TruckDisruption`); which orders are affected belongs to the
-port. The replanning decision does not cancel the same tours as the old handler: the handler
-cancels tours in the affected due-time window in dictionary order until the transport-unit
-volume is reached, while the decision, with `freeze_from: pending`, makes every unstarted tour
-revisable. The reproduction records this as a changed definition.
+The first task on the IJPE branch, C1, is done there: `TruckDisruption` changes the due dates
+of the orders the source names and cancels nothing; cancellation happens only through the
+replanning decision's revision scope. The replanning decision does not cancel the same tours as
+the old handler, which cancelled tours in the affected due-time window in dictionary order until
+the transport-unit volume was reached; with `freeze_from: pending` every unstarted tour is
+revisable. The reproduction (P2.2) records this as a changed definition.
 
 ## Deferred until after the IJPE revision
 

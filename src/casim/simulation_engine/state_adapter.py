@@ -30,6 +30,7 @@ class StateAdapter:
         self.scope = scope
         # tour_id -> (live batch, live route, their detached copies)
         self._detached: dict[int, tuple] = {}
+        self._order_revision = 0
         forbidden = check_scope(state_information, scope)
         if forbidden:
             status = forbidden[0]
@@ -109,18 +110,25 @@ class StateAdapter:
             dock=state.dock_manager.dock,
             dynamic_warehouse_info=dynamic,
         )
-        return deepcopy(snapshot, self._copy_memo(snapshot, tours))
+        return deepcopy(snapshot, self._copy_memo(snapshot, tours,
+                                                  state.order_revision))
 
-    def _copy_memo(self, snapshot, tours) -> dict[int, object]:
+    def _copy_memo(self, snapshot, tours,
+                   order_revision: int) -> dict[int, object]:
         """Seed the snapshot's deep copy with what need not be copied again.
 
         The layout and the articles never change during a run and are shared.
-        A tour's batch and route change only by replacement, so each is copied
-        once and the copy reused until the tour holds another object; the
-        snapshot stays detached from live state.
+        A tour's batch and route change only by replacement or by an in-place
+        change of a known order, so each is copied once and the copy reused
+        until the tour holds another object or the state's order revision
+        changes; the snapshot stays detached from live state.
         """
         memo = {id(snapshot.layout): snapshot.layout,
                 id(snapshot.articles): snapshot.articles}
+        if self._order_revision != order_revision:
+            # Known orders changed in place (a due date): copy them afresh.
+            self._detached.clear()
+            self._order_revision = order_revision
         for tour in tours:
             cached = self._detached.get(tour.tour_id)
             if cached is None or cached[0] is not tour.batch or cached[1] is not tour.route:

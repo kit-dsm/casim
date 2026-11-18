@@ -1,6 +1,39 @@
 # Status of the IJPE revision
 
-Plan: `docs/ijpe_revision_plan.md`. Newest entry first.
+Plan: `docs/ijpe/plan.md`. Newest entry first.
+
+## 2026-11-18: C1, disruptions as exogenous information
+
+**Done.** `TruckDisruption(time, order_ids, due_date)` sets the due date of
+the given orders wherever they are still open (order buffer, pick lists,
+the batches of unfinished tours, the order history) and cancels nothing.
+Which orders a truck carries is the source's choice. A replanning decision
+triggered by `TruckDisruption` revises the plan within its revision scope,
+so a policy without cancellation (`freeze_from: planned`) can now be
+configured. The snapshot cache of the state adapter is cleared when a known
+order changes in place, so the next decision sees the new due date. Tests:
+`tests/test_truck_disruption.py`. All 60 baseline runs are equal; 136 tests
+pass; `casim check --all` passes.
+
+**Changed definition** (for P2.2). The submitted event cancelled planned and
+scheduled tours in the order of the tour dictionary whose earliest due date
+was at or after the disrupted departure, until the TU volume was reached,
+and used the pick-list buffer only if no tour was cancelled. Now the source
+names the orders, and the replanning decision of `scenario_obp.yaml`
+(`freeze_from: pending`) makes every unstarted tour revisable, so it can
+change other tours than the submitted event cancelled. The old
+`scenario_ijpe` hook now selects the orders known at the disruption with a
+due time at or after the disrupted departure, earliest due first, until the
+TU volume is reached. It cannot run on the base (its order stream file is
+missing), so this hook is untested.
+
+**Open for P2.1.** The affected orders of Scenarios 1 and 2 are the stores
+of the warehouse's list; this needs the IJPE source of P1.1, which is not on
+this branch. The R1 replay work of the old worktree (recorded replay source,
+facts tables, `scripts/ijpe/` diagnostics, replay baselines and the status
+entries of 16 and 17 November) is preserved on the local branch
+`wip/ijpe-replay-r1`, not pushed. Its core changes need the user's approval
+before they enter this branch.
 
 ## 2026-11-16: Phase R0 (data audit) done, stopped for the user
 

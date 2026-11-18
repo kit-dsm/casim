@@ -186,72 +186,36 @@ class OrderIngestion(Event):
 
 
 class TruckDisruption(Event):
-    def __init__(self, time: float, from_time: float, to_time: float, te_volume: int, palett_te_factor: float):
+    """A truck's departure moves: the due time of its orders changes.
+
+    The event changes exogenous information only. It sets the due date of
+    the given orders wherever they are still open and cancels nothing; a
+    replanning decision triggered by this event revises the plan within its
+    revision scope. Which orders a truck carries is the source's choice.
+    """
+
+    priority_score = 1
+
+    def __init__(self, time: float, order_ids: list[int], due_date: float):
         super().__init__(time)
-        self.from_time = from_time
-        self.to_time = to_time
-        self.te_volume = te_volume
-        self.palett_te_factor = palett_te_factor
-        assert from_time > time
-        assert to_time > time
-        assert to_time < from_time
+        self.order_ids = list(order_ids)
+        self.due_date = due_date
 
-    def handle(self, state: 'State') -> list['Event']:
-        # need to remove the disrupted te's from state
-        # in the specified due-date corridor collect orders until te is reached
-        # -> From historic ? Sort order history by due date
-        # find all tours that have these orders and cancel them
-        # re-add the orders with new deadlines to the order buffer.
-        # orders can be pre-batched or batched
-
-        logger.info("truck disruption at %s: from %s to %s", self.time, self.from_time, self.to_time)
-        # first iterate over already scheduled tours
-        orders_pulled = []
-        batches_pulled = []
-        volume_satisfied = False
-
-        all_tours = state.tour_manager.all_tours
-        tours_to_cancel = []
-        seen_tours = 0
-        for tour_id, tour in all_tours.items():
-            seen_tours += 1
-            if tour.status not in [TourStates.DONE, TourStates.PENDING, TourStates.STARTED]:
-                if tour.batch.earliest_due_date >= self.from_time:
-                    for o in tour.batch.orders:
-                        orders_pulled.append(o)
-                    batches_pulled.append(tour.batch)
-                    state.tour_manager.advance(tour_id, TourStates.CANCELLED)
-                    tours_to_cancel.append(tour_id)
-                if len(orders_pulled) * self.palett_te_factor >= self.te_volume:
-                    volume_satisfied = True
-                    break
-
-        logger.info("cancelled %d tours", len(tours_to_cancel))
-        # If volume not already satisfied, e.g. because no tours are scheduled collect from batch buffer.
-        if not volume_satisfied and len(tours_to_cancel) == 0:
-            for b in state.order_manager._pick_list_buffer:
-                if b.earliest_due_date >= self.from_time:
-                    for o in b.orders:
-                        o.due_date = self.to_time
-                        orders_pulled.append(o)
-                    # b.earliest_due_date = self.to_time
-                    # batches_pulled.append(b)
-                if len(orders_pulled) * self.palett_te_factor >= self.te_volume:
-                    volume_satisfied = True
-                    break
-
-
-        logger.info("pulled %d batches", len(batches_pulled))
-
-        for b in batches_pulled:
-            # b.earliest_due_date = self.to_time
-            for o in b.orders:
-                logger.debug("%s cancelled", o)
-                o.due_date = self.to_time
-            state.order_manager.add_pick_list_to_buffer(b)
-
-        for o in orders_pulled:
-            state.tracker.on_volume_shift(o, from_time=self.from_time, to_time=self.to_time)
+    def handle(self, state: State) -> list[Event]:
+        super().handle(state)
+        changed = state.order_manager.set_due_dates(
+            self.order_ids, self.due_date, state.tour_manager)
+        for order_id, old_due in changed.items():
+            state.tracker.on_volume_shift(order_id, from_time=old_due,
+                                          to_time=self.due_date)
+        missing = set(self.order_ids) - set(changed)
+        if missing:
+            logger.warning("truck disruption at %s: orders %s are not open",
+                           self.time, sorted(missing))
+        logger.info("truck disruption at %s: %d orders now due at %s",
+                    self.time, len(changed), self.due_date)
+        state.information_version += 1
+        state.order_revision += 1
         return []
 
 class TruckArrival(Event):

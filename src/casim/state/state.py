@@ -48,6 +48,8 @@ class State:
         self.done_flag = False
         self.decision_versions: dict[str, int] = {}
         self.information_version = 0
+        # Counts in-place changes of known orders (for snapshot caches).
+        self.order_revision = 0
         self.last_solved_information_version: dict[str, int] = {}
         self.considered_active_orders: set[tuple[int, int]] = set()
         self.decision_considered_active_orders: dict[str, set[tuple[int, int]]] = {}
