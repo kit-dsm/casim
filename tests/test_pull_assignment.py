@@ -2,9 +2,9 @@
 
 Push commits tours into picker queues ahead of time; pull lets a free picker
 cause the decision (``PickerIdle``), which commits one tour. In recorded_replay
-with recorded presence, picker 1 is present from 35 s to 50 s and picker 0 is away from 30 s to about 95 s. A
-FIFO push at the start queues tour 3 with picker 1, who leaves before it can
-start it; with pull, picker 0 takes it when it is back.
+with recorded presence, picker 1 is present from 35 s to 50 s and picker 0 is away from 30 s to about 103 s. A
+FIFO push at the start queues order 4's tour with picker 1, who leaves before
+it can start it; with pull, picker 0 takes it when it is back.
 """
 
 import json
@@ -45,7 +45,9 @@ def test_push_strands_a_tour_with_a_picker_who_left_and_pull_does_not(tmp_path):
     assert push["orders"]["all"]["open_orders"] == 1
     pull = _run(tmp_path / "pull", FIFO, *PULL)
     assert pull["stranded"] == {"tours": 0, "orders": 0}
-    assert pull["orders"]["all"]["open_orders"] == 0
+    # Four one-order tours, and each picker has time for two: one order stays
+    # open with pull too, but uncommitted, not stranded with a picker who left.
+    assert pull["orders"]["all"]["open_orders"] == 1
 
 
 def test_the_recorded_plan_cannot_be_pulled(tmp_path):

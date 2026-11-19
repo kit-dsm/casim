@@ -1,5 +1,5 @@
 # @package _global_
-# System-level diagnostic: recorded batches, CASIM U-shape routes and FIFO
+# System-level diagnostic: one tour per recorded order, CASIM U-shape routes and FIFO
 # scheduling, selected five-minute inferred pauses and recorded presence.
 defaults:
   - override /cosy_repo: recorded_tours_fifo_ushape

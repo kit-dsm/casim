@@ -63,7 +63,8 @@ What the source emits for a day (P1.1):
 
 `decisions/recorded.yaml` with `cosy_repo/recorded.yaml`: one decision when
 the orders are in commits the recorded plan with `RecordedIA` (item
-assignment at the recorded pick nodes), `RecordedTours` (batching),
+assignment at the recorded pick nodes), `RecordedTours` (batching: one tour
+per recorded order, the WMS order being the picking tour),
 `GivenSequence` (routing through the recorded line sequence) and
 `RecordedPlan` (each tour to its recorded picker in recorded order). The time
 model is the submitted one: 2,306 mm/s, 19 s per line, 215 s setup per tour.
@@ -71,7 +72,7 @@ model is the submitted one: 2,306 mm/s, 19 s per line, 215 s setup per tour.
 Variants:
 
 - `calibrated`: the calibrated day of the system-level validation and the
-  base of the disruption scenarios: recorded batches, U-shape routing and
+  base of the disruption scenarios: one tour per recorded order, U-shape routing and
   FIFO assignment as a pull (`decisions/pull.yaml`: OBRSP makes the
   recorded tours into pick lists, routes and schedules them once and commits
   nothing, ORSP keeps their routes and gives the next one to each picker that
@@ -84,7 +85,7 @@ Variants:
 - `recorded_presence`: recorded presence with the 5 minute pause threshold
   (the recorded decision, `decisions/recorded.yaml`, sees every picker,
   also those not yet arrived or away);
-- `system_fifo` (P1.3): recorded batches with CASIM's U-shape routing and
+- `system_fifo` (P1.3): one tour per recorded order with CASIM's U-shape routing and
   FIFO assignment, recorded presence and the 5 minute pauses, with the
   submitted time model (the diagnostics of `docs/ijpe/validation.md`);
 - `submitted`: the submitted model's assumptions, U-shape routing, one order

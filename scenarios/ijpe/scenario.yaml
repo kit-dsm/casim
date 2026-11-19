@@ -18,7 +18,6 @@ source:
   time_per_pick: 19.0          # s per line
   tour_setup_time: 215.0       # s per tour
   per_unit_s: null             # s per package (R1.7); null: time_per_pick per line
-  interleaving: true           # false: one order per tour
   setup_in_gap: false          # true: setup in the recorded gap before a tour's first line
   stops_in_tours: false        # chained: stops inside a tour over the threshold are pauses
   absences: recorded           # recorded | fitted (breaks and allowance fitted on the other days) | [[start_s, end_s], ...] fixed breaks

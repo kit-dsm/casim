@@ -1,5 +1,5 @@
 # @package _global_
-# The calibrated day (docs/ijpe/validation.md): the recorded batches as pick
+# The calibrated day (docs/ijpe/validation.md): one tour per recorded order as pick
 # lists (OBP, once), U-shape routing and FIFO assignment as a pull (ORSP, each
 # free picker takes the next tour; decisions/pull.yaml);
 # recorded presence; gaps between tours and stops inside tours over five

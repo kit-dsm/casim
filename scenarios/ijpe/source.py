@@ -46,7 +46,7 @@ class ScenarioSource:
     def __init__(self, data_dir: Path, *, day: str, shift_start_s: float,
                  pause_threshold_s: float | None, speed: float, time_per_pick: float,
                  tour_setup_time: float, per_unit_s: float | None = None,
-                 interleaving: bool = True, setup_in_gap: bool = False,
+                 setup_in_gap: bool = False,
                  presence: str = "shift", due_plan: str | None = None,
                  stops_in_tours: bool = False, absences="recorded", absence_seed: int = 0):
         """``absences``: ``recorded`` takes the recorded pauses (and stops) over
@@ -79,7 +79,7 @@ class ScenarioSource:
                                     None if per_unit_s is None else float(per_unit_s)),
             shift_start_s=float(shift_start_s),
             pause_threshold_s=None if pause_threshold_s is None else float(pause_threshold_s),
-            interleaving=bool(interleaving), setup_in_gap=setup_in_gap, presence=presence,
+            setup_in_gap=setup_in_gap, presence=presence,
             stops_in_tours=stops_in_tours)
         self._domain: SimWarehouseDomain | None = None
         if fixed:
@@ -92,7 +92,7 @@ class ScenarioSource:
             settings = dict(shift_start_s=shift_start_s, pause_threshold_s=pause_threshold_s,
                             speed=speed, time_per_pick=time_per_pick,
                             tour_setup_time=tour_setup_time, per_unit_s=per_unit_s,
-                            interleaving=interleaving, setup_in_gap=setup_in_gap,
+                            setup_in_gap=setup_in_gap,
                             presence=presence, stops_in_tours=stops_in_tours)
             fit_days = []
             for other in STUDY_DAYS:

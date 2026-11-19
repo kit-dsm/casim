@@ -6,10 +6,13 @@ article, quantity, pick node, start and end in seconds of the day. From it,
 - the state: one order per WMS order with one position per line, available
   at the shift start; dedicated storage of each article at its recorded pick
   nodes; one picker per recorded picker, present from the shift start, with
-  a cart for as many orders as the largest recorded tour holds;
-- the recorded tours: a picker's lines in time order, cut where the picker
-  has no order open; orders whose intervals overlap (interleaving) share one
-  tour. They go to the planner as ``information.recorded_plan``;
+  a cart for one order;
+- the recorded tours: one tour per recorded order (the WMS order is the
+  picking tour), its lines in recorded order, the tours of a picker in the
+  order of their first line. A picker who worked on several orders at once
+  (overlapping line intervals) does them one after another; the replay
+  invents no batches. The tours go to the planner as
+  ``information.recorded_plan``;
 - the timing, in one of two modes:
   - chained (``pause_threshold_s`` a number): the first tour of each picker
     has a binding recorded start. A later gap over the threshold requests a
@@ -27,6 +30,9 @@ recorded line (after its running tour, as every departure). Work still queued
 for a picker that has left stays open and is reported as such. ``arrival``
 makes a picker arrive as in ``recorded`` but never leave, so all work is
 done and late work shows as a later finish.
+
+Gaps (pauses and stops) count only time in which the picker has no
+recorded line open, so time spent on another order is never an absence.
 
 CASIM does not interrupt a tour. With ``stops_in_tours`` (chained runs
 only), a stop inside a tour over the same threshold, a gap between two lines
@@ -94,39 +100,30 @@ class ReplaySummary:
     largest_tour_orders: int = 0
 
 
-def recorded_tours(rows: Sequence[RecordedRow], interleaving: bool = True
-                   ) -> list[tuple[int, list[RecordedRow]]]:
-    """Per picker, lines in time order, cut where no order of the picker is open.
-
-    Without ``interleaving`` every order is a tour of its own, its lines in
-    recorded order (the submitted model's one order per tour).
-    """
-    tours = []
-    by_picker: dict[int, list[RecordedRow]] = {}
+def recorded_tours(rows: Sequence[RecordedRow]) -> list[tuple[int, list[RecordedRow]]]:
+    """One tour per (picker, order), its lines in recorded order; tours by first line."""
+    by_order: dict[tuple[int, int], list[RecordedRow]] = {}
     for row in sorted(rows, key=lambda r: (r.picker, r.start_s, r.end_s)):
-        by_picker.setdefault(row.picker, []).append(row)
-    if not interleaving:
-        by_order: dict[tuple[int, int], list[RecordedRow]] = {}
-        for picker, lines in by_picker.items():
-            for line in lines:
-                by_order.setdefault((picker, line.order), []).append(line)
-        return sorted(((picker, lines) for (picker, _), lines in by_order.items()),
-                      key=lambda tour: (tour[1][0].start_s, tour[0]))
-    for picker, lines in by_picker.items():
-        last_end = {}
-        for line in lines:
-            last_end[line.order] = max(last_end.get(line.order, line.end_s), line.end_s)
-        current: list[RecordedRow] = []
-        open_until = float("-inf")
-        for line in lines:
-            if current and line.start_s >= open_until and line.order not in {r.order for r in current}:
-                tours.append((picker, current))
-                current, open_until = [], float("-inf")
-            current.append(line)
-            open_until = max(open_until, last_end[line.order])
-        if current:
-            tours.append((picker, current))
-    return sorted(tours, key=lambda tour: (tour[1][0].start_s, tour[0]))
+        by_order.setdefault((row.picker, row.order), []).append(row)
+    return sorted(((picker, lines) for (picker, _), lines in by_order.items()),
+                  key=lambda tour: (tour[1][0].start_s, tour[0]))
+
+
+def _uncovered(start: float, end: float, busy: Sequence[tuple[float, float]]
+               ) -> list[tuple[float, float]]:
+    """The parts of [start, end) that no interval of ``busy`` (sorted by start) covers."""
+    free, cursor = [], start
+    for low, high in busy:
+        if high <= cursor:
+            continue
+        if low >= end:
+            break
+        if low > cursor:
+            free.append((cursor, low))
+        cursor = max(cursor, high)
+    if cursor < end:
+        free.append((cursor, end))
+    return free
 
 
 class RecordedReplay:
@@ -134,7 +131,7 @@ class RecordedReplay:
 
     def __init__(self, rows: Sequence[RecordedRow], layout: LayoutData, time_model: TimeModel,
                  shift_start_s: float, pause_threshold_s: float | None,
-                 interleaving: bool = True, setup_in_gap: bool = False,
+                 setup_in_gap: bool = False,
                  presence: str = "shift", stops_in_tours: bool = False,
                  absences: Sequence[tuple[int, float, float]] | None = None):
         """Build a replay.
@@ -155,7 +152,7 @@ class RecordedReplay:
         if presence not in {"shift", "recorded", "arrival"}:
             raise ValueError(f"unknown presence: {presence}")
         self.presence = presence
-        self.tours = recorded_tours(self.rows, interleaving)
+        self.tours = recorded_tours(self.rows)
         self.pickers = sorted({row.picker for row in self.rows})
         self.summary = ReplaySummary(tours=len(self.tours))
 
@@ -226,6 +223,9 @@ class RecordedReplay:
         if self.pause_threshold_s is None:
             return []  # anchored: the plan holds each tour until its recorded start
         pauses = []
+        busy: dict[int, list[tuple[float, float]]] = {}
+        for row in sorted(self.rows, key=lambda r: r.start_s):
+            busy.setdefault(row.picker, []).append((row.start_s, row.end_s))
         previous_end: dict[int, float] = {}
         for picker, lines in self.tours:
             recorded_start = min(row.start_s for row in lines)
@@ -234,11 +234,13 @@ class RecordedReplay:
             ordered = sorted(lines, key=lambda r: r.start_s)
             reach = ordered[0].end_s
             for row in ordered[1:]:
-                if row.start_s > reach:
+                # Only time without any recorded line of the picker: time on
+                # another order of the picker is work, not a gap.
+                for low, high in _uncovered(reach, row.start_s, busy[picker]):
                     self.summary.gaps_inside_tours += 1
-                    self.summary.gap_s_inside_tours += row.start_s - reach
-                    if self.stops_in_tours and row.start_s - reach > self.pause_threshold_s:
-                        pauses.append(self._stop(picker, reach, row.start_s - reach))
+                    self.summary.gap_s_inside_tours += high - low
+                    if self.stops_in_tours and high - low > self.pause_threshold_s:
+                        pauses.append(self._stop(picker, low, high - low))
                 reach = max(reach, row.end_s)
             if self.stops_in_tours:
                 for row in ordered:
@@ -263,7 +265,9 @@ class RecordedReplay:
                                                   duration=duration))
                     self.summary.pauses += 1
                     self.summary.pause_s += duration
-            previous_end[picker] = end
+            # Tours run in the order of their first line; an order inside an
+            # earlier one ends before it, so the picker is free from the later end.
+            previous_end[picker] = max(previous_end.get(picker, end), end)
         return pauses
 
     def _pick_time(self, row: RecordedRow) -> float:

@@ -4,5 +4,4 @@
 defaults:
   - override /cosy_repo: recorded_ushape
 source:
-  interleaving: false
   absences: [[28800.0, 30600.0], [39600.0, 41400.0]]   # 08:00 and 11:00, 30 min
