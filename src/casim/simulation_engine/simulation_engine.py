@@ -78,6 +78,7 @@ class SimulationEngine:
             warehouse_info=domain.warehouse_info,
             information=domain.information,
             dock=domain.dock,
+            execution_times=getattr(domain, "execution_times", None),
         )
         self._period_anchor = self.state.current_time
         self._log_resource_states()

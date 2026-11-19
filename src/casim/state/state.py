@@ -25,7 +25,8 @@ class State:
                  active_objective,
                  warehouse_info: WarehouseInfo | None = None,
                  information: PlannerInformation | None = None,
-                 dock: Dock | None = None):
+                 dock: Dock | None = None,
+                 execution_times=None):
         # time is a float (simulation time units)
         self.current_time: float = 0.0
         self.current_picker_id = None
@@ -59,6 +60,8 @@ class State:
         self.active_objective = active_objective
         self.warehouse_info = warehouse_info
         self.information = information
+        # Realized setup and pick times (casim.domain_objects.sim_domain.ExecutionTimes).
+        self.execution_times = execution_times
 
     def apply_all(self, decision, commands):
         """Apply one decision's prevalidated commands and advance its version."""
