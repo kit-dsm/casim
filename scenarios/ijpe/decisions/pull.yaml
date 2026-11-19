@@ -1,6 +1,7 @@
 # The pick lists are the recorded tours, routed once: OBRSP batches the orders
 # into the recorded tours, routes them (U-shape) and schedules them (FIFO) when
-# the orders are in, and commits nothing. ORSP keeps their routes and hands the
+# the orders are in (again for orders that arrive during the day, which a
+# disruption can add), and commits nothing. ORSP keeps their routes and hands the
 # next tour to each picker that becomes free (pull, FIFO). Nothing waits in the
 # queue of a picker who is away or has left.
 OBRSP:
@@ -21,6 +22,7 @@ OBRSP:
   precedence: 0
   triggers:
   - OrderStreamClosed
+  - OrderArrival
   conditions:
   - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
     threshold: 1

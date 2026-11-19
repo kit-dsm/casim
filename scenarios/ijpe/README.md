@@ -106,7 +106,23 @@ Variants:
   submitted time model (the diagnostics of `docs/ijpe/validation.md`);
 - `submitted`: the submitted model's assumptions, U-shape routing, one order
   per tour and fixed breaks at 8:00 and 11:00;
-- `fixed_dispatch`: synthetic store departure slots as due dates.
+- `fixed_dispatch`: synthetic store departure slots as due dates;
+- `fitted`: the model of the disruption and policy experiments: FIFO as a
+  pull, fitted line time, setup and breaks (one person per sample), recorded
+  arrivals only, one picker per login, the synthetic dispatch deadlines
+  (`docs/ijpe/validation.md`, capacity and staffing).
+
+Disruptions (`source.disruption`, plan P2.1) are the paper's scenarios on
+the warehouse's lists (`source.py`, `DISRUPTIONS`); each runs on its day and
+needs the dispatch deadlines. `scenario1` (Monday 07:30) and `scenario2`
+(Thursday 10:30): the orders of list S1 or S2 become due at 10:00 or 11:00,
+if they were due later (30 and 27 orders). `scenario3` (Wednesday 08:30):
+the template order of list S3 arrives three times (6 TU / 2.6), due at
+10:00. `scenario4` (Wednesday 06:30): the 63 orders of list S5 that Thursday
+replays arrive on Wednesday, due at 10:00; `scenario4_next_day` is Thursday
+without them. The source marks the affected orders (`affected` in
+`facts/orders.csv`); orders that arrive during the day get their pick list
+when they arrive (`decisions/pull.yaml`).
 
 The diagnostic variants of R1 (route origins, completion-time line order,
 fitted pick times, the submitted assumptions one at a time) were removed on
@@ -119,6 +135,7 @@ fitted pick times, the submitted assumptions one at a time) were removed on
 python -m casim run scenarios/ijpe source.day=2026-04-15
 python -m casim run scenarios/ijpe variants=recorded_presence source.day=2026-04-15
 python -m casim run scenarios/ijpe variants=fixed_dispatch source.day=2026-04-15
+python -m casim run scenarios/ijpe variants=fitted source.day=2026-04-13 source.disruption=scenario1
 python -m casim run scenarios/ijpe sweep=days_thresholds
 python -m casim run scenarios/ijpe sweep=anchored --output-dir scenarios/ijpe/outputs/anchored
 python -m scripts.ijpe.replay
