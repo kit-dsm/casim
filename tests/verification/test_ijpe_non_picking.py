@@ -127,3 +127,25 @@ def test_line_and_setup_times_are_common_random_numbers():
 def test_breaks_are_drawn_for_present_pickers_only():
     drawn = draw_breaks(FIT, {0: (6 * H, 14 * H), 1: (10 * H, 14 * H)}, seed=0, day=20260413)
     assert drawn == [(0, 8 * H, 1800.0)]
+
+
+def test_orders_that_overlap_another_order_of_the_login_give_no_sample():
+    # Picker 0 scans orders 1 and 2 alternately (two people, or wrong records):
+    # neither gives a line sample, the gap before order 3 no setup sample, and
+    # the picker-day no break presence. Picker 1 works one order at a time.
+    rows = [row(1, A, 8 * H, 8 * H + 20), row(2, B, 8 * H + 30, 8 * H + 50),
+            row(1, B, 8 * H + 60, 8 * H + 80), row(2, A, 8 * H + 90, 8 * H + 110),
+            row(3, A, 8 * H + 200, 8 * H + 220),
+            row(4, A, 8 * H, 8 * H + 20, picker=1), row(4, B, 8 * H + 40, 8 * H + 60, picker=1),
+            row(5, A, 8 * H + 400, 8 * H + 420, picker=1)]
+    obs = observe(_replay(rows), {}, WINDOWS, break_min_s=600)
+    assert (obs.orders, obs.orders_overlapping) == (5, 2)
+    assert (obs.picker_days, obs.picker_days_left_out) == (2, 1)
+    assert obs.present == [1, 0]
+    # Lines of orders 3, 4 and 5 only; setups 1 -> 2 and 2 -> 3 left out, 4 -> 5 kept.
+    assert sorted(obs.lines) == [(6, 20.0), (6, 20.0), (6, 20.0), (6, 20 + 20 - 5)]
+    assert obs.setups_left_out == 2 and obs.setups == [400 - 60 - 20 - 10]
+    # The check measures every line on its own order's scans.
+    mine = [s for _, s, overlapping in obs.own_lines if overlapping]
+    assert mine == [20.0, 20 + 40 - 5, 20.0, 20 + 40 - 5]
+

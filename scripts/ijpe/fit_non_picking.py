@@ -24,9 +24,22 @@ source realizes the times of a run from it (``casim.domain_objects.process_truth
   a break. A line inside another one, which a picker working on two orders at
   once leaves, is kept. Written: the samples per class.
 
-Time covered by a picker's records outside the replayed lines (lines without
-a pick node, orders of several pickers) is work and is left out of every
-part. The source settings (speed, setup, presence) are those of
+Only what one person did is a sample. The system lets a login work on one
+order at a time (the use case partner), yet the scan windows (first to last
+line start) of some orders of one login overlap: two people worked under it,
+or the records are wrong, and the scans do not tell how many people. So an
+order that overlaps another order of its login gives no line sample, a gap
+next to such an order no setup sample, and a picker-day with such an order
+neither a break nor a presence in the break windows; breaks are still found
+on every picker-day, so that no sample holds one. Time covered by a picker's
+records outside the replayed lines (lines without a pick node, orders of
+several pickers) is work and is left out of every part.
+
+The check (``Observations.own_lines``): every line's time measured on its
+own order's scans alone (its duration plus the time since the order's
+previous line ended, net of the walk), for orders with and without overlap.
+If the overlapping orders were picked by a person of their own, their lines
+look like the others. The source settings (speed, setup, presence) are those of
 ``variants=calibrated``.
 
     python -m scripts.ijpe.fit_non_picking
@@ -90,6 +103,13 @@ class Observations:
     clipped_lines: int = 0                    # net of walking below zero
     clipped_setups: int = 0
     covered_s: float = 0.0                    # gap time covered by records outside the lines
+    orders: int = 0
+    orders_overlapping: int = 0               # overlap another order of the picker: no sample
+    setups_left_out: int = 0                  # next to an overlapping order
+    picker_days: int = 0
+    picker_days_left_out: int = 0             # with an overlapping order: no break sample
+    # The check: (quantity, seconds, overlapping) per line, on its order's scans alone.
+    own_lines: list[tuple[int, float, bool]] = field(default_factory=list)
 
     def non_picking_s(self) -> dict[str, float]:
         """Seconds of each part on this day (lines: net of walking, all lines kept)."""
@@ -115,12 +135,26 @@ def observe(replay: RecordedReplay, foreign: Mapping[int, Sequence[Interval]],
 
     roster = replay.roster()
     windows = tuple(tuple(w) for w in break_windows)
-    obs = Observations(windows=windows, breaks=[[] for _ in windows],
-                       present=[sum(_overlap(p, w) > 0 for p in roster.values()) for w in windows])
+    obs = Observations(windows=windows, breaks=[[] for _ in windows], present=[0 for _ in windows])
     by_picker: dict[int, list[list]] = defaultdict(list)
     for picker, lines in replay.tours:
         by_picker[picker].append(sorted(lines, key=lambda r: r.start_s))
     for picker, tours in by_picker.items():
+        overlapping = overlapping_orders(tours)
+        one_person = not any(overlapping)
+        obs.orders += len(tours)
+        obs.orders_overlapping += sum(overlapping)
+        obs.picker_days += 1
+        obs.picker_days_left_out += not one_person
+        if one_person:
+            for w, window in enumerate(windows):
+                obs.present[w] += _overlap(roster[picker], window) > 0
+        for lines, overlaps in zip(tours, overlapping):
+            reach = lines[0].end_s
+            for k, row in enumerate(lines):
+                gap = 0.0 if k == 0 else max(0.0, row.start_s - reach) - walk(lines[k - 1].node, row.node)
+                obs.own_lines.append((row.quantity, max(0.0, row.end_s - row.start_s + gap), overlaps))
+                reach = max(reach, row.end_s)
         own = [(r.start_s, r.end_s) for lines in tours for r in lines]
         other = [tuple(map(float, i)) for i in foreign.get(picker, ())]
         busy_own, busy = _merged(own), _merged(own + other)
@@ -144,7 +178,7 @@ def observe(replay: RecordedReplay, foreign: Mapping[int, Sequence[Interval]],
         # ("line", pieces, walk, row). Pieces are spells without a record.
         items: list[list] = []
         previous_end, previous_last = None, None
-        for lines in tours:
+        for t, lines in enumerate(tours):
             first = lines[0]
             if previous_end is not None:
                 gap = (previous_end, first.start_s)
@@ -153,7 +187,8 @@ def observe(replay: RecordedReplay, foreign: Mapping[int, Sequence[Interval]],
                     obs.covered_s += (sum(h - l for l, h in _uncovered(*gap, busy_own))
                                       - sum(h - l for l, h in pieces))
                 items.append(["setup", pieces, walk(previous_last.node, network.end_node)
-                              + walk(network.start_node, first.node)])
+                              + walk(network.start_node, first.node),
+                              overlapping[t] or overlapping[t - 1]])
             reach = first.end_s
             for k, row in enumerate(lines):
                 if k == 0:
@@ -162,7 +197,7 @@ def observe(replay: RecordedReplay, foreign: Mapping[int, Sequence[Interval]],
                     pieces = _uncovered(reach, row.start_s, busy) if row.start_s > reach else []
                     step = walk(lines[k - 1].node, row.node)
                     reach = max(reach, row.end_s)
-                items.append(["line", pieces, step, row, bookkeeping(row)])
+                items.append(["line", pieces, step, row, bookkeeping(row), overlapping[t]])
             end = max(r.end_s for r in lines)
             previous_end = end if previous_end is None else max(previous_end, end)
             previous_last = lines[-1]
@@ -186,15 +221,21 @@ def observe(replay: RecordedReplay, foreign: Mapping[int, Sequence[Interval]],
             if inside:
                 duration, start, n, p = max(inside)
                 taken.add((n, p))
-                obs.breaks[w].append((start, duration))
+                if one_person:
+                    obs.breaks[w].append((start, duration))
         for n, item in enumerate(items):
             free = sum(high - low for p, (low, high) in enumerate(item[1]) if (n, p) not in taken)
             if item[0] == "setup":
+                if item[3]:
+                    obs.setups_left_out += 1
+                    continue
                 value = free - item[2]
                 obs.clipped_setups += value < 0
                 obs.setups.append(max(0.0, value))
                 continue
-            _, _, step, row, bookkeeping = item
+            _, _, step, row, bookkeeping, overlaps = item
+            if overlaps:
+                continue
             if (n, None) in taken:
                 obs.lines_as_breaks += 1
             elif bookkeeping:
@@ -204,6 +245,14 @@ def observe(replay: RecordedReplay, foreign: Mapping[int, Sequence[Interval]],
                 obs.clipped_lines += value < 0
                 obs.lines.append((row.quantity, max(0.0, value)))
     return obs
+
+
+def overlapping_orders(tours: Sequence[Sequence]) -> list[bool]:
+    """Per tour (one order, lines by start) of one picker: does its scan window
+    (first to last line start) overlap another one's? Touching windows do not."""
+    windows = [(lines[0].start_s, lines[-1].start_s) for lines in tours]
+    return [any(i != j and a[0] < b[1] and b[0] < a[1] for j, b in enumerate(windows))
+            for i, a in enumerate(windows)]
 
 
 def foreign_records(source: ScenarioSource) -> dict[int, list[Interval]]:
@@ -255,9 +304,17 @@ def main() -> None:
         observed[day] = observe(source.replay, foreign_records(source), BREAK_WINDOWS, BREAK_MIN_S)
         o = observed[day]
         hours = {k: round(v / 3600, 1) for k, v in o.non_picking_s().items()}
-        print(f"{day}: breaks {[len(b) for b in o.breaks]} of {o.present} present, hours {hours}, "
+        print(f"{day}: orders overlapping {o.orders_overlapping} of {o.orders}, picker-days left out "
+              f"{o.picker_days_left_out} of {o.picker_days}, setups left out {o.setups_left_out}; "
+              f"breaks {[len(b) for b in o.breaks]} of {o.present} present, hours {hours}, "
               f"bookkeeping lines {o.lines_bookkeeping}, lines as breaks {o.lines_as_breaks}, "
               f"covered by outside records {o.covered_s / 3600:.1f} h")
+    own = pd.DataFrame([row for o in observed.values() for row in o.own_lines],
+                       columns=["quantity", "seconds", "overlapping"])
+    own["class"] = own["quantity"].map(quantity_class)
+    check = own.groupby(["class", "overlapping"])["seconds"].agg(["size", "median", "mean"]).unstack()
+    print("Check, line time on its own order's scans (s), by quantity class and overlap:")
+    print(check.round(1).to_string())
     FIT_DIR.mkdir(parents=True, exist_ok=True)
     for day in STUDY_DAYS:
         result = fit([observed[other] for other in STUDY_DAYS if other != day])
