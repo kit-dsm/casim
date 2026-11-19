@@ -23,5 +23,6 @@ source:
   non_picking: recorded        # recorded (pauses, stops) | fitted (breaks, tour setup, line time from the other days) | fixed (breaks only)
   breaks: null                 # [[start_s, end_s], ...]: the same breaks for every picker (fixed; with fitted a shared roster)
   seed: 0                      # replication seed of fitted non-picking time
+  extra_pickers: 0             # pickers added to the logins (staffing sensitivity; presence shift or arrival)
   presence: shift              # recorded: arrive at the first tour, leave after the last line
   due_plan: null                # fixed_dispatch: synthetic store slot minus 30 min staging

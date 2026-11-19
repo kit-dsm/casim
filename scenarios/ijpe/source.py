@@ -9,6 +9,14 @@ recorded tour cannot hold. Pickers are numbered per day in the order of their
 first line; ``casim.sources.recorded`` builds the state, the recorded plan
 and the pauses.
 
+A login is not always one person (the use case partner: the system allows
+one order at a time per login, yet the scan windows of some orders of one
+login overlap), and the scans do not tell how many people worked. Staffing is
+therefore an assumption: ``extra_pickers`` adds pickers to the logins, for a
+sensitivity run. An extra picker arrives at the shift start (``presence:
+shift``) or at the median arrival of the logins (``presence: arrival``) and
+never leaves; it takes breaks and setups like a login's picker.
+
 With ``non_picking=fitted`` the source builds W_0 from the day's fit
 (``scripts/ijpe/fit_non_picking.py``, fitted on the other study days):
 breaks are timed departures drawn per picker and window; the realized time of
@@ -25,6 +33,7 @@ first tour is observed.
 
 from __future__ import annotations
 
+import copy
 import json
 from bisect import bisect_left
 from collections.abc import Iterator
@@ -38,6 +47,7 @@ from ware_ops_algos.domain_models import ClassPickTime
 from casim.domain_objects.process_truth import ProcessTruth
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
+from casim.events.operational_events import PickerArrival
 from casim.sources.grid_layout import GridLayout
 from casim.sources.recorded import RecordedReplay, RecordedRow, TimeModel
 from casim.sources.wms_export import day_lines
@@ -116,7 +126,7 @@ class ScenarioSource:
                  setup_in_gap: bool = False,
                  presence: str = "shift", due_plan: str | None = None,
                  stops_in_tours: bool = False, non_picking: str = "recorded",
-                 breaks=None, seed: int = 0):
+                 breaks=None, seed: int = 0, extra_pickers: int = 0):
         """``non_picking`` (time a picker is present and not picking):
 
         - ``recorded``: the recorded pauses (and with ``stops_in_tours`` the
@@ -128,6 +138,10 @@ class ScenarioSource:
           breaks by the same breaks for every picker (a shared roster);
         - ``fixed``: the ``breaks`` list for every picker, with the
           deterministic setup and pick times.
+
+        ``extra_pickers``: pickers added to the logins (present from the
+        shift start or the median arrival, never leaving); needs presence
+        ``shift`` or ``arrival``.
         """
         if non_picking not in NON_PICKING:
             raise ValueError(f"unknown IJPE non-picking time: {non_picking}")
@@ -135,6 +149,10 @@ class ScenarioSource:
             raise ValueError("non_picking fixed needs a break list")
         if non_picking == "recorded" and breaks is not None:
             raise ValueError("a break list goes with non_picking fixed or fitted")
+        if extra_pickers < 0:
+            raise ValueError("extra_pickers must not be negative")
+        if extra_pickers and presence not in ("shift", "arrival"):
+            raise ValueError("extra pickers need presence shift or arrival (they never leave)")
         if due_plan not in (None, "fixed_dispatch"):
             raise ValueError(f"unknown IJPE due plan: {due_plan}")
         self.due_plan = due_plan
@@ -167,9 +185,16 @@ class ScenarioSource:
         self._domain: SimWarehouseDomain | None = None
         self._fit: dict | None = None
         self.seed = int(seed)
+        roster = self.replay.roster()
+        arrival = (float(shift_start_s) if presence == "shift"
+                   else float(np.median([first for first, _ in roster.values()])))
+        last = max(end for _, end in roster.values())
+        n = len(self.replay.pickers)
+        self.extra_pickers = {n + k: (arrival, last) for k in range(int(extra_pickers))}
+        self.pickers = [*self.replay.pickers, *self.extra_pickers]
         fixed_breaks = None if breaks is None else [
             (picker, float(start), float(end) - float(start))
-            for start, end in breaks for picker in self.replay.pickers]
+            for start, end in breaks for picker in self.pickers]
         if non_picking == "fixed":
             self.replay.absences = fixed_breaks
         elif non_picking == "fitted":
@@ -180,15 +205,20 @@ class ScenarioSource:
                 raise ValueError(f"{path} is missing: python -m scripts.ijpe.fit_non_picking")
             self._fit = json.loads(path.read_text())
             self.replay.absences = (fixed_breaks if fixed_breaks is not None else draw_breaks(
-                self._fit, self.replay.roster(), self.seed, _day_key(self.day)))
+                self._fit, {**roster, **self.extra_pickers}, self.seed, _day_key(self.day)))
 
     def initial_state(self) -> SimWarehouseDomain:
         self._domain = self.replay.domain()
+        template = self._domain.resources.resources[0]
+        for picker in self.extra_pickers:
+            extra = copy.deepcopy(template)
+            extra.id = picker
+            self._domain.resources.resources.append(extra)
         if self._fit is not None:
             # Truth: the realized times. Belief: the resources plan with the means.
             self._domain.truth = process_truth(
                 self._fit, self.seed, _day_key(self.day), self._domain.orders.orders,
-                self.replay.pickers, self.replay.time_model.tour_setup_time)
+                self.pickers, self.replay.time_model.tour_setup_time)
             planning = ClassPickTime(tuple(self._fit["quantity_bounds"]),
                                      tuple(float(np.mean(pool)) for pool in self._fit["line_s"]))
             for picker in self._domain.resources.resources:
@@ -201,4 +231,7 @@ class ScenarioSource:
         return self._domain
 
     def events(self) -> Iterator[Event]:
-        return self.replay.events(self._domain)
+        arrivals = [PickerArrival(time=arrival, picker_id=picker)
+                    for picker, (arrival, _) in self.extra_pickers.items()]
+        return iter(sorted([*self.replay.events(self._domain), *arrivals],
+                           key=lambda event: event.time))

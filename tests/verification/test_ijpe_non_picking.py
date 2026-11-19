@@ -5,13 +5,14 @@ the realization of breaks, line and setup times in the source
 (scenarios/ijpe/source.py) with common random numbers.
 """
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from scenarios.ijpe.source import draw_breaks, process_truth
+from scenarios.ijpe.source import ScenarioSource, draw_breaks, process_truth
 from scripts.ijpe.fit_non_picking import Observations, fit, observe, quantity_class
 from casim.sources.recorded import RecordedRow
 
@@ -149,3 +150,26 @@ def test_orders_that_overlap_another_order_of_the_login_give_no_sample():
     mine = [s for _, s, overlapping in obs.own_lines if overlapping]
     assert mine == [20.0, 20 + 40 - 5, 20.0, 20 + 40 - 5]
 
+
+DATA_DIR = Path(__file__).resolve().parents[2] / "scenarios" / "ijpe" / "data"
+
+
+@pytest.mark.skipif(not (DATA_DIR / "layout.csv").exists(), reason="confidential IJPE data")
+def test_extra_pickers_join_the_logins_and_never_leave():
+    settings = dict(day="2026-04-17", shift_start_s=19800.0, pause_threshold_s=300.0,
+                    speed=2306.0, time_per_pick=16.26, tour_setup_time=215.0,
+                    non_picking="fixed", breaks=[[28800.0, 30600.0]])
+    plain = ScenarioSource(DATA_DIR, presence="arrival", **settings)
+    source = ScenarioSource(DATA_DIR, presence="arrival", extra_pickers=2, **settings)
+    n = len(plain.replay.pickers)
+    domain = source.initial_state()
+    assert [p.id for p in domain.resources.resources] == list(range(n + 2))
+    events = list(source.events())
+    arrivals = {e.picker_id: e.time for e in events if type(e).__name__ == "PickerArrival"}
+    departures = [e for e in events if type(e).__name__ == "PickerDeparture"]
+    roster = plain.replay.roster()
+    assert arrivals[n] == arrivals[n + 1] == np.median([a for a, _ in roster.values()])
+    assert all(d.duration is not None for d in departures)          # breaks only
+    assert {d.picker_id for d in departures} == set(range(n + 2))   # extras take the break too
+    with pytest.raises(ValueError, match="presence"):
+        ScenarioSource(DATA_DIR, presence="recorded", extra_pickers=1, **settings)
