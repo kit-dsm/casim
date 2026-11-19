@@ -162,7 +162,7 @@ solution stays in the plan as `planned` tours, which a later decision sees and m
 |---|---|---|
 | `CommitAllPolicy` | every planned tour | never |
 | `PlanOnlyPolicy` | nothing: the decision only plans, and a later decision commits | never |
-| `SchedulingCommitmentPolicy(n_jobs)` | the first `n_jobs` planned tours by planned start | never |
+| `SchedulingCommitmentPolicy(n_jobs)` | the first `n_jobs` planned tours by planned start; with `per_resource: true` the first `n_jobs` of each resource | never |
 | `WindowCommitmentPolicy(within_s)` | planned tours that start within `within_s` | when the next tour becomes ready, minus `within_s` |
 
 A decision without a solver only commits.
@@ -255,6 +255,23 @@ CASOP sets, Foodmart, Kris, RADAR); a scenario on new data adds its own `source.
 stream is closed at the last order's arrival, which gives a policy information it would not have
 in a real warehouse; other closure rules are on the backlog (`docs/development.md`).
 
+Data a scenario owns enters as canonical tables: the library source `order_stream` reads
+`orders.csv` (order, release, optional due, attributes such as the store) and `lines.csv`
+(order lines at their pick nodes) with a grid layout, releases each order at its time and knows
+none before. A conversion script writes the tables once from the raw data, so no simulation code
+reads a raw export.
+
+What the world does to a scenario, and no decision controls, is declared in `scenario.yaml`
+under `exogenous`, a named mapping of rules (`casim.sources.exogenous`): `roster` (pickers per
+day, shift and breaks), `dispatch_slots` (due dates from a slot rule on an order attribute),
+`due_change` (a `TruckDisruption`: selected orders due earlier), `order_move` (selected orders
+arrive at another time), `order_injection` (copies of a template order arrive) and
+`process_times` (realized line and setup times drawn from a fit, the process truth). Orders
+are selected by a named list or by ids, optionally released on one day. The rules wrap any
+source with an `epoch`, apply in fixed phases (orders, due dates, presence, times), mark every
+order they change as affected, and only add or rewrite source events. A variant adds a
+disruption by naming one more rule; the scenario's rules stay as they are.
+
 ## Outputs
 
 `casim run` writes per run, each file from one place (`casim/outputs/write.py`):
@@ -300,7 +317,9 @@ absent time sum to the horizon per resource, and the orders still open are liste
 - Solving takes no simulated time, so computation delay is not modelled.
 - There is no candidate that keeps the plan unchanged; the incumbent enters through repair
   pipelines such as `IncumbentStartBatching`.
-- `SchedulingCommitmentPolicy(n_jobs=1)` commits one tour per decision, not one per picker.
+- `SchedulingCommitmentPolicy(n_jobs=1)` commits one tour per decision, not one per picker,
+  unless `per_resource: true`; pickers that become idle at the same time otherwise wait for the
+  next trigger.
 - Waiting is stored in the decision's memory rather than as a fact of the plan.
 - Forecasts and optimisation over distributions are not modelled.
 - `AnalyticStochasticWaiting` assumes the walk-or-wait S-shape route, and a card cannot require a

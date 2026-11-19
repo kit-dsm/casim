@@ -48,6 +48,7 @@ LIBRARY: dict[str, str] = {
     "foodmart": "casim.sources.casop.FoodmartSource",
     "kris": "casim.sources.casop.KrisSource",
     "radar": "casim.sources.radar.RadarSource",
+    "order_stream": "casim.sources.order_stream.OrderStreamSource",
 }
 LOCAL = "local"
 LOCAL_CLASS = "ScenarioSource"

@@ -14,8 +14,11 @@ planning does.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from bisect import bisect_left
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+
+import numpy as np
 
 LineKey = tuple[int, int, int]   # order, article, amount
 
@@ -53,3 +56,42 @@ class ProcessTruth:
             return None
         self._setups_taken[picker_id] = taken + 1
         return float(times[taken])
+
+
+def drawn(fit: Mapping, seed: int, key: int, orders: Iterable, pickers: Iterable[int],
+          first_setup_s: float) -> ProcessTruth:
+    """The realized time of every order line and of every setup of a picker,
+    drawn from a fit of empirical times.
+
+    ``fit``: ``quantity_bounds`` (upper bounds of the quantity classes),
+    ``line_s`` (per class the sampled line seconds), ``setup_s`` (sampled
+    setup seconds) and optionally ``order_sd``. A line's time is drawn from
+    its quantity class with a stream seeded by (seed, key, order) and one draw
+    per position; a picker's setups from a stream seeded by (seed, key,
+    picker), after a first setup of ``first_setup_s``. The lines of an order
+    are slow or fast together: each is multiplied by the order's factor,
+    lognormal with mean 1 and standard deviation ``order_sd``, from a stream
+    of its own, so the line draws do not change with it. Every policy of a
+    replication therefore meets the same times.
+    """
+    orders = list(orders)
+    bounds, pools = fit["quantity_bounds"], fit["line_s"]
+    sigma = float(np.sqrt(np.log1p(float(fit.get("order_sd", 0.0)) ** 2)))
+    line_s: dict[LineKey, tuple[float, ...]] = {}
+    for order in orders:
+        uniforms = np.random.default_rng([seed, key, 1, int(order.order_id)]).random(
+            len(order.order_positions))
+        factor = 1.0 if sigma == 0.0 else float(np.exp(
+            np.random.default_rng([seed, key, 3, int(order.order_id)]).normal(
+                -sigma ** 2 / 2, sigma)))
+        for position, u in zip(order.order_positions, uniforms):
+            pool = pools[bisect_left(bounds, position.amount)]
+            line = (int(order.order_id), int(position.article_id), int(position.amount))
+            line_s[line] = (*line_s.get(line, ()), factor * float(pool[int(u * len(pool))]))
+    setups = fit["setup_s"]
+    setup_s = {}
+    for picker in pickers:
+        uniforms = np.random.default_rng([seed, key, 2, int(picker)]).random(len(orders))
+        setup_s[picker] = (float(first_setup_s),
+                           *(float(setups[int(u * len(setups))]) for u in uniforms))
+    return ProcessTruth(line_s=line_s, setup_s=setup_s)

@@ -22,6 +22,7 @@ from casim.outputs.trace import TraceRecorder
 from casim.outputs.write import write_outputs
 from casim.simulation_engine.simulation_engine import SimulationEngine
 from casim.sources.base import Source, SourceLoader, build_source, release
+from casim.sources.exogenous import ExogenousSource, validate as validate_exogenous
 
 SCENARIO_FILE = "scenario.yaml"
 REFERENCE_FILE = "reference.csv"
@@ -76,6 +77,8 @@ def check(cfg: DictConfig) -> dict[str, DecisionSetup]:
     """Validate the configuration as ``run`` uses it; raise on the first error."""
     if "source" not in cfg or "name" not in cfg.source:
         raise ValueError("scenario.yaml needs source: {name: ..., ...}")
+    if cfg.get("exogenous"):
+        validate_exogenous(OmegaConf.to_container(cfg.exogenous, resolve=True))
     return resolve(cfg, load_and_flatten_data_card(cfg.data_card))
 
 
@@ -155,6 +158,9 @@ def prepare(cfg: DictConfig) -> Prepared:
     setups = check(cfg)
     source = build_source(OmegaConf.to_container(cfg.source, resolve=True),
                           Path(cfg.scenario_dir))
+    if cfg.get("exogenous"):
+        source = ExogenousSource(source, OmegaConf.to_container(cfg.exogenous, resolve=True),
+                                 Path(cfg.scenario_dir) / "data")
     recorder, facts = TraceRecorder(), FactsRecorder(source)
     sim, engine = _engines(cfg, setups, source, recorder, facts)
     return Prepared(sim, engine, source, recorder, facts)

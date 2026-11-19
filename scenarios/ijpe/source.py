@@ -63,7 +63,7 @@ from ware_ops_algos.domain_models import (
     RecordedTour,
 )
 
-from casim.domain_objects.process_truth import ProcessTruth
+from casim.domain_objects.process_truth import drawn
 from casim.domain_objects.sim_domain import SimWarehouseDomain
 from casim.events.base_events import Event
 from casim.events.operational_events import (
@@ -135,41 +135,10 @@ def draw_breaks(fit: dict, roster: dict[int, tuple[float, float]], seed: int, da
     return drawn
 
 
-def process_truth(fit: dict, seed: int, day: int, orders, pickers, first_setup_s: float
-                  ) -> ProcessTruth:
-    """The realized time of every order line and of every setup of a picker.
-
-    A line's time is drawn from the fitted line times of its quantity class,
-    with a stream seeded by (seed, day, order) and one draw per position; a
-    picker's setups from the fitted setups with a stream seeded by (seed, day,
-    picker), after a first setup of ``first_setup_s``.
-
-    The lines of an order are slow or fast together: every line time of an
-    order is multiplied by the order's factor, lognormal with mean 1 and the
-    fit's ``order_sd`` (the pools hold the within-order variation), drawn from
-    a stream seeded by (seed, day, order) of its own, so the line draws do not
-    change with it.
-    """
-    bounds, pools = fit["quantity_bounds"], fit["line_s"]
-    sigma = float(np.sqrt(np.log1p(float(fit.get("order_sd", 0.0)) ** 2)))
-    line_s: dict[tuple[int, int, int], tuple[float, ...]] = {}
-    for order in orders:
-        uniforms = np.random.default_rng([seed, day, 1, int(order.order_id)]).random(
-            len(order.order_positions))
-        factor = 1.0 if sigma == 0.0 else float(np.exp(
-            np.random.default_rng([seed, day, 3, int(order.order_id)]).normal(
-                -sigma ** 2 / 2, sigma)))
-        for position, u in zip(order.order_positions, uniforms):
-            pool = pools[bisect_left(bounds, position.amount)]
-            key = (int(order.order_id), int(position.article_id), int(position.amount))
-            line_s[key] = (*line_s.get(key, ()), factor * float(pool[int(u * len(pool))]))
-    setups = fit["setup_s"]
-    setup_s = {}
-    for picker in pickers:
-        uniforms = np.random.default_rng([seed, day, 2, int(picker)]).random(len(orders))
-        setup_s[picker] = (float(first_setup_s),
-                           *(float(setups[int(u * len(setups))]) for u in uniforms))
-    return ProcessTruth(line_s=line_s, setup_s=setup_s)
+def process_truth(fit: dict, seed: int, day: int, orders, pickers, first_setup_s: float):
+    """The process truth of the fitted day: ``casim.domain_objects.process_truth.drawn``
+    with the day as stream key."""
+    return drawn(fit, seed, day, orders, pickers, first_setup_s)
 
 
 class ScenarioSource:
