@@ -3,7 +3,7 @@
 Runs the calibrated day (``variants=calibrated``) with the recorded roster and
 breaks, tour setup and line time fitted on the other days
 (``source.non_picking=fitted``, fitted by ``scripts/ijpe/fit_non_picking.py``), for
-``REPLICATIONS`` seeds per day, with FIFO assignment as a pull (``fifo``, the
+``REPLICATIONS`` seeds per day, with EDD assignment as a pull (``edd``, the
 base of the experiments) or each tour to its recorded picker (``recorded``).
 Compares per day orders completed by 10:00 and 12:00, open orders, the
 time between tours per picker-day (not comparable across models: the
@@ -13,7 +13,7 @@ if its replications are present in ``outputs/allowance_<assignment>``, with
 the previous model of breaks plus allowance per working hour. Writes
 aggregates only to ``outputs/non_picking_validation``.
 
-    python -m scripts.ijpe.non_picking_validation fifo|recorded [--run]
+    python -m scripts.ijpe.non_picking_validation edd|recorded [--run]
 
 ``--run`` (re)runs the missing replications first; one takes about 15 s.
 """
@@ -35,7 +35,7 @@ from scripts.ijpe.system_validation import DAYS
 
 REPLICATIONS = 30
 WORKERS = 8
-ASSIGNMENT = {"fifo": ([], "calibrated_fifo"),
+ASSIGNMENT = {"edd": ([], "calibrated_edd"),
               "recorded": (["decisions=recorded", "cosy_repo=recorded_ushape"],
                            "calibrated_recorded")}
 HOURS = (10, 12)

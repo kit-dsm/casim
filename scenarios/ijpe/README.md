@@ -87,12 +87,12 @@ model is the submitted one: 2,306 mm/s, 19 s per line, 215 s setup per tour.
 
 Variants:
 
-- `calibrated`: the calibrated day of the system-level validation and the
-  base of the disruption scenarios: one tour per recorded order, U-shape routing and
-  FIFO assignment as a pull (`decisions/pull.yaml`: OBRSP makes the
+- `calibrated`: the calibrated day of the trace-driven validation: one tour
+  per recorded order, U-shape routing and EDD assignment as a pull on the
+  synthetic dispatch deadlines (`decisions/pull.yaml`: OBRSP makes the
   recorded tours into pick lists, routes and schedules them once and commits
-  nothing, ORSP keeps their routes and gives the next one to each picker that
-  becomes free), recorded presence, five-minute pauses and stops inside
+  nothing, ORSP keeps their routes and gives each picker that becomes free
+  the open tour due first), recorded presence, five-minute pauses and stops inside
   tours, setup inside the recorded gaps and 16.26 s per line
   (`scripts/ijpe/line_time.py`); with `decisions=recorded
   cosy_repo=recorded_ushape` each tour is pushed to its recorded picker.
@@ -107,7 +107,7 @@ Variants:
 - `submitted`: the submitted model's assumptions, U-shape routing, one order
   per tour and fixed breaks at 8:00 and 11:00;
 - `fixed_dispatch`: synthetic store departure slots as due dates;
-- `fitted`: the model of the disruption and policy experiments: FIFO as a
+- `fitted`: the model of the disruption and policy experiments: EDD as a
   pull, fitted line time, setup and breaks (one person per sample), recorded
   arrivals only, one picker per login, the synthetic dispatch deadlines
   (`docs/ijpe/validation.md`, capacity and staffing).

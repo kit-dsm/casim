@@ -5,8 +5,8 @@ Three runs per day:
 
 - ``calibrated_recorded``: each tour to its recorded picker, pushed into
   the picker's queue at the start (the validation);
-- ``calibrated_fifo``: CASIM's FIFO assignment as a pull, a free picker
-  takes the next tour (the base of the policy comparisons);
+- ``calibrated_edd``: CASIM's EDD assignment as a pull, a free picker
+  takes the open tour due first (the base of the policy comparisons);
 - ``calibrated_recorded_arrival``: as the first, but no picker is sent home,
   so a late picker shows as a late finish instead of open work (the
   uncensored picker-level check).
@@ -16,7 +16,7 @@ Run them first, for every day::
     python -m casim run scenarios/ijpe variants=calibrated decisions=recorded
         cosy_repo=recorded_ushape source.day=<day> --output-dir scenarios/ijpe/outputs/calibrated_recorded/<day>
     python -m casim run scenarios/ijpe variants=calibrated
-        source.day=<day> --output-dir scenarios/ijpe/outputs/calibrated_fifo/<day>
+        source.day=<day> --output-dir scenarios/ijpe/outputs/calibrated_edd/<day>
     python -m casim run scenarios/ijpe variants=calibrated decisions=recorded
         cosy_repo=recorded_ushape source.presence=arrival source.day=<day>
         --output-dir scenarios/ijpe/outputs/calibrated_recorded_arrival/<day>
@@ -39,7 +39,7 @@ from scripts.ijpe.replay import _union_s
 
 DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15",
         "2026-04-16", "2026-04-17")
-RUNS = ("calibrated_recorded", "calibrated_fifo", "calibrated_recorded_arrival")
+RUNS = ("calibrated_recorded", "calibrated_edd", "calibrated_recorded_arrival")
 HOURS = (8, 10, 12, 14, 16, 18)
 
 

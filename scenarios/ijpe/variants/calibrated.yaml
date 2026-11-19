@@ -1,7 +1,8 @@
 # @package _global_
 # The calibrated day (docs/ijpe/validation.md): one tour per recorded order as pick
-# lists, U-shape routing, both once (OBRSP, plan only), and FIFO assignment as a
-# pull (ORSP, each free picker takes the next tour; decisions/pull.yaml);
+# lists, U-shape routing, both once (OBRSP, plan only), and EDD assignment as a
+# pull (ORSP, each free picker takes the open tour due first; decisions/pull.yaml)
+# on the synthetic dispatch deadlines (docs/ijpe/departure_fallback.md);
 # recorded presence; gaps between tours and stops inside tours over five
 # minutes are timed departures (the trace-driven diagnostic); the 215 s setup
 # lies inside the recorded gap before a tour; 16.26 s per line, fitted on
@@ -11,7 +12,7 @@
 # Each tour to its recorded picker: decisions=recorded cosy_repo=recorded_ushape
 # (a push of the recorded plan; the recorded decision sees every picker).
 defaults:
-  - override /cosy_repo: recorded_tours_fifo_ushape
+  - override /cosy_repo: recorded_tours_edd_ushape
   - override /decisions: pull
 source:
   presence: recorded
@@ -19,3 +20,4 @@ source:
   stops_in_tours: true
   setup_in_gap: true
   time_per_pick: 16.26
+  due_plan: fixed_dispatch

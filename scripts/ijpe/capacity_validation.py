@@ -1,7 +1,7 @@
 """System-level validation: does the simulated day reproduce the WMS day's capacity?
 
-All six study days with their full workload (one tour per order), FIFO
-assignment as a pull (``variants=calibrated``), and presence from the
+All six study days with their full workload (one tour per order), EDD
+assignment as a pull on the synthetic dispatch deadlines (``variants=calibrated``), and presence from the
 recorded arrivals only (``source.presence=arrival``): no picker leaves at a
 recorded time, so the recorded end of the day is not an input. Configurations:
 
