@@ -189,28 +189,43 @@ last of which is not observed absence. The fitted model has three parts
 instead, each measured on the picker's time without any WMS record and each
 fitted, for a day, on the other five days (`scripts/ijpe/fit_non_picking.py`,
 which writes the fit to `data/non_picking/<day>.json`; `source.non_picking=fitted`
-reads it):
+reads it).
+
+Only what one person did is a sample. The system lets a login work on one
+order at a time (the use case partner), yet 374 of 1,414 orders (26 %) overlap
+another order of their login in scan window (first to last line start): two
+people under one login or wrong records, and the scans do not tell how many
+people. An order that overlaps another order of its login gives no line
+sample, a gap next to one no setup sample, and a picker-day with one (53 of
+95, almost all Monday to Thursday) no break sample. Without this, 31 % of
+setup samples were zero (the next order starting before the last one ended,
+the second person's work) against 15 % now; non-zero setups (351 and 340 s)
+and line samples (21.2 and 21.8 s on average) are the same. Overlapping
+orders measured on their own order's scans take 2 s longer per line at the
+median, not twice as long: they look like one person per order.
 
 - breaks, tied to the clock: in each window (07:00 to 09:30, 10:30 to 13:30)
   a picker's longest spell without a record of at least 10 minutes is its
   break, whether it lies between tours, inside a tour or is a line that long.
-  Fitted on five days (Tuesday left out), 99 % of present pickers take the
-  morning break and 83 % the midday break, each about 40 minutes on average;
-  start and duration are drawn together. Breaks are timed departures, as
-  before;
+  Fitted on five days (Tuesday left out), all present one-person picker-days
+  take the morning break (47 minutes on average, 30 samples) and 72 % the
+  midday break (32 minutes, 26 samples); start and duration are drawn
+  together. The samples are few, since only 42 picker-days are one person.
+  Breaks are timed departures, as before;
 - tour setup: the time without a record between two tours of a picker, net of
   a break in it and of the walk to and from the depot, which the simulation
-  walks itself. Mean 235 s, median 89 s, 90th percentile 509 s, 99th
-  percentile 50 minutes; tours that start before the previous one ended give
-  zero. A picker's first setup of the day stays the fixed 215 s that defines
+  walks itself. Mean 289 s, median 128 s, 90th percentile 741 s, 99th
+  percentile 51 minutes, 14 % zero (Tuesday left out). A picker's first setup of the day stays the fixed 215 s that defines
   its arrival;
 - line time: a line's duration plus the time without a record before it
   inside its tour, net of the walk from the previous line, by quantity class
-  (up to 6, 7 to 12, 13 to 24, over 24 packages: means 16.2, 17.8, 21.6 and
-  43.2 s). Lines that hold another record of the picker inside them, or
-  overlap a record outside the cohort, are bookkeeping and left out (3,675
-  lines over six days, most on the days with interleaved orders); a line
-  inside another one, left by a picker working two orders at once, is kept;
+  (up to 6, 7 to 12, 13 to 24, over 24 packages: means 16.4, 18.5, 23.1 and
+  46.1 s). Lines that hold another record of the picker inside them, or
+  overlap a record outside the cohort, are bookkeeping and left out. The
+  lines of one order are slow or fast together: every line time of an order
+  is multiplied by an order factor, lognormal with mean 1 and a standard
+  deviation of 0.25 to 0.39 (fitted on orders with at least 10 line samples),
+  and the line pools hold the variation within an order;
 - time covered by the picker's WMS records outside the cohort (aisle 10,
   shared orders) is work and left out of every fit (7.1 h over six days);
 - the source fixes the realized times of a run in W_0 as the process truth
@@ -222,44 +237,100 @@ reads it):
   truth. The empirical distributions keep their observed tails; no
   parametric tail is added. There is no separate allowance.
 
-Thirty replications per day, FIFO as a pull, against the previous model of
-breaks plus allowance per working hour (`scripts/ijpe/non_picking_validation.py`;
-"recorded pauses" is the trace-driven run, unchanged as a diagnostic):
+Thirty replications per day, FIFO as a pull, recorded roster (arrival and
+departure), against the previous model of breaks plus allowance per working
+hour (`scripts/ijpe/non_picking_validation.py`; "recorded pauses" is the
+trace-driven run, unchanged as a diagnostic):
 
 | Six days | Orders by 10:00 | Orders by 12:00 | Open orders | WMS inside the 90 % band, days at 10:00 / 12:00 |
 |---|---:|---:|---:|---:|
 | WMS | 626 | 1,031 | 0 | |
 | Recorded pauses (diagnostic) | 596 | 955 | 87 | |
 | Breaks plus allowance, mean (90 % band) | 611 (590 to 633) | 985 (956 to 1,017) | 81 (65 to 110) | 2 / 2 |
-| Breaks, setup and line time, mean (90 % band) | 641 (623 to 665) | 1,026 (998 to 1,048) | 53 (31 to 73) | 2 / 1 |
+| Breaks, setup and line time, mean (90 % band) | 600 (578 to 618) | 945 (915 to 974) | 89 (66 to 112) | 2 / 2 |
 
-| Tour duration, minutes, six days | Mean | 10th | 50th | 90th | 99th percentile |
+- With one-person service times and one picker per login the model is 4 %
+  behind by 10:00 and 8 % by 12:00 over six days, and leaves 89 orders open
+  at the recorded departures. Before the fit was restricted to one person it
+  matched the WMS by 12:00 (1,026): the zero setups next to overlapping
+  orders gave the logins the capacity of the second person as free setup
+  time. The shortfall is the staffing question (next section), not a time to
+  fit.
+- Per day by 12:00: Saturday -1, Monday +9, Tuesday -22, Wednesday -51,
+  Thursday -38, Friday +16 orders. The days that fall behind are the days with
+  the most overlapping orders (132 and 80 of 306 and 272 on Wednesday and
+  Thursday); Saturday and Friday have almost none.
+- Tour durations are compared on orders that overlap no other order of their
+  login, net of the breaks inside them (next section): the model reproduces
+  them.
+
+## Capacity and staffing (system level)
+
+The roster was the second input taken from the record. A picker's recorded
+departure is its last line, which depends on when the work ran out, and a
+login is not always one person. So the system-level validation takes only
+the arrivals from the record (`source.presence=arrival`: a picker arrives at
+its first tour and stays until the work is done) and treats staffing as a
+sensitivity (`scripts/ijpe/capacity_validation.py`). All six days, full
+workload, one tour per order, FIFO as a pull:
+
+- A: the paper's time model (19 s per line, 215 s setup, breaks at 08:00 and
+  11:00 of 30 minutes for everyone), one run;
+- B: fitted line time and setup, no breaks, 30 replications;
+- C: B plus the fitted breaks, 30 replications;
+- D+k: C with k pickers added to the logins (`source.extra_pickers`,
+  arriving at the median arrival, never leaving), 10 replications; Dpaper:
+  the pickers per day of the submitted configuration (25, 17, 19, 20, 18, 7),
+  which are the logins of the whole export, not an independent staff count
+  (4, 0, 3, 1, 3 and 0 more than the logins of the cohort).
+
+| Six days, orders done by | WMS | A | B | C | D+2 | D+4 | D+6 | Dpaper |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 08:00 | 319 | 370 | 334 | 324 | 328 | 329 | 329 | 328 |
+| 10:00 | 626 | 702 | 704 | 600 (578 to 618) | 613 | 622 | 630 | 610 |
+| 12:00 | 1,031 | 1,059 | 1,099 | 956 (924 to 986) | 1,000 | 1,034 | 1,074 | 995 |
+| 14:00 | 1,285 | 1,393 | 1,380 | 1,261 | 1,318 | 1,362 | 1,391 | 1,321 |
+
+| Orders by 12:00 minus WMS | Sat | Mon | Tue | Wed | Thu | Fri | Mean absolute day error |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A | +23 | +24 | +10 | -20 | -17 | +8 | 17 |
+| C | +7 | +11 | -20 | -50 | -38 | +16 | 24 |
+| D+4 | +17 | +29 | -2 | -36 | -20 | +16 | 20 |
+| Dpaper | +17 | +8 | -5 | -48 | -24 | +15 | 19 |
+
+| One-person orders, minutes, six days | Orders | Mean | 10th | 50th | 90th percentile |
 |---|---:|---:|---:|---:|---:|
-| WMS, first line to last | 23.4 | 6.2 | 18.9 | 48.9 | 82.8 |
-| WMS, orders that overlap no other order of the picker | 21.1 | 6.0 | 16.6 | 46.1 | 82.6 |
-| Recorded pauses and breaks plus allowance | 16.7 | 8.7 | 16.0 | 26.1 | 37.2 |
-| Breaks, setup and line time | 20.5 | 8.3 | 18.2 | 35.9 | 59.8 |
+| WMS, first line to last | 1,040 | 21.1 | 6.0 | 16.6 | 46.1 |
+| WMS, net of the breaks inside the order | 1,040 | 18.6 | 5.9 | 16.1 | 34.0 |
+| WMS, orders without a break | 961 | 18.0 | 5.7 | 15.8 | 31.8 |
+| A | | 16.4 | 7.3 | 15.6 | 27.0 |
+| C (fitted times) | | 18.5 | 5.4 | 15.7 | 35.2 |
 
-- Over six days the new model reproduces the WMS by 12:00 (1,026 against
-  1,031, the WMS inside the 90 % band) and is 2 % ahead by 10:00; the previous
-  model was 4 % behind by 12:00. Open orders fall from 81 to 53.
-- Tour durations come close to the WMS in mean and median. The WMS tail is
-  longer because a break taken inside a tour stretches the WMS tour, while in
-  CASIM it begins when the tour ends (a tour is never interrupted). The
-  previous model left every stop inside a tour to the tour's end, so its tours
-  were as short as the trace's.
-- Residual. Per day the WMS lies inside the band on 2 days by 10:00 and on 1
-  day by 12:00. By 12:00 the model is ahead on Saturday (+21 orders, 10 %),
-  Monday (+24, 13 %) and Friday (+21 on 36), behind on Wednesday (-38, 17 %)
-  and Thursday (-28, 15 %), and within 5 orders on Tuesday. The band holds only the
-  model's randomness, not the level of a day. Wednesday and Thursday are also
-  behind in the trace-driven run (-28 and -9 by 12:00), and they are the days
-  with the most interleaved orders (133 and 81 of 306 and 272 orders overlap
-  another order of the same picker), which a cart for one order serializes;
-  the 53 open orders are mostly theirs (29 and 21). Saturday and Friday have
-  few pickers and a pattern unlike the weekdays the model is fitted on. A
-  model fitted on other days reproduces the average day, not each day's
-  level. Nothing is added back for this residual.
+- Service time is reproduced. A break taken inside an order stretches its
+  WMS duration, while CASIM takes breaks between tours; 79 of the 1,040
+  one-person orders hold a break the fit finds. Net of it, the fitted model
+  matches the WMS in mean, median and 90th percentile. The paper's model is
+  too narrow (27 against 34 minutes at the 90th percentile).
+- Capacity is not reproduced day by day. With one picker per login (C) the
+  model is 4 % behind by 10:00 and 7 % by 12:00 over six days; adding the
+  breaks costs about 100 orders by 10:00 against B. By day it is ahead on
+  Saturday, Monday and Friday and well behind on Wednesday and Thursday; the
+  last line is 49 and 46 minutes early on Monday and Friday and 83 and 84
+  minutes late on Wednesday and Thursday.
+- Staffing does not explain the day pattern. Four pickers more matches the
+  six-day total by 12:00 (1,034 against 1,031) but lowers the mean absolute
+  day error only from 24 to 20 orders: Wednesday and Thursday catch up while
+  Saturday, Monday and Friday move further ahead. Choosing k on five days and
+  testing on the sixth picks 4 or 8 and leaves held-out errors of +17, +49,
+  +14, -36, -20 and +16 orders by 12:00. The paper's counts act like two
+  pickers more. The staffing level of a day is therefore not identified from
+  these data, and calibrating it per day would make each day a calibration
+  day.
+- The paper's model has the smallest day errors at 12:00 but the wrong shape:
+  76 orders ahead by 10:00 and 108 by 14:00, with too-short long orders; its
+  12:00 match is too-fast picking against too-little staff.
+- Nothing is added back for the day pattern. What a day's staffing was needs
+  the partner's shift plan or clock-in times.
 - Recorded assignment is not combined with fitted non-picking time: the
   recorded work plan gave each picker the work it managed given its own
   pauses, which drawn breaks do not respect.
@@ -365,9 +436,13 @@ limit is not used to reproduce the WMS.
 - Not validated: the end of the day, individual picker finish times (RMSE
   over an hour without departures, bias +14 minutes) and busy shares.
 
-- With fitted non-picking time (breaks, tour setup and line time) and FIFO
-  assignment, the six-day throughput by 12:00 within 1 % of the WMS (90 %
-  band of 30 replications contains it); single days differ by up to 17 %.
+- Service time with fitted line time (order factor included) and setup:
+  one-person order durations match the WMS net of breaks (mean 18.5 against
+  18.6 minutes, 90th percentile 35.2 against 34.0).
+- Capacity with one picker per login and fitted breaks: 4 % behind by 10:00
+  and 7 % by 12:00 over six days, single days from +16 to -50 orders by
+  12:00. Extra pickers shift the level but not the day pattern; a day's
+  staffing is not identified from the WMS records.
 
 Disruption and policy results are therefore reported as comparisons between
 policies on the calibrated day with fitted non-picking time and the

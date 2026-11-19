@@ -102,6 +102,9 @@ class Observations:
     line_orders: list[int] = field(default_factory=list)            # the order of each line sample
     lines_bookkeeping: int = 0                # left out: hold another record, or overlap one outside
     lines_as_breaks: int = 0
+    # Every break found, also on picker-days that give no break sample:
+    # (picker, start, duration). A WMS order holding one is stretched by it.
+    break_spells: list[tuple[int, float, float]] = field(default_factory=list)
     clipped_lines: int = 0                    # net of walking below zero
     clipped_setups: int = 0
     covered_s: float = 0.0                    # gap time covered by records outside the lines
@@ -223,6 +226,7 @@ def observe(replay: RecordedReplay, foreign: Mapping[int, Sequence[Interval]],
             if inside:
                 duration, start, n, p = max(inside)
                 taken.add((n, p))
+                obs.break_spells.append((picker, start, duration))
                 if one_person:
                     obs.breaks[w].append((start, duration))
         for n, item in enumerate(items):
@@ -352,15 +356,20 @@ def fit(days: Sequence[Observations], bounds: Sequence[int] = QUANTITY_BOUNDS) -
             "order_sd": order_sd}
 
 
-def main() -> None:
+def calibrated_source(day: str) -> ScenarioSource:
+    """The recorded day with the source settings of ``variants=calibrated``."""
     cfg = compose_scenario(SCENARIO, ["variants=calibrated"])
     settings = OmegaConf.to_container(cfg.source, resolve=True)
     settings = {key: settings[key] for key in (
         "shift_start_s", "pause_threshold_s", "speed", "time_per_pick", "tour_setup_time",
         "per_unit_s", "setup_in_gap", "presence")}
+    return ScenarioSource(DATA, day=day, **settings)
+
+
+def main() -> None:
     observed = {}
     for day in STUDY_DAYS:
-        source = ScenarioSource(DATA, day=day, **settings)
+        source = calibrated_source(day)
         observed[day] = observe(source.replay, foreign_records(source), BREAK_WINDOWS, BREAK_MIN_S)
         o = observed[day]
         hours = {k: round(v / 3600, 1) for k, v in o.non_picking_s().items()}

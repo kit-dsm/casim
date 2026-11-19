@@ -59,6 +59,7 @@ def test_parts_are_measured_on_time_without_records():
     obs = observe(_replay(rows), foreign, WINDOWS, break_min_s=600)
     assert obs.breaks == [[(27020.0, 2400.0)], []]
     assert obs.covered_s == 100
+    assert obs.break_spells == [(0, 27020.0, 2400.0)]
     # Setup: time without a record minus the walk B-depot (20) and depot-A (10);
     # tour 3 has only the break (0 - 30, clipped); tour 4: 40 - 30; tour 5
     # starts inside tour 4: 0.
@@ -187,6 +188,9 @@ def test_orders_that_overlap_another_order_of_the_login_give_no_sample():
     assert (obs.orders, obs.orders_overlapping) == (5, 2)
     assert (obs.picker_days, obs.picker_days_left_out) == (2, 1)
     assert obs.present == [1, 0]
+    # Breaks are still found on the left-out picker-day (a WMS order holding
+    # one is stretched by it), but give no break sample.
+    assert obs.breaks == [[], []]
     # Lines of orders 3, 4 and 5 only; setups 1 -> 2 and 2 -> 3 left out, 4 -> 5 kept.
     assert sorted(obs.lines) == [(6, 20.0), (6, 20.0), (6, 20.0), (6, 20 + 20 - 5)]
     assert obs.setups_left_out == 2 and obs.setups == [400 - 60 - 20 - 10]

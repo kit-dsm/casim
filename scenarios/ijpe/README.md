@@ -55,13 +55,21 @@ What the source emits for a day (P1.1):
   the fitted breaks by the same breaks for every picker; `fixed` takes only
   such a break list with the deterministic times. Time covered by a picker's
   WMS records outside the replayed lines is work and is left out of every
-  fit. The sweep
+  fit, and so is every order that overlaps another order of its login (two
+  people under one login or wrong records: only what one person did is a
+  sample). The sweep
   `days_thresholds` compares 2, 5 and 10 minutes. The selected threshold is
   5 minutes; `variants/recorded_presence.yaml` uses it. In
   anchored runs (`source.pause_threshold_s=null`, the default) there are no
   pauses; every tour starts no earlier than its recorded start instead. This
   isolates each tour's time error but uses future recorded starts, so it is a
   diagnostic, not a predictive simulation;
+- staffing (`source.extra_pickers`): pickers added to the logins, arriving at
+  the shift start or the median arrival and never leaving (presence `shift`
+  or `arrival`), for the staffing sensitivity of
+  `python -m scripts.ijpe.capacity_validation`, which runs the paper's time
+  model, the fitted model and the staffing variants with recorded arrivals
+  only (`docs/ijpe/validation.md`, capacity and staffing);
 - the recorded plan (`information.recorded_plan`): a picker's lines in start
   order, cut where the picker has no order open; orders whose intervals
   overlap share a tour. The export does not show that this order is the
