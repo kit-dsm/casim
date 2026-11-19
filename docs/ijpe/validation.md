@@ -58,6 +58,24 @@ stated. Measures are model minus WMS over the 1,414 orders and 95
 picker-days; `scripts/ijpe/system_validation.py` writes them to ignored
 outputs.
 
+The validation has two steps (trace-driven, then distribution-driven; Law
+and Kelton):
+
+1. Trace-driven: everything the WMS decided or recorded is replayed (the
+   recorded tours, each to its recorded picker, the recorded presence and
+   absences); CASIM computes only setup, travel and picks. This isolates the
+   time model, the graph and the routing (`calibrated_recorded` below).
+2. Distribution-driven: the setting of the experiments. CASIM's FIFO
+   assignment as a pull and absences drawn from a model fitted on the other
+   days (Fitted absences, below).
+
+FIFO with recorded absences is neither: it combines recorded absences with
+work the WMS did not record. A recorded absence sat between the tours its
+picker actually did; with FIFO the picker does other tours, so an absence
+meant for the gap between two tours can fall due inside a longer one. It is
+kept as a diagnostic (it showed that push strands work, see below), not as
+validation.
+
 ## The calibrated day
 
 The calibrated day (`variants=calibrated`) has five parts, each measured on
@@ -97,7 +115,7 @@ day).
 | Run | Assignment | Presence | Open orders | Orders by 10:00 / 12:00 | Largest day error by 10:00 / 12:00 | Picker finish bias, min | Picker finish RMSE, min | Day's last line, mean error, min |
 |---|---|---|---:|---:|---:|---:|---:|---:|
 | `calibrated_recorded` | recorded | recorded | 86 | +32 / -13 | 11 / 15 | -26 | 52 | +19 |
-| `calibrated_fifo` | FIFO, pull | recorded | 5 | +44 / +10 | 14 / 8 | -6 | 28 | +4 |
+| `calibrated_fifo` (diagnostic) | FIFO, pull | recorded | 5 | +44 / +10 | 14 / 8 | -6 | 28 | +4 |
 | `calibrated_recorded_arrival` | recorded | no departure | 0 | +32 / -12 | 11 / 14 | -10 | 61 | +89 |
 
 - Throughput up to midday is reproduced: on every day the orders completed
@@ -174,18 +192,18 @@ Thirty replications per day, FIFO as a pull, the calibrated time model
 | Assignment | Orders by 10:00, six days | Orders by 12:00, six days | Open orders | WMS inside the 90 % band at 12:00 |
 |---|---:|---:|---:|---:|
 | WMS | 626 | 1,031 | 0 | |
-| FIFO, recorded absences (trace-driven) | 670 | 1,041 | 5 | |
+| FIFO, recorded absences (diagnostic) | 670 | 1,041 | 5 | |
 | FIFO, fitted absences, mean (90 % band) | 682 (662 to 703) | 1,085 (1,057 to 1,113) | 12 (0 to 26) | 3 of 6 days |
 
 - Open work stays small with fitted absences (12 orders over six days), as
-  in the trace-driven run.
+  with recorded absences.
 - By 12:00 the fitted days are 5 % ahead of the WMS. Most of it is Monday
   (+38 of +54 orders): Monday had 51 h of absence, the model fitted on the
   other days draws about 36 h. Without Monday the five days are within 2 %.
   Thursday goes the other way (about 10 h more drawn than recorded). A model
   fitted on other days reproduces the average day, not each day's level, and
   the paper says so.
-- Both the trace-driven and the fitted days are ahead at 10:00 (7 to 9 %);
+- With recorded and with fitted absences the days are ahead at 10:00 (7 to 9 %);
   this comes from the time model, not from the absences.
 - Recorded assignment is not combined with fitted absences: the recorded
   work plan gave each picker the work it managed given its own absences,

@@ -6,7 +6,7 @@ and absences drawn from the model fitted on the other days
 FIFO assignment as a pull (``fifo``, the base of the experiments) or each tour to its
 recorded picker (``recorded``). Compares orders completed by 10:00 and
 12:00, open orders and the non-picking time per picker-day with the WMS and
-with the trace-driven run of the same assignment (``system_validation``).
+with the run of the same assignment and recorded absences (``system_validation``).
 Writes aggregates only to ``outputs/absence_validation``.
 
     python -m scripts.ijpe.absence_validation fifo|recorded [--run]
@@ -112,7 +112,7 @@ def main() -> None:
         wms = int(result.loc[result.measure == measure, "wms"].sum()) if measure != "open" else 0
         trace = result.loc[result.measure == measure, "trace"].sum()
         low, high = totals[measure].quantile([0.05, 0.95])
-        print(f"  {measure}: WMS {wms}, trace-driven {trace:.0f}, fitted mean "
+        print(f"  {measure}: WMS {wms}, recorded absences {trace:.0f}, fitted mean "
               f"{totals[measure].mean():.0f} (90 % band {low:.0f} to {high:.0f})")
 
 
