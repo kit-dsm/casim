@@ -5,7 +5,8 @@
 - ``tours.csv``: one row per committed tour, also one that never started:
   ``tour_id``, ``picker_id``, ``status`` at the end, ``commit_time``,
   ``planned_start`` (of the route, as last planned), ``start`` (of the
-  setup), ``setup_end`` (start of the route), ``end``, ``setup`` (s),
+  setup, at dispatch), ``setup_end`` (start of the route), ``end``, ``setup`` (s, as
+  executed; the resource's setup time for a tour that never started),
   ``route_distance`` (planned), ``distance`` (walked), ``lines`` (picked),
   ``orders_at_start``, ``order_ids``. Drafts that were never committed are
   left out;
@@ -59,10 +60,11 @@ class FactsRecorder(EventLogger):
     def on_event(self, event, sim) -> None:
         if isinstance(event, TourStart):
             tour = sim.state.tour_manager.get_tour(event.tour_id)
-            resource = sim.state.resource_manager.get_resource(tour.assigned_resource)
+            # The setup began at dispatch; it lasts the resource's setup time
+            # or the realized one (C8).
             self.tours[event.tour_id] = {
-                "start": event.time - (resource.tour_setup_time or 0.0),
-                "setup_end": event.time, "end": None, "distance": 0.0, "lines": 0}
+                "start": tour.dispatched_at, "setup_end": event.time,
+                "end": None, "distance": 0.0, "lines": 0}
             self._walk[event.tour_id] = [event.time, 0.0]
         elif isinstance(event, TravelEvent):
             tour = sim.state.tour_manager.get_tour(event.tour_id)
@@ -123,7 +125,9 @@ class FactsRecorder(EventLogger):
                 "planned_start": tour.planned_start,
                 "start": executed.get("start"), "setup_end": executed.get("setup_end"),
                 "end": executed.get("end"),
-                "setup": resources.get_resource(tour.assigned_resource).tour_setup_time or 0.0,
+                "setup": (executed["setup_end"] - executed["start"] if executed
+                          else resources.get_resource(tour.assigned_resource).tour_setup_time
+                          or 0.0),
                 "route_distance": tour.route.distance,
                 "distance": executed.get("distance", 0.0),
                 "lines": executed.get("lines", 0),

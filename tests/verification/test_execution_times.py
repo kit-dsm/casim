@@ -1,10 +1,13 @@
 """Realized execution times (C8): execution asks the source, planning keeps its times."""
 
+from types import SimpleNamespace
+
 from ware_ops_algos.algorithms import FIFOScheduling, Job
 from ware_ops_algos.algorithms.routing.patrol import all_aisles_patrol_route
 from ware_ops_algos.planning.lifecycle import TourStates
 
 from casim.events.operational_events import Dispatch, PickComplete, TourEnd, TourStart
+from casim.outputs.facts import FactsRecorder
 from casim.run import prepare
 from tests.scenario_configs import walk_config
 
@@ -41,19 +44,21 @@ def _run_one_tour(tmp_path, realized):
     planned_end = state.tour_manager.get_tour(tour_id).planned_end
     events = [Dispatch(0, 0, state.resource_manager.bump_version(0))]
     seen = []
+    facts = FactsRecorder()
     while events:
         event = events.pop(0)
         state.current_time = event.time
         seen.append(event)
         events.extend(event.handle(state))
+        facts.on_event(event, SimpleNamespace(state=state))
         events.sort(key=lambda e: e.time)
         if isinstance(event, TourEnd):
             break
-    return seen, planned_end, route, picker
+    return seen, planned_end, route, picker, facts
 
 
 def test_without_realized_times_execution_uses_the_resource_times(tmp_path):
-    seen, planned_end, route, picker = _run_one_tour(tmp_path, None)
+    seen, planned_end, route, picker, facts = _run_one_tour(tmp_path, None)
     start = next(e for e in seen if isinstance(e, TourStart))
     assert start.time == 3
     assert seen[-1].time == planned_end
@@ -61,9 +66,12 @@ def test_without_realized_times_execution_uses_the_resource_times(tmp_path):
 
 def test_realized_setup_and_pick_times_drive_execution_only(tmp_path):
     realized = Realized()
-    seen, planned_end, route, picker = _run_one_tour(tmp_path, realized)
+    seen, planned_end, route, picker, facts = _run_one_tour(tmp_path, realized)
     start = next(e for e in seen if isinstance(e, TourStart))
     assert start.time == 7
+    # The facts report the executed setup: from dispatch (0) to the route start.
+    executed = facts.tours[start.tour_id]
+    assert (executed["start"], executed["setup_end"]) == (0, 7)
     assert [picker_id for picker_id, _ in realized.setups] == [0]
     picks = list(route.batch.pick_positions)
     assert len(realized.picks) == len(picks)
