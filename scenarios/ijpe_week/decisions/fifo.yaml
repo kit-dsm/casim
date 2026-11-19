@@ -1,0 +1,58 @@
+# Pull, first in first out: ignores due dates, so no reaction to a
+# disruption. OBRSP batches the orders that are in into their recorded tours
+# (one per order), routes them (U-shape) and commits nothing; it runs again when orders arrive. ORSP keeps their routes and hands
+# each picker that becomes free the next tour in pick-list order. Nothing
+# waits in the queue of a picker who is away or off shift.
+OBRSP:
+  problem_class: OBRSP
+  state_information:
+    orders: true
+    pick_lists: false
+    tours: []
+    resources: [off_shift, idle, reserved, busy]
+  scope:
+    freeze_from: planned
+    frozen_accepts: none
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    repo: ${cosy_repo}
+  commitment_policy:
+    _target_: casim.decision_engine.commitment_policies.PlanOnlyPolicy
+  precedence: 0
+  triggers:
+  - OrderStreamClosed
+  - OrderArrival
+  conditions:
+  - _target_: casim.simulation_engine.conditions.NbrOrdersCondition
+    threshold: 1
+ORSP:
+  problem_class: ORSP
+  state_information:
+    orders: false
+    pick_lists: false
+    tours: [planned]
+    resources: [idle]
+  scope:
+    freeze_from: scheduled
+    frozen_accepts: none
+  solver:
+    _target_: casim.pipelines.pipeline_runner.CoSySolver
+    repo:
+      components:
+      - casim.pipelines.problem_based_template.InstanceLoader
+      - casim.pipelines.problem_based_template.OrdersProvider
+      - casim.pipelines.problem_based_template.PickListProvider
+      - casim.pipelines.subproblems.picker_routing.PlannedRoutes
+      - casim.pipelines.subproblems.scheduling.FIFOScheduler
+  commitment_policy:
+    _target_: casim.decision_engine.commitment_policies.SchedulingCommitmentPolicy
+    n_jobs: 1
+    per_resource: true          # every idle picker gets its next tour, also when several are idle at once
+  precedence: 10
+  triggers:
+  - OrderStreamClosed
+  - PickerIdle
+  - PickerArrival
+  conditions:
+  - _target_: casim.simulation_engine.conditions.NbrPickersCondition
+    threshold: 1

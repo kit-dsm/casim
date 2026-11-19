@@ -2,6 +2,52 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-19: The week as one order stream; canonical data and exogenous rules (C10, C11)
+
+**Decision (user).** The experiments simulate the week as one order stream,
+as the submitted model did, with a fixed shift (05:30 to 14:30) and break
+roster; disruptions are declared in the configuration, as the submitted
+hooks were, but as a core capability for any scenario; no simulation code
+reads the workbook.
+
+**Done.** C10: the library source `order_stream` reads canonical tables
+(`orders.csv`, `lines.csv`, layout, named lists, template orders), and the
+`exogenous` rules of `scenario.yaml` (`roster`, `dispatch_slots`,
+`due_change`, `order_move`, `order_injection`, `process_times`) wrap any
+source with an epoch (`casim/sources/exogenous.py`, `docs/concepts.md`).
+`process_truth.drawn` moved from the IJPE source into the core, unchanged.
+C11: `SchedulingCommitmentPolicy(per_resource: true)` gives every idle picker
+its next tour; with one tour per decision, pickers arriving at the same
+second never started (13 of 21 worked on a single day with a common shift
+start, 3 of 21 in the week). The default is unchanged. `scripts/ijpe/canonical.py`
+writes the IJPE tables; `scenarios/ijpe_week` is the week with the paper's
+scenarios as variants (`scenario1` to `scenario4`, `scenario2_4`).
+
+**Staffing.** Pickers per day are the record's picker-hours divided by the
+9-hour shift (12, 13, 14, 16, 13, 4; the record has 21, 17, 16, 19, 15, 7
+logins, many present for part of the day). With every login on the full
+shift the week ran 259 orders ahead of the WMS by 10:00.
+
+**Result** (seed 0, EDD, no disruption). 632 orders by 10:00 against the
+WMS's 626 over six days, 938 by 12:00 against 1,031; Monday and Tuesday
+within 13 orders at both times, Saturday 36 and Wednesday and Thursday 23
+and 27 behind by 12:00; 108 orders carry over to the next morning, 30 Friday
+orders are open when the stream ends. Under EDD, Scenario 1's 30 orders are
+on time, Scenario 2 leaves 15 of 27 late, Scenario 4's 63 moved orders are on
+time while 127 other Wednesday orders are late.
+
+**Open.** `scenarios/ijpe` keeps its single-day `DISRUPTIONS` (P2.1, entry
+below) until the week replaces them in the experiments; its pull does not
+yet use `per_resource`. The scenario choices of P2.1 (submitted due times as
+picking deadlines, only earlier deadlines, Scenario 3 on Wednesday) carry
+over to the variants and still await the user's OK.
+
+**Checks.** `tests/test_exogenous.py` (synthetic order stream, every rule),
+a commitment test for `per_resource`; the decision schema regenerated;
+compare-fast and the six ijpe_replay baselines are equal; pytest has the 13
+`test_component_smoke` failures that HEAD has; `casim check --all` reports
+only the untracked `scenario_ijpe` and `scenario_dm` folders.
+
 ## 2026-11-19: P2.1, the disruption scenarios from the warehouse's lists
 
 **Done.** The fixed model is `variants/fitted.yaml` (decision of the user,

@@ -1,0 +1,13 @@
+# @package _global_
+# Scenarios 2 and 4 combined (P4.4).
+exogenous:
+  scenario4:
+    kind: order_move
+    orders: {list: S5, day: "2026-04-16"}
+    at: "2026-04-15 06:30"
+    due: "2026-04-15 10:00"
+  scenario2:
+    kind: due_change
+    orders: {list: S2, day: "2026-04-16"}
+    at: "2026-04-16 10:30"
+    due: "2026-04-16 11:00"

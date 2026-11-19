@@ -1,0 +1,9 @@
+# @package _global_
+# Scenario 2: Thursday 10:30, the orders of list S2 ("100 TU before 13:00") are
+# due at 11:00; an order due earlier keeps its deadline.
+exogenous:
+  scenario2:
+    kind: due_change
+    orders: {list: S2, day: "2026-04-16"}
+    at: "2026-04-16 10:30"
+    due: "2026-04-16 11:00"

@@ -1,0 +1,11 @@
+# @package _global_
+# Scenario 3: Wednesday 08:30, a store orders 6 TU more: the template order of
+# list S3 arrives ceil(6 / 2.6) = 3 times, due at 10:00.
+exogenous:
+  scenario3:
+    kind: order_injection
+    template: S3
+    copies: 3
+    first_id: 2604159001
+    at: "2026-04-15 08:30"
+    due: "2026-04-15 10:00"

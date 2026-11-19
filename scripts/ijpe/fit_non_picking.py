@@ -385,6 +385,12 @@ def main() -> None:
     print("Check, line time on its own order's scans (s), by quantity class and overlap:")
     print(check.round(1).to_string())
     FIT_DIR.mkdir(parents=True, exist_ok=True)
+    # The week (scenarios/ijpe_week) is an experiment, not a validation: one fit
+    # on all six days.
+    week = fit([observed[day] for day in STUDY_DAYS])
+    (FIT_DIR / "week.json").write_text(json.dumps(week))
+    print(f"fit for the week: setup mean {np.mean(week['setup_s']):.0f} s, line means "
+          f"{[round(float(np.mean(c)), 1) for c in week['line_s']]}")
     for day in STUDY_DAYS:
         result = fit([observed[other] for other in STUDY_DAYS if other != day])
         (FIT_DIR / f"{day}.json").write_text(json.dumps(result))

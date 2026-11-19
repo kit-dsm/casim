@@ -59,6 +59,9 @@ scenarios/henn2012/data/generated/
 
 # IJPE revision: WMS data and anything derived from it at order, line or picker level are confidential (docs/ijpe_revision_plan.md, Section 1)
 scenarios/ijpe/data/*
+scenarios/ijpe_week/data/*
+!scenarios/ijpe_week/data/SOURCE.md
+!scenarios/ijpe_week/data/SHA256SUMS.txt
 !scenarios/ijpe/data/SOURCE.md
 !scenarios/ijpe/data/SHA256SUMS.txt
 scenarios/ijpe/outputs/

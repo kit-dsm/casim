@@ -1,0 +1,9 @@
+# @package _global_
+# Scenario 4: Thursday's orders of list S5 ("200 TU after 10:00") are picked on
+# Wednesday: they arrive at 06:30, due at 10:00, and Thursday has them no more.
+exogenous:
+  scenario4:
+    kind: order_move
+    orders: {list: S5, day: "2026-04-16"}
+    at: "2026-04-15 06:30"
+    due: "2026-04-15 10:00"
