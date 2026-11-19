@@ -167,7 +167,10 @@ class Dispatch(Event):
         duration = tour.planned_end - tour.planned_start
         tour.planned_start, tour.planned_end = self.time, self.time + duration
         picker = resources.get_resource(picker_id)
-        return [TourStart(self.time + (picker.tour_setup_time or 0), tour.tour_id)]
+        setup = state.truth.setup(picker_id) if state.truth is not None else None
+        if setup is None:
+            setup = picker.tour_setup_time or 0
+        return [TourStart(self.time + setup, tour.tour_id)]
 
 
 class VolumeShiftAcrossDay(Event):
@@ -388,7 +391,10 @@ class NodeArrival(BaseTourEvent):
             pick = _pick_at_route_cursor(tour, here.position)
             if pick is None:
                 raise ValueError(f"No remaining pick at {here.position} on tour {tour.tour_id}")
-            finish_at = self.time + pick_time(res, pick.amount)
+            duration = state.truth.pick(pick) if state.truth is not None else None
+            if duration is None:
+                duration = pick_time(res, pick.amount)
+            finish_at = self.time + duration
             tour.picking_until = finish_at
             return [PickComplete(finish_at, tour.tour_id, pick_start=self.time,
                                  route_version=tour.route_version)]

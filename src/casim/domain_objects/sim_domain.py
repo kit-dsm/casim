@@ -6,6 +6,8 @@ from enum import Enum
 from ware_ops_algos.domain_models.base_domain import BaseWarehouseDomain
 from ware_ops_algos.planning.models import PlanView
 
+from casim.domain_objects.process_truth import ProcessTruth
+
 
 class ReconsiderReason(str, Enum):
     WAIT = "wait"
@@ -39,9 +41,13 @@ class DynamicInfo:
 
 
 class SimWarehouseDomain(BaseWarehouseDomain):
-    def __init__(self, *args, dynamic_warehouse_info: DynamicInfo, **kwargs):
+    def __init__(self, *args, dynamic_warehouse_info: DynamicInfo,
+                 truth: ProcessTruth | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.dynamic_warehouse_info = dynamic_warehouse_info
+        # Realized process times of the run (W_0 from the source); a decision
+        # snapshot never carries them.
+        self.truth = truth
 
 
 def initial_dynamic_info(time: float = 0.0) -> DynamicInfo:

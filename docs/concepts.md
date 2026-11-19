@@ -30,7 +30,13 @@ decision as a recurring, configured CASOP problem.
 The state at time t has three parts.
 
 - The warehouse W: layout, articles, storage, the orders revealed so far, and the resources with
-  position and presence (shift, break, absence), as well as the dock.
+  position and presence (shift, break, absence), as well as the dock. W may also hold the truth
+  of the process times (`ProcessTruth`): how long each order line and each setup of a picker
+  actually take in this run, fixed by the source in W_0, for example drawn with a replication
+  seed. Execution takes these times; planning uses the resource's time model (`tour_setup_time`,
+  `pick_time_model`), which is the planner's belief. No decision snapshot contains the truth, and
+  every policy of a replication meets the same times. Without a truth, execution uses the
+  resource's time model too.
 - The plan P: pick lists and tours with their status, planned times and execution progress. The
   executed part of a tour is the irreversible part of the plan.
 - The belief B: what the decision maker knows about the future, for example whether further
