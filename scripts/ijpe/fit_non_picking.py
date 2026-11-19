@@ -69,6 +69,7 @@ FIT_DIR = DATA / "non_picking"
 
 Interval = tuple[float, float]               # (start, end) in seconds
 QUANTITY_BOUNDS = (6, 12, 24)                # classes: <= 6, 7-12, 13-24, > 24 packages
+MIN_ORDER_LINES = 10                         # line samples of an order that estimates the order factor
 
 
 def quantity_class(quantity: float, bounds: Sequence[int] = QUANTITY_BOUNDS) -> int:
@@ -98,6 +99,7 @@ class Observations:
     present: list[int]                        # per window: pickers present
     setups: list[float] = field(default_factory=list)
     lines: list[tuple[int, float]] = field(default_factory=list)   # (quantity, seconds)
+    line_orders: list[int] = field(default_factory=list)            # the order of each line sample
     lines_bookkeeping: int = 0                # left out: hold another record, or overlap one outside
     lines_as_breaks: int = 0
     clipped_lines: int = 0                    # net of walking below zero
@@ -244,6 +246,7 @@ def observe(replay: RecordedReplay, foreign: Mapping[int, Sequence[Interval]],
                 value = row.end_s - row.start_s + free - step
                 obs.clipped_lines += value < 0
                 obs.lines.append((row.quantity, max(0.0, value)))
+                obs.line_orders.append(row.order)
     return obs
 
 
@@ -273,8 +276,53 @@ def foreign_records(source: ScenarioSource) -> dict[int, list[Interval]]:
     return foreign
 
 
+def order_effect(days: Sequence[Observations], bounds: Sequence[int] = QUANTITY_BOUNDS
+                 ) -> tuple[float, dict[tuple[int, int], float]]:
+    """The spread of an order's speed and each sampled order's own factor.
+
+    The lines of one order are slow or fast together. Each line sample divided
+    by its quantity class's mean is a ratio r; an order's mean ratio R varies
+    between orders by the variance of the order factor plus the within-order
+    variance over its number of lines (method of moments, orders with at least
+    ``MIN_ORDER_LINES`` samples: with fewer, one long line decides an order's
+    mean and the estimate doubles; from 10 lines on it agrees with the excess
+    spread of order means over independent draws). Returned: the factor's standard deviation (mean 1) and per
+    (day index, order) the factor shrunk toward 1 by its reliability, by which
+    the order's line samples are divided so that the pools hold within-order
+    variation only.
+    """
+    by_class: list[list[float]] = [[] for _ in range(len(bounds) + 1)]
+    for day in days:
+        for quantity, seconds in day.lines:
+            by_class[quantity_class(quantity, bounds)].append(seconds)
+    means = [float(np.mean(c)) if c else 0.0 for c in by_class]
+    ratios: dict[tuple[int, int], list[float]] = defaultdict(list)
+    for d, day in enumerate(days):
+        for (quantity, seconds), order in zip(day.lines, day.line_orders):
+            mean = means[quantity_class(quantity, bounds)]
+            if mean > 0:
+                ratios[(d, order)].append(seconds / mean)
+    groups = {key: np.asarray(r) for key, r in ratios.items() if len(r) >= MIN_ORDER_LINES}
+    if len(groups) < 2:
+        return 0.0, {}
+    within = sum(float(((r - r.mean()) ** 2).sum()) for r in groups.values()) / sum(
+        len(r) - 1 for r in groups.values())
+    order_means = np.array([r.mean() for r in groups.values()])
+    noise = np.array([within / len(r) for r in groups.values()])
+    between = max(0.0, float(order_means.var(ddof=1) - noise.mean()))
+    factors = {key: float(1.0 + (r.mean() - 1.0) * between / (between + within / len(r)))
+               for key, r in groups.items()}
+    return float(np.sqrt(between)), factors
+
+
 def fit(days: Sequence[Observations], bounds: Sequence[int] = QUANTITY_BOUNDS) -> dict:
-    """The fit written for one held-out day: pooled over ``days``."""
+    """The fit written for one held-out day: pooled over ``days``.
+
+    ``order_sd``: the spread of the order factor that multiplies all line times
+    of an order (``order_effect``); the line pools are divided by each sampled
+    order's factor.
+    """
+    order_sd, factors = order_effect(days, bounds)
     breaks = []
     for w, window in enumerate(days[0].windows):
         samples = sorted(s for day in days for s in day.breaks[w])
@@ -282,14 +330,26 @@ def fit(days: Sequence[Observations], bounds: Sequence[int] = QUANTITY_BOUNDS) -
         breaks.append({"window": list(window), "share": len(samples) / present if present else 0.0,
                        "samples": [list(s) for s in samples]})
     by_class: list[list[float]] = [[] for _ in range(len(bounds) + 1)]
+    for d, day in enumerate(days):
+        orders = day.line_orders if len(day.line_orders) == len(day.lines) else [None] * len(day.lines)
+        for (quantity, seconds), order in zip(day.lines, orders):
+            by_class[quantity_class(quantity, bounds)].append(
+                seconds / factors.get((d, order), 1.0))
+    # Dividing by the factors takes most from the long lines of slow orders, so
+    # the deflated pools lose mean line time (3.6 % on the study days) that a
+    # factor of mean 1 does not return: each class is scaled back to its mean.
+    raw: list[list[float]] = [[] for _ in range(len(bounds) + 1)]
     for day in days:
         for quantity, seconds in day.lines:
-            by_class[quantity_class(quantity, bounds)].append(seconds)
+            raw[quantity_class(quantity, bounds)].append(seconds)
+    by_class = [[s * float(np.mean(r)) / float(np.mean(c)) for s in c] if c and np.mean(c) > 0 else c
+                for c, r in zip(by_class, raw)]
     pooled = sorted(s for c in by_class for s in c)
     return {"breaks": breaks,
             "setup_s": sorted(s for day in days for s in day.setups),
             "quantity_bounds": list(bounds),
-            "line_s": [sorted(c) if c else pooled for c in by_class]}
+            "line_s": [sorted(c) if c else pooled for c in by_class],
+            "order_sd": order_sd}
 
 
 def main() -> None:
@@ -320,7 +380,7 @@ def main() -> None:
         result = fit([observed[other] for other in STUDY_DAYS if other != day])
         (FIT_DIR / f"{day}.json").write_text(json.dumps(result))
         means = [round(float(np.mean(c)), 1) for c in result["line_s"]]
-        print(f"fit for {day}: setup mean {np.mean(result['setup_s']):.0f} s, line means {means}, "
+        print(f"fit for {day}: order factor sd {result['order_sd']:.3f}, setup mean {np.mean(result['setup_s']):.0f} s, line means {means}, "
               f"break shares {[round(b['share'], 2) for b in result['breaks']]}")
 
 

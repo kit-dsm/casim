@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 
 from scenarios.ijpe.source import ScenarioSource, draw_breaks, process_truth
-from scripts.ijpe.fit_non_picking import Observations, fit, observe, quantity_class
+from scripts.ijpe.fit_non_picking import Observations, fit, observe, order_effect, quantity_class
 from casim.sources.recorded import RecordedRow
 
 H = 3600
@@ -123,6 +123,50 @@ def test_line_and_setup_times_are_common_random_numbers():
     reseeded = process_truth(FIT, seed=4, day=20260413, orders=orders, pickers=[0, 1],
                              first_setup_s=215)
     assert reseeded.line_s != truth.line_s
+
+
+def _day_with_order_effect(rng, sd, orders=400, lines=30):
+    """Line samples of 20 s times an order factor (mean 1, ``sd``) times noise."""
+    day = Observations(windows=WINDOWS, breaks=[[], []], present=[0, 0])
+    for order in range(orders):
+        factor = rng.lognormal(-np.log1p(sd ** 2) / 2, np.sqrt(np.log1p(sd ** 2)))
+        for _ in range(lines):
+            day.lines.append((6, 20.0 * factor * rng.gamma(4.0, 0.25)))
+            day.line_orders.append(order)
+    return day
+
+
+def test_fit_recovers_the_spread_of_an_order_factor():
+    rng = np.random.default_rng(0)
+    days = [_day_with_order_effect(rng, 0.3) for _ in range(3)]
+    sd, factors = order_effect(days)
+    assert sd == pytest.approx(0.3, abs=0.03)
+    # Deflated pools keep the within-order spread only (gamma(4) has cv 0.5).
+    result = fit(days)
+    pool = np.asarray(result["line_s"][0])
+    assert result["order_sd"] == sd
+    assert pool.std() / pool.mean() == pytest.approx(0.5, abs=0.04)
+    # ... and the mean line time of the raw samples.
+    raw = np.mean([s for day in days for _, s in day.lines])
+    assert pool.mean() == pytest.approx(raw, rel=1e-9)
+    # Without order structure the factor is about zero.
+    flat = [_day_with_order_effect(rng, 0.0) for _ in range(3)]
+    assert order_effect(flat)[0] < 0.03
+
+
+def test_lines_of_an_order_share_its_factor():
+    orders = [_order(o, [(a, 6) for a in range(1, 41)]) for o in range(300)]
+    plain = process_truth(FIT, seed=1, day=20260413, orders=orders, pickers=[0], first_setup_s=215)
+    shared = process_truth({**FIT, "order_sd": 0.4}, seed=1, day=20260413, orders=orders,
+                           pickers=[0], first_setup_s=215)
+    ratios = []
+    for o in range(300):
+        keys = [(o, a, 6) for a in range(1, 41)]
+        r = {shared.line_s[k][0] / plain.line_s[k][0] for k in keys}
+        assert max(r) - min(r) < 1e-9          # one factor per order, same line draws
+        ratios.append(r.pop())
+    assert np.mean(ratios) == pytest.approx(1.0, abs=0.06)
+    assert np.std(ratios) == pytest.approx(0.4, abs=0.06)
 
 
 def test_breaks_are_drawn_for_present_pickers_only():
