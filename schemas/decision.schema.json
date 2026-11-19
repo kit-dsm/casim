@@ -175,11 +175,17 @@
     },
     "SchedulingCommitmentPolicy": {
       "additionalProperties": false,
+      "description": "Commit the first ``n_jobs`` planned tours by planned start.\n\nWith ``per_resource`` the first ``n_jobs`` tours of each resource: every\nresource the decision plans for gets its next tours, also when several\nbecome idle at the same time (a decision runs once per timestamp, so a\nresource left without a tour then would wait for the next trigger).",
       "properties": {
         "n_jobs": {
           "default": 1,
           "title": "N Jobs",
           "type": "integer"
+        },
+        "per_resource": {
+          "default": false,
+          "title": "Per Resource",
+          "type": "boolean"
         }
       },
       "title": "SchedulingCommitmentPolicy",

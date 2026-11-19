@@ -71,3 +71,21 @@ def test_created_and_rescheduled_tours_are_considered():
         SchedulingCommitmentPolicy(0)
     with pytest.raises(ValueError, match="within_s"):
         WindowCommitmentPolicy(-1)
+
+
+def test_per_resource_commits_the_next_tour_of_every_idle_picker():
+    # Three pickers idle at once: one tour per decision would leave two of
+    # them without work until another trigger; per resource each gets its next.
+    plan = PlanView(time=10, tours=(
+        TourView(1, 0, TourStates.PLANNED, Accepts.REBUILD, start_time=20, end_time=30),
+        TourView(2, 0, TourStates.PLANNED, Accepts.REBUILD, start_time=25, end_time=35),
+        TourView(3, 1, TourStates.PLANNED, Accepts.REBUILD, start_time=11, end_time=21),
+        TourView(4, 2, TourStates.PLANNED, Accepts.REBUILD, start_time=15, end_time=25),
+    ))
+    snapshot = _snapshot(plan)
+    snapshot.resources = Resources(ResourceType.HUMAN, [Resource(id=i) for i in range(3)])
+    assert [c.tour_id for c in SchedulingCommitmentPolicy(1).apply((), snapshot)[0]] == [3]
+    assert [c.tour_id for c in SchedulingCommitmentPolicy(1, per_resource=True).apply(
+        (), snapshot)[0]] == [3, 4, 1]
+    assert [c.tour_id for c in SchedulingCommitmentPolicy(2, per_resource=True).apply(
+        (), snapshot)[0]] == [3, 4, 1, 2]

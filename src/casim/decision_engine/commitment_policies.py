@@ -92,7 +92,16 @@ class PlanOnlyPolicy(CommitmentPolicy):
 
 @dataclass(frozen=True)
 class SchedulingCommitmentPolicy(CommitmentPolicy):
+    """Commit the first ``n_jobs`` planned tours by planned start.
+
+    With ``per_resource`` the first ``n_jobs`` tours of each resource: every
+    resource the decision plans for gets its next tours, also when several
+    become idle at the same time (a decision runs once per timestamp, so a
+    resource left without a tour then would wait for the next trigger).
+    """
+
     n_jobs: int = 1
+    per_resource: bool = False
     __pydantic_config__ = {"extra": "forbid"}
 
     def __post_init__(self):
@@ -102,8 +111,16 @@ class SchedulingCommitmentPolicy(CommitmentPolicy):
     def apply(self, commands, state_snapshot):
         if state_snapshot.dynamic_warehouse_info.memory.waiting:
             return (), None
-        return tuple(tour.commit() for tour in
-                     _planned_after(commands, state_snapshot)[:self.n_jobs]), None
+        planned = _planned_after(commands, state_snapshot)
+        if not self.per_resource:
+            return tuple(tour.commit() for tour in planned[:self.n_jobs]), None
+        taken: dict[int, int] = {}
+        commits = []
+        for tour in planned:
+            if taken.get(tour.picker_id, 0) < self.n_jobs:
+                taken[tour.picker_id] = taken.get(tour.picker_id, 0) + 1
+                commits.append(tour.commit())
+        return tuple(commits), None
 
 
 @dataclass(frozen=True)
