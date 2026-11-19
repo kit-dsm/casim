@@ -1,0 +1,22 @@
+# @package _global_
+# The model of the disruption and policy experiments (docs/ijpe/validation.md,
+# capacity and staffing): one tour per recorded order as pick lists, U-shape
+# routing and FIFO as a pull (decisions/pull.yaml); line time, tour setup and
+# breaks fitted on the other days on what one person did
+# (scripts/ijpe/fit_non_picking.py), realized in the process truth with
+# replication seed source.seed; recorded arrivals only (no recorded
+# departure: a picker stays until the work is done); one picker per login
+# (source.extra_pickers for the staffing sensitivity); the synthetic fixed
+# dispatch deadlines (docs/ijpe/departure_fallback.md). The setup lies inside
+# the recorded gap before a picker's first tour, which defines its arrival.
+# Disruptions: source.disruption (source.py DISRUPTIONS).
+defaults:
+  - override /cosy_repo: recorded_tours_fifo_ushape
+  - override /decisions: pull
+source:
+  presence: arrival
+  pause_threshold_s: 300.0
+  setup_in_gap: true
+  time_per_pick: 16.26
+  non_picking: fitted
+  due_plan: fixed_dispatch
