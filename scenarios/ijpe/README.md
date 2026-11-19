@@ -72,9 +72,10 @@ Variants:
 
 - `calibrated`: the calibrated day of the system-level validation and the
   base of the disruption scenarios: recorded batches, U-shape routing and
-  FIFO assignment as a pull (`decisions/pull.yaml`: OBP makes the recorded
-  tours into pick lists once, ORSP routes them and gives one to each picker
-  that becomes free), recorded presence, five-minute pauses and stops inside
+  FIFO assignment as a pull (`decisions/pull.yaml`: OBRSP makes the
+  recorded tours into pick lists, routes and schedules them once and commits
+  nothing, ORSP keeps their routes and gives the next one to each picker that
+  becomes free), recorded presence, five-minute pauses and stops inside
   tours, setup inside the recorded gaps and 16.26 s per line
   (`scripts/ijpe/line_time.py`); with `decisions=recorded
   cosy_repo=recorded_ushape` each tour is pushed to its recorded picker.

@@ -30,6 +30,9 @@ class StateAdapter:
         self.scope = scope
         # tour_id -> (live batch, live route, their detached copies)
         self._detached: dict[int, tuple] = {}
+        # order_id -> (live order, its detached copy)
+        self._detached_orders: dict[int, tuple] = {}
+        self._detached_information: tuple | None = None
         self._order_revision = 0
         forbidden = check_scope(state_information, scope)
         if forbidden:
@@ -117,18 +120,33 @@ class StateAdapter:
                    order_revision: int) -> dict[int, object]:
         """Seed the snapshot's deep copy with what need not be copied again.
 
-        The layout and the articles never change during a run and are shared.
-        A tour's batch and route change only by replacement or by an in-place
-        change of a known order, so each is copied once and the copy reused
-        until the tour holds another object or the state's order revision
-        changes; the snapshot stays detached from live state.
+        The layout and the articles never change during a run and are
+        shared. The planner information is copied once and the copy reused
+        while the state holds the same object. A tour's batch and route
+        change only by replacement or by an in-place change of a known order,
+        so each is copied once and the copy reused until the tour holds
+        another object or the state's order revision changes; an order
+        likewise. The snapshot stays detached from live state.
         """
         memo = {id(snapshot.layout): snapshot.layout,
                 id(snapshot.articles): snapshot.articles}
+        information = snapshot.information
+        if information is not None:
+            if (self._detached_information is None
+                    or self._detached_information[0] is not information):
+                self._detached_information = (information, deepcopy(information))
+            memo[id(information)] = self._detached_information[1]
         if self._order_revision != order_revision:
             # Known orders changed in place (a due date): copy them afresh.
             self._detached.clear()
+            self._detached_orders.clear()
             self._order_revision = order_revision
+        for order in snapshot.orders.orders:
+            cached = self._detached_orders.get(order.order_id)
+            if cached is None or cached[0] is not order:
+                cached = (order, deepcopy(order))
+                self._detached_orders[order.order_id] = cached
+            memo[id(order)] = cached[1]
         for tour in tours:
             cached = self._detached.get(tour.tour_id)
             if cached is None or cached[0] is not tour.batch or cached[1] is not tour.route:

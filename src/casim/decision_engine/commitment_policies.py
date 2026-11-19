@@ -76,6 +76,21 @@ class CommitAllPolicy(CommitmentPolicy):
 
 
 @dataclass(frozen=True)
+class PlanOnlyPolicy(CommitmentPolicy):
+    """Commit nothing: the decision only plans, and a later decision commits.
+
+    For example, a decision that batches, routes and schedules once leaves
+    planned tours with their routes, and a pull decision commits one of them
+    to each picker that becomes free.
+    """
+
+    __pydantic_config__ = {"extra": "forbid"}
+
+    def apply(self, commands, state_snapshot):
+        return (), None
+
+
+@dataclass(frozen=True)
 class SchedulingCommitmentPolicy(CommitmentPolicy):
     n_jobs: int = 1
     __pydantic_config__ = {"extra": "forbid"}

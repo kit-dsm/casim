@@ -9,7 +9,7 @@
 # Each tour to its recorded picker: decisions=recorded cosy_repo=recorded_ushape
 # (a push of the recorded plan; the recorded decision sees every picker).
 defaults:
-  - override /cosy_repo: recorded_tours_split
+  - override /cosy_repo: recorded_tours_fifo_ushape
   - override /decisions: pull
 source:
   presence: recorded

@@ -1,9 +1,10 @@
-# As the paper separates them: OBP batches the orders into pick lists (the
-# recorded tours) once, when the orders are in; ORSP routes the pick lists and
-# hands one to each picker that becomes free (pull). Nothing waits in the
+# The pick lists are the recorded tours, routed once: OBRSP batches the orders
+# into the recorded tours, routes them (U-shape) and schedules them (FIFO) when
+# the orders are in, and commits nothing. ORSP keeps their routes and hands the
+# next tour to each picker that becomes free (pull, FIFO). Nothing waits in the
 # queue of a picker who is away or has left.
-OBP:
-  problem_class: OBP
+OBRSP:
+  problem_class: OBRSP
   state_information:
     orders: true
     pick_lists: false
@@ -15,6 +16,8 @@ OBP:
   solver:
     _target_: casim.pipelines.pipeline_runner.CoSySolver
     repo: ${cosy_repo}
+  commitment_policy:
+    _target_: casim.decision_engine.commitment_policies.PlanOnlyPolicy
   precedence: 0
   triggers:
   - OrderStreamClosed
@@ -25,7 +28,7 @@ ORSP:
   problem_class: ORSP
   state_information:
     orders: false
-    pick_lists: true
+    pick_lists: false
     tours: [planned]
     resources: [idle]
   scope:
@@ -33,7 +36,13 @@ ORSP:
     frozen_accepts: none
   solver:
     _target_: casim.pipelines.pipeline_runner.CoSySolver
-    repo: ${cosy_repo}
+    repo:
+      components:
+      - casim.pipelines.problem_based_template.InstanceLoader
+      - casim.pipelines.problem_based_template.OrdersProvider
+      - casim.pipelines.problem_based_template.PickListProvider
+      - casim.pipelines.subproblems.picker_routing.PlannedRoutes
+      - casim.pipelines.subproblems.scheduling.FIFOScheduler
   commitment_policy:
     _target_: casim.decision_engine.commitment_policies.SchedulingCommitmentPolicy
     n_jobs: 1

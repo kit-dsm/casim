@@ -34,6 +34,9 @@
               "$ref": "#/$defs/CommitAllPolicy"
             },
             {
+              "$ref": "#/$defs/PlanOnlyPolicy"
+            },
+            {
               "$ref": "#/$defs/SchedulingCommitmentPolicy"
             },
             {
@@ -133,6 +136,13 @@
         "every_s"
       ],
       "title": "PeriodicTrigger",
+      "type": "object"
+    },
+    "PlanOnlyPolicy": {
+      "additionalProperties": false,
+      "description": "Commit nothing: the decision only plans, and a later decision commits.\n\nFor example, a decision that batches, routes and schedules once leaves\nplanned tours with their routes, and a pull decision commits one of them\nto each picker that becomes free.",
+      "properties": {},
+      "title": "PlanOnlyPolicy",
       "type": "object"
     },
     "ResourceStates": {

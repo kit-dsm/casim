@@ -155,6 +155,7 @@ solution stays in the plan as `planned` tours, which a later decision sees and m
 | Commitment policy | Commits | Asks to run again |
 |---|---|---|
 | `CommitAllPolicy` | every planned tour | never |
+| `PlanOnlyPolicy` | nothing: the decision only plans, and a later decision commits | never |
 | `SchedulingCommitmentPolicy(n_jobs)` | the first `n_jobs` planned tours by planned start | never |
 | `WindowCommitmentPolicy(within_s)` | planned tours that start within `within_s` | when the next tour becomes ready, minus `within_s` |
 
@@ -174,6 +175,13 @@ classes and their subproblems are listed in `casim/pipelines/taxonomy.py`; the O
 `item_assignment`, `batching`, `routing`, `scheduling`, `waiting`, `positioning`, `admission` and
 `active_tour_routing`. A CoSy repository file lists the components a decision may combine;
 synthesis builds every valid pipeline from them.
+
+A stage may also keep what the plan already holds instead of solving it again: `PickListProvider`
+gives the scheduling and routing stages the pick lists and the batches of the tours the decision
+may rebuild, and `PlannedRoutes` gives the scheduling stage each of these tours' routes as they
+are. A pull that routes once therefore has two decisions: one that batches, routes and schedules
+when the orders are in and commits nothing (`PlanOnlyPolicy`), and one triggered by `PickerIdle`
+that keeps the routes and commits one tour (`PickListProvider`, `PlannedRoutes` and a scheduler).
 
 ## Resources and dispatch
 

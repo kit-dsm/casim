@@ -106,11 +106,12 @@ from -78 to -10 minutes.
 
 Three runs, all after C7 (departures in request order), 18 November. The
 recorded assignment is a push: the recorded plan is committed into each
-picker's queue at the start. FIFO is a pull, with batching and assignment
-separated as in the paper (`decisions/pull.yaml`): OBP makes the recorded
-tours into pick lists once, when the orders are in; ORSP routes the open pick
-lists and gives one to each picker that becomes free (about 220 decisions a
-day).
+picker's queue at the start. FIFO is a pull (`decisions/pull.yaml`): when the orders are in,
+OBRSP makes the recorded tours into pick lists, routes them (U-shape) and
+schedules them, and commits nothing; ORSP keeps their routes and gives the
+next tour to each picker that becomes free (about 220 decisions a day). The
+routes are computed once, which gives the same tours as routing all open pick
+lists at every decision.
 
 | Run | Assignment | Presence | Open orders | Orders by 10:00 / 12:00 | Largest day error by 10:00 / 12:00 | Picker finish bias, min | Picker finish RMSE, min | Day's last line, mean error, min |
 |---|---|---|---:|---:|---:|---:|---:|---:|

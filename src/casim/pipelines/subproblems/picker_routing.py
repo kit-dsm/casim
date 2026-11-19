@@ -8,8 +8,10 @@ from collections import defaultdict
 
 from ware_ops_algos.algorithms import CombinedRoutingSolution, GivenSequenceRouting
 from casim.pipelines.problem_based_template import (
-    AbstractActiveTourRouting, PickerRouting, dump_pickle, load_pickle, recorded_plan,
+    AbstractActiveTourRouting, AbstractPickerRouting, PickerRouting, dump_pickle, load_pickle,
+    recorded_plan,
 )
+from casim.pipelines.tour_filters import rebuildable_tours
 
 
 class SShape(PickerRouting):
@@ -64,6 +66,32 @@ class RatliffRosenthal(PickerRouting):
 
 class UShape(PickerRouting):
     router_class = UShapeRouting
+
+
+class PlannedRoutes(AbstractPickerRouting):
+    """Keep the route each planned tour already has; route nothing.
+
+    The routing counterpart of ``PickListProvider``: a decision that only
+    schedules tours an earlier decision planned and routed takes each tour's
+    route as it is, so a route is computed once. Every batch must be the
+    batch of a planned tour the decision may revise, with a route from the
+    depot; a pick list without a route needs a router instead.
+    """
+
+    def run(self):
+        batching_sol = load_pickle(self.input()["batching_sol"]["batching_sol"].path)
+        planned = {view.batch.order_numbers: view.route
+                   for view in rebuildable_tours(self._load_plan()) if view.route is not None}
+        routes = []
+        for batch in batching_sol.batches:
+            route = planned.get(batch.order_numbers)
+            if route is None:
+                raise ValueError(f"PlannedRoutes: batch {batch.batch_id} (orders "
+                                 f"{sorted(batch.order_numbers)}) has no planned route")
+            route.batch = batch
+            routes.append(route)
+        dump_pickle(self.output()["routing_sol"].path, CombinedRoutingSolution(
+            algo_name="PlannedRoutes", execution_time=0.0, routes=routes))
 
 
 class GivenSequence(PickerRouting):

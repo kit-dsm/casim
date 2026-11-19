@@ -1,8 +1,0 @@
-components:
-- casim.pipelines.problem_based_template.InstanceLoader
-- casim.pipelines.problem_based_template.OrdersProvider
-- casim.pipelines.subproblems.item_assingment.RecordedIA
-- casim.pipelines.subproblems.batching.RecordedTours
-- casim.pipelines.problem_based_template.PickListProvider
-- casim.pipelines.subproblems.picker_routing.UShape
-- casim.pipelines.subproblems.scheduling.FIFOScheduler

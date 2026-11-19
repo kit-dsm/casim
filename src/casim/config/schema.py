@@ -11,7 +11,7 @@ from ware_ops_algos.planning.scope import RevisionScope, StateInformation
 from ware_ops_algos.planning.validation import check_scope
 
 from casim.decision_engine.commitment_policies import (
-    CommitAllPolicy, SchedulingCommitmentPolicy, WindowCommitmentPolicy,
+    CommitAllPolicy, PlanOnlyPolicy, SchedulingCommitmentPolicy, WindowCommitmentPolicy,
 )
 from casim.pipelines.taxonomy import TAXONOMY
 
@@ -26,9 +26,11 @@ class PeriodicTrigger(StrictModel):
 
 _POLICIES = {
     f"{policy.__module__}.{policy.__name__}": policy
-    for policy in (CommitAllPolicy, SchedulingCommitmentPolicy, WindowCommitmentPolicy)
+    for policy in (CommitAllPolicy, PlanOnlyPolicy, SchedulingCommitmentPolicy,
+                   WindowCommitmentPolicy)
 }
-Policy = CommitAllPolicy | SchedulingCommitmentPolicy | WindowCommitmentPolicy
+Policy = (CommitAllPolicy | PlanOnlyPolicy | SchedulingCommitmentPolicy
+          | WindowCommitmentPolicy)
 
 
 class DecisionConfig(StrictModel):
