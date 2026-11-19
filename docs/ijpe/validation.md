@@ -1,8 +1,9 @@
 # IJPE order-level time validation (P1.2)
 
 The cohort is the 1,414 located orders picked by one recorded picker on six
-April 2026 days. CASIM replays the inferred recorded tours and line sequence,
-but calculates setup, travel and pick times itself. An order's processing span
+April 2026 days. CASIM replays each recorded order as one tour with its
+recorded line sequence, each tour held to its recorded start (anchored,
+`sweep=anchored`), but calculates setup, travel and pick times itself. An order's processing span
 is from its first line start to its last line end. The WMS timestamps contain
 overlaps and unlabelled idle, so this is a conditional replay check, not a
 predictive reconstruction of every physical action. The cohort and trace
@@ -19,42 +20,45 @@ set and writes aggregate size-class errors to ignored outputs.
 
 For leave-one-day-out, each day's fit excludes that day. For the held-out
 comparison, the fit uses Monday 13 to Wednesday 15 April and is evaluated on
-Saturday 11, Thursday 16 and Friday 17 April. The held-out fit is 12.755
-seconds per line plus 0.148 seconds per package. The six leave-one-day-out
-fits range from 12.518 to 12.825 seconds per line and 0.135 to 0.147 seconds
+Saturday 11, Thursday 16 and Friday 17 April. The held-out fit is 13.843
+seconds per line plus 0.152 seconds per package. The six leave-one-day-out
+fits range from 13.249 to 13.540 seconds per line and 0.135 to 0.151 seconds
 per package. These values are calibration coefficients, not independently
 measured handling times.
 
 | Cohort and model | Orders | Bias, min | MAE, min | RMSE, min |
 |---|---:|---:|---:|---:|
-| Six days, submitted | 1,414 | -0.65 | 9.84 | 16.27 |
-| Six days, leave-one-day-out fit | 1,414 | -3.73 | 9.32 | 16.12 |
-| Held-out days, submitted | 586 | -2.39 | 8.74 | 14.95 |
-| Held-out days, Monday–Wednesday fit | 586 | -4.94 | 8.67 | 15.39 |
+| Six days, submitted | 1,414 | -5.86 | 9.19 | 15.58 |
+| Six days, leave-one-day-out fit | 1,414 | -7.82 | 9.28 | 16.30 |
+| Held-out days, submitted | 586 | -5.33 | 8.64 | 14.73 |
+| Held-out days, Monday–Wednesday fit | 586 | -6.77 | 8.52 | 15.13 |
 
 Bias is model span minus recorded span. Negative bias means CASIM finishes an
-order's span too quickly. The fit slightly lowers six-day pooled MAE and
-RMSE, but worsens held-out RMSE and negative bias. It does not validate a
-claim that calibration improves out-of-sample order duration.
+order's span too quickly. Both models are about 6 minutes too quick, since
+the recorded span of an order the picker worked on together with another one
+also holds the other order's lines, which the one-order tour does not. The
+fit worsens six-day MAE, RMSE and bias, and on the held-out days lowers MAE
+slightly but worsens RMSE and bias. It does not validate a claim that
+calibration improves out-of-sample order duration.
 
 | Lines per order | Orders, six days | Submitted RMSE, min | Leave-one-day-out RMSE, min | Held-out submitted RMSE, min | Held-out fitted RMSE, min |
 |---|---:|---:|---:|---:|---:|
-| 1–20 | 176 | 7.71 | 7.82 | 8.12 | 8.30 |
-| 21–40 | 472 | 14.92 | 14.45 | 13.88 | 13.97 |
-| 41–60 | 450 | 15.63 | 15.32 | 14.31 | 14.88 |
-| 61–80 | 223 | 19.78 | 20.00 | 20.51 | 21.34 |
-| Over 80 | 93 | 25.75 | 26.07 | 24.55 | 26.03 |
+| 1–20 | 176 | 9.42 | 9.47 | 10.38 | 10.33 |
+| 21–40 | 472 | 14.64 | 15.16 | 14.42 | 14.80 |
+| 41–60 | 450 | 14.24 | 14.91 | 13.72 | 14.20 |
+| 61–80 | 223 | 18.28 | 19.29 | 18.33 | 18.84 |
+| Over 80 | 93 | 25.51 | 27.12 | 23.56 | 24.20 |
 
 Order error increases strongly with size in both models. The held-out fitted
-RMSE is higher in every size class. No time model is fixed by this result;
+RMSE is higher in every size class but the smallest. No time model is fixed by this result;
 P1.3 must still check completion profiles, picker presence and tours at the
 system level, and P1.4 must isolate the effect of recorded assignment.
 
 # System-level validation (P1.3, P1.4)
 
-All runs keep the recorded batches (inferred tours) and recorded pick
-locations, route with U-shape and use the submitted time model unless
-stated. Measures are model minus WMS over the 1,414 orders and 95
+All runs make one tour of each recorded order (the WMS order is the picking
+tour) with its recorded pick locations, route with U-shape and use the
+submitted time model unless stated. Measures are model minus WMS over the 1,414 orders and 95
 picker-days; `scripts/ijpe/system_validation.py` writes them to ignored
 outputs.
 
@@ -63,16 +67,16 @@ and Kelton):
 
 1. Trace-driven: everything the WMS decided or recorded is replayed (the
    recorded tours, each to its recorded picker, the recorded presence and
-   absences); CASIM computes only setup, travel and picks. This isolates the
+   pauses); CASIM computes only setup, travel and picks. This isolates the
    time model, the graph and the routing (`calibrated_recorded` below).
 2. Distribution-driven: the setting of the experiments. CASIM's FIFO
-   assignment as a pull and absences drawn from a model fitted on the other
-   days (Fitted absences, below).
+   assignment as a pull and non-picking time drawn from distributions fitted
+   on the other days (Fitted non-picking time, below).
 
-FIFO with recorded absences is neither: it combines recorded absences with
-work the WMS did not record. A recorded absence sat between the tours its
-picker actually did; with FIFO the picker does other tours, so an absence
-meant for the gap between two tours can fall due inside a longer one. It is
+FIFO with recorded pauses is neither: it combines recorded pauses with work
+the WMS did not record. A recorded pause sat between the tours its picker
+actually did; with FIFO the picker does other tours, so a pause meant for the
+gap between two tours can fall due inside a longer one. It is
 kept as a diagnostic (it showed that push strands work, see below), not as
 validation.
 
@@ -83,82 +87,96 @@ its own and none tuned on the system-level results below:
 
 - presence: a picker arrives at the setup start of its first recorded tour
   and leaves after its last recorded line;
-- pauses: a recorded gap between tours over five minutes is a timed absence;
+- pauses: a recorded gap between tours over five minutes is a timed
+  departure (counting only time in which the picker has no line open);
 - stops inside tours: a gap between two lines, or a line's excess over 19 s,
-  over the same five minutes is a timed absence too
-  (`source.stops_in_tours`). CASIM does not interrupt a tour, so the absence
-  begins when the tour ends; the day keeps its recorded absence;
+  over the same five minutes is a timed departure too
+  (`source.stops_in_tours`). CASIM does not interrupt a tour, so the
+  departure begins when the tour ends; the day keeps its recorded pauses;
 - setup: 215 s per tour inside the recorded gap before it
   (`source.setup_in_gap`); the short gaps between tours have a median of
   188 s;
 - time per line: 16.26 s, so that CASIM's walking plus the line time covers
-  each recorded tour net of its stops. It is fitted on Monday to Wednesday;
-  on the other three days the tour bias is -0.15 min and the RMSE 6.0 min
-  per tour; the six days separately give 13.7 to 17.2 s
-  (`scripts/ijpe/line_time.py`).
+  each recorded tour net of its stops, fitted on Monday to Wednesday when a
+  tour was a picker's lines cut where no order was open (interleaved orders
+  shared one tour). With one tour per order the same method
+  (`scripts/ijpe/line_time.py`) gives 18.74 s (held-out bias +0.47 min, RMSE
+  6.3 min per tour; the six days separately 13.9 to 20.4 s), because an
+  order's window now also holds the lines of the other orders its picker had
+  open at the same time. The calibrated day keeps 16.26 s; the fitted
+  non-picking model does not use it (its line times come from its own fit).
 
-Why the stops matter. Without them, CASIM's pickers finished an hour early
-although per-order time was unbiased: 28 % of the recorded tours contain a
-stop of five minutes or more (99 h on the six days), and the submitted 19 s
-per line had absorbed part of it. With the stops as absences and the line
-time fitted net of them, the per-picker bias without forced departures goes
-from -78 to -10 minutes.
+Why the stops matter, measured when interleaved orders still shared a tour.
+Without them, CASIM's pickers finished an hour early although per-order time
+was unbiased: 28 % of the recorded tours contained a stop of five minutes or
+more (99 h on the six days), and the submitted 19 s per line had absorbed part
+of it. With the stops as timed departures and the line time fitted net of
+them, the per-picker bias without forced departures went from -78 to -10
+minutes; with one tour per order it is +14 minutes (below).
 
-Three runs, all after C7 (departures in request order), 18 November. The
-recorded assignment is a push: the recorded plan is committed into each
-picker's queue at the start. FIFO is a pull (`decisions/pull.yaml`): when the orders are in,
-OBRSP makes the recorded tours into pick lists, routes them (U-shape) and
-schedules them, and commits nothing; ORSP keeps their routes and gives the
-next tour to each picker that becomes free (about 220 decisions a day). The
-routes are computed once, which gives the same tours as routing all open pick
-lists at every decision.
+Three runs on the current code (19 November, one tour per recorded order).
+The recorded assignment is a push: the recorded plan is committed into each
+picker's queue at the start. FIFO is a pull (`decisions/pull.yaml`): when the
+orders are in, OBRSP makes the recorded tours into pick lists, routes them
+(U-shape) and schedules them, and commits nothing; ORSP keeps their routes
+and gives the next tour to each picker that becomes free (about 220 decisions
+a day). The routes are computed once, which gives the same tours as routing
+all open pick lists at every decision.
 
 | Run | Assignment | Presence | Open orders | Orders by 10:00 / 12:00 | Largest day error by 10:00 / 12:00 | Picker finish bias, min | Picker finish RMSE, min | Day's last line, mean error, min |
 |---|---|---|---:|---:|---:|---:|---:|---:|
-| `calibrated_recorded` | recorded | recorded | 86 | +32 / -13 | 11 / 15 | -26 | 52 | +19 |
-| `calibrated_fifo` (diagnostic) | FIFO, pull | recorded | 5 | +44 / +10 | 14 / 8 | -6 | 28 | +4 |
-| `calibrated_recorded_arrival` | recorded | no departure | 0 | +32 / -12 | 11 / 14 | -10 | 61 | +89 |
+| `calibrated_recorded` | recorded | recorded | 150 | -24 / -86 | 12 / 28 | -16 | 43 | +19 |
+| `calibrated_fifo` (diagnostic) | FIFO, pull | recorded | 87 | -30 / -76 | 15 / 28 | +6 | 13 | +18 |
+| `calibrated_recorded_arrival` | recorded | no departure | 0 | -24 / -85 | 12 / 28 | +14 | 72 | +137 |
 
-- Throughput up to midday is reproduced: on every day the orders completed
-  by 10:00 and 12:00 are within 15 of the WMS count with recorded
-  assignment and within 10 with FIFO; over six days CASIM is 32 to 37
-  orders ahead at 10:00 and level at 12:00.
-- Picker finish times are unbiased but noisy. The picker-day bias is -10
-  minutes when no picker is sent home. With recorded presence it reads -26
-  minutes because the measure is censored: a picker who runs late leaves at
-  the recorded time with work open (86 orders, 6 %) instead of finishing
-  late, so only early finishes remain. The spread (RMSE 61 minutes) comes
-  from tour errors adding up over about 12 tours per picker; picker-level
+| Day | Orders | Orders that overlap another order of their picker | FIFO, orders by 12:00 minus WMS | Recorded assignment, orders by 12:00 minus WMS |
+|---|---:|---:|---:|---:|
+| Saturday 11 | 233 | 5 | -3 | -16 |
+| Monday 13 | 259 | 83 | -18 | -16 |
+| Tuesday 14 | 263 | 72 | -16 | -17 |
+| Wednesday 15 | 306 | 133 | -28 | -28 |
+| Thursday 16 | 272 | 81 | -9 | -7 |
+| Friday 17 | 81 | 2 | -2 | -2 |
+
+- Throughput up to midday is not reproduced on every day. Over six days
+  CASIM is 24 to 30 orders behind at 10:00 and 76 to 86 behind at 12:00 (7
+  to 8 %). The error follows the interleaving: pickers worked on several
+  orders at once (376 of 1,414 orders overlap another order of the same
+  picker, almost all Monday to Thursday), and one tour per order with a cart
+  for one order does them one after another, with the line time fitted when
+  interleaved orders shared a tour. On the two days without interleaving the
+  FIFO day is within 3 orders of the WMS at 12:00.
+- Picker finish times are biased by +14 minutes when no picker is sent home,
+  with an RMSE of 72 minutes from tour errors adding up over about 15 tours
+  per picker. With recorded presence the bias reads -16 minutes because the
+  measure is censored: a picker who runs late leaves at the recorded time
+  with work open (150 orders, 11 %) instead of finishing late. Picker-level
   effects are not claimed.
 - The end of the day is not reproduced: either orders stay open (recorded
-  presence) or the last picker finishes late (+89 minutes on average without
-  departures).
-- FIFO as a pull reproduces the day: 5 open orders over six days (all on
-  Friday), picker finish RMSE 28 minutes (8 to 19 on five days) and the
-  day's last line within 4 minutes on average. Monday's picker RMSE is 58
-  minutes because of one picker: with FIFO it gets a longer tour than
-  recorded, four of its recorded absences fall due during it, and absences
-  take effect in request order, so they run back to back from 09:35 until
-  it leaves at 13:16. A free picker takes over work a late
-  picker would otherwise leave open, as on the floor. The recorded
-  assignment cannot: it fixes every tour to its picker, so the tour errors
-  add up per picker (RMSE 61 minutes without departures).
-- Pushed FIFO, as run before 18 November, planned the whole day at 05:30
-  into fixed queues, also for pickers not yet arrived or leaving early: 141
-  orders stayed in the queues of pickers who had left, while others stood
-  idle (on Monday 11 pickers stopped more than 10 minutes before their
-  recorded end, 22 h in total, with 52 orders open). `service.json` now
-  reports such stranded tours (`stranded`); with pull there are none.
+  presence) or the last picker finishes late (+137 minutes on average
+  without departures).
+- FIFO as a pull leaves 87 orders open over six days (Monday 25, Tuesday 18,
+  Wednesday 28, Thursday 10, Friday 6, Saturday none), with a picker finish
+  RMSE of 13 minutes and the day's last line 18 minutes late on average. A
+  free picker takes over work a late picker would otherwise leave open, as
+  on the floor; the recorded assignment fixes every tour to its picker, so
+  the tour errors add up per picker.
+- A FIFO push plans the whole day into fixed queues, also for pickers not yet
+  arrived or leaving early, so work stays in the queues of pickers who have
+  left while others stand idle (`tests/test_pull_assignment.py`).
+  `service.json` reports such stranded tours (`stranded`); with pull there
+  are none.
 
-Graph and routing, checked against the recorded line sequence. For tours of
-11 to 60 lines (765 of 1,172 tours, mostly one order) the shortest-path
-distance through the recorded sequence of lines equals CASIM's U-shape
-distance (median ratio 0.98 to 1.00); for tours of up to 10 lines U-shape is
-longer (median ratio 0.82, 77 tours). In tours over 100 lines (several orders, 26 % of lines)
-the recorded sequence jumps back and forth between orders (about 13 jumps
-of more than 40 m within 20 seconds per tour), which no picker can walk:
-there the confirmation order is not the walking order, and the comparison is
-not informative.
+Graph and routing, checked against the recorded line sequence of each of the
+1,414 one-order tours: the shortest-path distance through the recorded
+sequence equals CASIM's U-shape distance for tours of 11 to 60 lines (992
+tours, median ratio 0.99) and of 61 to 100 lines (278 tours, 1.00); it is 5 %
+longer for tours over 100 lines (38 tours) and 19 % shorter for tours of up
+to 10 lines (106 tours, median ratio 0.81), where U-shape walks whole aisles.
+The recorded sequence within an order is walkable: about one jump of more
+than 40 m within 20 seconds per tour. The back-and-forth jumps reported for
+the earlier tours (about 13 per tour over 100 lines) came from interleaved
+orders merged into one tour.
 
 ## Fitted non-picking time (distribution-driven validation)
 
@@ -250,8 +268,8 @@ breaks plus allowance per working hour (`scripts/ijpe/non_picking_validation.py`
 
 The runs below each change one assumption, with the submitted 19 s per line
 and without stops inside tours. They were run before C7, so runs with
-recorded presence lose up to 0.6 h of pause over the six days. They are not
-rerun. Their conclusion on presence holds; their picker-level numbers are
+recorded presence lose up to 0.6 h of pause over the six days, and before one
+tour per order, when interleaved orders shared a tour. They are not rerun. Their conclusion on presence holds; their picker-level numbers are
 superseded by the calibrated day, and the finding that the fitted pick time
 makes every measure worse held only while the stops inside tours were
 missing. Selected five-minute pauses are timed departures. Presence is either
@@ -334,17 +352,18 @@ limit is not used to reproduce the WMS.
 
 ## What the case supports
 
-- Order-level time with the submitted model: unbiased on average
-  (-0.65 min), 16 min RMSE (order spans include the stops inside tours).
-- Tour time net of stops with the calibrated line time: bias -0.15 min,
-  RMSE 6.0 min per tour on held-out days.
-- Daily throughput up to midday on the calibrated day: within 15 orders of
-  the WMS count at 10:00 and 12:00 on every day with recorded assignment,
-  within 10 with FIFO. This is the window of the disruption scenarios (07:30
-  to 13:00).
-- Picker-day time without bias (-10 minutes without forced departures).
+- Order-level time with the submitted model: 6 minutes too quick on average
+  (-5.86 min), 16 min RMSE (recorded order spans include the stops inside
+  tours and the lines of interleaved orders).
+- Tour time net of stops with a fitted line time: held-out bias +0.47 min,
+  RMSE 6.3 min per one-order tour (18.74 s per line).
+- Daily throughput up to midday on the trace-driven calibrated day: within
+  3 orders of the WMS on the days without interleaving, up to 28 orders
+  (13 %) behind on the days with many interleaved orders, 7 to 8 % behind
+  over six days at 12:00. This is the window of the disruption scenarios
+  (07:30 to 13:00).
 - Not validated: the end of the day, individual picker finish times (RMSE
-  an hour) and busy shares.
+  over an hour without departures, bias +14 minutes) and busy shares.
 
 - With fitted non-picking time (breaks, tour setup and line time) and FIFO
   assignment, the six-day throughput by 12:00 within 1 % of the WMS (90 %
