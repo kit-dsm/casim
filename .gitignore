@@ -30,6 +30,7 @@ Thumbs.db
 
 # Project-specific
 outputs/
+!src/casim/outputs/
 tests/data/instances/caches/
 scenarios/walk_or_wait/data/radar/raw/
 scenarios/walk_or_wait/data/radar/selected/
