@@ -7,42 +7,42 @@
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "0e7189d7f3a2dde65bc6a94e7adb6cfb2ae631ea",
-  "ware_ops_algos_commit": "967270f559c073544f5b3f112dbe62cac3f7a763",
+  "casim_commit": "aee3811a244c7b515a44d8dc77a90856482f425a",
+  "ware_ops_algos_commit": "340ca6ba726816f7bd922de5b5a476921901529b",
   "kpis": {
     "makespan": 53848.43365134485,
-    "mean_order_completion_time": 17951.48627887013,
-    "num_tours": 206,
+    "mean_order_completion_time": 17688.23367277615,
+    "num_tours": 259,
     "num_orders_completed": 259,
-    "avg_tour_makespan": 1269.0374497934451,
-    "avg_batch_size": 1.2572815533980584,
+    "avg_tour_makespan": 984.882267845962,
+    "avg_batch_size": 1.0,
     "orders_per_hour": 17.315266884772488,
-    "tours_per_hour": 13.771988333062287,
+    "tours_per_hour": 17.315266884772488,
     "distance_by_picker": {
-      "digest": "56b848d03a6f371a4ef0c13c14ce7f02bf94ad05676b0135c7f19f5f4b7ac890",
+      "digest": "4651627fc034d26a3d2c688b6a0212b63ba4e5d308bcd180c38aeb211fcc2eef",
       "size": 17
     },
     "idle_time_by_picker": {
-      "digest": "3773453e9135148c99663d4e3262eb4e53a3fe9e2a52aae736cab8b91f6e90de",
+      "digest": "fc944283a54339c0c7045e155ea6d007f8fd27898d6e9c8f8c34e3b2aedc0994",
       "size": 17
     },
     "busy_time_by_picker": {
-      "digest": "82838ac1861d7045e2829172ca3979135cd51b6e1f88991dfe651e1d502b3507",
+      "digest": "dce92afa01308a3ea36aa8e8364c4329537914b7dc6f8c311818e5373c1fc370",
       "size": 17
     },
     "absent_time_by_picker": {
       "digest": "8c5175a8961bb800a442af99e8e1fa9b873523a8562777dd19c9e03bba19fff5",
       "size": 17
     },
-    "total_distance": 158520700.0,
+    "total_distance": 143907100.0,
     "total_delayed": 0,
     "dock_utilization": {
-      "digest": "50024dc19cd9b8a738b7f34d4d0a88e0afaf134e979f88299d7be7ea35029180",
-      "size": 206
+      "digest": "c2063ee79126611711b8ffd56589022251baf47297e684f759f3637656f0788e",
+      "size": 259
     },
-    "total_tour_times": 261421.7146574497,
+    "total_tour_times": 255084.50737210416,
     "picks_per_hour": 677.9695809979838,
-    "total_processing_time": 261421.7146574497
+    "total_processing_time": 255084.50737210416
   },
   "decisions": {
     "decisions": 1,
@@ -56,8 +56,8 @@
       "count": 0
     }
   ],
-  "trace_digest": "a44efabd635a789736ef93fdc3a106d471883d74813c8400db8fcaa6b4950347",
-  "event_count": 239504,
+  "trace_digest": "8b66d60a4da8712b4d7a15526c94a6dbdb6f368f1526eb19a7eb0b7bb812633f",
+  "event_count": 221116,
   "violations": {},
   "first_violations": {
     "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
