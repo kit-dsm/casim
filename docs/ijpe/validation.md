@@ -160,55 +160,91 @@ of more than 40 m within 20 seconds per tour), which no picker can walk:
 there the confirmation order is not the walking order, and the comparison is
 not informative.
 
-## Fitted absences (distribution-driven validation)
+## Fitted non-picking time (distribution-driven validation)
 
-The calibrated day takes every absence from the record. The experiments
-cannot: they need absences that are modelled, not replayed. The roster (when
-each picker arrives and leaves) stays an input, as a planner knows it; the
-absences during the shift come from a model (`source.absences=fitted`,
-`casim/sources/absence.py`). The recorded absences are 229 h, 34 % of the
-665 present picker-hours of the six days. The model has two parts:
+The calibrated day takes its pauses and stops from the record. The experiments
+cannot: they need non-picking time that is modelled, not replayed. The roster
+(when each picker arrives and leaves) stays an input, as a planner knows it.
+The recorded pauses and stops mixed three things: gaps between tours, gaps
+inside tours and the excess of long scanner lines over the pick time, the
+last of which is not observed absence. The fitted model has three parts
+instead, each measured on the picker's time without any WMS record and each
+fitted, for a day, on the other five days (`scripts/ijpe/fit_non_picking.py`,
+which writes the fit to `data/non_picking/<day>.json`; `source.non_picking=fitted`
+reads it):
 
-- scheduled breaks around 08:00 and 12:00: in each window (07:00 to 09:30,
-  10:30 to 13:30) a picker's longest absence of at least 10 minutes is its
-  break. Every present picker takes the morning break (median 30 minutes,
-  around 09:00), 84 % the midday break (median 40 minutes, around 12:15);
-  together 110 h, 17 % of present time. Time and duration are drawn together
-  from the recorded breaks of the window;
-- allowance, every other absence (personal needs, fatigue, delays; the
-  record does not say what): a Poisson process per picker with its own rate
-  and durations in three parts of the picker's presence. In the first hour
-  1.05 absences per hour (median 9 minutes), 28 % of the time: start-up; in
-  the regular time 0.80 per hour (median 8 minutes), 17 %; in the last hour
-  0.80 per hour (median 6 minutes), 11 %: wind-down. A single rate over the
-  whole presence put too little absence before 08:00 (43 h drawn against 58
-  h recorded) and too much at the end, and the days ran 8 % ahead by 12:00;
-- each day is fitted on the other five days; the draws depend only on seed
-  and roster, so all policies of a replication see the same absences. As
-  recorded absences, they begin when the running tour ends.
+- breaks, tied to the clock: in each window (07:00 to 09:30, 10:30 to 13:30)
+  a picker's longest spell without a record of at least 10 minutes is its
+  break, whether it lies between tours, inside a tour or is a line that long.
+  Fitted on five days (Tuesday left out), 99 % of present pickers take the
+  morning break and 83 % the midday break, each about 40 minutes on average;
+  start and duration are drawn together. Breaks are timed departures, as
+  before;
+- tour setup: the time without a record between two tours of a picker, net of
+  a break in it and of the walk to and from the depot, which the simulation
+  walks itself. Mean 235 s, median 89 s, 90th percentile 509 s, 99th
+  percentile 50 minutes; tours that start before the previous one ended give
+  zero. A picker's first setup of the day stays the fixed 215 s that defines
+  its arrival;
+- line time: a line's duration plus the time without a record before it
+  inside its tour, net of the walk from the previous line, by quantity class
+  (up to 6, 7 to 12, 13 to 24, over 24 packages: means 16.2, 17.8, 21.6 and
+  43.2 s). Lines that hold another record of the picker inside them, or
+  overlap a record outside the cohort, are bookkeeping and left out (3,675
+  lines over six days, most on the days with interleaved orders); a line
+  inside another one, left by a picker working two orders at once, is kept;
+- time covered by the picker's WMS records outside the cohort (aisle 10,
+  shared orders) is work and left out of every fit (7.1 h over six days);
+- the source fixes the realized times of a run in W_0 as the process truth
+  (C8): each line's time is drawn from a stream seeded by seed, day and order
+  (one draw per position), each picker's setups from a stream seeded by seed,
+  day and picker, so every policy of a replication meets the same times.
+  Execution takes these times; the resources plan with the means (setup, and
+  line time by quantity class, `ClassPickTime`), and no decision sees the
+  truth. The empirical distributions keep their observed tails; no
+  parametric tail is added. There is no separate allowance.
 
-Thirty replications per day, FIFO as a pull, the calibrated time model
-(`scripts/ijpe/absence_validation.py`):
+Thirty replications per day, FIFO as a pull, against the previous model of
+breaks plus allowance per working hour (`scripts/ijpe/non_picking_validation.py`;
+"recorded pauses" is the trace-driven run, unchanged as a diagnostic):
 
-| Assignment | Orders by 10:00, six days | Orders by 12:00, six days | Open orders | WMS inside the 90 % band at 12:00 |
+| Six days | Orders by 10:00 | Orders by 12:00 | Open orders | WMS inside the 90 % band, days at 10:00 / 12:00 |
 |---|---:|---:|---:|---:|
 | WMS | 626 | 1,031 | 0 | |
-| FIFO, recorded absences (diagnostic) | 670 | 1,041 | 5 | |
-| FIFO, fitted absences, mean (90 % band) | 682 (662 to 703) | 1,085 (1,057 to 1,113) | 12 (0 to 26) | 3 of 6 days |
+| Recorded pauses (diagnostic) | 596 | 955 | 87 | |
+| Breaks plus allowance, mean (90 % band) | 611 (590 to 633) | 985 (956 to 1,017) | 81 (65 to 110) | 2 / 2 |
+| Breaks, setup and line time, mean (90 % band) | 641 (623 to 665) | 1,026 (998 to 1,048) | 53 (31 to 73) | 2 / 1 |
 
-- Open work stays small with fitted absences (12 orders over six days), as
-  with recorded absences.
-- By 12:00 the fitted days are 5 % ahead of the WMS. Most of it is Monday
-  (+38 of +54 orders): Monday had 51 h of absence, the model fitted on the
-  other days draws about 36 h. Without Monday the five days are within 2 %.
-  Thursday goes the other way (about 10 h more drawn than recorded). A model
-  fitted on other days reproduces the average day, not each day's level, and
-  the paper says so.
-- With recorded and with fitted absences the days are ahead at 10:00 (7 to 9 %);
-  this comes from the time model, not from the absences.
-- Recorded assignment is not combined with fitted absences: the recorded
-  work plan gave each picker the work it managed given its own absences,
-  which drawn absences do not respect.
+| Tour duration, minutes, six days | Mean | 10th | 50th | 90th | 99th percentile |
+|---|---:|---:|---:|---:|---:|
+| WMS, first line to last | 23.4 | 6.2 | 18.9 | 48.9 | 82.8 |
+| WMS, orders that overlap no other order of the picker | 21.1 | 6.0 | 16.6 | 46.1 | 82.6 |
+| Recorded pauses and breaks plus allowance | 16.7 | 8.7 | 16.0 | 26.1 | 37.2 |
+| Breaks, setup and line time | 20.5 | 8.3 | 18.2 | 35.9 | 59.8 |
+
+- Over six days the new model reproduces the WMS by 12:00 (1,026 against
+  1,031, the WMS inside the 90 % band) and is 2 % ahead by 10:00; the previous
+  model was 4 % behind by 12:00. Open orders fall from 81 to 53.
+- Tour durations come close to the WMS in mean and median. The WMS tail is
+  longer because a break taken inside a tour stretches the WMS tour, while in
+  CASIM it begins when the tour ends (a tour is never interrupted). The
+  previous model left every stop inside a tour to the tour's end, so its tours
+  were as short as the trace's.
+- Residual. Per day the WMS lies inside the band on 2 days by 10:00 and on 1
+  day by 12:00. By 12:00 the model is ahead on Saturday (+21 orders, 10 %),
+  Monday (+24, 13 %) and Friday (+21 on 36), behind on Wednesday (-38, 17 %)
+  and Thursday (-28, 15 %), and within 5 orders on Tuesday. The band holds only the
+  model's randomness, not the level of a day. Wednesday and Thursday are also
+  behind in the trace-driven run (-28 and -9 by 12:00), and they are the days
+  with the most interleaved orders (133 and 81 of 306 and 272 orders overlap
+  another order of the same picker), which a cart for one order serializes;
+  the 53 open orders are mostly theirs (29 and 21). Saturday and Friday have
+  few pickers and a pattern unlike the weekdays the model is fitted on. A
+  model fitted on other days reproduces the average day, not each day's
+  level. Nothing is added back for this residual.
+- Recorded assignment is not combined with fitted non-picking time: the
+  recorded work plan gave each picker the work it managed given its own
+  pauses, which drawn breaks do not respect.
 
 ## How the calibration was found (diagnostics, before C7)
 
@@ -310,11 +346,13 @@ limit is not used to reproduce the WMS.
 - Not validated: the end of the day, individual picker finish times (RMSE
   an hour) and busy shares.
 
-- With fitted absences and FIFO assignment, the six-day throughput by
-  12:00 within 1 % of the WMS (90 % band of 30 replications contains it).
+- With fitted non-picking time (breaks, tour setup and line time) and FIFO
+  assignment, the six-day throughput by 12:00 within 1 % of the WMS (90 %
+  band of 30 replications contains it); single days differ by up to 17 %.
 
 Disruption and policy results are therefore reported as comparisons between
-policies on the calibrated day with fitted absences and the recorded roster
-(`variants=calibrated source.absences=fitted`, replications with common
-seeds across policies), measured on throughput and on-time completion up to
+policies on the calibrated day with fitted non-picking time and the
+recorded roster (`variants=calibrated source.non_picking=fitted`, a shared
+break roster through `source.breaks` where policies are compared, and
+replications with common random numbers per order line across policies), measured on throughput and on-time completion up to
 midday, not as predicted picker-level effects in this warehouse.

@@ -41,13 +41,21 @@ What the source emits for a day (P1.1):
   gap's duration, which begins when the running tour ends. Shorter gaps
   vanish. With `source.stops_in_tours`, a stop inside a tour over the same
   threshold (a gap between lines, or a line's excess over 19 s) is a timed
-  absence too, beginning when the tour ends; otherwise stops inside a tour
-  are not modelled. `source.absences` says where the absences come from:
-  `recorded` (these pauses and stops), `fitted` (scheduled breaks and
-  allowance drawn from a model fitted on the other study days,
-  `casim.sources.absence`, with replication seed `source.absence_seed`; the
-  roster stays recorded) or a list of `[start_s, end_s]` (fixed breaks for
-  every picker). Every absence is a timed `PickerDeparture`. The sweep
+  departure too, beginning when the tour ends; otherwise stops inside a tour
+  are not modelled;
+- non-picking time (`source.non_picking`): `recorded` takes these pauses and
+  stops (the trace-driven diagnostic); `fitted` reads the day's fit of
+  breaks, tour setup and line time on the other study days
+  (`python -m scripts.ijpe.fit_non_picking` writes `data/non_picking/<day>.json`)
+  and draws with replication seed `source.seed`; the roster stays recorded.
+  Breaks are timed `PickerDeparture`s in the break windows; the realized time
+  of every order line and of every setup of a picker is fixed in W_0 as the
+  process truth (C8), the same for every policy of a replication, while the
+  resources plan with the means and no decision sees the truth. `source.breaks` (a list of `[start_s, end_s]`) replaces
+  the fitted breaks by the same breaks for every picker; `fixed` takes only
+  such a break list with the deterministic times. Time covered by a picker's
+  WMS records outside the replayed lines is work and is left out of every
+  fit. The sweep
   `days_thresholds` compares 2, 5 and 10 minutes. The selected threshold is
   5 minutes; `variants/recorded_presence.yaml` uses it. In
   anchored runs (`source.pause_threshold_s=null`, the default) there are no

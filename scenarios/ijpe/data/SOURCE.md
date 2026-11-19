@@ -19,3 +19,9 @@ The workbook's content is described in `docs/ijpe/data_audit.md`.
 
 `layout.csv` is the warehouse's grid layout, a copy of the tracked
 `scenarios/scenario_ijpe/data/layout.csv`, read by `casim.sources.grid_layout`.
+
+`non_picking/<day>.json` holds the fit of breaks, tour setup and line time for
+each study day on the other five days, written by
+`python -m scripts.ijpe.fit_non_picking` from the export. It holds samples
+taken from the export at picker-day and line level, so it is confidential and
+ignored like the export; rerun the script to restore it.

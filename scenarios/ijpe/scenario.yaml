@@ -20,7 +20,8 @@ source:
   per_unit_s: null             # s per package (R1.7); null: time_per_pick per line
   setup_in_gap: false          # true: setup in the recorded gap before a tour's first line
   stops_in_tours: false        # chained: stops inside a tour over the threshold are pauses
-  absences: recorded           # recorded | fitted (breaks and allowance fitted on the other days) | [[start_s, end_s], ...] fixed breaks
-  absence_seed: 0              # replication seed of fitted absences
+  non_picking: recorded        # recorded (pauses, stops) | fitted (breaks, tour setup, line time from the other days) | fixed (breaks only)
+  breaks: null                 # [[start_s, end_s], ...]: the same breaks for every picker (fixed; with fitted a shared roster)
+  seed: 0                      # replication seed of fitted non-picking time
   presence: shift              # recorded: arrive at the first tour, leave after the last line
   due_plan: null                # fixed_dispatch: synthetic store slot minus 30 min staging

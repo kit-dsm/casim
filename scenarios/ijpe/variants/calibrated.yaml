@@ -1,11 +1,13 @@
 # @package _global_
 # The calibrated day (docs/ijpe/validation.md): one tour per recorded order as pick
-# lists (OBP, once), U-shape routing and FIFO assignment as a pull (ORSP, each
-# free picker takes the next tour; decisions/pull.yaml);
+# lists, U-shape routing, both once (OBRSP, plan only), and FIFO assignment as a
+# pull (ORSP, each free picker takes the next tour; decisions/pull.yaml);
 # recorded presence; gaps between tours and stops inside tours over five
-# minutes are timed absences; the 215 s setup lies inside the recorded gap
-# before a tour; 16.26 s per line, fitted on Monday to Wednesday tour time net
-# of stops (scripts/ijpe/line_time.py).
+# minutes are timed departures (the trace-driven diagnostic); the 215 s setup
+# lies inside the recorded gap before a tour; 16.26 s per line, fitted on
+# Monday to Wednesday tour time net of stops (scripts/ijpe/line_time.py).
+# With source.non_picking=fitted, breaks, tour setup and line time are drawn
+# from the day's fit on the other days instead (scripts/ijpe/fit_non_picking.py).
 # Each tour to its recorded picker: decisions=recorded cosy_repo=recorded_ushape
 # (a push of the recorded plan; the recorded decision sees every picker).
 defaults:
