@@ -22,5 +22,7 @@ Two experiment setups can be found in scenarios/.
 In scenarios/scenario_grocery_retailer you can find the results of a real-life using from an european grocery retailer. 
 We provide the configuration, experiment scripts and detailed results. 
 
+In scenarios/scenario_ijpe you can reproduce the results of the IJPE submission (tag `ijpe-2026`); see its README.
+
 In scenarios/scenario_henn_online we reproduce two classic waiting strategy approaches as detailed in Henn 2012. 
 This can be used as a starting point to get familiar with the framework.

@@ -31,3 +31,6 @@ Thumbs.db
 # Project-specific
 outputs/
 tests/data/instances/caches/
+# IJPE: the partner's data and everything derived from it (confidential)
+scenarios/scenario_ijpe/data/*
+!scenarios/scenario_ijpe/data/layout.csv
