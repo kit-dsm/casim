@@ -2,6 +2,23 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-20: Week scenarios on the warehouse's lists (P2)
+
+**Decision (user).** The week's disruption variants are the warehouse's
+lists S1, S2, S3 and S5 as defined in `scenarios/ijpe_week/variants/`:
+the submitted due times as picking deadlines, a deadline applied only if
+earlier than the order's slot deadline, Scenario 3 on Wednesday.
+
+**Checks.** `tests/verification/test_ijpe_week_variants.py` (on the data):
+S1 advances 30 orders, S2 27 (listed orders due earlier keep their
+deadline), S3 adds three template copies on Wednesday 08:30, S4 moves 63
+Thursday orders of S5 to Wednesday 06:30, S2+S4 marks the union.
+
+**Runs** (seed 0, EDD, one each; affected orders late / all orders late of
+1,414): S1 0 of 30 / 113; S2 15 of 27 / 133; S3 0 of 3 / 110 (1,417 orders);
+S4 0 of 63 / 294; S2+S4 7 of 76 / 307. Orders still open at the end of the
+stream are not counted as late here.
+
 ## 2026-11-20: Disruptions only on the week
 
 **Decision (user).** The experiments use only the week (`scenarios/ijpe_week`,
@@ -15,9 +32,7 @@ trigger of `decisions/pull.yaml` stays, harmless). P2.1 had found, on the
 warehouse's lists: S1 (Mon 07:30, due 10:00) affects 30 orders, S2 (Thu
 10:30, due 11:00) 27, S3 (Wed 08:30) three copies of the template (6 TU /
 2.6), S4 (Wed 06:30) 63 Thursday orders of S5; the week variants reproduce
-these rules. Open to the user, and pending the revised manuscript's text:
-the submitted due times read as picking deadlines, only earlier deadlines
-applied, Scenario 3 on Wednesday instead of the submitted Tuesday.
+these rules. The user accepted these definitions (entry above).
 
 ## 2026-11-19: Everything reads the canonical tables
 
