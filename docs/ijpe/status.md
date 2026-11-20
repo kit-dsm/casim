@@ -2,6 +2,23 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-20: Disruptions only on the week
+
+**Decision (user).** The experiments use only the week (`scenarios/ijpe_week`,
+one order stream, exogenous rules), not single days.
+
+**Done.** The single-day disruptions of P2.1 are removed from
+`scenarios/ijpe` (`DISRUPTIONS`, `source.disruption`, the arriving orders,
+`listed_orders`, `template_positions`, `tests/verification/test_ijpe_disruptions.py`);
+the single-day replay and validation are unchanged (the `OrderArrival`
+trigger of `decisions/pull.yaml` stays, harmless). P2.1 had found, on the
+warehouse's lists: S1 (Mon 07:30, due 10:00) affects 30 orders, S2 (Thu
+10:30, due 11:00) 27, S3 (Wed 08:30) three copies of the template (6 TU /
+2.6), S4 (Wed 06:30) 63 Thursday orders of S5; the week variants reproduce
+these rules. Open to the user, and pending the revised manuscript's text:
+the submitted due times read as picking deadlines, only earlier deadlines
+applied, Scenario 3 on Wednesday instead of the submitted Tuesday.
+
 ## 2026-11-19: Everything reads the canonical tables
 
 **Done.** `scripts/ijpe/canonical.py` is the only reader of the WMS workbook
@@ -55,58 +72,13 @@ orders are open when the stream ends. Under EDD, Scenario 1's 30 orders are
 on time, Scenario 2 leaves 15 of 27 late, Scenario 4's 63 moved orders are on
 time while 127 other Wednesday orders are late.
 
-**Open.** `scenarios/ijpe` keeps its single-day `DISRUPTIONS` (P2.1, entry
-below) until the week replaces them in the experiments; its pull does not
-yet use `per_resource`. The scenario choices of P2.1 (submitted due times as
-picking deadlines, only earlier deadlines, Scenario 3 on Wednesday) carry
-over to the variants and still await the user's OK.
+**Open.** The pull of `scenarios/ijpe` does not yet use `per_resource`.
 
 **Checks.** `tests/test_exogenous.py` (synthetic order stream, every rule),
 a commitment test for `per_resource`; the decision schema regenerated;
 compare-fast and the six ijpe_replay baselines are equal; pytest has the 13
 `test_component_smoke` failures that HEAD has; `casim check --all` reports
 only the untracked `scenario_ijpe` and `scenario_dm` folders.
-
-## 2026-11-19: P2.1, the disruption scenarios from the warehouse's lists
-
-**Done.** The fixed model is `variants/fitted.yaml` (decision of the user,
-19 November): FIFO as a pull, line time, setup and breaks fitted on what one
-person did, recorded arrivals only, one picker per login, the synthetic
-dispatch deadlines; staffing is a sensitivity (`source.extra_pickers`). The
-IJPE source builds the paper's disruptions as source events
-(`source.disruption`, `DISRUPTIONS` in `scenarios/ijpe/source.py`):
-
-| Scenario | Day, announcement | Change | Affected orders | Submitted |
-|---|---|---|---:|---|
-| 1 | Mon 07:30 | orders of list S1 due at 10:00 if due later (`TruckDisruption`) | 30 of the list's 48 (47 replayed) | 72 orders due >= 13:00 |
-| 2 | Thu 10:30 | orders of list S2 due at 11:00 if due later | 27 of 38 (33 replayed) | up to 75 orders, 120 TU |
-| 3 | Wed 08:30 | template order of S3 (52 located lines) arrives 3 times (6 TU / 2.6), due 10:00 | 3 | Tue, 4 generated orders |
-| 4 | Wed 06:30 | Thursday's orders of list S5 arrive on Wednesday, due 10:00; Thursday without them | 63 of 76 | 20 orders |
-
-**Choices** (open to the user). The new due time is the submitted
-scenario's, read as a picking deadline, not a departure minus staging: with
-30 minutes of staging, Scenario 2's deadline would fall on its announcement.
-A listed order already due earlier keeps its deadline, because the synthetic
-slots do not know the warehouse's trucks (17 of S1's and 6 of S2's orders
-are in the 10:00 slot; S2 would otherwise relax them). Scenario 3 runs on
-the list's day (Wednesday), not the submitted Tuesday. Listed orders that the
-day already holds, picked a day early, stay as they are.
-
-**Mechanics.** Orders that arrive during the day get their pick list when
-they arrive (`OrderArrival` triggers the plan-only OBRSP of
-`decisions/pull.yaml`; at the shift start it is still one decision, and the
-calibrated FIFO and capacity runs keep their trace digests). The order stream
-closes after the last arrival. An added order gets one tour in the recorded
-plan with its lines at their recorded (S5) or template (S3) places and no
-recorded picker (-1): the plan is where an order line is picked. Under FIFO,
-which ignores due dates, every affected order is late (smoke runs, seed 0),
-as "no reaction" should be; the policies are P4.1.
-
-**Checks.** Four tests on the data (`tests/verification/test_ijpe_disruptions.py`);
-the ijpe_replay baselines are equal; pytest has the 13 failures of
-`test_component_smoke` that HEAD has (missing local benchmark instances);
-`casim check --all` reports only the untracked `scenario_ijpe` and
-`scenario_dm` folders.
 
 ## 2026-11-19: Code structure: one output record, packages instead of loose files
 

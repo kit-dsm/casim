@@ -1,7 +1,7 @@
 # The pick lists are the recorded tours, routed once: OBRSP batches the orders
 # into the recorded tours, routes them (U-shape) and schedules them (EDD) when
-# the orders are in (again for orders that arrive during the day, which a
-# disruption can add), and commits nothing. ORSP keeps their routes and hands
+# the orders are in (again for any order that arrives later), and commits
+# nothing. ORSP keeps their routes and hands
 # each picker that becomes free the open tour due first (pull, EDD: earliest
 # due date of the tour's orders, ties in pick-list order), so a due date that
 # changes counts at the next dispatch. It needs due dates

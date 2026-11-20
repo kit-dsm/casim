@@ -1,5 +1,5 @@
 # @package _global_
-# The model of the disruption and policy experiments (docs/ijpe/validation.md,
+# The single-day model of the policy validation (docs/ijpe/validation.md,
 # capacity and staffing): one tour per recorded order as pick lists, U-shape
 # routing and EDD as a pull (decisions/pull.yaml); line time, tour setup and
 # breaks fitted on the other days on what one person did
@@ -9,7 +9,7 @@
 # (source.extra_pickers for the staffing sensitivity); the synthetic fixed
 # dispatch deadlines (docs/ijpe/departure_fallback.md). The setup lies inside
 # the recorded gap before a picker's first tour, which defines its arrival.
-# Disruptions: source.disruption (source.py DISRUPTIONS).
+# Disruptions run on the week (scenarios/ijpe_week variants).
 defaults:
   - override /cosy_repo: recorded_tours_edd_ushape
   - override /decisions: pull

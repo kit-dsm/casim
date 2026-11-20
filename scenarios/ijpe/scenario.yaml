@@ -24,6 +24,5 @@ source:
   breaks: null                 # [[start_s, end_s], ...]: the same breaks for every picker (fixed; with fitted a shared roster)
   seed: 0                      # replication seed of fitted non-picking time
   extra_pickers: 0             # pickers added to the logins (staffing sensitivity; presence shift or arrival)
-  disruption: null             # scenario1 .. scenario4, scenario4_next_day (source.py DISRUPTIONS; needs due_plan fixed_dispatch)
   presence: shift              # recorded: arrive at the first tour, leave after the last line
   due_plan: null                # fixed_dispatch: synthetic store slot minus 30 min staging
