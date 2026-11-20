@@ -28,8 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import pandas as pd
 
-from casim.sources.grid_layout import GridLayout
-from casim.sources.wms_export import day_lines
+from scenarios.ijpe.source import day_lines
 from scripts.ijpe import OUTPUTS, SCENARIO
 from scripts.ijpe.system_validation import DAYS
 
@@ -80,8 +79,7 @@ def _measures(root) -> tuple[dict, np.ndarray]:
 
 
 def _wms(day: str) -> tuple[dict, np.ndarray]:
-    _, locations = GridLayout().build(SCENARIO / "data" / "layout.csv")
-    lines, _ = day_lines(day, GridLayout.pick_nodes(locations), SCENARIO / "data" / "cache")
+    lines, _ = day_lines(day)
     ends = (lines.groupby("order").end.max() - pd.Timestamp(day)).dt.total_seconds()
     spans = lines.groupby("order").agg(start=("start", "min"), end=("end", "max"))
     durations = (spans.end - spans.start).dt.total_seconds().to_numpy() / 60

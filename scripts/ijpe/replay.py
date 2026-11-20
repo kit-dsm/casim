@@ -24,11 +24,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from casim.sources.grid_layout import GridLayout
 from casim.sources.recorded import RecordedRow, recorded_tours
 
-from casim.sources.wms_export import day_lines
-from scripts.ijpe import CACHE, OUTPUTS as SCENARIO_OUTPUTS, SCENARIO
+from scenarios.ijpe.source import day_lines
+from scripts.ijpe import OUTPUTS as SCENARIO_OUTPUTS
 from scripts.ijpe.audit import SIZE_BINS, SIZE_LABELS
 
 RUNS = SCENARIO_OUTPUTS / "run"
@@ -71,8 +70,8 @@ def runs(root: Path = RUNS) -> list[tuple[str, str, Path]]:
     return found
 
 
-def recorded_day(day: str, pick_nodes: dict) -> pd.DataFrame:
-    lines, _ = day_lines(day, pick_nodes, CACHE)
+def recorded_day(day: str) -> pd.DataFrame:
+    lines, _ = day_lines(day)
     midnight = pd.Timestamp(day)
     lines["start_s"] = (lines["start"] - midnight).dt.total_seconds()
     lines["end_s"] = (lines["end"] - midnight).dt.total_seconds()
@@ -106,10 +105,10 @@ def matched_lines(recorded: pd.DataFrame, picks: pd.DataFrame) -> pd.DataFrame:
     return merged
 
 
-def compare_run(day: str, threshold: str, directory: Path, pick_nodes: dict
+def compare_run(day: str, threshold: str, directory: Path
                 ) -> dict[str, pd.DataFrame]:
     picks = pd.read_csv(directory / "facts" / "picks.csv")
-    lines = matched_lines(recorded_day(day, pick_nodes), picks)
+    lines = matched_lines(recorded_day(day), picks)
     lines["size_class"] = pd.cut(lines.groupby("order")["row"].transform("size"),
                                  SIZE_BINS, labels=SIZE_LABELS)
     orders = lines.groupby("order").agg(
@@ -195,11 +194,9 @@ def compare_tours(lines: pd.DataFrame, directory: Path) -> pd.DataFrame:
 
 
 def run_all(root: Path = RUNS) -> dict[str, pd.DataFrame]:
-    _, locations = GridLayout().build(SCENARIO / "data" / "layout.csv")
-    nodes = GridLayout.pick_nodes(locations)
     collected: dict[str, list] = {}
     for day, threshold, directory in runs(root):
-        for name, table in compare_run(day, threshold, directory, nodes).items():
+        for name, table in compare_run(day, threshold, directory).items():
             collected.setdefault(name, []).append(table)
     tables = {name: pd.concat(parts) for name, parts in collected.items()}
     tables["order"]["days"] = np.where(tables["order"]["day"].isin(CALIBRATION_DAYS),

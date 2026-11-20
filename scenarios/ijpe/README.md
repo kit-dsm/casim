@@ -15,8 +15,10 @@ The data is confidential. The user places the WMS export and `layout.csv` in
 committed. Without the data the scenario composes and checks but does not
 run.
 
-The scenario's `source.py` reads the export with `casim.sources.wms_export`,
-builds the warehouse graph of `data/layout.csv` with
+The scenario's `source.py` reads the canonical tables of the export
+(`data/canonical/`, written once by `python -m scripts.ijpe.canonical`, the
+only reader of the workbook besides the audit), builds the warehouse graph of
+the layout with
 `casim.sources.grid_layout` (its cross-aisle edge matches the 15 m
 aisle-change distance stated by the warehouse), and builds the state, the
 recorded plan and the events with `casim.sources.recorded`. Days are assigned

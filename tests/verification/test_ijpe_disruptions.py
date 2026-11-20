@@ -8,11 +8,12 @@ from pathlib import Path
 import pytest
 
 from casim.events.operational_events import OrderArrival, OrderStreamClosed, TruckDisruption
-from casim.sources.wms_export import disruption_orders
-from scenarios.ijpe.source import STAGING_MINUTES, ScenarioSource, fixed_departure_hour
+from scenarios.ijpe.source import (
+    STAGING_MINUTES, ScenarioSource, fixed_departure_hour, listed_orders,
+)
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "scenarios" / "ijpe" / "data"
-pytestmark = pytest.mark.skipif(not (DATA_DIR / "layout.csv").exists(),
+pytestmark = pytest.mark.skipif(not (DATA_DIR / "canonical" / "lines.csv").exists(),
                                 reason="confidential IJPE data")
 H = 3600.0
 SETTINGS = dict(shift_start_s=19800.0, pause_threshold_s=300.0, speed=2306.0, time_per_pick=16.26,
@@ -20,8 +21,7 @@ SETTINGS = dict(shift_start_s=19800.0, pause_threshold_s=300.0, speed=2306.0, ti
 
 
 def _listed(sheet):
-    frame = disruption_orders(DATA_DIR / "cache")
-    return {int(order) for order in frame.loc[frame["sheet"] == sheet, "order"]}
+    return {int(order) for order in listed_orders(sheet)}
 
 
 def test_a_moved_truck_advances_the_deadline_of_its_listed_orders_only():

@@ -29,8 +29,9 @@ within a phase in the order of their names in the mapping:
 4. times: ``process_times`` (the realized line and setup times, drawn from a
    fit of empirical times, and the pickers' planning means).
 
-Orders are selected by ``{list: <name>}`` (``lists.csv`` of the source's data,
-``list,order_id``) or ``{ids: [...]}``, optionally only those released on a
+Files a rule names are read from the source's data folder (``data_dir`` of the
+source, else the scenario's ``data/``). Orders are selected by
+``{list: <name>}`` (``lists.csv``, ``list,order_id``) or ``{ids: [...]}``, optionally only those released on a
 ``day``. Every order a rule moves, adds or changes is marked
 (``affected_order_ids``). The order stream closes after the last arrival.
 Rules only add or rewrite source events; they never touch the engine.
@@ -102,7 +103,9 @@ class ExogenousSource:
         validate(rules)
         if getattr(base, "epoch", None) is None:
             raise ValueError("exogenous rules need a source with an epoch")
-        self.base, self.rules, self.data_dir = base, dict(rules), Path(data_dir)
+        # Files a rule names (lists, templates, fits) lie with the source's tables.
+        self.base, self.rules = base, dict(rules)
+        self.data_dir = Path(getattr(base, "data_dir", data_dir))
         self.epoch = pd.Timestamp(base.epoch)
         self.order_attributes = dict(getattr(base, "order_attributes", {}))
         self.affected_order_ids = frozenset(getattr(base, "affected_order_ids", ()))

@@ -1,7 +1,9 @@
 """A stream of orders from canonical tables: the data a scenario simulates.
 
-The scenario's ``data/`` folder holds plain tables, written once by a
-conversion script from whatever the raw data is (a WMS export, a generator):
+A folder of plain tables, written once by a conversion script from whatever
+the raw data is (a WMS export, a generator); by default the scenario's
+``data/``, or ``tables``, a folder relative to it (several scenarios can share
+one data set):
 
 - ``orders.csv``: ``order_id``, ``release`` (date and time, ``YYYY-MM-DD HH:MM[:SS]``),
   optionally ``due`` (same format); every further column is an attribute of
@@ -13,6 +15,9 @@ conversion script from whatever the raw data is (a WMS export, a generator):
 - optionally ``lists.csv`` (``list``, ``order_id``: named sets of orders) and
   ``templates/<name>.csv`` (``article``, ``quantity``, ``x``, ``y``: order lines
   without an order), which exogenous rules use.
+
+Further columns of ``lines.csv`` (for example the recorded picker and times
+of a replay) are left to whoever needs them.
 
 Time is seconds from midnight of ``epoch``. Each order arrives at its release
 (``OrderArrival``); the stream closes with the last release. The initial
@@ -63,12 +68,12 @@ def read_lines(path: Path) -> pd.DataFrame:
 class OrderStreamSource:
     """Orders from ``orders.csv`` and ``lines.csv``, released at their time."""
 
-    def __init__(self, data_dir: Path, *, epoch: str, layout: str = "layout.csv",
-                 pickers: Mapping):
+    def __init__(self, data_dir: Path, *, epoch: str, pickers: Mapping, tables: str = ".",
+                 layout: str = "layout.csv"):
         """``pickers``: ``count``, ``speed`` (layout units per second),
         ``time_per_pick`` and ``tour_setup_time`` (seconds; the pickers' time model,
         which an exogenous ``process_times`` may replace)."""
-        self.data_dir = Path(data_dir)
+        self.data_dir = (Path(data_dir) / tables).resolve()
         self.epoch = pd.Timestamp(epoch)
         self.layout, _ = GridLayout().build(self.data_dir / layout)
         self.picker_spec = dict(pickers)

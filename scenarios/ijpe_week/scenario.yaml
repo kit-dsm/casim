@@ -7,7 +7,7 @@ defaults:
   - optional variants: null
 
 # The IJPE week as one order stream (P2, P4 of docs/ijpe/plan.md): the orders
-# of the six study days (canonical tables, scripts/ijpe/canonical.py) are
+# of the six study days (the canonical tables of scenarios/ijpe) are
 # released at 05:30 of their day; an order still open at a shift's end waits
 # for the next. What the world does is declared below (casim.sources.exogenous);
 # the disruption scenarios are variants that add a rule.
@@ -15,6 +15,7 @@ name: ijpe_week
 source:
   name: order_stream
   epoch: "2026-04-11"
+  tables: ../../ijpe/data/canonical      # the IJPE data set (scripts/ijpe/canonical.py)
   pickers: {count: 30, speed: 2306.0, time_per_pick: 16.26, tour_setup_time: 215.0}
 exogenous:
   roster:
@@ -33,6 +34,6 @@ exogenous:
     attribute: customer
   times:                                # line and setup times fitted on all six days (one person per sample)
     kind: process_times
-    fit: times.json
+    fit: ../non_picking/week.json         # scripts/ijpe/fit_non_picking.py
     seed: 0
     first_setup_s: 215.0

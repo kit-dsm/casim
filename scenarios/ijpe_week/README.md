@@ -8,13 +8,15 @@ and P4). The single-day replay and its validation stay in `scenarios/ijpe`.
 
 ## Data
 
-Canonical tables in `data/` (confidential, ignored by git), written once from
-the WMS export by `python -m scripts.ijpe.canonical`: `orders.csv` (order,
-release, store), `lines.csv` (order lines at their pick nodes), `layout.csv`,
-`lists.csv` (the warehouse's disruption lists), `templates/S3.csv` and
-`times.json` (line and setup times fitted on all six days by
-`scripts/ijpe/fit_non_picking.py`). The library source `order_stream` reads
-them (`casim/sources/order_stream.py`); no simulation code reads the workbook.
+The canonical tables of the IJPE case (`scenarios/ijpe/data/canonical/`,
+confidential, ignored by git), written once from the WMS export by
+`python -m scripts.ijpe.canonical`: `orders.csv` (order, day, release, store),
+`lines.csv` (order lines at their pick nodes, with the recorded login and
+times the replay uses), `lists.csv` (the warehouse's disruption lists),
+`templates/S3.csv` and the layout. The library source `order_stream` reads
+them (`source.tables`); the line and setup times come from
+`scenarios/ijpe/data/non_picking/week.json` (`scripts/ijpe/fit_non_picking.py`).
+Only the conversion script reads the workbook.
 
 ## What the world does (`exogenous`)
 
@@ -50,8 +52,8 @@ out.
 ## How to run
 
 ```bash
-python -m scripts.ijpe.fit_non_picking      # once: the fit, also week.json
 python -m scripts.ijpe.canonical            # once: the canonical tables
+python -m scripts.ijpe.fit_non_picking      # once: the fit, also week.json
 python -m casim run scenarios/ijpe_week
 python -m casim run scenarios/ijpe_week variants=scenario1 exogenous.times.seed=7
 python -m casim run scenarios/ijpe_week decisions=fifo variants=scenario4

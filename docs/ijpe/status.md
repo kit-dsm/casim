@@ -2,6 +2,25 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-19: Everything reads the canonical tables
+
+**Done.** `scripts/ijpe/canonical.py` is the only reader of the WMS workbook
+(besides the data audit). It writes `scenarios/ijpe/data/canonical/`:
+`orders.csv`, `lines.csv` (the cohort with recorded login, start, end and
+sheet row), `records.csv` (every record, for the work the fit counts outside
+the replayed lines), `excluded.csv`, `lists.csv`, `templates/S3.csv`,
+`layout.csv`. The IJPE source (`day_lines`, `listed_orders`,
+`template_positions`), the fit, the validation and diagnostic scripts and the
+week (`order_stream`, `source.tables`) read only these tables;
+`casim.sources.wms_export` remains for the conversion and the audit.
+
+**Identical results.** The fit files (six days and the week) are
+byte-identical to those from the workbook; the six ijpe_replay baselines are
+equal; trace digests of a calibrated day, a fitted day with Scenario 4 and
+the week with Scenario 4 equal those of the previous commit. The cohort
+frames agree column by column (quantities are integers instead of floats,
+with equal values).
+
 ## 2026-11-19: The week as one order stream; canonical data and exogenous rules (C10, C11)
 
 **Decision (user).** The experiments simulate the week as one order stream,

@@ -51,7 +51,6 @@ from __future__ import annotations
 
 import copy
 import json
-from bisect import bisect_left
 from collections.abc import Iterator
 from hashlib import sha256
 from pathlib import Path
@@ -71,7 +70,6 @@ from casim.events.operational_events import (
 )
 from casim.sources.grid_layout import GridLayout
 from casim.sources.recorded import RecordedReplay, RecordedRow, TimeModel
-from casim.sources.wms_export import day_lines, disruption_lines, disruption_orders
 
 
 STUDY_DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15",
@@ -84,6 +82,44 @@ BREAK_MIN_S = 600.0
 DEPARTURE_HOURS = (10, 12, 14, 16)
 STAGING_MINUTES = 30
 NON_PICKING = ("recorded", "fitted", "fixed")
+# The canonical tables of the WMS export (scripts/ijpe/canonical.py writes them).
+CANONICAL = Path(__file__).resolve().parent / "data" / "canonical"
+TEXT = {"order_id": str, "picker": str, "customer": str, "day": str, "list": str}
+
+
+def day_lines(day: str, tables: Path = CANONICAL) -> tuple[pd.DataFrame, dict[str, int]]:
+    """The recorded lines of the cohort picked on ``day``, and what the cohort
+    leaves out that day (``excluded.csv``).
+
+    Columns: ``order``, ``article``, ``quantity``, ``node`` (pick node), ``picker``
+    (login), ``start``, ``end`` (timestamps), ``row`` (sheet row), ``customer``.
+    """
+    orders = pd.read_csv(tables / "orders.csv", dtype=TEXT)
+    orders = orders[orders["day"] == str(day)]
+    lines = pd.read_csv(tables / "lines.csv", dtype=TEXT)
+    lines = lines.merge(orders[["order_id", "customer"]], on="order_id", how="inner")
+    frame = pd.DataFrame({
+        "order": lines["order_id"].to_numpy(), "article": lines["article"].astype("int64").to_numpy(),
+        "quantity": lines["quantity"].astype("int64").to_numpy(),
+        "node": list(zip(lines["x"].astype(float), lines["y"].astype(float))),
+        "picker": lines["picker"].to_numpy(), "start": pd.to_datetime(lines["start"]).to_numpy(),
+        "end": pd.to_datetime(lines["end"]).to_numpy(), "row": lines["row"].astype("int64").to_numpy(),
+        "customer": lines["customer"].to_numpy()}, index=lines["row"].astype("int64").to_numpy())
+    excluded = pd.read_csv(tables / "excluded.csv", dtype={"day": str})
+    excluded = excluded[excluded["day"] == str(day)]
+    return frame, {item: int(count) for item, count in zip(excluded["item"], excluded["count"])}
+
+
+def listed_orders(name: str, tables: Path = CANONICAL) -> set[str]:
+    """The orders of one of the warehouse's disruption lists (``lists.csv``)."""
+    lists = pd.read_csv(tables / "lists.csv", dtype=TEXT)
+    return set(lists.loc[lists["list"] == name, "order_id"])
+
+
+def template_positions(name: str, tables: Path = CANONICAL) -> list[tuple[int, int, tuple]]:
+    """(article, quantity, node) of a template order (``templates/<name>.csv``)."""
+    frame = pd.read_csv(tables / "templates" / f"{name}.csv")
+    return [(int(r.article), int(r.quantity), (float(r.x), float(r.y))) for r in frame.itertuples()]
 TU_PER_ORDER = 2.6                      # the warehouse's workbook (data_audit.md)
 H = 3600.0
 # The paper's disruption scenarios on the warehouse's lists (plan P2.1): the
@@ -184,13 +220,12 @@ class ScenarioSource:
         self.due_plan = due_plan
         self.day = str(day)
         data_dir = Path(data_dir)
-        layout, locations = GridLayout().build(data_dir / "layout.csv")
-        lines, self.excluded = day_lines(self.day, GridLayout.pick_nodes(locations),
-                                         data_dir / "cache")
+        tables = data_dir / "canonical"
+        layout, _ = GridLayout().build(tables / "layout.csv")
+        lines, self.excluded = day_lines(self.day, tables)
         midnight = pd.Timestamp(day)
         lines = lines.sort_values(["start", "row"])
-        lines, self._arriving_lines = self._disrupt(disruption, lines, due_plan, locations,
-                                                    data_dir / "cache")
+        lines, self._arriving_lines = self._disrupt(disruption, lines, due_plan, tables)
         if (lines.groupby("order")["customer"].nunique() != 1).any():
             raise ValueError("an order belongs to several stores")
         self.customer_by_order = lines.groupby("order")["customer"].first().to_dict()
@@ -236,7 +271,7 @@ class ScenarioSource:
                 self._fit, {**roster, **self.extra_pickers}, self.seed, _day_key(self.day)))
 
     def _disrupt(self, name: str | None, lines: pd.DataFrame, due_plan: str | None,
-                 locations, cache: Path) -> tuple[pd.DataFrame, list]:
+                 tables: Path) -> tuple[pd.DataFrame, list]:
         """The day's lines as the disruption leaves them, and the orders it adds:
         (order id, [(article, quantity, node), ...])."""
         self.disruption = None
@@ -254,8 +289,7 @@ class ScenarioSource:
         held = set(lines["order"].astype(str))
         listed = set()
         if spec["kind"] != "new":
-            frame = disruption_orders(cache)
-            listed = set(frame.loc[frame["sheet"] == spec["sheet"], "order"].astype(str))
+            listed = listed_orders(spec["sheet"], tables)
         if spec["kind"] == "removed":
             return lines[~lines["order"].astype(str).isin(listed)], []
         deadline = spec["due_s"]
@@ -267,20 +301,15 @@ class ScenarioSource:
             self.affected_order_ids = frozenset(affected)
             self._due_change = (spec["time_s"], affected, deadline)
             return lines, []
-        pick_nodes = GridLayout.pick_nodes(locations)
         if spec["kind"] == "moved":
-            other, _ = day_lines(spec["from_day"], pick_nodes, cache)
+            other, _ = day_lines(spec["from_day"], tables)
             other = other[other["order"].astype(str).isin(listed - held)]
             other = other.sort_values(["start", "row"])
             arriving = [(int(order), [(int(r.article), int(r.quantity), r.node)
                                       for r in group.itertuples()])
                         for order, group in other.groupby("order", sort=True)]
         else:
-            template = disruption_lines(cache)
-            nodes = [pick_nodes.get((int(a), int(h), int(pl)))
-                     for a, h, pl in zip(template["aisle"], template["house"], template["place"])]
-            positions = [(int(article), int(quantity), node) for article, quantity, node
-                         in zip(template["article"], template["quantity"], nodes) if node is not None]
+            positions = template_positions(spec["sheet"], tables)
             copies = int(np.ceil(spec["tu"] / TU_PER_ORDER))
             prefix = int(pd.Timestamp(self.day).strftime("%y%m%d"))
             arriving = [(prefix * 10_000 + 9_000 + k, positions) for k in range(1, copies + 1)]

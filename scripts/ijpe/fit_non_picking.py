@@ -61,9 +61,10 @@ from omegaconf import OmegaConf
 
 from casim.run import compose_scenario
 from casim.sources.recorded import RecordedReplay, _uncovered
-from casim.sources.wms_export import lines as export_lines, with_pick_date
-from scenarios.ijpe.source import BREAK_MIN_S, BREAK_WINDOWS, STUDY_DAYS, ScenarioSource
-from scripts.ijpe import CACHE, DATA, SCENARIO
+from scenarios.ijpe.source import (
+    BREAK_MIN_S, BREAK_WINDOWS, CANONICAL, STUDY_DAYS, ScenarioSource,
+)
+from scripts.ijpe import DATA, SCENARIO
 
 FIT_DIR = DATA / "non_picking"
 
@@ -266,10 +267,13 @@ def foreign_records(source: ScenarioSource) -> dict[int, list[Interval]]:
     """Per picker of the day, the intervals of its records outside the replayed lines.
 
     Records of the day (by pick date or by start) of the same pickers that
-    the source left out: lines without a pick node and orders of several pickers.
+    the source left out: lines without a pick node and orders of several pickers
+    (``records.csv`` of the canonical tables).
     """
     midnight = pd.Timestamp(source.day)
-    frame = with_pick_date(export_lines(CACHE))
+    frame = pd.read_csv(CANONICAL / "records.csv", dtype={"picker": str})
+    frame["pick_date"] = pd.to_datetime(frame["pick_date"])
+    frame["start"], frame["end"] = pd.to_datetime(frame["start"]), pd.to_datetime(frame["end"])
     kept = set(source.rows_kept)
     frame = frame[((frame["pick_date"] == midnight) | (frame["start"].dt.normalize() == midnight))
                   & ~frame["row"].isin(kept) & frame["picker"].isin(source.picker_ids)]

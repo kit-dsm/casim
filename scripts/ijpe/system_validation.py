@@ -32,9 +32,8 @@ import json
 import numpy as np
 import pandas as pd
 
-from casim.sources.grid_layout import GridLayout
-from casim.sources.wms_export import day_lines
-from scripts.ijpe import OUTPUTS, SCENARIO
+from scenarios.ijpe.source import day_lines
+from scripts.ijpe import OUTPUTS
 from scripts.ijpe.replay import _union_s
 
 DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15",
@@ -44,11 +43,9 @@ HOURS = (8, 10, 12, 14, 16, 18)
 
 
 def audit() -> pd.DataFrame:
-    _, locations = GridLayout().build(SCENARIO / "data" / "layout.csv")
-    nodes = GridLayout.pick_nodes(locations)
     rows = []
     for day in DAYS:
-        lines, _ = day_lines(day, nodes, SCENARIO / "data" / "cache")
+        lines, _ = day_lines(day)
         lines = lines.sort_values(["start", "row"])
         midnight = pd.Timestamp(day)
         picker_ids = {picker: i for i, picker in enumerate(lines.picker.unique())}

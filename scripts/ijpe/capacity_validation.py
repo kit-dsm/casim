@@ -41,8 +41,7 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import pandas as pd
 
-from casim.sources.grid_layout import GridLayout
-from casim.sources.wms_export import day_lines
+from scenarios.ijpe.source import day_lines
 from scenarios.ijpe.source import BREAK_MIN_S, BREAK_WINDOWS, STUDY_DAYS
 from scripts.ijpe import OUTPUTS, SCENARIO
 from scripts.ijpe.fit_non_picking import calibrated_source, foreign_records, observe
@@ -57,15 +56,14 @@ CONFIGS: dict[str, tuple[list[str], int]] = {     # name -> (overrides, replicat
     "A": (["source.non_picking=fixed", "source.time_per_pick=19.0", PAPER_BREAKS], 1),
     "B": (["source.non_picking=fitted", "source.breaks=[]"], 30),
     "C": (["source.non_picking=fitted"], 30),
-    **{f"D+{k}": ([f"source.non_picking=fitted", f"source.extra_pickers={k}"], 10) for k in EXTRA},
+    **{f"D+{k}": (["source.non_picking=fitted", f"source.extra_pickers={k}"], 10) for k in EXTRA},
     "Dpaper": (["source.non_picking=fitted"], 10),
 }
 QUANTILES = (0.1, 0.5, 0.9)
 
 
 def _lines(day: str) -> pd.DataFrame:
-    _, locations = GridLayout().build(SCENARIO / "data" / "layout.csv")
-    lines, _ = day_lines(day, GridLayout.pick_nodes(locations), SCENARIO / "data" / "cache")
+    lines, _ = day_lines(day)
     return lines
 
 

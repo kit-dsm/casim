@@ -11,9 +11,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from casim.sources.grid_layout import GridLayout
 from casim.sources.recorded import RecordedRow, recorded_tours
-from casim.sources.wms_export import day_lines
+from scenarios.ijpe.source import day_lines
 from scripts.ijpe import OUTPUTS, SCENARIO
 from scripts.ijpe.replay import _union_s
 
@@ -38,13 +37,11 @@ def _stats(error_min: pd.Series, prefix: str) -> dict:
 
 
 def audit() -> tuple[pd.DataFrame, pd.DataFrame]:
-    _, locations = GridLayout().build(SCENARIO / "data" / "layout.csv")
-    nodes = GridLayout.pick_nodes(locations)
     days = []
     tour_errors: dict[str, list[pd.DataFrame]] = {name: [] for name, _ in SETTINGS}
     picker_errors: dict[str, list[pd.Series]] = {name: [] for name, _ in SETTINGS}
     for day in DAYS:
-        lines, _ = day_lines(day, nodes, SCENARIO / "data" / "cache")
+        lines, _ = day_lines(day)
         lines = lines.sort_values(["start", "row"])
         midnight = pd.Timestamp(day)
         picker_ids = {picker: index for index, picker in enumerate(lines.picker.unique())}

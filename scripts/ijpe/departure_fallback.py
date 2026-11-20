@@ -9,19 +9,15 @@ from __future__ import annotations
 
 import pandas as pd
 
-from casim.sources.grid_layout import GridLayout
-from casim.sources.wms_export import day_lines
+from scenarios.ijpe.source import day_lines
 from scenarios.ijpe.source import STAGING_MINUTES, fixed_departure_hour
-from scripts.ijpe import CACHE, SCENARIO
 
 DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15",
         "2026-04-16", "2026-04-17")
 def audit() -> pd.DataFrame:
-    _, locations = GridLayout().build(SCENARIO / "data" / "layout.csv")
-    nodes = GridLayout.pick_nodes(locations)
     rows = []
     for day in DAYS:
-        lines, _ = day_lines(day, nodes, CACHE)
+        lines, _ = day_lines(day)
         orders = lines.groupby("order").agg(customer=("customer", "first"),
                                             completion=("end", "max"))
         if (lines.groupby("order")["customer"].nunique() != 1).any():
