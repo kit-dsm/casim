@@ -2,6 +2,42 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-21: P1.7, credibility profile and validity envelope
+
+**Done.** `docs/ijpe/credibility.md` holds the profile table (10 components
+with metric, held-out basis, result and verdict), the four figures in
+`docs/ijpe/figures/` (profile table, routing ratio by order size, ECDF of
+one-person order durations net of breaks replacing the submitted Figure 8,
+cumulative completed orders per day against the 90 % band of C), the
+validity envelope by clock time, the pre-picking caveat, and every planned
+P4 KPI tagged inside or outside the envelope. `scripts/ijpe/credibility.py`
+adds no fitting and no runs. It reads `calibrated_recorded` and
+`capacity_fifo` and reproduces the numbers of `validation.md` exactly
+(routing medians 0.81 / 0.99 / 1.00 / 1.05; durations 18.5 / 5.4 / 15.7 /
+35.2 min; 600 and 956 orders by 10:00 and 12:00). Figures show quantiles
+and daily counts only.
+
+**Envelope.** Up to 12:00, as comparisons between policies with common
+random numbers. Six-day levels are +2 %, −4 % and −7 % at 08:00, 10:00 and
+12:00; the day pattern is not reproduced at any clock time (WMS inside the
+day band on 2 of 6 days). From 14:00 it is outside: the total is close only
+because the days run out of work. Outside: the 13:30 and 15:30 groups, the
+whole day, truck waiting of the 14:00 and 16:00 groups, S4's whole-day
+effect, end-of-day and picker measures, and busy share.
+
+**G3 held out** (`scripts/ijpe/generator_holdout.py`, fitted Mon–Wed,
+generating Thu, Fri and Sat). Partly reproduced. In sample it matches its
+days. Held out, it gives the calibration mix: Thursday 46.8 against 43.3
+lines per order, 3.38 against 3.73 aisles, 1.06 against 1.01 m³, mostly
+outside the seed band. Saturday and Friday orders are smaller (0.84 and
+0.81 m³ against 0.98 to 1.24 on Mon–Wed). Quantity times package volume
+would overstate volume 15.8 times; G3 uses the package-based volume.
+
+**For the user.** The paper should claim G3 as a generator of a calibration
+weekday, not as a forecast of an unseen day. The deadline rework of C13's
+session does not change the tags, which follow the deadline, not the
+scenario.
+
 ## 2026-11-21: C13, exogenous rules back into the scenario
 
 **Decision (user).** `casim.sources.exogenous` is removed from the core: its

@@ -450,3 +450,7 @@ recorded roster (`variants=calibrated source.non_picking=fitted`, a shared
 break roster through `source.breaks` where policies are compared, and
 replications with common random numbers per order line across policies), measured on throughput and on-time completion up to
 midday, not as predicted picker-level effects in this warehouse.
+
+The credibility profile of P1.7 (`docs/ijpe/credibility.md`) collects these
+results per model component with held-out verdicts, and states the validity
+envelope by clock time.
