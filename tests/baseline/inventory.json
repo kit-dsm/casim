@@ -295,5 +295,27 @@
     "run_exit": 0,
     "run_output": "ok",
     "status": "consistent"
+  },
+  {
+    "name": "ijpe_week__default",
+    "scenario": "ijpe_week",
+    "command": "python -m casim run scenarios\\ijpe_week",
+    "check_command": "python -m casim check scenarios\\ijpe_week --json",
+    "check_exit": 0,
+    "check_output": "ok",
+    "run_exit": 0,
+    "run_output": "ok",
+    "status": "consistent"
+  },
+  {
+    "name": "ijpe_week__scenario2",
+    "scenario": "ijpe_week",
+    "command": "python -m casim run scenarios\\ijpe_week variants=scenario2",
+    "check_command": "python -m casim check scenarios\\ijpe_week variants=scenario2 --json",
+    "check_exit": 0,
+    "check_output": "ok",
+    "run_exit": 0,
+    "run_output": "ok",
+    "status": "consistent"
   }
 ]

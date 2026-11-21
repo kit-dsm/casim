@@ -1,0 +1,72 @@
+{
+  "name": "ijpe_week__default",
+  "scenario": "ijpe_week",
+  "command": "python -m casim run scenarios\\ijpe_week",
+  "check_command": "python -m casim check scenarios\\ijpe_week --json",
+  "check_exit": 0,
+  "check_output": "ok",
+  "run_exit": 0,
+  "run_output": "ok",
+  "casim_commit": "d6094ed8e8e8e18778196186ecfd926740348283",
+  "ware_ops_algos_commit": "315f78ffc07caa2313231cca7dadb5cc42dd77a3",
+  "kpis": {
+    "makespan": 572082.0406077072,
+    "mean_order_completion_time": 19787.90993901344,
+    "num_tours": 1384,
+    "num_orders_completed": 1384,
+    "avg_tour_makespan": 1245.0927886757493,
+    "avg_batch_size": 1.0,
+    "orders_per_hour": 8.709240364733931,
+    "tours_per_hour": 8.709240364733931,
+    "distance_by_picker": {
+      "digest": "10355e7eab024422b758163635cfe90aabcfc162373654563ee83b9e6dc63d6b",
+      "size": 16
+    },
+    "idle_time_by_picker": {
+      "digest": "ecd3c50a08972b3ad8df200c02f5b55b7cbeb2461bf65698ca9c110f61ec0bb7",
+      "size": 30
+    },
+    "busy_time_by_picker": {
+      "digest": "313c6380e1e8355493568bf0e7090c6ce84932c1c2bc663ef598aebe80618657",
+      "size": 30
+    },
+    "absent_time_by_picker": {
+      "digest": "5d0a4d5d0781c11ff2e7a9a264f5fedb5ceda11795a1b2c537d07d15dc92b51d",
+      "size": 30
+    },
+    "total_distance": 868712100.0,
+    "total_delayed": 106,
+    "dock_utilization": {
+      "digest": "4be44c07e5f049f4f59b5099deb9f6d52ecbd828b9f33cefc83bb44178880f87",
+      "size": 1384
+    },
+    "total_tour_times": 1723208.4195272368,
+    "picks_per_hour": 388.888977818058,
+    "total_processing_time": 1723208.4195272368
+  },
+  "decisions": {
+    "decisions": 1344,
+    "pipeline_counts": {
+      "0:PlanCandidateEndpoint_SchedulingPlanCa_4287d82217_plan_candidate": 1344
+    }
+  },
+  "committed_tours": [
+    {
+      "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "count": 0
+    }
+  ],
+  "trace_digest": "3c38f2dcd8b6a4fd12f4c9a17972f9c226353b317ffeb409acdd2647a57cfe51",
+  "event_count": 197384,
+  "violations": {},
+  "first_violations": {
+    "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "kpi_differences": [
+    {
+      "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "count": 0
+    }
+  ],
+  "status": "consistent"
+}
