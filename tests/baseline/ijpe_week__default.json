@@ -7,47 +7,47 @@
   "check_output": "ok",
   "run_exit": 0,
   "run_output": "ok",
-  "casim_commit": "d6094ed8e8e8e18778196186ecfd926740348283",
+  "casim_commit": "5efec055c0dfd51bc251cadf3d500af56444b160",
   "ware_ops_algos_commit": "315f78ffc07caa2313231cca7dadb5cc42dd77a3",
   "kpis": {
-    "makespan": 572082.0406077072,
-    "mean_order_completion_time": 19787.90993901344,
-    "num_tours": 1384,
-    "num_orders_completed": 1384,
-    "avg_tour_makespan": 1245.0927886757493,
+    "makespan": 564349.166271768,
+    "mean_order_completion_time": 14981.411849919166,
+    "num_tours": 1414,
+    "num_orders_completed": 1414,
+    "avg_tour_makespan": 1241.3007271567192,
     "avg_batch_size": 1.0,
-    "orders_per_hour": 8.709240364733931,
-    "tours_per_hour": 8.709240364733931,
+    "orders_per_hour": 8.921135646687697,
+    "tours_per_hour": 8.921135646687697,
     "distance_by_picker": {
-      "digest": "10355e7eab024422b758163635cfe90aabcfc162373654563ee83b9e6dc63d6b",
+      "digest": "0c2ddf0fc0dde68c490826d1e7b3aba570fa7d84e23b5295a1e2f7ef85d300bc",
       "size": 16
     },
     "idle_time_by_picker": {
-      "digest": "ecd3c50a08972b3ad8df200c02f5b55b7cbeb2461bf65698ca9c110f61ec0bb7",
+      "digest": "4769000cc71babebc8db56a75ba9c3b91f7f36dacb9dc61f227006d3fc8bde58",
       "size": 30
     },
     "busy_time_by_picker": {
-      "digest": "313c6380e1e8355493568bf0e7090c6ce84932c1c2bc663ef598aebe80618657",
+      "digest": "8105ab40c24f57f601c030156953db2f0cce10b6f323d471f12ad4847fbdc47e",
       "size": 30
     },
     "absent_time_by_picker": {
-      "digest": "5d0a4d5d0781c11ff2e7a9a264f5fedb5ceda11795a1b2c537d07d15dc92b51d",
+      "digest": "7917baa84d26f84e22d8e76a7a1ec56189dbd370d8d0f96821b25a93f4e79582",
       "size": 30
     },
-    "total_distance": 868712100.0,
-    "total_delayed": 106,
+    "total_distance": 885365700.0,
+    "total_delayed": 0,
     "dock_utilization": {
-      "digest": "4be44c07e5f049f4f59b5099deb9f6d52ecbd828b9f33cefc83bb44178880f87",
-      "size": 1384
+      "digest": "2c7572b3286c843a9eda5b19d45b51ecb4148366de403df9b309b03ac1c3bfb8",
+      "size": 1414
     },
-    "total_tour_times": 1723208.4195272368,
-    "picks_per_hour": 388.888977818058,
-    "total_processing_time": 1723208.4195272368
+    "total_tour_times": 1755199.228199601,
+    "picks_per_hour": 397.38170347003154,
+    "total_processing_time": 1755199.228199601
   },
   "decisions": {
-    "decisions": 1344,
+    "decisions": 1419,
     "pipeline_counts": {
-      "0:PlanCandidateEndpoint_SchedulingPlanCa_4287d82217_plan_candidate": 1344
+      "0:PlanCandidateEndpoint_SchedulingPlanCa_4287d82217_plan_candidate": 1419
     }
   },
   "committed_tours": [
@@ -56,8 +56,8 @@
       "count": 0
     }
   ],
-  "trace_digest": "3c38f2dcd8b6a4fd12f4c9a17972f9c226353b317ffeb409acdd2647a57cfe51",
-  "event_count": 197384,
+  "trace_digest": "e8741e58af3b6275dd9a493dfce99b33ee1c925feaddded924931b3070729b48",
+  "event_count": 200621,
   "violations": {},
   "first_violations": {
     "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
