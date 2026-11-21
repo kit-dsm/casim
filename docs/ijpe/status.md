@@ -21,8 +21,11 @@ late. The 26 % of recorded orders after the loose deadlines measures the fit of
 an independent plan to the record, not lateness. Simulated (EDD, seed 0), the
 loose baseline is 0 to 6 % late Saturday to Wednesday, 15 % on Thursday;
 central 3 to 40 %; bucket 40.5 % over the week. Friday is 96 % late under every
-rule because the roster gives it 4 pickers for 81 orders; this needs its own
-check.
+rule. That is the end of the stream, not staffing: the simulated Friday picks
+more lines than the recorded one (3,127 against 2,824) but first takes 38
+orders carried over from Thursday, and 30 Friday orders are open when the
+stream ends. The recorded Friday starts at about 10:00. Friday is reported as
+carry-over absorbed, outside the envelope.
 
 **Done.** `store_slot` takes optional shares; the week reads the profile and
 computes the bucket from the recorded line ends. Loose gives the recorded

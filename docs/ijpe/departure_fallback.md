@@ -126,8 +126,16 @@ the end of the stream):
 The simulated warehouse knows its deadlines and works to them, as the real one
 works to its real plan; under the loose profile it meets them from Saturday to
 Wednesday and becomes tight on Thursday, the day the capacity workbook flags.
-Friday's 96 % follows from the roster (4 pickers for 81 orders), not from the
-deadlines. The submitted hourly bucket (`profile: bucket`, due at the end of
+Friday is the end of the order stream, not a staffing shortage. The simulated
+Friday picks 3,127 lines, more than the 2,824 recorded, but starts with 38
+Thursday orders carried over (and 18 from Wednesday into Thursday), which EDD
+takes first because their deadlines have passed; 30 Friday orders are still
+open when the stream ends, since no day follows. The recorded Friday also
+starts late (median first line of a login at 10:03, against about 06:00 on the
+other days), so deadlines from 09:30 do not fit that day under any rule.
+Friday's deadlines therefore lie outside the validity envelope: Friday is
+reported as the day that absorbs the week's carry-over, not as a level of
+on-time completion. The submitted hourly bucket (`profile: bucket`, due at the end of
 the hour of the recorded completion) is feasible for the record by
 construction, but not for the model: it leaves each order 0 to 60 minutes after
 its recorded completion, so every order the simulation finishes later than the
