@@ -1,9 +1,12 @@
 # @package _global_
-# Scenario 1: Monday 07:30, the orders of the warehouse's list S1 ("120 TU
-# before 13:00") are due at 10:00; an order due earlier keeps its deadline.
+# Scenario 1 (plan P2.1, docs/ijpe/scenarios.md): a missing driver on Monday.
+# At 07:30, whole stores of the 14:00 slot ("13:00") totalling the target (the
+# mail's 120 TE x 0.20, filled largest first; lists of scripts/ijpe/disruptions.py)
+# must be staged by 09:30, the 10:00 departure minus 30 minutes of staging.
+# Sweep: exogenous.scenario1.orders.list=S1_v<V>_<fixed|rNN>.
 exogenous:
   scenario1:
     kind: due_change
-    orders: {list: S1, day: "2026-04-13"}
+    orders: {list: S1_v1_fixed, day: "2026-04-13"}
     at: "2026-04-13 07:30"
-    due: "2026-04-13 10:00"
+    due: "2026-04-13 09:30"

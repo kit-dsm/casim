@@ -2,6 +2,46 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-21: P2.1, the scenario spec in the week (deadlines under discussion)
+
+**Done, without a core change.** `scripts/ijpe/canonical.py` adds `weight`
+and `volume` (m³: the line's weight over the package weight of the article
+file, times VOLUMEN_KOLLI) to the canonical lines; every line has a package
+weight, the 1,414 orders hold 1,465 m³ (2.3 TE per order); old columns and
+all IJPE baselines unchanged. `scripts/ijpe/disruptions.py` writes the
+selections: for V = 0.5 to 4 times the target (mail TE × 0.20), whole stores
+of the original departure's slot (S1 Monday and S2 Thursday from the 14:00
+slot, S4 Thursday from the 10:00 slot), largest first (`*_fixed`) and 30
+random selections within 15 % of the target (`*_rNN`), as named lists; S3 as
+one new store order drawn by G3 within 15 % of the target, as templates. A
+store's slot comes from the week's own dispatch rule. The variants use plain
+deadlines with staging (S1 09:30, S2 10:30 requested at 09:30, S3 and S4
+09:30); `scenario2_short` is the request at 10:30. The order generator now
+writes a volume per line (0.99 m³ per order against 1.04 recorded).
+
+**Findings.** The fixed rule overshoots small targets (S1 +67 % at V = 0.5,
+S2 +21 % at V = 1), so results are plotted against the achieved TE. Thursday's
+10:00 slot holds 152 TE, less than S4's target at V = 4 (160 TE).
+
+**Correction (same day).** An earlier version of this entry said the export shows no
+pre-picking. That check only found orders split across booking dates; the export
+has no delivery date, so it cannot show pre-picking at all, and the manuscript
+(Section 4.1) says early windows are picked the day before. S4 rests on the
+stated assumption of own-day release; the partner is asked.
+
+**Runs** (seed 0, EDD, V = 1; affected / affected late / all late / orders on
+time in the baseline that become late): baseline 0 / 0 / 136 / 0; S1 6 / 0 /
+133 / 2; S2 5 / 1 / 141 / 5; S2 short notice 5 / 5 (up to 60 min) / 132 / 3;
+S3 1 / 0 / 135 / 1; S4 12 / 0 / 124 / 9; S2+S4 17 / 1 / 124 / 10. At the
+realistic volume the scenarios barely bite; the sweep of P4.2 carries the
+result.
+
+**Checks.** `tests/verification/test_ijpe_week_variants.py` (9 tests: whole
+stores of the slot, deadlines, the new order's volume, S2+S4 disjoint, random
+selections within 15 %). The baseline case `ijpe_week__scenario2` changes with
+the new Scenario 2 and needs re-recording. Another session is redesigning
+`casim.sources.exogenous`; P2.1 uses only the existing rule kinds.
+
 ## 2026-11-21: Name and generator release (plan only)
 
 **Decision (user).** The case is named `grocery_retailer`: the public

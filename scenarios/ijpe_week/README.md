@@ -32,15 +32,29 @@ Declared in `scenario.yaml` and applied by `casim.sources.exogenous`:
 - `times`: each order line's and setup's time drawn from the fit with
   `seed`; the pickers plan with the means.
 
-Variants add the paper's disruptions on the warehouse's lists:
+Variants add the disruptions of plan P2.1 (`docs/ijpe/scenarios.md`). Each
+moves or adds a volume: the TE the partner's mail names times 0.20, the area's
+share of the warehouse's volume, in TE of 0.445 m³ of goods (`volume` of the
+canonical lines). `python -m scripts.ijpe.disruptions` writes the selections
+into the canonical folder: whole stores of the original departure's slot,
+largest first (`*_v1_fixed`) and one random selection per replication within
+15 % of the target (`*_v1_r00`, ...), for V = 0.5 to 4 times the target
+(`*_v<V>_*`); Scenario 3's order comes from the order generator G3. Every
+scenario deadline is the departure minus the 30 minutes of staging.
 
 | Variant | Rule |
 |---|---|
-| `scenario1` | Monday 07:30: list S1 due at 10:00 (`due_change`; orders due earlier keep their deadline) |
-| `scenario2` | Thursday 10:30: list S2 due at 11:00 |
-| `scenario3` | Wednesday 08:30: the S3 template order arrives 3 times (6 TU / 2.6), due 10:00 (`order_injection`) |
-| `scenario4` | Thursday's orders of list S5 arrive on Wednesday 06:30, due 10:00 (`order_move`) |
-| `scenario2_4` | both (P4.4) |
+| `scenario1` | Monday 07:30: stores of the 14:00 slot ("13:00"), 24 TE, due 09:30 (10:00 departure; `due_change`) |
+| `scenario2` | Thursday 09:30: stores of the 14:00 slot, 20 TE, due 10:30 (11:00 departure) |
+| `scenario2_short` | the same requested at 10:30, when the goods are due (the submitted timing) |
+| `scenario3` | Wednesday 08:30: one new store order of 1.2 TE from G3, due 09:30 (`order_injection`) |
+| `scenario4` | Thursday's stores of the 10:00 slot, 40 TE, arrive on Wednesday 06:30, due 09:30 (`order_move`); next-day picking ahead is not in the export |
+| `scenario2_4` | both (P4.4); the two selections share no order |
+
+A sweep overrides the selection: `exogenous.scenario2.orders.list=S2_v2_r03`,
+`exogenous.scenario3.template=S3_v4_fixed`. The selections are targets; the
+achieved TE of each list is printed by the script (the fixed rule overshoots
+small targets, for example +21 % for Scenario 2 at V = 1).
 
 ## Decisions
 
@@ -52,7 +66,8 @@ out.
 ## How to run
 
 ```bash
-python -m scripts.ijpe.canonical            # once: the canonical tables
+uv run --with openpyxl python -m scripts.ijpe.canonical   # once: the canonical tables
+python -m scripts.ijpe.disruptions          # once: the P2.1 selections
 python -m scripts.ijpe.fit_non_picking      # once: the fit, also week.json
 python -m casim run scenarios/ijpe_week
 python -m casim run scenarios/ijpe_week variants=scenario1 exogenous.times.seed=7

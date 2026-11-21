@@ -60,7 +60,8 @@ DRAWS = 200  # store-day profile samples per day; the one closest to the day's l
 
 def load(tables: Path = CANONICAL) -> tuple[pd.DataFrame, pd.DataFrame]:
     orders = pd.read_csv(tables / "orders.csv")
-    lines = pd.read_csv(tables / "lines.csv", usecols=["order_id", "article", "quantity", "x", "y"])
+    wanted = {"order_id", "article", "quantity", "x", "y", "volume"}
+    lines = pd.read_csv(tables / "lines.csv", usecols=lambda column: column in wanted)
     return orders, lines.merge(orders[["order_id", "day", "customer"]], on="order_id")
 
 
@@ -125,6 +126,9 @@ def fit(orders: pd.DataFrame, lines: pd.DataFrame) -> dict:
         "day_lines": lines.groupby("day").size().to_dict(),
         "sorted_quantities": lines.groupby("article")["quantity"].apply(np.sort).to_dict(),
         "store_share": store_share(lines),
+        # m³ per unit of an article (canonical volume per line over its quantity); 0 without volumes
+        "unit_volume": (lines["volume"] / lines["quantity"]).groupby(lines["article"]).median().to_dict()
+        if "volume" in lines else {},
     }
 
 
@@ -160,6 +164,18 @@ def _systematic(rng, pool: pd.Series, n: int) -> np.ndarray:
     return ids[np.searchsorted(np.cumsum(weight), points, side="right").clip(max=len(ids) - 1)]
 
 
+def zone_order(cal: dict, rng, zone, n_lines: int, effect: float) -> list[tuple]:
+    """The lines of one G3 zone order: (article, quantity, x, y, volume)."""
+    rows = []
+    for article in _systematic(rng, cal["zone_pool"][zone], n_lines):
+        score = effect + rng.normal(0.0, np.sqrt(1.0 - cal["store_share"]))
+        values = cal["sorted_quantities"][article]
+        quantity = int(values[min(int(NORMAL.cdf(score) * len(values)), len(values) - 1)])
+        x, y = cal["articles"].at[article, "x"], cal["articles"].at[article, "y"]
+        rows.append((article, quantity, x, y, quantity * cal["unit_volume"].get(article, 0.0)))
+    return rows
+
+
 def _articles(rng, popularity: pd.Series, n: int) -> np.ndarray:
     probs = popularity.to_numpy(float) / popularity.sum()
     n = min(n, len(probs))
@@ -179,7 +195,8 @@ def generate(cal: dict, generator: str, seed: int) -> tuple[pd.DataFrame, pd.Dat
         order_rows.append((order_id, day, f"{day} {RELEASE}", store_name[store]))
         for article in _articles(rng, pool, n_lines):
             quantity = int(rng.choice(cal["quantities"][article]))
-            line_rows.append((order_id, article, quantity, *position[article]))
+            line_rows.append((order_id, article, quantity, *position[article],
+                              quantity * cal["unit_volume"].get(article, 0.0)))
 
     store_effect = {}
 
@@ -187,11 +204,7 @@ def generate(cal: dict, generator: str, seed: int) -> tuple[pd.DataFrame, pd.Dat
         order_id = 9_000_000 + len(order_rows)
         order_rows.append((order_id, day, f"{day} {RELEASE}", store_name[store]))
         effect = store_effect.setdefault(store, rng.normal(0.0, np.sqrt(cal["store_share"])))
-        for article in _systematic(rng, cal["zone_pool"][zone], n_lines):
-            score = effect + rng.normal(0.0, np.sqrt(1.0 - cal["store_share"]))
-            values = cal["sorted_quantities"][article]
-            quantity = int(values[min(int(NORMAL.cdf(score) * len(values)), len(values) - 1)])
-            line_rows.append((order_id, article, quantity, *position[article]))
+        line_rows.extend((order_id, *row) for row in zone_order(cal, rng, zone, n_lines, effect))
 
     for day in cal["days"]:
         if generator == "G3":
@@ -220,7 +233,7 @@ def generate(cal: dict, generator: str, seed: int) -> tuple[pd.DataFrame, pd.Dat
                     sizes, pool = cal["day_zone_lines_per_order"][day, zone], cal["zone_pool"][zone]
                 add_order(day, store, int(rng.choice(sizes)), pool)
     orders = pd.DataFrame(order_rows, columns=["order_id", "day", "release", "customer"])
-    lines = pd.DataFrame(line_rows, columns=["order_id", "article", "quantity", "x", "y"])
+    lines = pd.DataFrame(line_rows, columns=["order_id", "article", "quantity", "x", "y", "volume"])
     # New integer article ids by pick frequency (the source reads integers).
     article_name = {a: i for i, a in enumerate(popularity.sort_values(ascending=False).index, 1)}
     return orders, lines.assign(article=lines["article"].map(article_name))

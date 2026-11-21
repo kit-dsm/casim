@@ -36,3 +36,9 @@ each study day on the other five days, written by
 `week.json` the fit on all six days for `scenarios/ijpe_week`. It holds samples
 taken from the export at picker-day and line level, so it is confidential and
 ignored like the export; rerun the script to restore it.
+
+`lbh_kw16.xlsx` is the article master data supplied by the partner: length,
+width and height in mm and weight in kg of one package for each article of the
+export (1,260 rows). It is confidential like the export, placed here by the user
+under this name, and listed in `SHA256SUMS.txt`. What it shows about the
+export's units is in `docs/ijpe/scenarios.md`, Section B.

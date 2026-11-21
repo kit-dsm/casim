@@ -1,13 +1,15 @@
 # @package _global_
-# Scenarios 2 and 4 combined (P4.4).
+# Scenarios 2 and 4 combined (P4.4): Thursday's 10:00-slot stores move to
+# Wednesday, and Thursday's 14:00-slot stores ask for the 11:00 departure. The
+# two selections come from different slots, so they share no order.
 exogenous:
   scenario4:
     kind: order_move
-    orders: {list: S5, day: "2026-04-16"}
+    orders: {list: S4_v1_fixed, day: "2026-04-16"}
     at: "2026-04-15 06:30"
-    due: "2026-04-15 10:00"
+    due: "2026-04-15 09:30"
   scenario2:
     kind: due_change
-    orders: {list: S2, day: "2026-04-16"}
-    at: "2026-04-16 10:30"
-    due: "2026-04-16 11:00"
+    orders: {list: S2_v1_fixed, day: "2026-04-16"}
+    at: "2026-04-16 09:30"
+    due: "2026-04-16 10:30"

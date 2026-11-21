@@ -1,0 +1,8 @@
+# @package _global_
+# Scenario 2 on short notice: the request comes at 10:30, when the goods are due.
+exogenous:
+  scenario2:
+    kind: due_change
+    orders: {list: S2_v1_fixed, day: "2026-04-16"}
+    at: "2026-04-16 10:30"
+    due: "2026-04-16 10:30"

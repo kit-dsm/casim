@@ -95,7 +95,7 @@ Not part of the revision (moved to after 27 December): replay of the recorded li
   - TE per order by goods volume: packages per line are GEWICHT_SOLL divided by the package weight, the volume follows from the package dimensions of the article master data, and 0.445 m³ is one TE. Carrier types 39 (1 TE) and 40 (1.8 TE) are a stated assumption, used as a check only.
   - Selection unit: whole stores (S2, S3, S4) and whole dispatch groups (S1). The synthetic plan has no trucks, so a dispatch group is represented by stores of its slot. Stores are taken from the slot of the original departure on the scenario day until the target is reached; achieved TE, stores and orders are reported next to the target.
   - S3: one order of a new store from the order generator conditioned on the target volume; fallback, stated as such, a copy of the template order.
-  - S4: whether the warehouse picks a delivery day's volume on the day before is measured from the export (release practice), and S4 and S2+S4 follow the measured practice.
+  - S4: Orders are released on their own day. The export has no delivery or departure date, so it cannot show whether next-day volume is picked ahead; the manuscript (Section 4.1) says the early delivery windows are picked the day before. Whether Wednesday's late shift would have picked this volume anyway is a question for the partner. S4 and S2+S4 state this assumption.
   - Slots and deadlines: the "13:00" origin is the 14:00 slot, Thursday 10:00 the 10:00 slot; the 30 minutes of staging apply to every scenario deadline as to every baseline deadline.
   - Selections: a fixed rule (largest stores first) and alternative selections, one per replication, the same for every policy (common random numbers extend to the selection), written as named lists into `lists.csv` without a core change.
 
@@ -174,7 +174,7 @@ Checkpoint on 6 December: tasks marked should or could that are not started are 
   - the area's share of the warehouse's volume: 0.20 from the data, 0.31 (pick share) as the marked upper point of the sweep;
   - picker-hour cost, lost-sales value per order or TE, contractual lateness penalty, price of an extra trip: price-ratio ranges and break-even prices in P4.7;
   - yearly frequency of each disruption type: the break-even in events per year only;
-  - whether the warehouse pre-picks the next day's volume (S4): the release practice measured from the export (P2.1);
+  - whether the warehouse pre-picks the next day's volume (S4): the stated assumption of P2.1 (own-day release; the export cannot show it);
   - the remaining questions of `docs/ijpe/scenarios.md` (workbook period and capacity formula, how a truck's stores and the early-request timing work): the stated assumptions there;
   - the public data package (P5, release): answered on 20 November, a generated week is allowed, the recorded orders are not; the built package goes to the partner for written approval before it is committed.
 - To the main author now: the P0 and P2 findings change the submitted results (busy share 62 to 70 % instead of 47.75 %; an area order about 2.45 TE by volume instead of 1.6; the area about 0.20 of the warehouse's volume, so the scaled scenarios are 3 to 4 times smaller than submitted; the submitted S2 configured with 120 TE; Scenario 3 not the warehouse's list), and the story of the paper may change with them: whether a realistic advancement creates a bottleneck is answered by the sweep of P4.2, not by one scenario.

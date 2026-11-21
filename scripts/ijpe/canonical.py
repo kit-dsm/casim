@@ -11,7 +11,9 @@ read only these tables.
 - ``lines.csv``: the replayed cohort, one row per line in recorded order:
   ``order_id``, ``article``, ``quantity``, ``x``, ``y`` (pick node), and the
   record: ``picker`` (login), ``start``, ``end`` (on the pick date) and ``row``
-  (the sheet row). The cohort: the six study days by pick date, lines with a
+  (the sheet row), and ``weight`` (kg, GEWICHT_SOLL) and ``volume`` (m³: the
+  line's packages, its weight over the package weight of the article file,
+  times the package volume VOLUMEN_KOLLI). The cohort: the six study days by pick date, lines with a
   pick node (aisles 1 to 8 without aisle 10 and one location), orders of one
   login;
 - ``records.csv``: every record of the export, also outside the cohort
@@ -25,9 +27,9 @@ read only these tables.
 The fit of line and setup times (``python -m scripts.ijpe.fit_non_picking``)
 reads these tables and writes ``data/non_picking/``.
 
-    python -m scripts.ijpe.canonical
+    uv run --with openpyxl python -m scripts.ijpe.canonical
 
-Prints counts only.
+Reading the article file (``lbh_kw16.xlsx``) needs openpyxl. Prints counts only.
 """
 
 from __future__ import annotations
@@ -51,7 +53,25 @@ def _stamp(column: pd.Series) -> pd.Series:
     return column.dt.strftime(STAMP)
 
 
+def package_weights() -> pd.Series:
+    """kg per package by article number, from the partner's article file."""
+    master = pd.read_excel(DATA / "lbh_kw16.xlsx", dtype=str)
+    article = master["ARTIKELNR"].str.strip().str.replace(r"\.0$", "", regex=True)
+    weight = master["Gewicht (kg)"].str.replace(",", ".", regex=False).astype(float)
+    return pd.Series(weight.to_numpy(), index=article.to_numpy())
+
+
+def volume_m3(frame: pd.DataFrame, weights: pd.Series) -> pd.Series:
+    """Goods volume per line: packages (weight over package weight) times litres per package.
+
+    MENGE_IST counts single units, not packages (docs/ijpe/scenarios.md, Section B).
+    """
+    packages = frame["weight"] / frame["article"].map(weights)
+    return packages * frame["package_volume"] / 1000.0
+
+
 def main() -> None:
+    weights = package_weights()
     _, locations = GridLayout().build(DATA / "layout.csv")
     nodes = GridLayout.pick_nodes(locations)
     orders, lines, excluded = [], [], []
@@ -67,7 +87,8 @@ def main() -> None:
             "quantity": frame["quantity"].astype(int),
             "x": [n[0] for n in frame["node"]], "y": [n[1] for n in frame["node"]],
             "picker": frame["picker"], "start": _stamp(frame["start"]),
-            "end": _stamp(frame["end"]), "row": frame["row"].astype(int)}))
+            "end": _stamp(frame["end"]), "row": frame["row"].astype(int),
+            "weight": frame["weight"].to_numpy(), "volume": volume_m3(frame, weights).to_numpy()}))
         excluded += [{"day": day, "item": item, "count": count} for item, count in left_out.items()]
     orders, lines = pd.concat(orders, ignore_index=True), pd.concat(lines, ignore_index=True)
     records = with_pick_date(export_lines(CACHE))
@@ -91,6 +112,8 @@ def main() -> None:
     lists.to_csv(CANONICAL / "lists.csv", index=False)
     template.to_csv(CANONICAL / "templates" / "S3.csv", index=False)
     shutil.copyfile(DATA / "layout.csv", CANONICAL / "layout.csv")
+    print(f"lines without a package weight: {int(lines['volume'].isna().sum())}; "
+          f"volume {lines['volume'].sum():.0f} m3 over {lines['order_id'].nunique()} orders")
     print(f"{len(orders)} orders, {len(lines)} lines, {len(records)} records, "
           f"lists {lists['list'].value_counts().to_dict()}, template {len(template)} lines")
 
