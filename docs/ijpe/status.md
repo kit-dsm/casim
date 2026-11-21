@@ -2,6 +2,34 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-21: P3, deadline tightness
+
+**Decision (user).** No new partner answers before the runs, so the due dates
+are fixed with what the data gives. The hash plan with 30 minutes of staging
+stays the main rule (Reviewer 2 asks for due times from staging and
+departures; the staging time remains an assumption). Tightness is a
+sensitivity: `source.due_dates.profile` loose (main), central, and bucket (the
+submitted hourly rule as reference). The capacity workbook's profile was tried
+and dropped. Results are paired differences against the same seed and
+profile, inside the envelope; the policy ranking is compared across the three
+rules (`departure_fallback.md`).
+
+**Findings.** The data shows no stable store schedule: a store's typical slot
+from the other days matches the held-out day in 32 % of store-days (26 % by
+chance), and deadlines from the other days leave 18 to 41 % of recorded orders
+late. The 26 % of recorded orders after the loose deadlines measures the fit of
+an independent plan to the record, not lateness. Simulated (EDD, seed 0), the
+loose baseline is 0 to 6 % late Saturday to Wednesday, 15 % on Thursday;
+central 3 to 40 %; bucket 40.5 % over the week. Friday is 96 % late under every
+rule because the roster gives it 4 pickers for 81 orders; this needs its own
+check.
+
+**Done.** `store_slot` takes optional shares; the week reads the profile and
+computes the bucket from the recorded line ends. Loose gives the recorded
+`ijpe_week__default` baseline unchanged. `scenarios/ijpe_week/source.py` loads
+the day source by path, so the `casim` console script works outside the repo
+root (C13 fix).
+
 ## 2026-11-21: P2.1 at the two volumes of the lean design
 
 **Done.** `scripts/ijpe/disruptions.py` writes one selection per scenario

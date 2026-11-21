@@ -30,9 +30,14 @@ source:
       - ["08:30", "09:00"]              # 11:21); the fitted median durations are 36 and 38 min
       - ["11:30", "12:00"]
   due_dates:                            # synthetic dispatch plan, docs/ijpe/departure_fallback.md
-    hours: [10, 12, 14, 16]
+    hours: [10, 12, 14, 16]             # truck departures; an order is due staging_minutes earlier
     staging_minutes: 30
     attribute: customer
+    profile: loose                      # sensitivity: central; bucket = the submitted hourly rule
+    # Share of stores per departure: the same order of stores, cut elsewhere.
+    # loose: equally likely slots (the submitted spacing); central: the area's
+    # recorded orders done by 09:30, 11:30, 13:30 and later.
+    profiles: {loose: null, central: [0.39, 0.26, 0.20, 0.15]}
   times:                                # line and setup times fitted on all six days (one person per sample)
     fit: ../non_picking/week.json       # scripts/ijpe/fit_non_picking.py
     seed: 0

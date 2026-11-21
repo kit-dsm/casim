@@ -16,7 +16,10 @@ parameter of ``source`` in ``scenario.yaml``:
     keeps its deadline;
 - ``due_dates``: an order without a due date gets its store's slot of the
   synthetic dispatch plan (docs/ijpe/departure_fallback.md, ``store_slot``)
-  minus the staging time, on its day;
+  minus the staging time, on its day; ``profile`` names the share of stores per
+  slot in ``profiles`` (``null``: equally likely slots), or is ``bucket``: due
+  at the end of the hour of the order's recorded completion (the submitted rule,
+  feasible by construction, a reference only);
 - ``roster``: per day, ``pickers`` pickers arrive at the shift start, take the
   breaks and leave at the shift end (each departure waits for the running tour);
 - ``times``: the realized line and setup times drawn from the fit with ``seed``,
@@ -31,6 +34,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator, Mapping
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import numpy as np
@@ -45,7 +49,15 @@ from casim.events.operational_events import (
     OrderArrival, OrderStreamClosed, PickerArrival, PickerDeparture, TruckDisruption,
 )
 from casim.sources.order_stream import OrderStreamSource
-from scenarios.ijpe.source import apply_fitted_times, store_slot
+
+# The store slot and the fitted times are shared with the day source. It is loaded by
+# path, as casim loads a scenario's source.py, so the repo root need not be importable
+# (the casim console script does not put it on sys.path).
+_spec = spec_from_file_location(
+    "casim_scenario_source_ijpe_shared", Path(__file__).resolve().parents[1] / "ijpe" / "source.py")
+_day = module_from_spec(_spec)
+_spec.loader.exec_module(_day)
+apply_fitted_times, store_slot = _day.apply_fitted_times, _day.store_slot
 
 DAY_S = 86400.0
 DISRUPTIONS = ("order_move", "order_injection", "due_change")
@@ -153,12 +165,24 @@ class ScenarioSource:
         # Due dates: the store's slot minus staging, on the order's day.
         hours = list(self.due_dates["hours"])
         staging = float(self.due_dates["staging_minutes"]) * 60
+        profile = self.due_dates.get("profile", "loose")
+        shares = self.due_dates.get("profiles", {}).get(profile)
+        bucket = {}
+        if profile == "bucket":
+            # The submitted rule: due at the end of the hour of the recorded completion
+            # (feasible by construction; a reference only, needs recorded times).
+            done = pd.read_csv(self.data_dir / "lines.csv", usecols=["order_id", "end"])
+            done = pd.to_datetime(done.groupby("order_id")["end"].max())
+            bucket = {int(i): self.at(t.floor("h") + pd.Timedelta(hours=1))
+                      for i, t in done.items()}
         for order_id, arrival in arrivals.items():
-            if arrival.order.due_date is None:
+            if order_id in bucket and arrival.order.due_date is None:
+                arrival.order.due_date = bucket[order_id]
+            elif arrival.order.due_date is None:
                 midnight = np.floor(arrival.time / DAY_S) * DAY_S
                 store = self.order_attributes.get(order_id, {}).get(self.due_dates["attribute"])
-                arrival.order.due_date = (midnight + hours[store_slot(store, len(hours))] * 3600.0
-                                          - staging)
+                slot = store_slot(store, len(hours), shares)
+                arrival.order.due_date = midnight + hours[slot] * 3600.0 - staging
         for rule in self.disruptions.values():
             if rule["type"] == "due_change":
                 affected |= self._due_change(rule, arrivals)

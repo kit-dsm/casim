@@ -89,12 +89,18 @@ def day_lines(day: str, tables: Path = CANONICAL) -> tuple[pd.DataFrame, dict[st
     return frame, {item: int(count) for item, count in zip(excluded["item"], excluded["count"])}
 
 
-def store_slot(store, count: int) -> int:
+def store_slot(store, count: int, shares=None) -> int:
     """A neutral, reproducible slot index of a store (SHA-256 of its number): the
     synthetic dispatch plan of docs/ijpe/departure_fallback.md, shared by the day
-    and the week (scenarios/ijpe_week)."""
-    digest = sha256(str(store).encode("utf-8")).digest()
-    return int.from_bytes(digest[:8], "big") % count
+    and the week (scenarios/ijpe_week). Without ``shares`` the slots are equally
+    likely (the hash modulo ``count``); with ``shares`` (one per slot, summing to
+    1) the hash read as a number in [0, 1) falls into the slot of that share, so
+    every profile orders the stores the same way and only cuts them elsewhere."""
+    value = int.from_bytes(sha256(str(store).encode("utf-8")).digest()[:8], "big")
+    if shares is None:
+        return value % count
+    return min(int(np.searchsorted(np.cumsum(shares), value / 2.0 ** 64, side="right")),
+               count - 1)
 
 
 def fixed_departure_hour(customer: str) -> int:

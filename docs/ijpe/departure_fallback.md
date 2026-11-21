@@ -60,3 +60,85 @@ rule with the submitted hourly bucket
 and a stated tighter-margin variant using the same orders and simulation
 policy. Keep the schedule and store assignment identical in all policy and
 disruption runs so that changes in service have a common reference.
+
+## Is there a stable store schedule in the data?
+
+If each store had the same departure every day, its slot could be taken from
+the other days (leave one day out) instead of from a hash. The recorded week
+does not support this. Store-day completion is the last line end of a store's
+orders on that day; aggregates over 1,414 orders and six days:
+
+- The rank correlation of the stores' completion order between two days is
+  0.13 to 0.57, mostly 0.2 to 0.5. The store explains about 30 % of the
+  variance of its completion time; the time varies by about 2 h within a store.
+- A store's typical slot from the other days (median completion, rounded up to
+  the next deadline) equals its slot on the held-out day in 32 % of 867
+  store-days, against 26 % by chance (76 % within one slot).
+- Deadlines from the other days leave many recorded orders late even with a
+  margin: the latest completion on the other days plus 60 min leaves 17.9 %
+  late and puts 38 % of the deadlines after the shift end; the median plus
+  30 min leaves 33 %. Their rank correlation with the recorded pick start is
+  0.28 to 0.33.
+
+A store's departure may differ by weekday, which one week cannot show. The
+WMS order numbers carry a store sequence that is almost the same every day
+(rank correlation 0.6 to 1.0 between days), unrelated to store number, order
+size and location and only weakly related to the pick start (0.1 to 0.2);
+whether it follows the tour plan is a question for the partner.
+
+## Deadline tightness (P3.2)
+
+Reviewer 2 asks for the sensitivity of the results to the due-time definition,
+derived from staging and departure. The hash plan stays the main rule, and its
+tightness is varied with `source.due_dates.profile` in
+`scenarios/ijpe_week/scenario.yaml`. Both profiles order the stores the same
+way (the hash read as a number in [0, 1)), cut them at other points, and keep
+the 30 minutes of staging.
+
+| Profile | Share of stores at 10, 12, 14, 16 h | Basis |
+|---|---|---|
+| loose (main) | equal (hash modulo four) | the submitted two-hour spacing |
+| central (sensitivity) | 0.39, 0.26, 0.20, 0.15 | the area's recorded orders done by 09:30, 11:30, 13:30 and later, six days |
+
+The central profile matches the recorded completions only in aggregate; a
+store's slot still does not depend on when its orders were picked. A third
+profile from the capacity workbook's warehouse-level departures (0.45, 0.42,
+0.10, 0.03) was tried and dropped: it leaves a third of the orders late even on
+the light days of the simulated week, which contradicts a warehouse that
+mostly meets its trucks.
+
+**Fit to the record, not lateness.** Applied to the WMS completion times, the
+loose deadlines leave 26.2 % of the orders after their deadline and the
+central ones 37.1 %. The warehouse worked to its real departures, which are
+not known, and a store's synthetic slot is unrelated to them, so these shares
+measure how a plan that is independent of the record fits the record. They
+are not the warehouse's lateness and not a benchmark for the simulation.
+
+**Simulated baseline** (week, EDD, seed 0; late includes orders still open at
+the end of the stream):
+
+| Profile | Sat | Mon | Tue | Wed | Thu | Fri | Week |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| loose | 0 % | 0 % | 0 % | 6 % | 15 % | 96 % | 9.6 % |
+| central | 3 % | 5 % | 3 % | 22 % | 40 % | 96 % | 19.9 % |
+| bucket (submitted rule) | 33 % | 8 % | 10 % | 46 % | 85 % | 98 % | 40.5 % |
+
+The simulated warehouse knows its deadlines and works to them, as the real one
+works to its real plan; under the loose profile it meets them from Saturday to
+Wednesday and becomes tight on Thursday, the day the capacity workbook flags.
+Friday's 96 % follows from the roster (4 pickers for 81 orders), not from the
+deadlines. The submitted hourly bucket (`profile: bucket`, due at the end of
+the hour of the recorded completion) is feasible for the record by
+construction, but not for the model: it leaves each order 0 to 60 minutes after
+its recorded completion, so every order the simulation finishes later than the
+record is late. The submitted model met it because it was calibrated and
+validated on the same orders (Reviewer 2); in the revised model it is a
+reference for the policy ranking, not a level.
+
+**How results are reported.** Lateness levels say nothing about the real
+warehouse. The experiments report paired differences against the baseline of
+the same seed and profile (affected and unaffected orders), for deadlines
+inside the validity envelope (P1.7), and check whether the ranking of the
+policies is the same under loose, central and the submitted hourly bucket.
+The staging time is an assumption; if the manuscript's Section 4.1 or the
+partner gives one, it replaces `staging_minutes`.
