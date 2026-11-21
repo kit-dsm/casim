@@ -2,6 +2,33 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-21: Generated week G3 against the recorded week, fixed roster
+
+**Rerun** of the G3 comparison of the entry below with the roster without
+double-counted breaks (same tables G3_0 to G3_9; ten runs each, EDD, time seed
+k for both; G3 needs `source.times.fit=../../non_picking/week.json`). Means,
+G3 against recorded, and whether G3's mean lies in the recorded 5 to 95 % band
+over seeds:
+
+| Measure | Recorded | G3 | Ratio | Inside |
+|---|---:|---:|---:|---|
+| lines done by 08:00 | 16,477 | 17,088 | 1.04 | no (band 15,912 to 17,067) |
+| lines done by 10:00 | 31,231 | 32,194 | 1.03 | no (band 30,754 to 31,866) |
+| lines done by 12:00 | 46,389 | 46,784 | 1.01 | yes |
+| lines done by 14:00 | 59,963 | 60,179 | 1.00 | yes |
+| lines left over | 249 | 34 | | yes (band 0 to 1,019) |
+| late share | 0.4 % | 0.1 % | | yes |
+| tour duration | 25.8 min | 25.8 min | 1.00 | yes |
+| route per tour | 626 m | 620 m | 0.99 | (recorded routes do not vary with the seed) |
+
+With the old roster every G3 mean lay inside the band; the band was wide
+because of the carry-over, and is now narrow. G3 is 3 to 4 % ahead of the
+recorded week in the morning and equal by noon. Its stores have new
+identifiers and so other synthetic slots, which changes which orders EDD takes
+first; whether that or the order mix explains the morning gap is not
+determined. The release package can claim agreement by noon and over the day,
+and has to state the morning difference.
+
 ## 2026-11-21: The week's roster counted breaks twice
 
 **Found.** The simulated week carried 18 orders into Thursday and 38 into
