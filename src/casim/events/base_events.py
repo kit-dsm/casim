@@ -11,6 +11,9 @@ if TYPE_CHECKING:
 class Event:
     event_counter = 0
     priority_score = 1  # Default priority for operational events
+    # False for events that cannot change a resource's derived state (busy,
+    # reserved, idle, off shift); the engine logs resource states after the others.
+    changes_resources = True
 
     def __init__(self, time: float):
         self.time = time

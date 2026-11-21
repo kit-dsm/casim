@@ -69,8 +69,10 @@ class FactsRecorder(EventLogger):
         elif isinstance(event, TravelEvent):
             tour = sim.state.tour_manager.get_tour(event.tour_id)
             if tour.edge_distance is not None and event.tour_id in self._walk:
-                self._walk[event.tour_id][1] += tour.edge_distance
-                self.tours[event.tour_id]["distance"] += tour.edge_distance
+                # Edge by edge, so that a leg of several edges sums as edge travel does.
+                for distance in tour.leg_distances:
+                    self._walk[event.tour_id][1] += distance
+                    self.tours[event.tour_id]["distance"] += distance
         elif isinstance(event, PickComplete):
             tour = sim.state.tour_manager.get_tour(event.tour_id)
             pick = tour.completed_picks[-1]

@@ -48,21 +48,47 @@ class TourPlanningState:
     route_version: int = 0
     remaining_picks: list[PickPosition] = field(default_factory=list)
     completed_picks: list[PickPosition] = field(default_factory=list)
+    # The leg in progress: the edges one TravelEvent walks, from the cursor
+    # (one edge, or with travel: pick every edge up to the next pick node or
+    # the route's end). edge_* describe the whole leg; leg_ends holds the
+    # arrival time at each of its nodes and leg_distances each edge's length.
     edge_origin: RouteNode | None = None
     edge_destination: RouteNode | None = None
     edge_start_time: float | None = None
     edge_end_time: float | None = None
     edge_distance: float | None = None
+    leg_ends: list[float] = field(default_factory=list)
+    leg_distances: list[float] = field(default_factory=list)
     picking_until: float | None = None
     cart_bins: dict[int, int] = field(default_factory=dict)
     routing_origin: RoutingOrigin | None = None
 
-    def position_at(self, time: float) -> tuple[float, float]:
+    def edge_at(self, time: float) -> tuple | None:
+        """The edge of the leg walked at ``time``, as edge-level travel has it.
+
+        Returns (offset from the cursor, origin, destination, start, end,
+        distance), or None outside a leg. At an inner node's arrival time the
+        next edge has begun, as when edge travel handles the arrival and the
+        next travel at that time before any decision.
+        """
         if self.edge_origin is None:
+            return None
+        start, last = self.edge_start_time, len(self.leg_ends) - 1
+        for offset, (end, distance) in enumerate(zip(self.leg_ends, self.leg_distances)):
+            if time < end or offset == last:
+                node = self.cursor + offset
+                return (offset, self.annotated_route[node], self.annotated_route[node + 1],
+                        start, end, distance)
+            start = end
+
+    def position_at(self, time: float) -> tuple[float, float]:
+        edge = self.edge_at(time)
+        if edge is None:
             return self.current_node().position
-        duration = self.edge_end_time - self.edge_start_time
-        fraction = 1.0 if duration == 0 else min(1.0, max(0.0, (time - self.edge_start_time) / duration))
-        start, end = self.edge_origin.position, self.edge_destination.position
+        _, origin, destination, start_time, end_time, _ = edge
+        duration = end_time - start_time
+        fraction = 1.0 if duration == 0 else min(1.0, max(0.0, (time - start_time) / duration))
+        start, end = origin.position, destination.position
         return (start[0] + fraction * (end[0] - start[0]),
                 start[1] + fraction * (end[1] - start[1]))
 
@@ -76,9 +102,13 @@ class TourPlanningState:
     def next_node(self) -> RouteNode:
         return self.annotated_route[self.cursor + 1]
 
-    def pinned_prefix(self, edge_in_progress: bool) -> tuple[RouteNode, ...]:
-        """Return all walked nodes across segment-relative route replacements."""
-        segment = self.annotated_route[:self.cursor + int(edge_in_progress)]
+    def pinned_prefix(self, edge_in_progress: bool,
+                      offset: int = 0) -> tuple[RouteNode, ...]:
+        """Return all walked nodes across segment-relative route replacements.
+
+        ``offset`` counts the edges of the leg already walked (``edge_at``).
+        """
+        segment = self.annotated_route[:self.cursor + offset + int(edge_in_progress)]
         if (self.executed_prefix and segment
                 and self.executed_prefix[-1] == segment[0]):
             segment = segment[1:]

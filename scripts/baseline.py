@@ -26,7 +26,12 @@ PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
 # order, line or picker level: scalar KPIs, counts and digests only. They run
 # without --audit (checking every invariant after each of some 240,000 events
 # takes hours); the trace digest still covers every event.
-DATA_DEPENDENT = {"ijpe": ("scenarios/ijpe/data/layout.csv", "scenarios/ijpe/data/cache")}
+DATA_DEPENDENT = {
+    "ijpe": ("scenarios/ijpe/data/layout.csv", "scenarios/ijpe/data/cache"),
+    "ijpe_week": ("scenarios/ijpe/data/canonical/orders.csv",
+                  "scenarios/ijpe/data/canonical/lines.csv",
+                  "scenarios/ijpe/data/non_picking/week.json"),
+}
 IJPE_DAYS = ("2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16",
              "2026-04-17")
 if not PYTHON.exists():
@@ -85,6 +90,8 @@ def cases() -> dict[str, tuple[str, str | None, tuple[str, ...]]]:
 
     for day in IJPE_DAYS:
         add(f"ijpe_replay__{day}", "ijpe", None, (f"source.day={day}",))
+    add("ijpe_week__default", "ijpe_week", None)
+    add("ijpe_week__scenario2", "ijpe_week", None, ("variants=scenario2",))
     return result
 
 

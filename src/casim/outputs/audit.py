@@ -36,7 +36,7 @@ class BaselineCapture(TraceRecorder):
         self.commits: list[dict] = []
         self.decisions: Counter = Counter()
         self.legs: list[dict] = []
-        self._pending_legs: dict[int, dict] = {}
+        self._pending_legs: dict[int, list[dict]] = {}
         self._committed_ids: set[int] = set()
         self._before = None
         self.order_arrivals: dict[str, float] = {}
@@ -81,33 +81,38 @@ class BaselineCapture(TraceRecorder):
         if isinstance(event, OrderArrival):
             self.order_arrivals[str(event.order.order_id)] = event.order.order_date
         elif isinstance(event, TravelEvent):
+            # One recorded leg per edge, also when one travel walks several.
             tour = state.tour_manager.get_tour(event.tour_id)
-            origin = tour.current_node()
-            dest = tour.next_node()
-            distance, reason = self._leg_distance(state, tour, origin, dest)
-            self._pending_legs[event.tour_id] = {
-                "tour_id": event.tour_id, "picker_id": picker_id,
-                "start": event.time, "end": tour.edge_end_time,
-                "distance": distance, "recompute_reason": reason,
-                "origin": origin.position, "destination": dest.position,
-            }
+            legs, start = [], event.time
+            for offset, end in enumerate(tour.leg_ends):
+                node = tour.cursor + offset
+                origin, dest = tour.annotated_route[node], tour.annotated_route[node + 1]
+                distance, reason = self._leg_distance(state, tour, node, origin, dest)
+                legs.append({
+                    "tour_id": event.tour_id, "picker_id": picker_id,
+                    "start": start, "end": end,
+                    "distance": distance, "recompute_reason": reason,
+                    "origin": origin.position, "destination": dest.position,
+                })
+                start = end
+            self._pending_legs[event.tour_id] = legs
         elif isinstance(event, NodeArrival):
-            leg = self._pending_legs.pop(event.tour_id, None)
-            if leg is not None:
+            for leg in self._pending_legs.pop(event.tour_id, ()):
                 leg["completed_fraction"] = 1.0
                 self.legs.append(leg)
 
     def on_decision(self, decision, result, snapshot, sim) -> None:
         state = sim.state
         self.decisions[decision] += 1
-        for tour_id, leg in list(self._pending_legs.items()):
+        for tour_id, legs in list(self._pending_legs.items()):
             tour = state.tour_manager.get_tour(tour_id)
             if tour.edge_origin is None:
-                elapsed = state.current_time - leg["start"]
-                duration = leg["end"] - leg["start"]
-                leg["completed_fraction"] = (
-                    1.0 if duration == 0 else max(0.0, min(1.0, elapsed / duration)))
-                self.legs.append(leg)
+                for leg in legs:
+                    elapsed = state.current_time - leg["start"]
+                    duration = leg["end"] - leg["start"]
+                    leg["completed_fraction"] = (
+                        1.0 if duration == 0 else max(0.0, min(1.0, elapsed / duration)))
+                    self.legs.append(leg)
                 del self._pending_legs[tour_id]
         for tour in state.tour_manager.get_all_tours():
             if tour.tour_id in self._committed_ids:
@@ -187,10 +192,10 @@ class BaselineCapture(TraceRecorder):
         self.path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     @staticmethod
-    def _leg_distance(state, tour, origin, dest) -> tuple:
-        """Independently compute one leg's distance, or mark not recomputable."""
+    def _leg_distance(state, tour, node, origin, dest) -> tuple:
+        """Independently compute one edge's distance, or mark not recomputable."""
         lm = state.layout_manager
-        if (tour.cursor == 0 and tour.routing_origin is not None
+        if (node == 0 and tour.routing_origin is not None
                 and tour.routing_origin.edge_destination is not None):
             pa = tour.routing_origin.position
             pb = tour.routing_origin.edge_destination

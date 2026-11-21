@@ -38,7 +38,8 @@ class SimulationEngine:
                  precedence: dict[str, int | None] | None = None,
                  periods: dict[str, float] | None = None,
                  reset_hook: Callable[['SimulationEngine'], None] | None = None,
-                 event_loggers: list[EventLogger] | None = None):
+                 event_loggers: list[EventLogger] | None = None,
+                 travel: str = "edge"):
         self.state_adapters = state_adapters
         self.triggers_map = triggers_map
         self.conditions_map = conditions_map
@@ -50,6 +51,7 @@ class SimulationEngine:
         self.periods = periods or {}
         self.reset_hook = reset_hook
         self.event_loggers = event_loggers or []
+        self.travel = travel
         self.state: State | None = None
         self.events: list[Event] = []
         self._pending_decisions: dict[str, tuple[set[str], set[ReconsiderReason]]] = {}
@@ -80,6 +82,7 @@ class SimulationEngine:
             dock=domain.dock,
             truth=getattr(domain, "truth", None),
         )
+        self.state.travel = self.travel
         self._period_anchor = self.state.current_time
         self._log_resource_states()
         for hook in hooks or ():
@@ -155,7 +158,8 @@ class SimulationEngine:
                 self._decided_at_time.clear()
             self.state.current_time = event.time
             events_to_add = event.handle(self.state)
-            self._log_resource_states()
+            if event.changes_resources:
+                self._log_resource_states()
             self._pbar.update(1)
             if self._pbar.n % 1000 == 0:
                 self._pbar.set_postfix_str(f"{self.state.current_time:.0f}s")

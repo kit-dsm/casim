@@ -120,8 +120,8 @@ class StateAdapter:
                    order_revision: int) -> dict[int, object]:
         """Seed the snapshot's deep copy with what need not be copied again.
 
-        The layout and the articles never change during a run and are
-        shared. The planner information is copied once and the copy reused
+        The layout, the articles and the storage never change during a run
+        and are shared (``State._SHARED_FIELDS``). The planner information is copied once and the copy reused
         while the state holds the same object. A tour's batch and route
         change only by replacement or by an in-place change of a known order,
         so each is copied once and the copy reused until the tour holds
@@ -129,7 +129,8 @@ class StateAdapter:
         likewise. The snapshot stays detached from live state.
         """
         memo = {id(snapshot.layout): snapshot.layout,
-                id(snapshot.articles): snapshot.articles}
+                id(snapshot.articles): snapshot.articles,
+                id(snapshot.storage): snapshot.storage}
         information = snapshot.information
         if information is not None:
             if (self._detached_information is None
@@ -172,30 +173,32 @@ class StateAdapter:
         picker_id = tour.assigned_resource
         picker = (state.resource_manager.get_resource(picker_id)
                   if picker_id is not None else None)
-        traveling = (tour.edge_destination is not None
-                     and tour.edge_end_time is not None
-                     and state.current_time < tour.edge_end_time)
-        edge_in_progress = tour.edge_destination is not None
+        # The edge walked now, also inside a multi-edge leg (travel: pick).
+        edge = tour.edge_at(state.current_time)
+        offset = edge[0] if edge is not None else 0
+        traveling = edge is not None and state.current_time < edge[4]
+        edge_in_progress = edge is not None
         if traveling:
-            duration = tour.edge_end_time - tour.edge_start_time
+            _, _, destination, start, end, distance = edge
+            duration = end - start
             fraction = (1.0 if duration == 0 else
-                        (state.current_time - tour.edge_start_time) / duration)
+                        (state.current_time - start) / duration)
             origin = RoutingOrigin(
                 position=tour.position_at(state.current_time),
-                edge_destination=tour.edge_destination.position,
-                distance_to_destination=tour.edge_distance * (1.0 - fraction),
+                edge_destination=destination.position,
+                distance_to_destination=distance * (1.0 - fraction),
             )
         else:
             position = (tour.position_at(state.current_time)
                         if status is TourStates.STARTED
                         else tour.annotated_route[0].position)
             origin = RoutingOrigin(position=position)
-        pinned_end = tour.cursor + int(edge_in_progress)
+        pinned_end = tour.cursor + offset + int(edge_in_progress)
         progress = TourProgress(
             active_order_ids=frozenset(pick.order_number
                                        for pick in tour.remaining_picks),
-            cursor=tour.cursor,
-            pinned_prefix=tour.pinned_prefix(edge_in_progress),
+            cursor=tour.cursor + offset,
+            pinned_prefix=tour.pinned_prefix(edge_in_progress, offset),
             remaining_route=tuple(node.position for node in
                                   tour.annotated_route[pinned_end:]),
             routing_origin=origin,

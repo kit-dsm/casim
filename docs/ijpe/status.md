@@ -97,6 +97,40 @@ dropped).
 median 30 s, current with `travel: pick` median 49 s; the difference is the
 pull's 1,344 decisions per week against 12.
 
+## 2026-11-20: C12, run time of a week run; IJPE runs out of pytest
+
+**Decision (user).** The core change C12 (plan, Section 4) and moving the
+IJPE scenario runs from pytest to the baseline tier.
+
+**Profile** (one baseline week run, 75 s on a quiet machine; the same run took
+up to 147 s with the laptop in a slower state): decision snapshot 31 %
+(the storage copied for each of 1,344 decisions), resource-state logging 19 %
+(after each of 1.47 million events), solving 16 %, the rest mostly handling
+the 1.47 million travel and arrival events, two per graph edge.
+
+**Done.** C12 (a) to (c). The week with `travel: pick` has 197,384 events
+instead of 1,467,924, and `facts/tours.csv`, `picks.csv`, `orders.csv`,
+`service.json` are byte-identical to edge travel; `kpis.json` and
+`tracker.json` have equal values (key order differs). Same for Scenario 2.
+Edge-mode digests of the week and Scenario 2 are unchanged by (a) and (b).
+`scenarios/ijpe_week` sets `travel: pick`. `ijpe` and `ijpe_week` are no
+longer run by `tests/test_scenarios.py` (confidential data, minutes per run;
+the week with the per-event audit took hours); `ijpe_week__default` and
+`ijpe_week__scenario2` are new data-dependent baseline cases, recorded with
+`travel: pick`.
+
+**Checks.** `tests/test_resource_state_log.py` (logging after every event gives
+the same trace and KPIs, three configurations of `recorded_replay`);
+`tests/test_travel_granularity.py` (edge and pick travel give equal facts,
+KPIs, audit legs, invariant checks and decision views on three
+configurations; `edge_at` inside a leg; refusal where in-between nodes
+matter). `compare-fast`: all runnable cases equal; six cases not runnable
+because their data files are missing in this checkout (before the change too).
+`casim check --all`: only the untracked `scenario_ijpe` and `scenario_dm`.
+
+**Open.** Not yet fixed: `_copy_memo` costs about 7 s per week run, and
+`build_jobs` recomputes every buffered tour's processing time at each decision.
+
 ## 2026-11-20: Plan aligned with the scenario spec; runtime of the sweep (plan only)
 
 **Decision (user).** P2.1 follows `docs/ijpe/scenarios.md`: volume target =

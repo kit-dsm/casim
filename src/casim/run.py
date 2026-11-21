@@ -9,11 +9,13 @@ from time import perf_counter
 
 from hydra import compose, initialize_config_dir
 from omegaconf import DictConfig, OmegaConf, open_dict
+from ware_ops_algos.planning import Accepts, TourStates
 
 from casim.config.data_card import load_and_flatten_data_card
 from casim.config.setup import DecisionSetup, resolve
 from casim.decision_engine.decision_engine import DecisionEngine, DecisionResult
 from casim.domain_objects.sim_domain import SimWarehouseDomain
+from casim.events.operational_events import NodeArrival, TravelEvent
 from casim.outputs.audit import BaselineCapture
 from casim.outputs.facts import FactsRecorder
 from casim.outputs.kpis import KPILogger
@@ -55,6 +57,8 @@ def compose_scenario(scenario_dir: Path, overrides: list[str] = (),
         "experiment": {"output_dir": output_dir.as_posix(),
                        "instance_name": cfg.get("name", scenario_dir.name),
                        "audit": False},
+        # Travel granularity (casim.events.operational_events.TravelEvent).
+        "travel": "edge",
     })
     return OmegaConf.merge(shared, cfg)
 
@@ -79,7 +83,34 @@ def check(cfg: DictConfig) -> dict[str, DecisionSetup]:
         raise ValueError("scenario.yaml needs source: {name: ..., ...}")
     if cfg.get("exogenous"):
         validate_exogenous(OmegaConf.to_container(cfg.exogenous, resolve=True))
-    return resolve(cfg, load_and_flatten_data_card(cfg.data_card))
+    setups = resolve(cfg, load_and_flatten_data_card(cfg.data_card))
+    check_travel(cfg.get("travel", "edge"), setups)
+    return setups
+
+
+def check_travel(travel: str, setups: dict[str, DecisionSetup]) -> None:
+    """``travel: pick`` walks to the next pick node in one event.
+
+    It gives the same times and distances as edge travel only if nothing
+    happens at the nodes in between: no decision is triggered by a travel or
+    node arrival, and no decision may revise a started tour (whose route would
+    be replaced inside a leg).
+    """
+    if travel not in ("edge", "pick"):
+        raise ValueError(f"travel must be edge or pick, not {travel!r}")
+    if travel == "edge":
+        return
+    for name, setup in setups.items():
+        edge_triggers = [trigger.__name__ for trigger in setup.trigger_types
+                         if trigger in (TravelEvent, NodeArrival)]
+        if edge_triggers:
+            raise ValueError(f"{name}: travel: pick has no event per edge for the "
+                             f"triggers {edge_triggers}")
+        info, scope = setup.config.state_information, setup.config.scope
+        if (TourStates.STARTED in info.tours
+                and scope.accepts(TourStates.STARTED) is not Accepts.NONE):
+            raise ValueError(f"{name}: travel: pick cannot replace a started tour's "
+                             "route inside a leg; use travel: edge")
 
 
 @dataclass(frozen=True)
@@ -113,6 +144,7 @@ def _engines(cfg: DictConfig, setups: dict[str, DecisionSetup], source,
         periods={name: setup.period_s for name, setup in setups.items()
                  if setup.period_s is not None},
         event_loggers=loggers,
+        travel=cfg.get("travel", "edge"),
     )
     decision = DecisionEngine(
         solver_map={name: setup.solver for name, setup in setups.items()

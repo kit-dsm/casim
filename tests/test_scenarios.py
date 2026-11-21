@@ -21,7 +21,11 @@ def _tracked_scenarios() -> set[str]:
     return {Path(line).parts[1] for line in listing.splitlines() if len(Path(line).parts) > 2}
 
 
-PORTED = sorted(_tracked_scenarios() - NOT_PORTED)
+# Scenarios on confidential data run for minutes and only on the user's
+# machine; their runs are checked by the baseline tier (scripts/baseline.py,
+# DATA_DEPENDENT), not here.
+DATA_DEPENDENT = {"ijpe", "ijpe_week"}
+PORTED = sorted(_tracked_scenarios() - NOT_PORTED - DATA_DEPENDENT)
 
 
 def test_check_all_passes_for_tracked_scenarios():
@@ -44,15 +48,8 @@ def test_default_configuration_runs_without_violations(name, tmp_path):
     if _missing_data(directory):
         pytest.skip(f"data of {name} not present; see its data/SOURCE.md")
     cfg = compose_scenario(directory, output_dir=tmp_path)
-    # The IJPE replay emits about 240,000 events. Per-event invariant checks
-    # take hours there; its full trace and KPIs are checked by baseline.py,
-    # while recorded_replay exercises the invariants on a hand-derived case.
-    cfg.experiment.audit = name != "ijpe"
+    cfg.experiment.audit = True
     run(cfg)
-    if name == "ijpe":
-        assert (tmp_path / "facts" / "picks.csv").exists()
-        assert (tmp_path / "trace.json").exists()
-        return
     audit = json.loads((tmp_path / "audit.json").read_text(encoding="utf-8"))
     kpis = json.loads((tmp_path / "kpis.json").read_text(encoding="utf-8"))
     assert audit["violations"] == {"check_plan": {}, "check_progress": {}, "check_resources": {}}

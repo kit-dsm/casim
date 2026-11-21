@@ -321,6 +321,8 @@ class TourStart(BaseTourEvent):
 
 class TravelEvent(BaseTourEvent):
     """Advance along the route."""
+    changes_resources = False
+
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
         if self.is_stale(state):
@@ -330,23 +332,32 @@ class TravelEvent(BaseTourEvent):
 
         assert not tour.at_end(), f"Travel at end of route on tour {tour.tour_id}"
 
-        origin = tour.current_node()
-        dest = tour.next_node()
+        # One edge, or with travel: pick every edge up to the next node where
+        # something happens (a pick node or the route's end). Arrival times add
+        # up edge by edge, as edge-level travel computes them.
+        route, last = tour.annotated_route, len(tour.annotated_route) - 1
+        end = tour.cursor + 1
+        if state.travel == "pick":
+            while end < last and route[end].node_type != NodeType.PICK:
+                end += 1
+        arrival_time, ends, distances = self.time, [], []
+        for node in range(tour.cursor, end):
+            if node == 0 and tour.routing_origin and tour.routing_origin.edge_destination:
+                travel_distance = tour.routing_origin.distance_to_destination
+            else:
+                travel_distance = state.layout_manager.get_distance(route[node], route[node + 1])
+            arrival_time = arrival_time + travel_distance / res.speed
+            ends.append(arrival_time)
+            distances.append(travel_distance)
 
-        if tour.cursor == 0 and tour.routing_origin and tour.routing_origin.edge_destination:
-            travel_distance = tour.routing_origin.distance_to_destination
-        else:
-            travel_distance = state.layout_manager.get_distance(origin, dest)
-        travel_time = travel_distance / res.speed
-        arrival_time = state.current_time + travel_time
-
-        logger.debug("Travel: Picker %d %s -> %s in %s min. Distance: %s",
-                     res.id, origin, dest, travel_time, travel_distance)
-        tour.edge_origin = origin
-        tour.edge_destination = dest
+        logger.debug("Travel: Picker %d %s -> %s, %d edges, until %s",
+                     res.id, route[tour.cursor], route[end], end - tour.cursor, arrival_time)
+        tour.edge_origin = route[tour.cursor]
+        tour.edge_destination = route[end]
         tour.edge_start_time = self.time
         tour.edge_end_time = arrival_time
-        tour.edge_distance = travel_distance
+        tour.edge_distance = sum(distances)
+        tour.leg_ends, tour.leg_distances = ends, distances
         return [NodeArrival(arrival_time, tour.tour_id, tour.route_version)]
 
 
@@ -363,6 +374,8 @@ def _pick_at_route_cursor(tour: TourPlanningState, node: tuple[float, float]):
 
 class NodeArrival(BaseTourEvent):
     """Handle arrival at a node: either pick, continue travel, or end at depot."""
+    changes_resources = False
+
     def handle(self, state: State) -> list[Event]:
         super().handle(state)
         if self.is_stale(state):
@@ -370,12 +383,14 @@ class NodeArrival(BaseTourEvent):
         tour = self.get_tour(state)
         res = state.resource_manager.get_resource(tour.assigned_resource)
         if tour.edge_destination is not None:
-            state.tracker.on_travel(picker_id=res.id, distance=tour.edge_distance)
-            state.tour_manager.advance_cursor(tour.tour_id)
+            for distance in tour.leg_distances:
+                state.tracker.on_travel(picker_id=res.id, distance=distance)
+                state.tour_manager.advance_cursor(tour.tour_id)
             state.resource_manager.update_resource_location(tour.assigned_resource, tour.edge_destination)
             tour.edge_origin = tour.edge_destination = None
             tour.edge_start_time = tour.edge_end_time = None
             tour.edge_distance = None
+            tour.leg_ends, tour.leg_distances = [], []
         here = res.current_location
         logger.info("Debug Picker %s arrives at %s", res.id, here)
         # A route ending away from the depot holds for a later suffix replacement.
@@ -405,6 +420,8 @@ class NodeArrival(BaseTourEvent):
 
 class PickComplete(BaseTourEvent):
     """Finish the pick at the current node; pop pick and mark positions fulfilled."""
+    changes_resources = False
+
     def __init__(self, time: float, tour_id: int, pick_start: float,
                  route_version: int | None = None):
         super().__init__(time, tour_id, route_version)

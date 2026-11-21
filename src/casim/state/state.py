@@ -29,6 +29,9 @@ class State:
                  truth=None):
         # time is a float (simulation time units)
         self.current_time: float = 0.0
+        # "edge": one travel event per graph edge; "pick": one per leg up to the
+        # next pick node, with the same times and distances (scenario key travel).
+        self.travel = "edge"
         self.current_picker_id = None
         self.resource_manager = ResourceManager(resources=resources)
         self.storage_manager = StorageManager(articles=articles,
@@ -164,6 +167,9 @@ class State:
         tour.executed_prefix = list(tour.pinned_prefix(
             tour.edge_destination is not None))
         picker = self.resource_manager.get_resource(picker_id)
+        # travel: pick is refused when a decision may revise a started tour
+        # (casim.run.check), so a leg in progress here is one edge.
+        assert len(tour.leg_distances) <= 1, "route replaced inside a multi-edge leg"
         if tour.edge_destination is not None:
             duration = tour.edge_end_time - tour.edge_start_time
             fraction = 1.0 if duration == 0 else min(1.0, max(0.0,
@@ -188,6 +194,7 @@ class State:
         tour.routing_origin = route.routing_origin
         tour.edge_origin = tour.edge_destination = None
         tour.edge_start_time = tour.edge_end_time = tour.edge_distance = None
+        tour.leg_ends, tour.leg_distances = [], []
         tour.route_version += 1
         tour.planned_end = (self.current_time + route.distance / picker.speed
                             + sum(pick_time(picker, pick.amount)
