@@ -2,6 +2,29 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-21: The week's roster counted breaks twice
+
+**Found.** The simulated week carried 18 orders into Thursday and 38 into
+Friday (Friday 96 % late), while the record finishes every order on its day
+(the 295 lines booked a day later were picked on the earlier day, data audit
+finding 6). The roster's pickers per day are picker-hours from first to last
+line divided by 9 h, so they already contain the breaks; the roster then
+subtracted fixed breaks (08:30 and 11:30, 30 min each) again, about 11 % of
+the capacity.
+
+**Done.** `scenarios/ijpe_week/scenario.yaml`: `roster.breaks: []`. Tested
+against one picker per 8 h with the breaks kept: both remove all carry-over,
+but the 8 h roster runs ahead of the record in the morning (1.28 times the
+recorded lines by 08:00), the roster without breaks matches it (1.10, 1.06,
+0.99, 1.06 by 08:00, 10:00, 12:00, 14:00, Monday to Thursday; before: 1.11,
+0.96, 0.91, 0.93).
+
+**Effect.** Seed 0, EDD: baseline 0 late of 1,414 (loose), 0.5 % (central),
+5.9 % (bucket); no order open at the end. At V = 1: S2 1 of 5 affected orders
+late, S2 on short notice 3 of 5, S4 0 of 12. The P2.1 run numbers of the
+entries below were made with the old roster. `ijpe_week__default` and
+`ijpe_week__scenario2` are re-recorded in a separate commit.
+
 ## 2026-11-21: P3, deadline tightness
 
 **Decision (user).** No new partner answers before the runs, so the due dates

@@ -26,9 +26,11 @@ source:
     shift: ["05:30", "14:30"]
     pickers: [12, 13, 14, 16, 13, 4]    # the record's picker-hours per day / 9 h (logins: 21 17 16 19 15 7);
                                         # staffing sensitivity: change here
-    breaks:                             # a simple assumption near the fitted median starts (08:32,
-      - ["08:30", "09:00"]              # 11:21); the fitted median durations are 36 and 38 min
-      - ["11:30", "12:00"]
+    # No breaks: the picker-hours run from a login's first to last line and so already
+    # contain its breaks, which the record staggers over the morning (data audit,
+    # finding 7). Subtracting fixed breaks again left Wednesday to Friday with work
+    # carried over that the record finished on the day (docs/ijpe/status.md).
+    breaks: []
   due_dates:                            # synthetic dispatch plan, docs/ijpe/departure_fallback.md
     hours: [10, 12, 14, 16]             # truck departures; an order is due staging_minutes earlier
     staging_minutes: 30

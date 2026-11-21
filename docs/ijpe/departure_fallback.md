@@ -114,34 +114,26 @@ not known, and a store's synthetic slot is unrelated to them, so these shares
 measure how a plan that is independent of the record fits the record. They
 are not the warehouse's lateness and not a benchmark for the simulation.
 
-**Simulated baseline** (week, EDD, seed 0; late includes orders still open at
-the end of the stream):
+**Simulated baseline** (week, EDD, seed 0, the roster without separate
+breaks; late includes orders still open at the end of the stream):
 
 | Profile | Sat | Mon | Tue | Wed | Thu | Fri | Week |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| loose | 0 % | 0 % | 0 % | 6 % | 15 % | 96 % | 9.6 % |
-| central | 3 % | 5 % | 3 % | 22 % | 40 % | 96 % | 19.9 % |
-| bucket (submitted rule) | 33 % | 8 % | 10 % | 46 % | 85 % | 98 % | 40.5 % |
+| loose | 0 % | 0 % | 0 % | 0 % | 0 % | 0 % | 0.0 % |
+| central | 0 % | 0 % | 0 % | 1 % | 1 % | 0 % | 0.5 % |
+| bucket (submitted rule) | 17 % | 1 % | 1 % | 6 % | 7 % | 0 % | 5.9 % |
 
-The simulated warehouse knows its deadlines and works to them, as the real one
-works to its real plan; under the loose profile it meets them from Saturday to
-Wednesday and becomes tight on Thursday, the day the capacity workbook flags.
-Friday is the end of the order stream, not a staffing shortage. The simulated
-Friday picks 3,127 lines, more than the 2,824 recorded, but starts with 38
-Thursday orders carried over (and 18 from Wednesday into Thursday), which EDD
-takes first because their deadlines have passed; 30 Friday orders are still
-open when the stream ends, since no day follows. The recorded Friday also
-starts late (median first line of a login at 10:03, against about 06:00 on the
-other days), so deadlines from 09:30 do not fit that day under any rule.
-Friday's deadlines therefore lie outside the validity envelope: Friday is
-reported as the day that absorbs the week's carry-over, not as a level of
-on-time completion. The submitted hourly bucket (`profile: bucket`, due at the end of
-the hour of the recorded completion) is feasible for the record by
-construction, but not for the model: it leaves each order 0 to 60 minutes after
-its recorded completion, so every order the simulation finishes later than the
-record is late. The submitted model met it because it was calibrated and
-validated on the same orders (Reviewer 2); in the revised model it is a
-reference for the policy ranking, not a level.
+Like the recorded warehouse, the simulated one finishes every day's orders on
+the day and meets the synthetic deadlines. Its lines done by 10:00, 12:00 and
+14:00 (Monday to Thursday) are 1.06, 0.99 and 1.06 times the recorded ones. An
+earlier roster subtracted fixed breaks from picker-hours that already
+contained them; it fell behind (0.91 by 12:00), carried 18 orders into
+Thursday and 38 into Friday, and made Friday 96 % late. The submitted hourly
+bucket leaves each order 0 to 60 minutes after its recorded completion, so
+every order the simulation finishes later than the record is late; Saturday's
+17 % follows from 12 pickers for a day the record worked with 21 logins and
+finished by 12:23. In the revised model the bucket is a reference for the
+policy ranking, not a level.
 
 **How results are reported.** Lateness levels say nothing about the real
 warehouse. The experiments report paired differences against the baseline of

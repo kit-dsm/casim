@@ -24,9 +24,9 @@ Parameters under `source` in `scenario.yaml`, produced by `source.py`:
 
 - `roster`: every day 05:30 to 14:30, 12, 13, 14, 16, 13 and 4 pickers: the
   record's picker-hours per day divided by the 9-hour shift (the record has
-  21, 17, 16, 19, 15 and 7 logins, many present for part of the day). Breaks
-  08:30 to 09:00 and 11:30 to 12:00 for everyone, a simple assumption near
-  the fitted median starts; change them here;
+  21, 17, 16, 19, 15 and 7 logins, many present for part of the day). No
+  separate breaks: the picker-hours already contain the recorded, staggered
+  breaks; change them here;
 - `due_dates`: the synthetic dispatch plan (`docs/ijpe/departure_fallback.md`):
   a store's slot at 10, 12, 14 or 16 h minus 30 minutes of staging;
 - `times`: each order line's and setup's time drawn from the fit with
