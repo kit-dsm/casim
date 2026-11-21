@@ -2,6 +2,167 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-21: Name and generator release (plan only)
+
+**Decision (user).** The case is named `grocery_retailer`: the public
+experiment scenario `scenarios/grocery_retailer` (now `ijpe_week`), the
+confidential validation `scenarios/grocery_retailer_validation` (now
+`ijpe`), and `scripts/grocery_retailer` (now `scripts/ijpe`). The rename is
+one commit with the package build, when no session has uncommitted work on
+these paths (the C12 work touches `scenarios/ijpe_week`, `scripts/baseline.py`
+and tests at present). The generator (G3) is published with the generated
+week; the calibration fitted on the recorded data is not.
+
+## 2026-11-21: How close a generated week comes (P5 release)
+
+**Done (not committed).** `scripts/ijpe/order_generator.py` fits three
+generators on the canonical tables and writes generated weeks in the same
+format to the ignored `scenarios/ijpe/data/generated/`. G0 is the submitted
+generator's logic (articles by frequency over the whole area) with stores
+added; G1 is zone-aware; G2 is G1 fitted per day with articles drawn within
+the zone's aisles. Zones come from the data: aisles 1 to 6 and 7 to 8; a
+store-day has one order per zone (377 of the two-order store-days), and
+aisles 7 and 8 hold 52 % of the lines.
+
+**Stream** (mean of three seeds against recorded): aisles per order G0 7.07,
+G2 3.44, recorded 3.48; orders within two aisles G0 6 %, G2 62 %, recorded
+61 %; lines per order p10/p50/p90 equal within one line. Still off in G2:
+quantity per line p90 36 against 47, the largest tenth of store-days holds
+22 % of lines against 24 %, total lines +2 %.
+
+**Week run** (EDD, fitted times, the same three time seeds): route per tour G0
+1,065 m, G2 622 m, recorded 628 m; tour 25.6 against 25.6 min. Lines done by
+08:00, 10:00, 12:00 and 14:00 in G2 are within 1 % of the recorded week; lines
+carried or open +23 %, which is G2's +2 % load. Orders done by 10:00 are 9 %
+fewer, because the hashed dispatch slots put smaller real stores into the
+09:30 slot by chance (40.7 against 45.9 lines per order there). G0 is not
+usable (57 % late against 10 %).
+
+**G3** (same day). G2 plus: store-day profiles (zone orders and their line
+counts) resampled from the same day, keeping the draw closest to the day's
+recorded lines; articles included with probability proportional to their
+share (systematic sampling); each line's quantity a quantile of its article's
+recorded quantities through a normal score with a per-store effect (18 % of
+the score variance lies between stores). Stream: lines 62,988 against
+62,985, quantity per line p90 48 against 47, largest tenth of store-days 24 %
+against 24 %, top 50 articles 23 % against 24 %, aisles per order 3.46
+against 3.48. Week runs with ten seeds each: lines done by 08:00, 10:00,
+12:00 and 14:00 are 1.06, 1.03, 1.02 and 1.02 times the recorded week, lines
+left over 0.92, late share 11.7 against 13.1 %; every G3 mean lies inside the
+recorded week's 5 to 95 % band over seeds. The gap in leftover work seen
+with three seeds was noise (recorded band 3,294 to 10,557 lines). Friday's
+tours are longer in G3 (24.6 against 21.6 min, three seeds): its article mix
+is pooled over the week.
+
+**Next.** Build the package from G3 (one fixed seed) with the percentile time
+model, and send it to the partner for approval.
+
+## 2026-11-20: Public data package (plan only)
+
+**Decision (user).** The release (P5) is one public data package in the
+repository, read by `scenarios/ijpe_week` by default, and the paper's
+experiments run on it; the confidential tables only build it and run the
+validation. Content: the pseudonymised recorded orders (A, as SLAPStack
+published WEPAStacks) if the partner approves, otherwise a generated week
+(B). The time model is published as percentiles in the format of
+`week.json`; pseudonyms use a private seed. The generator calibration is not
+published; S3's order and the store selections come from the package with
+public code. The plan's ground rule names the package as its one exception,
+committed only after written approval.
+
+**Partner (same day).** The recorded orders may not be published, even
+pseudonymised; a generated or fitted stream may. The package is therefore a
+generated week (B); its fidelity is measured next.
+
+## 2026-11-20: Submitted results reproducible on main; P2.2 cut down
+
+**Decision (user).** The submitted version is reproduced on `main`, and this
+branch builds only the revised version; the two are not compared here, since
+they rest on different assumptions.
+
+**Done.** `main` `8756ffd` (pushed) adds the converter that built the
+submitted stream (it was in no repository), an ignore rule for the partner's
+data and `scenarios/scenario_ijpe/README.md` with inputs, commands and the
+reproduced tables. The submitted code stays at the published tag `ijpe-2026`;
+ware_ops_algos `32cdff5` has the tag `ijpe-2026` too (pushed). Run with the
+paper's own scripts: Tables 4 and 5 match (utilisation 47.65 against
+47.75 %), Table 6 matches in structure; Scenario 2 has 47 affected orders
+instead of 50, and the waits of Scenarios 1 and 2 differ slightly, cause not
+determined. Table 6's "delayed departures" are hourly due-time groups, which
+answers Rev2's Table 6 questions; C5 is not needed. The reproduction tooling
+committed on this branch earlier today was removed again (unpushed commit
+dropped).
+
+**Run time** (same laptop, alternating, CPU time per week run): submitted
+median 30 s, current with `travel: pick` median 49 s; the difference is the
+pull's 1,344 decisions per week against 12.
+
+## 2026-11-20: Plan aligned with the scenario spec; runtime of the sweep (plan only)
+
+**Decision (user).** P2.1 follows `docs/ijpe/scenarios.md`: volume target =
+the mail's TE × 0.20, TE per order by goods volume, whole stores and dispatch
+groups, S3 from the volume-conditioned generator with the copy as fallback,
+S4 following the release practice measured from the export, the "13:00"
+origin as the 14:00 slot, staging on every scenario deadline, no workbook
+number quoted, alternative store selections per replication. The main
+what-if result (P4.2) is the sweep of advanced volume (0 to 4 × target) ×
+staffing (recorded, −2, −4 pickers), realistic volumes marked, bottleneck
+onset as a band; busy share is no longer a load target. P4.7 slim: three
+alternatives at 1×, 2×, 4× target, request time fixed, recorded roster; truck
+waiting from dispatch-group completion against the staging deadline,
+computed from `facts/orders.csv`, so P4.7 no longer depends on C5 (C5 stays
+for P2.2). P1.7's generator check adds volume per order and the MENGE_IST
+unit check. Partner questions are non-blocking, each with a fallback; the
+TYP/LHM_TYP/VOLUMEN_KOLLI question is closed.
+
+**Runtime estimate** (re-timed after C12, `travel: pick`, 197k events per
+week run). Measured on this laptop (8 cores, 16 logical, 28 GB), EDD,
+current list-based variants. Single runs: 31 to 32 s for the baseline, S2 and
+S4 with FIFO, one outlier at 52 s. In parallel, seeds 1 to 8 or 1 to 12 of
+the baseline: 8 runs in 50 s and 12 runs in 69 s wall clock, so about 5.7 s
+per run at 12 in parallel; all runs completed. A stale pytest from 19
+November that had run the week with the per-event audit for almost a day was
+stopped first; the earlier 2.1 to 2.6 min per run were measured with edge
+travel and that process competing. The sweep's runs per replication: per
+staffing level one baseline plus 5 scenarios × 6 non-zero volumes = 31, × 3
+staffing levels = 93.
+
+| Part | Runs | CPU hours | Wall clock, 12 in parallel |
+|---|---:|---:|---:|
+| P4.2 sweep, submitted policy, 10 replications | 930 | 8 | about 1.5 h |
+| P4.2 sweep, submitted policy, 30 replications | 2,790 | 24 | about 4.5 h |
+| P4.1 policies (3 more) at V = 1, 2, 4, recorded roster, 5 scenarios, 30 replications | 1,440 | 12 | about 2.5 h |
+| All 4 policies on the full sweep, 30 replications | 11,160 | 96 | about 18 h |
+| P4.7 slim (only "accept plus pull forward" is new), 30 replications | 90 | 0.8 | about 10 min |
+
+Runs with the new volume-based selections are not timed yet; larger advanced
+volumes may take longer, and single-run times on this laptop vary (52 s
+outlier here; 75 to 147 s for identical edge-travel runs in another
+session). Proposed: the sweep with the submitted policy and the policies at
+selected points, about 4,200 runs or 7 h wall clock for 30 replications (one
+night); all policies on the full grid would also fit in one day.
+
+## 2026-11-20: Positioning in three parts (plan only)
+
+**Decision (user).** The revised paper is organised as credibility,
+what-if analysis and decision support (plan, "Positioning of the revised
+paper"). New tasks: P1.7 credibility profile (must), P4.7 cost-based
+decision study on an S2-type early-delivery request (slim version must,
+full grid could; fallback from the P4.1 Scenario 2 differences). Its
+per-event savings feed a break-even NPV (events per year needed to pay
+back). The final form of the financial section is the main author's
+decision. P1.5 is covered by the fitted line time; P1.6 is dropped. The
+schedule now finishes the experiments by 13 December and starts the P5 parts
+that do not depend on results now. The KPIs of P4 are checked against the
+validity envelope of P1.7. Staffing enters only as a sensitivity, also as a
+priced one in P4.7, never as a decision alternative. Truck staging times are
+not optimised while the dispatch plan is synthetic.
+
+**Open.** From the partner: departure plan, picker-hour cost, lost-sales
+value, any lateness penalty, and the yearly frequency of each disruption
+type. To the main author: the changed results from P0 and P2, and the form
+of the financial section.
+
 ## 2026-11-20: Week scenarios on the warehouse's lists (P2)
 
 **Decision (user).** The week's disruption variants are the warehouse's
