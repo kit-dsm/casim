@@ -3,7 +3,7 @@
     uv run --with openpyxl python -m scripts.ijpe.convert
 """
 
-from casim.sources.wms_export import convert
+from scripts.ijpe.wms_export import convert
 from scripts.ijpe import CACHE, EXPORT
 
 if __name__ == "__main__":

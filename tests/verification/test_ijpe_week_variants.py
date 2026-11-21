@@ -13,7 +13,6 @@ from omegaconf import OmegaConf
 from casim.events.operational_events import OrderArrival, OrderStreamClosed, TruckDisruption
 from casim.run import compose_scenario
 from casim.sources.base import build_source
-from casim.sources.exogenous import ExogenousSource
 from scripts.ijpe.disruptions import AREA_SHARE, S3, STORE_SCENARIOS, TE_M3, slot_hour
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -29,8 +28,6 @@ MONDAY, WEDNESDAY, THURSDAY = 2 * DAY, 4 * DAY, 5 * DAY     # epoch Saturday 202
 def _week(variant=None):
     cfg = compose_scenario(WEEK, [f"variants={variant}"] if variant else [])
     source = build_source(OmegaConf.to_container(cfg.source, resolve=True), WEEK)
-    source = ExogenousSource(source, OmegaConf.to_container(cfg.exogenous, resolve=True),
-                             WEEK / "data")
     source.initial_state()
     return source, list(source.events())
 

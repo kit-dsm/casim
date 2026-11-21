@@ -261,16 +261,13 @@ Data a scenario owns enters as canonical tables: the library source `order_strea
 none before. A conversion script writes the tables once from the raw data, so no simulation code
 reads a raw export.
 
-What the world does to a scenario, and no decision controls, is declared in `scenario.yaml`
-under `exogenous`, a named mapping of rules (`casim.sources.exogenous`): `roster` (pickers per
-day, shift and breaks), `dispatch_slots` (due dates from a slot rule on an order attribute),
-`due_change` (a `TruckDisruption`: selected orders due earlier), `order_move` (selected orders
-arrive at another time), `order_injection` (copies of a template order arrive) and
-`process_times` (realized line and setup times drawn from a fit, the process truth). Orders
-are selected by a named list or by ids, optionally released on one day. The rules wrap any
-source with an `epoch`, apply in fixed phases (orders, due dates, presence, times), mark every
-order they change as affected, and only add or rewrite source events. A variant adds a
-disruption by naming one more rule; the scenario's rules stay as they are.
+What the world does to a scenario, and no decision controls, is part of its source: presence
+(shifts, breaks), due dates, disruptions and the process truth are events or initial state that
+the source produces, with their parameters under `source` in `scenario.yaml`. A case that needs
+more than its data format defines writes it in its own `source.py`, usually around a library
+source; the IJPE week wraps `order_stream` this way (`scenarios/ijpe_week/source.py`). A source
+marks the orders a disruption changes in `affected_order_ids`. The core holds such a rule only
+once a second scenario uses it.
 
 ## Outputs
 

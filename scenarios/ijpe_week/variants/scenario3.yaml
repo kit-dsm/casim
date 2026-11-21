@@ -2,13 +2,14 @@
 # Scenario 3 (plan P2.1): a new store's urgent replenishment on Wednesday. At
 # 08:30 one order of the target volume (the mail's 6 TE x 0.20), drawn by the
 # order generator G3, arrives and is due at 09:30 (10:00 departure, staging).
-# Sweep: exogenous.scenario3.template=S3_v<V>_<fixed|rNN>.
-exogenous:
-  scenario3:
-    kind: order_injection
-    template: S3_v1_fixed
-    copies: 1
-    first_id: 2604159001
-    at: "2026-04-15 08:30"
-    due: "2026-04-15 09:30"
-    attributes: {customer: new_store}
+# Sweep: source.disruptions.scenario3.template=S3_v<V>_<fixed|rNN>.
+source:
+  disruptions:
+    scenario3:
+      type: order_injection
+      template: S3_v1_fixed
+      copies: 1
+      first_id: 2604159001
+      at: "2026-04-15 08:30"
+      due: "2026-04-15 09:30"
+      attributes: {customer: new_store}

@@ -1,6 +1,6 @@
 """Write the IJPE data as canonical tables: the only reader of the WMS workbook.
 
-Reads the confidential WMS export once (``casim.sources.wms_export``, the
+Reads the confidential WMS export once (``scripts.ijpe.wms_export``, the
 parquet cache of ``scripts/ijpe/convert.py``) and writes to
 ``scenarios/ijpe/data/canonical/`` (confidential, ignored by git). The
 replay, the fit, the validations and the week (``casim.sources.order_stream``)
@@ -39,7 +39,7 @@ import shutil
 import pandas as pd
 
 from casim.sources.grid_layout import GridLayout
-from casim.sources.wms_export import (
+from scripts.ijpe.wms_export import (
     day_lines, disruption_lines, disruption_orders, lines as export_lines, with_pick_date,
 )
 from scenarios.ijpe.source import CANONICAL, STUDY_DAYS

@@ -2,6 +2,29 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-21: C13, exogenous rules back into the scenario
+
+**Decision (user).** `casim.sources.exogenous` is removed from the core: its
+rules served only the IJPE week and worked only with `order_stream`. A
+scenario's source produces its exogenous events (AGENTS rule 3,
+`docs/scenarios.md`); a helper moves into the core only when a second scenario
+needs it.
+
+**Done.** `scenarios/ijpe_week/source.py` wraps `order_stream` and produces
+the roster, due dates, process times and disruptions, with the parameters
+under `source`; the variants name `source.disruptions.<name>` with a `type`.
+The store slot (`store_slot`) and the fitted times are shared with the day
+source. `scripts/ijpe/disruptions.py` reads the slot rule from there. A
+configuration with an `exogenous:` block is refused. `casim.sources.wms_export`
+moved to `scripts/ijpe/`. P2.1's uncommitted work was committed first as it
+stood, at the user's request.
+
+**Checks.** Week default and replay-day baselines identical; P2.1's variants
+give the same facts under the old and the new code; `compare-fast` equal for
+every runnable case; `casim check --all` passes. The 13 failing component smoke
+tests fail on the base commit too (CASOP instance folders empty in this
+checkout).
+
 ## 2026-11-21: P2.1, the scenario spec in the week (deadlines under discussion)
 
 **Done, without a core change.** `scripts/ijpe/canonical.py` adds `weight`

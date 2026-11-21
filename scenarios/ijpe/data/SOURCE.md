@@ -8,7 +8,7 @@ pushed or quoted at order, line or picker level. The user places it here
 under this name; `SHA256SUMS.txt` lists its checksum. There is no public
 source and `scripts/fetch_data.py` cannot restore it.
 
-`casim.sources.wms_export` reads it; `scripts/ijpe/convert.py` caches the sheets as parquet in `cache/`
+`scripts.ijpe.wms_export` reads it; `scripts/ijpe/convert.py` caches the sheets as parquet in `cache/`
 (also ignored):
 
 ```bash

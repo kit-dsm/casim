@@ -89,14 +89,33 @@ def day_lines(day: str, tables: Path = CANONICAL) -> tuple[pd.DataFrame, dict[st
     return frame, {item: int(count) for item, count in zip(excluded["item"], excluded["count"])}
 
 
+def store_slot(store, count: int) -> int:
+    """A neutral, reproducible slot index of a store (SHA-256 of its number): the
+    synthetic dispatch plan of docs/ijpe/departure_fallback.md, shared by the day
+    and the week (scenarios/ijpe_week)."""
+    digest = sha256(str(store).encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big") % count
+
+
 def fixed_departure_hour(customer: str) -> int:
     """Synthetic daily store slot, independent of recorded picking times."""
-    digest = sha256(str(customer).encode("utf-8")).digest()
-    return DEPARTURE_HOURS[int.from_bytes(digest[:8], "big") % len(DEPARTURE_HOURS)]
+    return DEPARTURE_HOURS[store_slot(customer, len(DEPARTURE_HOURS))]
 
 
 def _day_key(day: str) -> int:
     return int(pd.Timestamp(day).strftime("%Y%m%d"))
+
+
+def apply_fitted_times(domain: SimWarehouseDomain, fit: dict, seed: int, key: int, orders,
+                       pickers, first_setup_s: float) -> None:
+    """Truth: the realized line and setup times drawn from the fit. Belief: the
+    resources plan with the means (setup, and line time by quantity class)."""
+    domain.truth = drawn(fit, seed, key, orders, pickers, first_setup_s)
+    planning = ClassPickTime(tuple(fit["quantity_bounds"]),
+                             tuple(float(np.mean(pool)) for pool in fit["line_s"]))
+    for picker in domain.resources.resources:
+        picker.tour_setup_time = float(np.mean(fit["setup_s"]))
+        picker.pick_time_model = planning
 
 
 def draw_breaks(fit: dict, roster: dict[int, tuple[float, float]], seed: int, day: int
@@ -218,16 +237,9 @@ class ScenarioSource:
             extra.id = picker
             self._domain.resources.resources.append(extra)
         if self._fit is not None:
-            # Truth: the realized times. Belief: the resources plan with the means.
-            self._domain.truth = process_truth(
-                self._fit, self.seed, _day_key(self.day),
-                self._domain.orders.orders,
-                self.pickers, self.replay.time_model.tour_setup_time)
-            planning = ClassPickTime(tuple(self._fit["quantity_bounds"]),
-                                     tuple(float(np.mean(pool)) for pool in self._fit["line_s"]))
-            for picker in self._domain.resources.resources:
-                picker.tour_setup_time = float(np.mean(self._fit["setup_s"]))
-                picker.pick_time_model = planning
+            apply_fitted_times(self._domain, self._fit, self.seed, _day_key(self.day),
+                               self._domain.orders.orders, self.pickers,
+                               self.replay.time_model.tour_setup_time)
         if self.due_plan == "fixed_dispatch":
             for order in self._domain.orders.orders:
                 hour = fixed_departure_hour(self.customer_by_order[str(order.order_id)])

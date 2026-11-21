@@ -9,21 +9,19 @@ defaults:
 # The IJPE week as one order stream (P2, P4 of docs/ijpe/plan.md): the orders
 # of the six study days (the canonical tables of scenarios/ijpe) are
 # released at 05:30 of their day; an order still open at a shift's end waits
-# for the next. What the world does is declared below (casim.sources.exogenous);
-# the disruption scenarios are variants that add a rule.
+# for the next. source.py adds the roster, due dates, process times and the
+# disruptions below; the disruption scenarios are variants that add one.
 name: ijpe_week
 # One travel event per leg to the next pick node instead of one per graph
 # edge: the same tours, picks and KPIs with about 0.2 instead of 1.5 million
 # events (tests/test_travel_granularity.py). travel=edge restores edge travel.
 travel: pick
 source:
-  name: order_stream
+  name: local
   epoch: "2026-04-11"
   tables: ../../ijpe/data/canonical      # the IJPE data set (scripts/ijpe/canonical.py)
   pickers: {count: 30, speed: 2306.0, time_per_pick: 16.26, tour_setup_time: 215.0}
-exogenous:
   roster:
-    kind: roster
     days: ["2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17"]
     shift: ["05:30", "14:30"]
     pickers: [12, 13, 14, 16, 13, 4]    # the record's picker-hours per day / 9 h (logins: 21 17 16 19 15 7);
@@ -32,12 +30,11 @@ exogenous:
       - ["08:30", "09:00"]              # 11:21); the fitted median durations are 36 and 38 min
       - ["11:30", "12:00"]
   due_dates:                            # synthetic dispatch plan, docs/ijpe/departure_fallback.md
-    kind: dispatch_slots
     hours: [10, 12, 14, 16]
     staging_minutes: 30
     attribute: customer
   times:                                # line and setup times fitted on all six days (one person per sample)
-    kind: process_times
-    fit: ../non_picking/week.json         # scripts/ijpe/fit_non_picking.py
+    fit: ../non_picking/week.json       # scripts/ijpe/fit_non_picking.py
     seed: 0
     first_setup_s: 215.0
+  disruptions: {}                       # variants add them (source.py)

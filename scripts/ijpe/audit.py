@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from casim.sources import wms_export as export
+from scripts.ijpe import wms_export as export
 from scripts.ijpe import CACHE, OUTPUTS as SCENARIO_OUTPUTS
 
 OUTPUTS = SCENARIO_OUTPUTS / "audit"

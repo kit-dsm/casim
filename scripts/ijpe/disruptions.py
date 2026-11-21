@@ -11,8 +11,8 @@ volume. A store's volume on a day is the goods volume of its orders
   fixed rule takes the largest stores first; replication ``j`` takes stores in
   random order, the first of 200 draws within 15 % of the target, else the
   closest. A store's slot comes from the scenario's own dispatch rule
-  (``exogenous.due_dates`` of ``scenarios/ijpe_week/scenario.yaml`` with
-  ``casim.sources.exogenous.slot``), so another store-to-slot rule changes the
+  (``source.due_dates`` of ``scenarios/ijpe_week/scenario.yaml`` with
+  ``scenarios.ijpe.source.store_slot``), so another store-to-slot rule changes the
   selection with it.
 - S3 (Wednesday): one order of a new store from the order generator G3
   (``scripts.ijpe.order_generator``): a zone order of a Wednesday store-day
@@ -37,7 +37,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from casim.sources.exogenous import slot
+from scenarios.ijpe.source import store_slot
 from scripts.ijpe.order_generator import fit, load, zone_order
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -58,9 +58,9 @@ SEED = 2101
 
 def slot_hour(stores: pd.Series) -> pd.Series:
     """Departure hour of each store under the week's dispatch rule."""
-    rule = yaml.safe_load(WEEK.read_text(encoding="utf-8"))["exogenous"]["due_dates"]
+    rule = yaml.safe_load(WEEK.read_text(encoding="utf-8"))["source"]["due_dates"]
     hours = list(rule["hours"])
-    return stores.map(lambda store: hours[slot(store, len(hours))])
+    return stores.map(lambda store: hours[store_slot(store, len(hours))])
 
 
 def fill(te: pd.Series, target: float, order) -> list:

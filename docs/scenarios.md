@@ -21,10 +21,24 @@ A scenario lives in `scenarios/<name>/` and has exactly this structure:
 | `reference.csv` | no | Published or derived values to compare with |
 | `data/SOURCE.md`, `data/SHA256SUMS.txt` | yes | Where the data comes from and the checksum of every file |
 
-A scenario contains no simulation loop and no hooks: `casim run` runs it, writes the outputs and
-compares them with `reference.csv`. Data files are never committed; `scripts/fetch_data.py`
-downloads the public datasets into the ignored `data/` directories and checks them against the
-checksums, and confidential data is placed there by the user.
+A scenario contains no simulation loop and never touches the engine: `casim run` runs it,
+writes the outputs and compares them with `reference.csv`. Data files are never committed;
+`scripts/fetch_data.py` downloads the public datasets into the ignored `data/` directories and
+checks them against the checksums, and confidential data is placed there by the user.
+
+### Exogenous events
+
+Everything that happens to a scenario and that no decision controls reaches the simulation as
+exogenous events from its source (`docs/concepts.md`, events and sources): order arrivals,
+picker arrivals and departures (shifts, breaks, absences), changes of due dates
+(`TruckDisruption`) and the closure of the order stream. A source may also fix realized process
+times in the initial state (the process truth). There is no second mechanism: a library source
+yields the events its format defines, and a case that needs more (a roster, a due-date rule,
+disruptions) writes them in its `source.py`, usually wrapping a library source such as
+`order_stream`. Its parameters live under `source` in `scenario.yaml`, so a variant changes a
+disruption or a roster by overriding them, for example `source.disruptions.scenario2.at=...`.
+`scenarios/ijpe_week/source.py` is an example. A helper for such events moves into
+`casim.sources` only when a second scenario needs it.
 
 ## Writing a new scenario
 

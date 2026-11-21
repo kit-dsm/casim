@@ -3,10 +3,12 @@
 # the 14:00 slot ("13:00") totalling the target (the mail's 100 TE x 0.20) leave at
 # 11:00, so their goods are due at 10:30; the request comes at 09:30, one hour
 # before (scenario2_short: at 10:30, the submitted timing).
-# Sweep: exogenous.scenario2.orders.list=S2_v<V>_<fixed|rNN>, exogenous.scenario2.at=...
-exogenous:
-  scenario2:
-    kind: due_change
-    orders: {list: S2_v1_fixed, day: "2026-04-16"}
-    at: "2026-04-16 09:30"
-    due: "2026-04-16 10:30"
+# Sweep: source.disruptions.scenario2.orders.list=S2_v<V>_<fixed|rNN>,
+# source.disruptions.scenario2.at=...
+source:
+  disruptions:
+    scenario2:
+      type: due_change
+      orders: {list: S2_v1_fixed, day: "2026-04-16"}
+      at: "2026-04-16 09:30"
+      due: "2026-04-16 10:30"

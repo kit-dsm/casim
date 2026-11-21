@@ -82,9 +82,10 @@ Each item says what and why. The order is a proposal.
   time-ordered stream from a closed set of events (order arrival, order update, picker arrival
   and departure, departure update, timer, stream closure) whose handlers change the warehouse or
   the belief, never the plan; the dock holds the departure schedule.
-- **Perturbations.** Declared, seeded transformations of the stream (inject orders, reveal
-  early, update due dates, move a departure, absence), each recording its changes in the trace,
-  so a disruption study needs configuration, not code.
+- **Perturbations.** Seeded transformations of the stream (inject orders, reveal early, update
+  due dates, move a departure, absence), each recording its changes in the trace. They live in
+  the scenario sources that need them (`scenarios/ijpe_week/source.py`); one moves into
+  `casim.sources` as a plain function once a second scenario uses it.
 - **Parked configurations.** Two configuration sets that never ran wait on the branch
   `deferred/parked-configs` (directory `docs/deferred/`): the rolling-horizon strategy on the
   Henn instances (it declared a problem class `rolling`, which the schema rejects; it should be

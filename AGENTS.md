@@ -15,8 +15,12 @@ optionally `sweep/` and `variants/`, `source.py` only for a local source, option
 1. A new case starts from a copy of `scenarios/minimal/`. No other scenario is copied.
 2. A new data format becomes a library source in `casim.sources` (registered in
    `casim.sources.base.LIBRARY`), not a loader inside a scenario.
-3. A scenario contains no simulation loop and no hooks; `casim run` owns the loop and the
-   outputs.
+3. A scenario contains no simulation loop and never touches the engine; `casim run` owns the
+   loop and the outputs. What happens to a scenario that no decision controls (picker
+   presence, due dates, disruptions, process times) is produced by its source as exogenous
+   events: a library source, or the scenario's `source.py`, with its parameters under `source`
+   in `scenario.yaml`. A helper for such events moves into `casim.sources` only when a second
+   scenario needs it; the core holds no rules that serve one scenario.
 4. Data is never committed: `scripts/fetch_data.py` downloads public data, the user places
    confidential data. IJPE data at order, line or picker level never enters a committed file.
 5. `python -m casim check --all` must pass. `scenarios/scenario_dhaen_online/` is exempt until

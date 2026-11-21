@@ -1,17 +1,25 @@
-"""Exogenous rules on a canonical order stream (casim.sources.exogenous, order_stream)."""
+"""The IJPE week's source on synthetic tables: the order stream (casim.sources.order_stream)
+and what scenarios/ijpe_week/source.py adds to it (disruptions, due dates, roster, times)."""
 
 import json
+from pathlib import Path
 
 import pytest
+from omegaconf import OmegaConf
 
 from casim.events.operational_events import (
     OrderArrival, OrderStreamClosed, PickerArrival, PickerDeparture, TruckDisruption,
 )
-from casim.sources.exogenous import ExogenousSource, slot, validate
+from casim.run import check
+from casim.sources.base import source_class
 from casim.sources.order_stream import OrderStreamSource
+from scenarios.ijpe.source import store_slot
 
 H = 3600.0
 A, B = (7500.0, 1200.0), (11350.0, 2000.0)      # pick nodes of the drawing below
+WEEK = Path(__file__).resolve().parents[1] / "scenarios" / "ijpe_week"
+PICKERS = {"count": 3, "speed": 1000.0, "time_per_pick": 15.0, "tour_setup_time": 200.0}
+HOURS = [10, 12, 14, 16]
 
 
 @pytest.fixture
@@ -38,14 +46,18 @@ def data(tmp_path):
     return tmp_path
 
 
-def _source(data):
-    return OrderStreamSource(data, epoch="2026-04-13",
-                             pickers={"count": 3, "speed": 1000.0, "time_per_pick": 15.0,
-                                      "tour_setup_time": 200.0})
+def _week(data, disruptions):
+    return source_class("local", WEEK)(
+        data, epoch="2026-04-13", tables=".", pickers=PICKERS,
+        roster={"days": ["2026-04-13", "2026-04-14"], "shift": ["05:30", "14:30"],
+                "pickers": [2, 1], "breaks": [["08:30", "09:00"]]},
+        due_dates={"hours": HOURS, "staging_minutes": 30, "attribute": "customer"},
+        times={"fit": "fit.json", "seed": 3, "first_setup_s": 215},
+        disruptions=disruptions)
 
 
 def test_the_stream_releases_each_order_at_its_time_and_knows_none_before(data):
-    source = _source(data)
+    source = OrderStreamSource(data, epoch="2026-04-13", pickers=PICKERS)
     domain = source.initial_state()
     events = list(source.events())
     assert domain.orders.orders == [] and len(domain.resources.resources) == 3
@@ -57,22 +69,16 @@ def test_the_stream_releases_each_order_at_its_time_and_knows_none_before(data):
     assert [line.pick_node for line in tours[0].lines] == [A, B]
 
 
-def test_rules_move_inject_set_due_dates_and_roster_in_their_phases(data):
-    rules = {
-        # Listed out of phase order: the phases decide, not the listing.
-        "truck": {"kind": "due_change", "orders": {"list": "S1"}, "at": "2026-04-13 07:30",
+def test_disruptions_due_dates_roster_and_times(data):
+    source = _week(data, {
+        # Listed before the orders they act on: orders move first, deadlines follow.
+        "truck": {"type": "due_change", "orders": {"list": "S1"}, "at": "2026-04-13 07:30",
                   "due": "2026-04-13 10:00"},
-        "slots": {"kind": "dispatch_slots", "hours": [10, 12, 14, 16], "staging_minutes": 30,
-                  "attribute": "customer"},
-        "roster": {"kind": "roster", "days": ["2026-04-13", "2026-04-14"],
-                   "shift": ["05:30", "14:30"], "pickers": [2, 1], "breaks": [["08:30", "09:00"]]},
-        "move": {"kind": "order_move", "orders": {"list": "S5"}, "at": "2026-04-13 06:30",
+        "move": {"type": "order_move", "orders": {"list": "S5"}, "at": "2026-04-13 06:30",
                  "due": "2026-04-13 10:00"},
-        "extra": {"kind": "order_injection", "template": "S3", "copies": 2, "first_id": 900,
+        "extra": {"type": "order_injection", "template": "S3", "copies": 2, "first_id": 900,
                   "at": "2026-04-13 08:30", "due": "2026-04-13 10:00"},
-        "times": {"kind": "process_times", "fit": "fit.json", "seed": 3, "first_setup_s": 215},
-    }
-    source = ExogenousSource(_source(data), rules, data)
+    })
     domain = source.initial_state()
     events = list(source.events())
     assert [e.time for e in events] == sorted(e.time for e in events)
@@ -83,10 +89,9 @@ def test_rules_move_inject_set_due_dates_and_roster_in_their_phases(data):
     assert arrivals[900].time == arrivals[901].time == 8.5 * H
     assert len(arrivals[900].order.order_positions) == 2
     assert 20 in {a.article_id for a in domain.articles.articles}
-    # Slots: the remaining orders get their store's slot minus staging on their day.
+    # Due dates: the remaining orders get their store's slot minus staging on their day.
     due = {i: e.order.due_date for i, e in arrivals.items()}
-    hours = [10, 12, 14, 16]
-    assert due[4] == 24 * H + hours[slot("east", 4)] * H - 1800
+    assert due[4] == 24 * H + HOURS[store_slot("east", 4)] * H - 1800
     # The truck takes only the listed orders due later than 10:00.
     [truck] = [e for e in events if isinstance(e, TruckDisruption)]
     expected = [i for i in (1, 2) if due[i] > 10 * H]
@@ -104,13 +109,11 @@ def test_rules_move_inject_set_due_dates_and_roster_in_their_phases(data):
     # Times: the truth covers the injected orders; the pickers plan with the means.
     assert domain.truth.setup_s[0][0] == 215 and (900, 20, 4) in domain.truth.line_s
     assert domain.resources.resources[0].tour_setup_time == 200.0
+    assert domain.resources.resources[0].time_per_pick == 25.0
 
 
-def test_unknown_kinds_and_fields_are_refused():
-    with pytest.raises(ValueError, match="unknown kind"):
-        validate({"x": {"kind": "earthquake"}})
-    with pytest.raises(ValueError, match="lacks"):
-        validate({"x": {"kind": "roster", "days": []}})
-    with pytest.raises(ValueError, match="unknown"):
-        validate({"x": {"kind": "order_move", "orders": {"ids": [1]}, "at": "2026-04-13 06:00",
-                        "when": 1}})
+def test_an_unknown_disruption_and_a_leftover_exogenous_block_are_refused(data):
+    with pytest.raises(ValueError, match="type must be one of"):
+        _week(data, {"x": {"type": "earthquake"}})
+    with pytest.raises(ValueError, match="not a configuration key"):
+        check(OmegaConf.create({"source": {"name": "local"}, "exogenous": {}}))

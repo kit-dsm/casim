@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from casim.sources import wms_export as export
+from scripts.ijpe import wms_export as export
 from scripts.ijpe import audit
 
 

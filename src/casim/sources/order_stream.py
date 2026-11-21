@@ -7,14 +7,13 @@ one data set):
 
 - ``orders.csv``: ``order_id``, ``release`` (date and time, ``YYYY-MM-DD HH:MM[:SS]``),
   optionally ``due`` (same format); every further column is an attribute of
-  the order (for example ``customer``), readable by exogenous rules
-  (``casim.sources.exogenous``);
+  the order (for example ``customer``), in ``order_attributes``;
 - ``lines.csv``: ``order_id``, ``article``, ``quantity``, ``x``, ``y``: one row per
   order line in pick order, at the pick node (``x``, ``y``) of the layout;
 - the layout, a grid drawing read by ``casim.sources.grid_layout``;
 - optionally ``lists.csv`` (``list``, ``order_id``: named sets of orders) and
   ``templates/<name>.csv`` (``article``, ``quantity``, ``x``, ``y``: order lines
-  without an order), which exogenous rules use.
+  without an order), for a scenario source that adds orders.
 
 Further columns of ``lines.csv`` (for example the recorded picker and times
 of a replay) are left to whoever needs them.
@@ -24,8 +23,8 @@ Time is seconds from midnight of ``epoch``. Each order arrives at its release
 state holds layout, storage (every article at the nodes its lines name),
 articles and ``pickers`` identical pickers, and no order: nothing is known
 before it arrives. Pickers are present only through presence events, for
-example an exogenous ``roster``. The planner information ``recorded_plan``
-holds one tour per order with its lines at their nodes, so that the item
+example a roster that a scenario's source adds. The planner information
+``recorded_plan`` holds one tour per order with its lines at their nodes, so that the item
 assignment takes each line where the data says it is picked (picker -1: no
 recorded picker).
 """
@@ -72,7 +71,7 @@ class OrderStreamSource:
                  layout: str = "layout.csv"):
         """``pickers``: ``count``, ``speed`` (layout units per second),
         ``time_per_pick`` and ``tour_setup_time`` (seconds; the pickers' time model,
-        which an exogenous ``process_times`` may replace)."""
+        which a scenario's source may replace)."""
         self.data_dir = (Path(data_dir) / tables).resolve()
         self.epoch = pd.Timestamp(epoch)
         self.layout, _ = GridLayout().build(self.data_dir / layout)
