@@ -2,7 +2,7 @@
 # Scenario 3 (plan P2.1): a new store's urgent replenishment on Wednesday. At
 # 08:30 one order of the target volume (the mail's 6 TE x 0.20), drawn by the
 # order generator G3, arrives and is due at 09:30 (10:00 departure, staging).
-# Sweep: source.disruptions.scenario3.template=S3_v<V>_<fixed|rNN>.
+# Full volume: source.disruptions.scenario3.template=S3_v5_fixed.
 source:
   disruptions:
     scenario3:

@@ -3,7 +3,7 @@
 # At 07:30, whole stores of the 14:00 slot ("13:00") totalling the target (the
 # mail's 120 TE x 0.20, filled largest first; lists of scripts/ijpe/disruptions.py)
 # must be staged by 09:30, the 10:00 departure minus 30 minutes of staging.
-# Sweep: source.disruptions.scenario1.orders.list=S1_v<V>_<fixed|rNN>.
+# Full volume: source.disruptions.scenario1.orders.list=S1_v5_fixed.
 source:
   disruptions:
     scenario1:

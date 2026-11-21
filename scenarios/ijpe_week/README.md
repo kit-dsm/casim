@@ -35,13 +35,14 @@ Parameters under `source` in `scenario.yaml`, produced by `source.py`:
 Variants add the disruptions of plan P2.1 (`docs/ijpe/scenarios.md`) under
 `source.disruptions`, each with a `type` (`due_change`, `order_move`,
 `order_injection`; `source.py` describes them). Each
-moves or adds a volume: the TE the partner's mail names times 0.20, the area's
-share of the warehouse's volume, in TE of 0.445 m³ of goods (`volume` of the
-canonical lines). `python -m scripts.ijpe.disruptions` writes the selections
-into the canonical folder: whole stores of the original departure's slot,
-largest first (`*_v1_fixed`) and one random selection per replication within
-15 % of the target (`*_v1_r00`, ...), for V = 0.5 to 4 times the target
-(`*_v<V>_*`); Scenario 3's order comes from the order generator G3. Every
+moves or adds a volume at two points: the TE the partner's mail names times
+0.20, an assumed share of the area in the warehouse's volume (`*_v1_fixed`,
+realistic), and the mail's full TE all in the area (`*_v5_fixed`, worst case),
+in TE of 0.445 m³ of goods (`volume` of the canonical lines).
+`python -m scripts.ijpe.disruptions` writes the selections into the canonical
+folder: whole stores of the original departure's slot, largest first; a slot
+holding less than the target is taken whole (Scenario 4 at full volume).
+Scenario 3's order comes from the order generator G3. Every
 scenario deadline is the departure minus the 30 minutes of staging.
 
 | Variant | Rule |
@@ -53,11 +54,12 @@ scenario deadline is the departure minus the 30 minutes of staging.
 | `scenario4` | Thursday's stores of the 10:00 slot, 40 TE, arrive on Wednesday 06:30, due 09:30 (`order_move`); next-day picking ahead is not in the export |
 | `scenario2_4` | both (P4.4); the two selections share no order |
 
-A sweep overrides the selection:
-`source.disruptions.scenario2.orders.list=S2_v2_r03`,
-`source.disruptions.scenario3.template=S3_v4_fixed`. The selections are targets; the
-achieved TE of each list is printed by the script (the fixed rule overshoots
-small targets, for example +21 % for Scenario 2 at V = 1).
+The full volume overrides the selection:
+`source.disruptions.scenario2.orders.list=S2_v5_fixed`,
+`source.disruptions.scenario3.template=S3_v5_fixed`. The selections are targets; the
+achieved TE of each list is printed by the script (whole stores overshoot
+small targets, for example +21 % for Scenario 2 at V = 1; Scenario 4 at full
+volume is the whole 10:00 slot, 24 % short).
 
 ## Decisions
 

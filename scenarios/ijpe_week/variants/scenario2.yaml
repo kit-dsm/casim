@@ -3,7 +3,7 @@
 # the 14:00 slot ("13:00") totalling the target (the mail's 100 TE x 0.20) leave at
 # 11:00, so their goods are due at 10:30; the request comes at 09:30, one hour
 # before (scenario2_short: at 10:30, the submitted timing).
-# Sweep: source.disruptions.scenario2.orders.list=S2_v<V>_<fixed|rNN>,
+# Full volume: source.disruptions.scenario2.orders.list=S2_v5_fixed,
 # source.disruptions.scenario2.at=...
 source:
   disruptions:

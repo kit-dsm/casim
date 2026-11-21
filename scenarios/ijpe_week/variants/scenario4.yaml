@@ -4,7 +4,7 @@
 # they arrive at 06:30 and are due at 09:30; Thursday has them no more.
 # The week releases orders on their own day; whether the warehouse already
 # picks next-day volume ahead is not in the export (docs/ijpe/status.md).
-# Sweep: source.disruptions.scenario4.orders.list=S4_v<V>_<fixed|rNN>.
+# Full volume: source.disruptions.scenario4.orders.list=S4_v5_fixed.
 source:
   disruptions:
     scenario4:

@@ -2,6 +2,26 @@
 
 Plan: `docs/ijpe/plan.md`. Newest entry first.
 
+## 2026-11-21: P2.1 at the two volumes of the lean design
+
+**Done.** `scripts/ijpe/disruptions.py` writes one selection per scenario
+and volume, largest stores first: V = 1 (`*_v1_fixed`, the mail's TE × 0.20)
+and V = 5 (`*_v5_fixed`, the mail's full TE all in the area). The random
+selections are dropped (plan P4.2). The V = 1 lists are unchanged; S3's V = 1
+order is a new draw (25 lines, −2 % of the target), because the random draws
+no longer come before it.
+
+**Targets against achieved TE.** S1 24 / +12 % and 120 / +1 %; S2 20 / +21 % and
+100 / +1 %; S4 40 / +12 % and 200 / −24 %; S3 1.2 / −2 % and 6 / +2 % (one
+order of 82 lines). At full volume Thursday's 10:00 slot holds 152 TE, so S4
+takes the whole slot (45 stores, 72 orders) and reports the shortfall.
+
+**Check.** One run of S4 at full volume (seed 0, EDD; deadlines still under
+discussion): none of the 72 moved orders is late, while late orders over the
+week rise from 136 to 220. `tests/verification/test_ijpe_week_variants.py`: 9
+pass. `casim run` on the week fails after C13 (`No module named 'scenarios'`);
+`python -m casim run` works; reported to the due-dates session.
+
 ## 2026-11-21: P1.7, credibility profile and validity envelope
 
 **Done.** `docs/ijpe/credibility.md` holds the profile table (10 components

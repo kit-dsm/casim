@@ -13,7 +13,7 @@ from omegaconf import OmegaConf
 from casim.events.operational_events import OrderArrival, OrderStreamClosed, TruckDisruption
 from casim.run import compose_scenario
 from casim.sources.base import build_source
-from scripts.ijpe.disruptions import AREA_SHARE, S3, STORE_SCENARIOS, TE_M3, slot_hour
+from scripts.ijpe.disruptions import AREA_SHARE, S3, STORE_SCENARIOS, TE_M3, VOLUMES, slot_hour
 
 ROOT = Path(__file__).resolve().parents[2]
 WEEK = ROOT / "scenarios" / "ijpe_week"
@@ -112,13 +112,19 @@ def test_scenarios_two_and_four_combine_without_a_shared_order():
 
 
 @pytest.mark.parametrize("scenario", sorted(STORE_SCENARIOS))
-def test_random_selections_meet_the_target_within_fifteen_percent(scenario):
+def test_both_volumes_are_filled_to_the_target_or_take_the_whole_slot(scenario):
+    """V = 1 and V = 5 (the mail's full TE) lie within 25 % of the target; a slot
+    that holds less than the target is taken whole (S4 at V = 5)."""
     day, _, mail = STORE_SCENARIOS[scenario]
     lists = pd.read_csv(TABLES / "lists.csv")
     volume = pd.read_csv(TABLES / "lines.csv").groupby("order_id")["volume"].sum() / TE_M3
-    for v in (0.5, 1, 2):
-        names = [n for n in lists["list"].unique() if n.startswith(f"{scenario}_v{v:g}_r")]
-        assert names
-        for name in names:
-            te = volume[lists.loc[lists["list"] == name, "order_id"]].sum()
-            assert abs(te / (v * mail * AREA_SHARE) - 1) <= 0.15, name
+    for v in VOLUMES:
+        ids = lists.loc[lists["list"] == f"{scenario}_v{v:g}_fixed", "order_id"]
+        te, target = volume[ids].sum(), v * mail * AREA_SHARE
+        if te < target:
+            _whole_stores_of_the_slot(ids, scenario)
+            orders = _orders()
+            today = orders[orders["day"] == day]
+            slot = today[slot_hour(today["customer"]) == STORE_SCENARIOS[scenario][1]]
+            assert set(ids) == set(slot["order_id"])
+        assert abs(te / target - 1) <= 0.25, (scenario, v)
